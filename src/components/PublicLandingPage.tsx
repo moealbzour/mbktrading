@@ -27,6 +27,7 @@ import { TerminalPreview } from './TerminalPreview';
 import { VerifiedTrackRecord } from './VerifiedTrackRecord';
 import { InteractiveGlowCard } from './InteractiveGlowCard';
 import { MobileBottomNav, MobileTab } from './MobileBottomNav';
+import { HeaderTicker } from './layout/HeaderTicker';
 import { soundManager } from '../utils/audio';
 
 interface Props {
@@ -149,47 +150,8 @@ export const PublicLandingPage: React.FC<Props> = ({
         </div>
       </motion.header>
 
-      {/* INFINITE TICKER MARQUEE: US100, XAUUSD, EURUSD, BTCUSD, WTI, GBPUSD */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5, delay: 0.15 }}
-        className="border-b border-slate-800/80 bg-[#070b12] py-2 px-4 overflow-hidden relative"
-      >
-        <div className="flex items-center">
-          <div className="flex items-center gap-2 text-cyan-400 font-bold shrink-0 pl-4 border-l border-slate-800 z-10 bg-[#070b12]">
-            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
-            <span className="font-sans text-xs whitespace-nowrap">الأسواق المباشرة:</span>
-          </div>
-
-          {/* Infinite Marquee Track with hover pause */}
-          <div className="overflow-hidden w-full relative flex">
-            <div className="animate-marquee-smooth flex items-center gap-8 py-0.5">
-              {[...tickers, ...tickers, ...tickers].map((t, idx) => (
-                <div key={`${t.symbol}-${idx}`} className="flex items-center gap-2 shrink-0">
-                  <span className="text-slate-300 font-bold font-mono">{t.symbol}</span>
-                  <span className="text-slate-100 tabular-nums font-semibold">
-                    {t.price.toLocaleString(undefined, { minimumFractionDigits: t.digits })}
-                  </span>
-                  <span
-                    className={`flex items-center text-[10px] px-1 rounded font-mono ${
-                      t.isUp ? 'text-emerald-400 bg-emerald-500/10' : 'text-rose-400 bg-rose-500/10'
-                    }`}
-                  >
-                    {t.isUp ? '+' : ''}
-                    {t.changePercent}%
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="hidden xl:flex items-center gap-2 text-slate-400 shrink-0 text-xs font-sans pr-4 border-r border-slate-800 z-10 bg-[#070b12]">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span className="whitespace-nowrap">Equinix LD4 (0.9ms)</span>
-          </div>
-        </div>
-      </motion.div>
+      {/* OFFICIAL TRADINGVIEW REAL-TIME TICKER TAPE (Obsidian Charcoal + Gold) */}
+      <HeaderTicker />
 
       {/* 2. HERO SECTION WITH STAGGERED REVEAL & TERMINAL PREVIEW */}
       <section id="hero" className="relative pt-10 pb-16 lg:pt-16 lg:pb-24 overflow-hidden">

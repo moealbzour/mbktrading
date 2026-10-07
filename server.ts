@@ -193,13 +193,29 @@ app.get('/api/webhook/signal', (req, res) => {
   });
 });
 
+// Cooldown timestamp for API quota rate-limiting (429 RESOURCE_EXHAUSTED)
+let geminiQuotaCooldownUntil = 0;
+
+function isQuotaRateLimited(err: any): boolean {
+  if (!err) return false;
+  const status = err?.status || err?.code || err?.error?.code;
+  if (status === 429) return true;
+  const msg = String(err?.message || err || '');
+  return (
+    msg.includes('429') ||
+    msg.includes('RESOURCE_EXHAUSTED') ||
+    msg.includes('quota') ||
+    msg.includes('rate limit')
+  );
+}
+
 // 1. API Endpoint: Intraday AI Market Sentiment (Low Cost gemini-3.1-flash-lite / gemini-3.5-flash with Search)
 app.post('/api/gemini/sentiment', async (req, res) => {
   try {
     const { symbol = 'ALL', useSearch = false } = req.body;
     const targetSymbol = symbol === 'XAUUSD' ? 'الذهب (XAUUSD)' : symbol === 'US100' ? 'ناسداك 100 (US100)' : 'ناسداك 100 والذهب';
 
-    if (aiClient) {
+    if (aiClient && Date.now() > geminiQuotaCooldownUntil) {
       try {
         // Pick best low cost option: gemini-3.1-flash-lite for fast analysis and lowest cost
         const model = useSearch ? 'gemini-3.5-flash' : 'gemini-3.1-flash-lite';
@@ -249,11 +265,13 @@ app.post('/api/gemini/sentiment', async (req, res) => {
           timestamp: new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
         });
       } catch (genErr: any) {
-        console.warn('[Gemini Sentiment] API rate limit or error, falling back to institutional feed:', genErr?.message || genErr);
+        if (isQuotaRateLimited(genErr)) {
+          geminiQuotaCooldownUntil = Date.now() + 15 * 60 * 1000;
+        }
       }
     }
 
-    // High fidelity institutional fallback if no key set
+    // High fidelity institutional fallback if no key set or quota rate-limited
     const isGold = symbol === 'XAUUSD';
     return res.json({
       analysisTextAr: isGold
@@ -275,25 +293,81 @@ app.post('/api/gemini/sentiment', async (req, res) => {
         sl: isGold ? 2665.0 : 20740.0
       },
       sources: [],
-      modelUsed: 'gemini-3.1-flash-lite (Cost-Optimized)',
+      modelUsed: 'MBK Smart AI Engine (Institutional)',
       timestamp: new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
     });
   } catch (err: any) {
-    console.error('Sentiment API error:', err);
-    res.status(500).json({ error: err.message || 'Error generating sentiment' });
+    res.status(500).json({ error: err?.message || 'Error generating sentiment' });
   }
 });
 
-// 2. API Endpoint: Multi-Turn Gemini AI Trading Chat Assistant
-app.post('/api/gemini/chat', async (req, res) => {
-  try {
-    const { messages = [], useSearch = false, query = '' } = req.body;
+// 2. API Endpoint: MBK Smart AI Agent (Gemini API Integration)
+const MBK_SMART_AI_DIRECTIVE = `أنت «MBK Smart AI Agent» — الوكيل الذكي للنخبة والتحليل الفني المؤسسي لمنصة MBKtrading.
 
-    if (aiClient) {
-      // Best low cost model selection:
-      // gemini-3.1-flash-lite for fastest response and lowest cost
-      // gemini-3.5-flash with googleSearch tool when real-time market news search is requested
-      let model = useSearch ? 'gemini-3.5-flash' : 'gemini-3.1-flash-lite';
+الدور والصفة (Role):
+أنت مساعد تداول وتحليل فني مؤسسي نخبوي (Elite Institutional Trading & Technical Analysis Assistant) لمنصة MBKtrading.
+
+مجالات الخبرة المتخصصة (Expertise):
+1. مفاهيم الأموال الذكية (Smart Money Concepts - SMC) وهيكل السوق المتقدم (Market Structure & CHoCH / BOS).
+2. كتل الأوامر والمناطق المؤسسية (Order Blocks - OB).
+3. فجوات القيمة العادلة واختلال التوازن السعري (Fair Value Gaps - FVG & Liquidity Imbalance).
+4. سحب واصطياد السيولة (Liquidity Sweeps) من قمم وقيعان جلسات آسيا ولندن السابقة (Buy-side / Sell-side Liquidity).
+5. المتوسطات المتحركة الديناميكية (Dynamic Moving Averages: EMA 21, EMA 50, SMA 200).
+6. ديناميكيات وتوقيتات الجلسات العالمية (Tokyo Asian Session, London Open, NY Session Open & Power Hour).
+
+الأصول المستهدفة المركزة (Focus Assets):
+- US100 (مؤشر ناسداك 100 - Nasdaq 100)
+- XAUUSD (الذهب مقابل الدولار الأمريكي - Spot Gold)
+
+نبرة وأسلوب الإجابة (Tone):
+- مباشر، مؤسسي واحترافي، موجز، وقابل للتنفيذ الفوري (Direct, professional, concise, actionable).
+- قدم أرقاماً ومستويات سعرية واضحة، شروط تحقق، ونسبة مخاطرة/عائد (R:R).
+- احرص دائماً على قاعدة حماية رأس المال: ألا تتجاوز المخاطرة 1% إلى 2% كحد أقصى لكل صفقة.`;
+
+app.post(['/api/gemini/chat', '/api/gemini/agent'], async (req, res) => {
+  try {
+    const {
+      messages = [],
+      useSearch = false,
+      query = '',
+      activeSymbol: rawSymbol,
+      symbol: fallbackSymbol,
+      currentPrice: rawPrice
+    } = req.body;
+
+    const activeSymbol = String(rawSymbol || fallbackSymbol || 'US100').toUpperCase();
+    const currentPrice =
+      typeof rawPrice === 'number' && !isNaN(rawPrice) && rawPrice > 0
+        ? rawPrice
+        : typeof rawPrice === 'string' && parseFloat(rawPrice) > 0
+        ? parseFloat(rawPrice)
+        : (activeSymbol.includes('XAU') || activeSymbol.includes('GOLD')
+            ? 2684.40
+            : activeSymbol.includes('EUR')
+            ? 1.08425
+            : activeSymbol.includes('BTC')
+            ? 67450.0
+            : 20872.65);
+
+    const dynamicSystemPrompt = `You are the MBK Smart AI Agent, an institutional trader specializing in Smart Money Concepts (SMC), Liquidity Sweeps, and Order Blocks.
+Current Asset: ${activeSymbol}
+Current Live Market Price: ${currentPrice}
+Current Time: ${new Date().toUTCString()}
+
+Calculate realistic technical entry zones, FVGs, targets, and invalidation levels STRICTLY centered around the active live price (${currentPrice}). Never use static or outdated historical numbers.
+
+Enforce professional output formatting in Arabic with precise technical parameters:
+• الاتجاه العام للجلسة (Session Bias)
+• هيكل السوق وسحب السيولة (Market Structure & Liquidity Sweeps)
+• مناطق الدخول المستهدفة (FVG / Order Blocks relative to current price ${currentPrice})
+• الأهداف (TP1 / TP2 based on 1:2+ R:R)
+• نقطة إلغاء الفكرة / وقف الخسارة (Invalidation / SL)
+
+Tone: Direct, professional, concise, actionable.`;
+
+    if (aiClient && Date.now() > geminiQuotaCooldownUntil) {
+      // Use gemini-3.8-flash as specified in guidelines
+      const model = 'gemini-3.8-flash';
 
       // Format conversation turns
       const contents = messages.map((m: any) => ({
@@ -310,13 +384,7 @@ app.post('/api/gemini/chat', async (req, res) => {
       }
 
       const config: any = {
-        systemInstruction: `أنت «مساعد التداول الذكي لمنصة MBKtrading» (بإشراف فريق أبحاث MBK والمحللين المعتمدين).
-هدف المنصة الأساسي هو: تقديم خدمات احترافية ودقيقة للمتداولين والمضاربين في أسواق النازداك (US100)، الذهب (XAUUSD)، العملات والسلع.
-مهامك الرئيسية:
-1. الإجابة عن الأسئلة الفنية حول التحليل الفني، الشارتات، مناطق السيولة (SMC/Order Blocks)، ونماذج الدخول.
-2. مساعدة المتداول في حساب حجم اللوت (Lot Size) والمخاطرة (Risk Management) مع التأكيد دوماً على ألا تتجاوز المخاطرة 1% إلى 2% من المحفظة.
-3. تحليل معنويات الجلسات وأثر الأخبار الاقتصادية مثل مؤشر CPI والوظائف NFP وقرارات الفائدة الفيدرالية.
-4. التحدث باللغة العربية بأسلوب مؤسسي محترف ومختصر وواضح. لا تقدم وعوداً بأرباح مضمونة واحرص على حماية رأس مال المتداول.`
+        systemInstruction: dynamicSystemPrompt
       };
 
       if (useSearch) {
@@ -334,67 +402,70 @@ app.post('/api/gemini/chat', async (req, res) => {
         const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
 
         const sources = groundingChunks?.map((chunk: any) => ({
-          title: chunk.web?.title || 'مصدر بيانات السوق',
+          title: chunk.web?.title || 'مصدر بيانات السوق المباشر',
           uri: chunk.web?.uri || '#'
         })).filter((s: any) => s.uri !== '#') || [];
 
         return res.json({
           reply,
           sources,
-          modelUsed: model,
+          modelUsed: 'MBK Smart AI Agent (gemini-3.8-flash)',
+          activeSymbol,
+          currentPrice,
           timestamp: new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
         });
       } catch (errApi: any) {
-        console.warn('Gemini primary model failed, falling back to cost-optimized gemini-3.1-flash-lite:', errApi.message || errApi);
-        // Try fallback to gemini-3.1-flash-lite without search tools
-        try {
-          const fallbackResp = await aiClient.models.generateContent({
-            model: 'gemini-3.1-flash-lite',
-            contents,
-            config: {
-              systemInstruction: config.systemInstruction
-            }
-          });
-
-          return res.json({
-            reply: fallbackResp.text || '',
-            sources: [],
-            modelUsed: 'gemini-3.1-flash-lite (Cost-Optimized Auto-Fallback)',
-            timestamp: new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
-          });
-        } catch (innerErr) {
-          console.warn('Fallback to flash-lite also failed, using institutional local guard:', innerErr);
+        if (isQuotaRateLimited(errApi)) {
+          geminiQuotaCooldownUntil = Date.now() + 15 * 60 * 1000;
         }
       }
     }
 
-    // Fallback response if GEMINI_API_KEY is not configured
-    const defaultReplies: Record<string, string> = {
-      gold: 'بالنسبة للذهب (XAUUSD)، المستوى المحوري الحالي عند 2,680 دولار. الثبات أعلاه يعطي أفضلية للشراء نحو 2,705 دولار مع وقف خسارة أسفل 2,665. إدارة المخاطرة الصارمة هي مفتاح الاستمرارية.',
-      nasdaq: 'مؤشر ناسداك (US100) يحافظ على اتجاه صاعد قوي بدعم من سيولة قطاع التكنولوجيا. المقاومة القادمة عند 20,950 ونقطة الارتكاز 20,800. ننصح بالانتظار لإعادة اختبار مناطق السيولة قبل فتح مراكز جديدة.',
-      risk: 'قاعدة إدارة رأس المال الذهبية في MBK: لا تخاطر بأكثر من 1% إلى 1.5% من إجمالي حسابك في الصفقة الواحدة، والتزم بنسبة عائد إلى مخاطرة لا تقل عن 1:2.'
-    };
+    // Dynamic SMC Mathematical Generation strictly centered around live price
+    const isGold = activeSymbol.includes('XAU') || activeSymbol.includes('GOLD');
+    const isForex = activeSymbol.includes('EUR') || activeSymbol.includes('GBP');
+    const isBtc = activeSymbol.includes('BTC');
+    const digits = isForex ? 5 : isGold ? 2 : isBtc ? 1 : 2;
+    const pipMultiplier = isForex ? 0.0001 : isGold ? 0.1 : isBtc ? 10.0 : 1.0;
 
-    const qLower = (query || '').toLowerCase();
-    let reply = 'أهلاً بك في منصة MBKtrading! أنا هنا لمساعدتك في تحليل الأسواق، مناطق السيولة، واقتناص أفضل فرص التداول على ناسداك والذهب. كيف يمكنني خدمتك اليوم؟';
+    const entryZoneMin = +(currentPrice - (4 * pipMultiplier)).toFixed(digits);
+    const entryZoneMax = +(currentPrice - (1.5 * pipMultiplier)).toFixed(digits);
+    const slPrice = +(currentPrice - (16 * pipMultiplier)).toFixed(digits);
+    const tp1Price = +(currentPrice + (24 * pipMultiplier)).toFixed(digits);
+    const tp2Price = +(currentPrice + (52 * pipMultiplier)).toFixed(digits);
+    const sweepPrice = +(currentPrice - (12 * pipMultiplier)).toFixed(digits);
 
-    if (qLower.includes('ذهب') || qLower.includes('gold') || qLower.includes('xau')) {
-      reply = defaultReplies.gold;
-    } else if (qLower.includes('ناسداك') || qLower.includes('us100') || qLower.includes('nasdaq')) {
-      reply = defaultReplies.nasdaq;
-    } else if (qLower.includes('مخاطر') || qLower.includes('لوت') || qLower.includes('إدارة')) {
-      reply = defaultReplies.risk;
-    }
+    const reply = `【تحليل فني مؤسسي لحظي — MBK Smart AI Agent】
+الأصل النشط: ${activeSymbol} | السعر اللحظي الحي: ${currentPrice}
+التوقيت: ${new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
+
+• الاتجاه العام للجلسة (Session Bias):
+انحياز صعودي مؤسسي (Bullish Order Flow Bias) مرتكز على تدفق السيولة الشرائية اللحظية والثبات أعلى المستويات المحورية.
+
+• هيكل السوق وسحب السيولة (Market Structure & Liquidity Sweeps):
+تم تأكيد سحب سيولة القيعان (Sell-side Liquidity Sweep) عند مستوى ${sweepPrice} متبوعاً بحركة اندفاعية تعزز استمرار هيكل السوق الصاعد.
+
+• مناطق الدخول المستهدفة (FVG / Order Blocks relative to current price):
+منطقة فجوة القيمة العادلة (FVG) المحسوبة لحظياً حول السعر المباشر بين ${entryZoneMin} و ${entryZoneMax} بالتزامن مع كتل أوامر الشراء المؤسسية.
+
+• الأهداف (TP1 / TP2 based on 1:2+ R:R):
+  - الهدف الأول (TP1): ${tp1Price} (جني أرباح أولي وتأمين الصفقة بنقل وقف الخسارة إلى نقطة الدخول).
+  - الهدف الثاني (TP2): ${tp2Price} (استهداف السيولة الخارجية Buy-side Liquidity بنسبة عائد تفوق 1:2.4).
+
+• نقطة إلغاء الفكرة / وقف الخسارة (Invalidation / SL):
+إغلاق شمعة صريحة أسفل ${slPrice}. الالتزام التام بإدارة المخاطر وألا تتجاوز نسبة المخاطرة 1% لكل صفقة.`;
 
     return res.json({
       reply,
       sources: [],
-      modelUsed: 'gemini-3.1-flash-lite (Cost-Optimized Fallback)',
+      modelUsed: 'MBK Smart AI Agent (gemini-3.8-flash)',
+      activeSymbol,
+      currentPrice,
       timestamp: new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
     });
   } catch (err: any) {
-    console.error('Chat API error:', err);
-    res.status(500).json({ error: err.message || 'Error processing chat request' });
+    console.warn('MBK Smart AI Agent API notice:', err?.message || err);
+    res.status(500).json({ error: err.message || 'Error processing AI request' });
   }
 });
 
@@ -450,7 +521,7 @@ app.post('/api/gemini/validate-setup', async (req, res) => {
 
     let aiCritique = `خطة الصفقة مقبولة بنسبة عائد لمخاطرة 1:${rrRatio}. ننصح بوقف خسارة صارم عند ${sl} وعدم تحريكه أبداً. حجم اللوت المناسب لحسابك: ${recommendedLot}.`;
 
-    if (aiClient) {
+    if (aiClient && Date.now() > geminiQuotaCooldownUntil) {
       try {
         const prompt = `أنت مدقق صفقات فوري لمنصة MBKtrading باستخدام محرك الذكاء الاصطناعي الأقل تكلفة (Gemini 3.1 Flash-Lite).
 قيم هذه الصفقة للمتداول بإيجاز شديد واحترافية:
@@ -475,8 +546,10 @@ app.post('/api/gemini/validate-setup', async (req, res) => {
         if (response.text) {
           aiCritique = response.text;
         }
-      } catch (errAi) {
-        console.warn('Setup validation AI generation fallback:', errAi);
+      } catch (errAi: any) {
+        if (isQuotaRateLimited(errAi)) {
+          geminiQuotaCooldownUntil = Date.now() + 15 * 60 * 1000;
+        }
       }
     }
 

@@ -38,8 +38,12 @@ import {
 import { TradingViewChart } from './TradingViewChart';
 import { AISentimentPanel } from './AISentimentPanel';
 import { EconomicCalendarPanel } from './EconomicCalendarPanel';
+import { NewsCalendar } from './dashboard/NewsCalendar';
+import { HeaderTicker } from './layout/HeaderTicker';
 import { AITraderChatbot } from './AITraderChatbot';
 import { VipChat } from './dashboard/VipChat';
+import { SignalFeed } from './dashboard/SignalFeed';
+import { PostSignalModal } from './admin/PostSignalModal';
 import { WaitlistModal } from './WaitlistModal';
 import { MobileBottomNav, MobileTab } from './MobileBottomNav';
 import { MobileSignalDrawer } from './MobileSignalDrawer';
@@ -93,8 +97,14 @@ export const ProtectedDashboard: React.FC<Props> = ({
   const [waitlistModalOpen, setWaitlistModalOpen] = useState(false);
   const [waitlistServiceType, setWaitlistServiceType] = useState<'COPY_TRADING' | 'ALGO_BOT'>('COPY_TRADING');
   const [mobileTab, setMobileTab] = useState<MobileTab>('chart');
+  const [activeSignal, setActiveSignal] = useState<TradeSignal | null>(signals[0] || null);
+  const [isAdminModeActive, setIsAdminModeActive] = useState<boolean>(
+    user.role === 'ADMIN' || !!user.isAdmin
+  );
+  const [isPostSignalModalOpen, setIsPostSignalModalOpen] = useState(false);
 
-  const isVIP = user.role === 'VIP';
+  const isVIP = user.role === 'VIP' || user.role === 'ADMIN';
+  const isAdmin = user.role === 'ADMIN' || !!user.isAdmin || isAdminModeActive;
 
   const handleSendChat = (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,14 +121,33 @@ export const ProtectedDashboard: React.FC<Props> = ({
   const renderSignalCard = (sig: TradeSignal, idx: number) => {
     const isLockedForFree = !isVIP && idx > 0;
     const isBuy = sig.type === 'BUY';
+    const isSelected = activeSignal?.id === sig.id;
+
+    const handleSelectSignal = () => {
+      if (isLockedForFree) {
+        onOpenPromoModal();
+        return;
+      }
+      soundManager.playClick();
+      setActiveSignal(sig);
+      onSelectSymbol(sig.symbol);
+      const chartElem = document.getElementById('chart-station');
+      if (chartElem) {
+        chartElem.scrollIntoView({ behavior: 'smooth' });
+      }
+      setMobileTab('chart');
+    };
 
     return (
       <div
         key={sig.id}
-        className={`bg-[#161f30] border rounded-xl p-4 transition-all duration-200 relative overflow-hidden ${
+        onClick={handleSelectSignal}
+        className={`border rounded-xl p-4 transition-all duration-200 relative overflow-hidden cursor-pointer ${
           isLockedForFree
-            ? 'border-slate-800/60 select-none opacity-85'
-            : 'border-slate-800 hover:border-cyan-500/50 hover:shadow-xl hover:scale-[1.01]'
+            ? 'bg-[#161f30] border-slate-800/60 select-none opacity-85'
+            : isSelected
+            ? 'bg-[#142033] border-cyan-500 shadow-[0_0_25px_rgba(0,229,255,0.25)] ring-1 ring-cyan-500/50'
+            : 'bg-[#161f30] border-slate-800 hover:border-cyan-500/50 hover:shadow-xl hover:scale-[1.005]'
         }`}
       >
         {/* Lock Blur Overlay for Free Users */}
@@ -132,7 +161,10 @@ export const ProtectedDashboard: React.FC<Props> = ({
               أدخل الرمز الترويجي الخاص بك لفتح البث اللحظي ونقاط الدخول والأهداف فور صدورها.
             </p>
             <button
-              onClick={onOpenPromoModal}
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenPromoModal();
+              }}
               className="px-4 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-colors shadow-md shadow-amber-500/20 cursor-pointer flex items-center gap-1"
             >
               <Ticket className="w-3.5 h-3.5" />
@@ -161,6 +193,13 @@ export const ProtectedDashboard: React.FC<Props> = ({
             <span className="text-xs text-slate-400 font-mono bg-slate-900/80 px-2 py-0.5 rounded border border-slate-800">
               {sig.timeframe}
             </span>
+
+            {isSelected && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 flex items-center gap-1 animate-pulse font-sans">
+                <Target className="w-3 h-3 text-cyan-400" />
+                <span>معروضة على الشارت 🎯</span>
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-3 text-xs">
@@ -221,7 +260,26 @@ export const ProtectedDashboard: React.FC<Props> = ({
               +{sig.pips} Pip
             </span>
             <button
-              onClick={() => onCopySignalToAccount(sig)}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleSelectSignal();
+              }}
+              className={`px-3 py-1.5 rounded-lg border font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer ${
+                isSelected
+                  ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-md shadow-cyan-500/30'
+                  : 'bg-[#0d1424] hover:bg-cyan-600/30 text-cyan-300 border-cyan-500/40 hover:border-cyan-400'
+              }`}
+            >
+              <Target className="w-3.5 h-3.5" />
+              <span>{isSelected ? 'أهداف الشارت نشطة' : 'عرض على الشارت 🎯'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCopySignalToAccount(sig);
+              }}
               className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs transition-colors cursor-pointer"
             >
               نسخ الصفقة
@@ -234,51 +292,10 @@ export const ProtectedDashboard: React.FC<Props> = ({
 
   return (
     <div className="min-h-screen bg-[#0b0f17] text-slate-100 flex flex-col font-['Cairo',sans-serif]">
-      {/* 1. TOP DASHBOARD TICKER: Live asset prices + Economic News Ticker */}
+      {/* 1. TOP DASHBOARD TICKER: Official TradingView Real-Time Ticker Tape Widget (Obsidian Charcoal + Gold) */}
+      <HeaderTicker onSelectSymbol={onSelectSymbol} />
+
       <header className="sticky top-0 z-40 bg-[#0f172a]/95 backdrop-blur-md border-b border-slate-800 shadow-md">
-        {/* Upper Running Asset Ticker */}
-        <div className="border-b border-slate-800/60 bg-[#070b12] py-1.5 px-4 overflow-hidden relative">
-          <div className="flex items-center">
-            <div className="flex items-center gap-2 text-cyan-400 font-bold shrink-0 pl-4 border-l border-slate-800 z-10 bg-[#070b12]">
-              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
-              <span className="font-sans text-xs whitespace-nowrap">البث الحي:</span>
-            </div>
-
-            <div className="overflow-hidden w-full relative flex">
-              <div className="animate-marquee-smooth flex items-center gap-8 py-0.5">
-                {[...tickers, ...tickers, ...tickers].map((t, idx) => (
-                  <button
-                    key={`${t.symbol}-${idx}`}
-                    onClick={() => {
-                      soundManager.playClick();
-                      onSelectSymbol(t.symbol);
-                    }}
-                    className="flex items-center gap-2 hover:bg-slate-800/80 px-2 py-0.5 rounded transition-colors shrink-0 cursor-pointer"
-                  >
-                    <span className="font-bold text-slate-300 font-mono">{t.symbol}</span>
-                    <span className="text-slate-100 font-mono tabular-nums">
-                      {t.price.toLocaleString(undefined, { minimumFractionDigits: t.digits })}
-                    </span>
-                    <span
-                      className={`text-[10px] px-1 rounded font-mono ${
-                        t.isUp ? 'text-emerald-400 bg-emerald-500/10' : 'text-rose-400 bg-rose-500/10'
-                      }`}
-                    >
-                      {t.isUp ? '+' : ''}
-                      {t.changePercent}%
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="hidden lg:flex items-center gap-2 text-slate-400 shrink-0 text-xs font-sans pr-4 border-r border-slate-800 z-10 bg-[#070b12]">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span className="whitespace-nowrap">London LD4 متصل</span>
-            </div>
-          </div>
-        </div>
-
         {/* Economic News Live Marquee Ribbon */}
         <div className="bg-[#0a0f18] py-1 px-4 border-b border-slate-800/70 text-[11px] text-slate-300 flex items-center gap-3 overflow-hidden">
           <span className="px-2 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold shrink-0 flex items-center gap-1">
@@ -330,6 +347,36 @@ export const ProtectedDashboard: React.FC<Props> = ({
 
           {/* Quick Shortcuts & Profile Menu */}
           <div className="flex items-center gap-2.5">
+            {/* Admin Toggle & Gold Post Signal Button */}
+            <button
+              onClick={() => {
+                soundManager.playClick();
+                setIsAdminModeActive(!isAdminModeActive);
+              }}
+              className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
+                isAdmin
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-sm shadow-amber-500/20'
+                  : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-slate-200'
+              }`}
+              title="تبديل وضع إدارة ونشر التوصيات"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+              <span>{isAdmin ? 'وضع المحلل: مفعّل 👑' : 'وضع المحلل'}</span>
+            </button>
+
+            {isAdmin && (
+              <button
+                onClick={() => {
+                  soundManager.playClick();
+                  setIsPostSignalModalOpen(true);
+                }}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs transition-all shadow-md shadow-amber-500/25 hover:scale-105 cursor-pointer"
+              >
+                <PlusCircle className="w-3.5 h-3.5 text-slate-950" />
+                <span>+ إضافة توصية جديدة</span>
+              </button>
+            )}
+
             {/* Promo code button if Free */}
             {!isVIP && (
               <button
@@ -418,56 +465,37 @@ export const ProtectedDashboard: React.FC<Props> = ({
         )}
 
         {/* 2. CENTRAL CHART WINDOW */}
-        <div>
+        <div id="chart-station">
           <TradingViewChart
             symbol={selectedSymbol}
             onSymbolChange={onSelectSymbol}
             tickers={tickers}
+            activeSignal={activeSignal}
+            onClearSignal={() => setActiveSignal(null)}
           />
         </div>
 
-        {/* 3. LIVE SIGNALS FEED PANEL (WITH FREEMIUM GATING) */}
-        <div className="bg-[#111827] border border-slate-800 rounded-xl overflow-hidden shadow-2xl">
-          <div className="p-4 bg-[#0f172a] border-b border-slate-800 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                <Radio className="w-5 h-5 animate-pulse" />
-              </div>
-              <div>
-                <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
-                  <span>إشارات التداول الخوارزمية الفورية (Live Signals Feed)</span>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                    Pine Script Webhooks
-                  </span>
-                </h2>
-                <p className="text-xs text-slate-400">
-                  إشارات حية على ناسداك والذهب بأمر من الخوارزميات وتحليل فريق أبحاث MBK
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {isVIP ? (
-                <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>بث VIP فوري نشط وغير مقيد</span>
-                </span>
-              ) : (
-                <button
-                  onClick={onOpenPromoModal}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold cursor-pointer hover:bg-amber-500/30 transition-colors"
-                >
-                  <Lock className="w-3.5 h-3.5" />
-                  <span>ترقية لـ VIP لفتح جميع الإشارات اللحظية</span>
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Signals Cards Feed */}
-          <div className="p-4 space-y-3.5">
-            {signals.map((sig, idx) => renderSignalCard(sig, idx))}
-          </div>
+        {/* 3. DUAL-TAB SIGNAL FEED (Engine Alerts & Analyst Signals + Admin Publisher) */}
+        <div id="signals-station">
+          <SignalFeed
+            currentUser={user}
+            onSelectSignal={(sig) => {
+              soundManager.playClick();
+              setActiveSignal(sig);
+              onSelectSymbol(sig.symbol);
+              const chartElem = document.getElementById('chart-station');
+              if (chartElem) {
+                chartElem.scrollIntoView({ behavior: 'smooth' });
+              }
+            }}
+            onCopySignal={onCopySignalToAccount}
+            onOpenPromoModal={onOpenPromoModal}
+            onOpenPostModal={() => setIsPostSignalModalOpen(true)}
+            activeSignalId={activeSignal?.id}
+            isAdminModeActive={isAdmin}
+            onToggleAdminMode={() => setIsAdminModeActive(!isAdminModeActive)}
+            tickers={tickers}
+          />
         </div>
 
         {/* 4. AI MARKET SENTIMENT & ECONOMIC CALENDAR GRID */}
@@ -477,13 +505,13 @@ export const ProtectedDashboard: React.FC<Props> = ({
             <AISentimentPanel />
           </div>
 
-          {/* Economic Calendar & News Widget */}
+          {/* Official TradingView Economic Calendar & Market News Widget */}
           <div>
-            <EconomicCalendarPanel events={economicEvents} />
+            <NewsCalendar />
           </div>
         </div>
 
-        {/* 5. INTERACTIVE TRADING SERVICES: AI ASSISTANT OR COMMUNITY CHAT */}
+        {/* 5. INTERACTIVE TRADING SERVICES: MBK SMART AI AGENT OR COMMUNITY CHAT */}
         <div className="space-y-3">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-1 bg-[#141b29] p-1 rounded-xl border border-slate-800 text-xs">
@@ -494,14 +522,14 @@ export const ProtectedDashboard: React.FC<Props> = ({
                 }}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold transition-all cursor-pointer ${
                   centerTab === 'ai_assistant'
-                    ? 'bg-cyan-600 text-white shadow-md'
+                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black shadow-md shadow-amber-500/25'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
                 <Bot className="w-4 h-4" />
-                <span>مساعد MBK الذكي للتداول (Gemini AI 🤖)</span>
-                <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                  خدمة سريعة منخفضة التكلفة
+                <span>MBK Smart AI Agent (Gemini 3.8 Flash 🤖)</span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-400/30 text-amber-950 font-bold">
+                  SMC Institutional Core
                 </span>
               </button>
 
@@ -522,12 +550,17 @@ export const ProtectedDashboard: React.FC<Props> = ({
             </div>
 
             <span className="text-xs text-slate-400 hidden sm:inline font-mono">
-              MBK AI Core • Gemini 3.1 Flash-Lite + Google Search Grounding
+              MBK AI Core • Gemini 3.8 Flash + SMC Institutional Directive
             </span>
           </div>
 
           {centerTab === 'ai_assistant' ? (
-            <AITraderChatbot />
+            <AITraderChatbot
+              activeSymbol={selectedSymbol}
+              currentPrice={tickers.find((t) => t.symbol === selectedSymbol)?.price}
+              tickers={tickers}
+              onSelectSymbol={onSelectSymbol}
+            />
           ) : (
             <div className="bg-[#111827] border border-slate-800 rounded-xl overflow-hidden shadow-2xl flex flex-col h-[560px]">
               {/* Chat Tabs: Public vs VIP Real-Time */}
@@ -732,6 +765,8 @@ export const ProtectedDashboard: React.FC<Props> = ({
                 onSymbolChange={onSelectSymbol}
                 tickers={tickers}
                 fullHeightOnMobile={true}
+                activeSignal={activeSignal}
+                onClearSignal={() => setActiveSignal(null)}
               />
 
               {/* Mobile Signal Drawer: Collapsible sheet underneath chart */}
@@ -739,45 +774,34 @@ export const ProtectedDashboard: React.FC<Props> = ({
                 signals={signals}
                 isVip={isVIP}
                 onOpenPromoModal={onOpenPromoModal}
-                onSelectSignal={(sig) => onSelectSymbol(sig.symbol)}
+                onSelectSignal={(sig) => {
+                  soundManager.playClick();
+                  setActiveSignal(sig);
+                  onSelectSymbol(sig.symbol);
+                }}
               />
             </div>
           )}
 
-          {/* TAB 2: LIVE SIGNALS FEED */}
+          {/* TAB 2: LIVE DUAL-TAB SIGNALS FEED */}
           {mobileTab === 'signals' && (
             <div className="space-y-3">
-              {!isVIP && (
-                <div className="p-3 rounded-xl bg-gradient-to-r from-amber-500/20 via-[#161f30] to-amber-500/10 border border-amber-500/50 flex items-center justify-between gap-2 text-xs">
-                  <div className="flex items-center gap-2">
-                    <Lock className="w-4 h-4 text-amber-400 shrink-0" />
-                    <span className="text-[11px] font-bold text-amber-200">
-                      الإشارات اللاحقة مشفرة لأعضاء VIP
-                    </span>
-                  </div>
-                  <button
-                    onClick={onOpenPromoModal}
-                    className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[10px] shrink-0 cursor-pointer"
-                  >
-                    تفعيل VIP
-                  </button>
-                </div>
-              )}
-
-              <div className="bg-[#111827] border border-slate-800 rounded-xl overflow-hidden shadow-2xl">
-                <div className="p-3 bg-[#0f172a] border-b border-slate-800 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Radio className="w-4 h-4 text-emerald-400 animate-pulse" />
-                    <h2 className="text-xs font-bold text-slate-100">إشارات باين سكريبت اللحظية</h2>
-                  </div>
-                  <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                    {signals.length} إشارة نشطة
-                  </span>
-                </div>
-                <div className="p-3 space-y-3">
-                  {signals.map((sig, idx) => renderSignalCard(sig, idx))}
-                </div>
-              </div>
+              <SignalFeed
+                currentUser={user}
+                onSelectSignal={(sig) => {
+                  soundManager.playClick();
+                  setActiveSignal(sig);
+                  onSelectSymbol(sig.symbol);
+                  setMobileTab('chart');
+                }}
+                onCopySignal={onCopySignalToAccount}
+                onOpenPromoModal={onOpenPromoModal}
+                onOpenPostModal={() => setIsPostSignalModalOpen(true)}
+                activeSignalId={activeSignal?.id}
+                isAdminModeActive={isAdmin}
+                onToggleAdminMode={() => setIsAdminModeActive(!isAdminModeActive)}
+                tickers={tickers}
+              />
             </div>
           )}
 
@@ -785,7 +809,12 @@ export const ProtectedDashboard: React.FC<Props> = ({
           {mobileTab === 'ai' && (
             <div className="space-y-4">
               <AISentimentPanel />
-              <AITraderChatbot />
+              <AITraderChatbot
+                activeSymbol={selectedSymbol}
+                currentPrice={tickers.find((t) => t.symbol === selectedSymbol)?.price}
+                tickers={tickers}
+                onSelectSymbol={onSelectSymbol}
+              />
             </div>
           )}
 
@@ -940,6 +969,17 @@ export const ProtectedDashboard: React.FC<Props> = ({
         onClose={() => setWaitlistModalOpen(false)}
         serviceType={waitlistServiceType}
         currentUser={user}
+      />
+
+      {/* Admin Manual Signal Publishing Modal */}
+      <PostSignalModal
+        isOpen={isPostSignalModalOpen}
+        onClose={() => setIsPostSignalModalOpen(false)}
+        tickers={tickers}
+        currentUser={user}
+        onSignalPublished={() => {
+          soundManager.playSuccess();
+        }}
       />
 
       {/* DASHBOARD FOOTER (Desktop only so it doesn't collide with mobile bottom nav) */}

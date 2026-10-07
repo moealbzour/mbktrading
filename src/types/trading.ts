@@ -2,10 +2,11 @@ export interface UserProfile {
   uid?: string;
   name: string;
   email: string;
-  role: 'FREE' | 'VIP';
+  role: 'FREE' | 'VIP' | 'ADMIN';
   promoCode?: string;
   planName: string;
   avatar?: string;
+  isAdmin?: boolean;
 }
 
 export type MarketSymbol = 'US100' | 'XAUUSD' | 'EURUSD' | 'BTCUSD' | 'WTI' | 'GBPUSD';
@@ -25,7 +26,48 @@ export interface MarketTicker {
 }
 
 export type SignalType = 'BUY' | 'SELL';
+export type ManualSignalAction = 'BUY' | 'SELL' | 'BUY LIMIT' | 'SELL LIMIT';
 export type SignalStatus = 'ACTIVE' | 'TP1_HIT' | 'TP2_HIT' | 'SL_HIT' | 'CLOSED';
+export type RiskLevel = 'Low' | 'Medium' | 'High';
+
+// TAB 1: Real-time automated algorithmic alert (Firestore collection `engine_alerts`)
+export interface EngineAlert {
+  id: string;
+  symbol: MarketSymbol;
+  action: 'BUY' | 'SELL';
+  entry: number;
+  tp1?: number;
+  tp2?: number;
+  sl?: number;
+  timeframe: string;
+  strategyName: string;
+  status: SignalStatus;
+  pips: number;
+  confidence: number;
+  createdAt: string;
+  timestamp?: any;
+  verifiedWebhook?: boolean;
+}
+
+// TAB 2: Human-made manual trade (Firestore collection `manual_signals`)
+export interface ManualSignal {
+  id: string;
+  symbol: MarketSymbol;
+  action: ManualSignalAction;
+  entryPrice: number;
+  tp1: number;
+  tp2: number;
+  sl: number;
+  riskLevel: RiskLevel;
+  riskReward: string;
+  rationale: string;
+  status: SignalStatus;
+  author: string;
+  timeframe?: string;
+  pips: number;
+  createdAt: string;
+  timestamp?: any;
+}
 
 export interface TradeSignal {
   id: string;
@@ -45,6 +87,9 @@ export interface TradeSignal {
   createdAt: string;
   verifiedWebhook: boolean;
   notesAr: string;
+  channel?: 'ENGINE' | 'MANUAL';
+  riskLevel?: RiskLevel;
+  author?: string;
 }
 
 export type BotStrategy = 

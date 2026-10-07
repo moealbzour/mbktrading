@@ -33,7 +33,7 @@ export function getFirebaseAuthErrorMessage(error: any): string {
       return 'لا يوجد حساب مسجل بهذا البريد الإلكتروني.';
     case 'auth/wrong-password':
     case 'auth/invalid-credential':
-      return 'البريد الإلكتروني أو كلمة المرور غير صحيحة.';
+      return 'بيانات الدخول غير صحيحة أو الحساب غير مسجل بعد. يمكنك التبديل لتبويب "إنشاء حساب جديد" للتسجيل فوراً.';
     case 'auth/popup-closed-by-user':
       return 'تم إغلاق نافذة تسجيل الدخول بحساب Google قبل إتمام العملية.';
     case 'auth/network-request-failed':
@@ -133,15 +133,38 @@ export async function signUpWithEmail(
 }
 
 /**
- * Email & Password Sign In
+ * Email & Password Sign In with Seamless Auto-Provisioning Fallback
  */
 export async function signInWithEmail(
   email: string,
   pass: string,
   promoCode?: string
 ): Promise<UserProfile> {
-  const userCredential = await signInWithEmailAndPassword(auth, email.trim(), pass);
-  return await syncFirestoreUserProfile(userCredential.user, promoCode);
+  const cleanEmail = email.trim();
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, pass);
+    return await syncFirestoreUserProfile(userCredential.user, promoCode);
+  } catch (err: any) {
+    // If credentials are invalid because user never signed up or clicked login instead of signup
+    if (
+      (err?.code === 'auth/invalid-credential' || err?.code === 'auth/user-not-found') &&
+      pass.length >= 6
+    ) {
+      try {
+        const autoUser = await createUserWithEmailAndPassword(auth, cleanEmail, pass);
+        const defaultName = cleanEmail.split('@')[0] || 'متداول MBK';
+        await updateProfile(autoUser.user, { displayName: defaultName });
+        return await syncFirestoreUserProfile(autoUser.user, promoCode, defaultName);
+      } catch (signupErr: any) {
+        if (signupErr?.code === 'auth/email-already-in-use') {
+          // Email truly exists with a different password
+          throw err;
+        }
+        throw signupErr;
+      }
+    }
+    throw err;
+  }
 }
 
 /**

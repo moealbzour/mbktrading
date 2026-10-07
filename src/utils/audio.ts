@@ -96,6 +96,10 @@ class SoundSystem {
     }
   }
 
+  public playSuccess() {
+    this.playProfitChime();
+  }
+
   // Bot toggle click
   public playClick() {
     if (this.isMuted) return;
