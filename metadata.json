@@ -1,0 +1,6 @@
+{
+  "name": "MBKtrading - المنصة المؤسسية للتداول المالي",
+  "description": "المنصة المؤسسية للتداول المالي — MBKTrading. إشارات حية لناسداك والذهب عبر فريق أبحاث MBK والمحللين المعتمدين، تحليلات الذكاء الاصطناعي، ومؤشرات باين سكريبت المؤسسية.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

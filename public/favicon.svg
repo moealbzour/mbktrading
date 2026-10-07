@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#06080C"/>
+      <stop offset="50%" stop-color="#0d1424"/>
+      <stop offset="100%" stop-color="#06080C"/>
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFE082"/>
+      <stop offset="50%" stop-color="#D4AF37"/>
+      <stop offset="100%" stop-color="#AA820A"/>
+    </linearGradient>
+    <linearGradient id="greenGrad" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#00C853"/>
+      <stop offset="100%" stop-color="#00E676"/>
+    </linearGradient>
+    <linearGradient id="cyanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00E5FF"/>
+      <stop offset="100%" stop-color="#00B0FF"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)"/>
+  <rect width="504" height="504" x="4" y="4" rx="108" fill="none" stroke="url(#goldGrad)" stroke-width="6" stroke-opacity="0.5"/>
+
+  <!-- Candlesticks motif -->
+  <!-- Candle 1 (Green Bullish) -->
+  <line x1="140" y1="170" x2="140" y2="350" stroke="#00E676" stroke-width="8" stroke-linecap="round"/>
+  <rect x="122" y="210" width="36" height="95" rx="6" fill="url(#greenGrad)"/>
+
+  <!-- Candle 2 (Center Master Bullish) -->
+  <line x1="256" y1="120" x2="256" y2="390" stroke="url(#goldGrad)" stroke-width="10" stroke-linecap="round"/>
+  <rect x="234" y="160" width="44" height="170" rx="8" fill="url(#goldGrad)"/>
+
+  <!-- Candle 3 (Cyan Scalp Bullish) -->
+  <line x1="372" y1="150" x2="372" y2="330" stroke="#00E5FF" stroke-width="8" stroke-linecap="round"/>
+  <rect x="354" y="190" width="36" height="85" rx="6" fill="url(#cyanGrad)"/>
+
+  <!-- Brand Typography -->
+  <text x="256" y="440" font-family="'Plus Jakarta Sans', 'Arial', sans-serif" font-weight="900" font-size="52" fill="#FFFFFF" text-anchor="middle" letter-spacing="4">MBK</text>
+  <text x="256" y="475" font-family="'Plus Jakarta Sans', 'Arial', sans-serif" font-weight="700" font-size="18" fill="url(#goldGrad)" text-anchor="middle" letter-spacing="8">TRADING</text>
+</svg>

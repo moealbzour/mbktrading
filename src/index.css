@@ -1,0 +1,160 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Cairo', system-ui, -apple-system, sans-serif;
+    background-color: #0b0f17;
+    color: #f1f5f9;
+    overflow-x: hidden;
+  }
+}
+
+/* Custom scrollbars for trading panels */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Dynamic Radial Background Grid with breathing opacity (15% to 25%) */
+@keyframes breathingGrid {
+  0%, 100% {
+    opacity: 0.15;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.25;
+    transform: scale(1.02);
+  }
+}
+
+.dynamic-grid-bg {
+  background-size: 40px 40px;
+  background-image: 
+    linear-gradient(to right, rgba(51, 65, 85, 0.25) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(51, 65, 85, 0.25) 1px, transparent 1px);
+  animation: breathingGrid 8s ease-in-out infinite;
+}
+
+/* Infinite Ticker Marquee with smooth loop */
+@keyframes marqueeLeft {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee-smooth {
+  display: flex;
+  width: max-content;
+  animation: marqueeLeft 35s linear infinite;
+}
+
+.animate-marquee-smooth:hover {
+  animation-play-state: paused;
+}
+
+/* Scanline Sweep for trade ticket cards */
+@keyframes scanline {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(200%);
+    opacity: 0;
+  }
+}
+
+.ticket-scanline {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #00E676, #38bdf8, transparent);
+  box-shadow: 0 0 12px #00E676;
+  animation: scanline 4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  pointer-events: none;
+}
+
+/* Light sweep on hover for CTA buttons */
+.btn-sweep {
+  background-size: 200% 100%;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-sweep:hover {
+  background-position: right center;
+}
+
+/* Glow effects */
+.glow-bullish {
+  box-shadow: 0 0 25px -4px rgba(0, 230, 118, 0.35);
+}
+
+.glow-bullish-card {
+  box-shadow: 0 10px 30px -10px rgba(0, 230, 118, 0.2);
+}
+
+.glow-red {
+  box-shadow: 0 0 15px -3px rgba(239, 68, 68, 0.35);
+}
+
+.glow-cyan {
+  box-shadow: 0 0 15px -3px rgba(6, 182, 212, 0.35);
+}
+
+.glow-gold {
+  box-shadow: 0 0 15px -3px rgba(245, 158, 11, 0.35);
+}
+
+/* Tabular numbers for financial digits */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+}
+
+@keyframes pulseGlowCyan {
+  0%, 100% {
+    box-shadow: 0 0 15px -2px rgba(6, 182, 212, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 28px 4px rgba(6, 182, 212, 0.65);
+  }
+}
+
+@keyframes pulseGlowGold {
+  0%, 100% {
+    box-shadow: 0 0 15px -2px rgba(245, 158, 11, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 28px 4px rgba(245, 158, 11, 0.6);
+  }
+}
+
+.animate-pulse-cyan {
+  animation: pulseGlowCyan 3s ease-in-out infinite;
+}
+
+.animate-pulse-gold {
+  animation: pulseGlowGold 3s ease-in-out infinite;
+}
+
