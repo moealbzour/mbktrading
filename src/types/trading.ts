@@ -7,6 +7,52 @@ export interface UserProfile {
   planName: string;
   avatar?: string;
   isAdmin?: boolean;
+  telegramUsername?: string;
+  unlockedTraders?: string[];
+  followedTraders?: string[];
+}
+
+export interface TraderProfile {
+  id: string;
+  nameAr: string;
+  nameEn: string;
+  specialtyAr: string;
+  specialtyEn: string;
+  roleAr: string;
+  roleEn: string;
+  avatar: string;
+  verifiedPipsMonth: number;
+  winRate: number;
+  subscribersCount: number;
+  isOfficial?: boolean;
+  specialties: MarketSymbol[];
+  monthlyPrice: number;
+  inviteCode: string;
+  descriptionAr: string;
+  descriptionEn: string;
+  signalsCount: number;
+}
+
+export interface TraderPost {
+  id: string;
+  traderId: string;
+  traderName: string;
+  traderAvatar: string;
+  titleAr: string;
+  titleEn: string;
+  symbol: MarketSymbol;
+  action: 'BUY' | 'SELL';
+  entryPrice: number;
+  tp1: number;
+  tp2: number;
+  sl: number;
+  pips: number;
+  status: SignalStatus;
+  chartImage?: string;
+  notesAr: string;
+  notesEn: string;
+  timestamp: string;
+  likes: number;
 }
 
 export type MarketSymbol = 'US100' | 'XAUUSD' | 'EURUSD' | 'BTCUSD' | 'WTI' | 'GBPUSD';

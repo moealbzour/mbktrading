@@ -1,138 +1,196 @@
 import React from 'react';
 import {
-  LayoutDashboard,
+  Globe2,
+  LineChart,
+  BookOpen,
+  Layers,
+  Brain,
+  FlaskConical,
+  Wallet,
   Radio,
   Cpu,
   Copy,
-  Briefcase,
-  Boxes,
-  Sparkles,
-  TrendingUp,
-  LineChart,
   MessageSquare,
-  Calendar,
   CreditCard,
   Settings,
-  ShieldCheck,
   ChevronLeft,
-  Flame,
-  Award
+  Award,
+  Sparkles,
+  ShieldCheck,
+  Flame
 } from 'lucide-react';
+import { soundManager } from '../utils/audio';
 
 export type ActiveTab =
-  | 'overview'
+  | 'desk'
+  | 'chart'
+  | 'journal'
+  | 'playbooks'
+  | 'aicoach'
+  | 'paper'
+  | 'backtest'
   | 'signals'
   | 'bot'
   | 'copytrading'
-  | 'accounts'
-  | 'indicators'
-  | 'aisentiment'
-  | 'technical'
-  | 'charts'
-  | 'chat'
-  | 'calendar'
-  | 'subscription'
+  | 'community'
+  | 'pricing'
   | 'settings';
 
 interface Props {
   activeTab: ActiveTab;
   setActiveTab: (tab: ActiveTab) => void;
   activeSignalsCount: number;
-  botRunning: boolean;
-  onOpenBrokerModal: () => void;
   isOpenMobile: boolean;
   setIsOpenMobile: (open: boolean) => void;
+  isVIP?: boolean;
+}
+
+interface NavItem {
+  id: ActiveTab;
+  label: string;
+  sublabel: string;
+  icon: React.FC<{ className?: string }>;
+  badge?: string;
+  badgeColor?: string;
+}
+
+interface NavSection {
+  group: string;
+  items: NavItem[];
 }
 
 export const NavigationSidebar: React.FC<Props> = ({
   activeTab,
   setActiveTab,
   activeSignalsCount,
-  botRunning,
-  onOpenBrokerModal,
   isOpenMobile,
-  setIsOpenMobile
+  setIsOpenMobile,
+  isVIP
 }) => {
-  const menuItems = [
+  const navSections: NavSection[] = [
     {
-      id: 'overview' as ActiveTab,
-      label: 'الرئيسية والمؤشرات',
-      icon: LayoutDashboard,
-      badge: 'عام'
+      group: 'غرفة الأسواق والتحليل (Market Desk)',
+      items: [
+        {
+          id: 'desk' as ActiveTab,
+          label: 'غرفة الأسواق (MBK Desk)',
+          sublabel: 'جلسات التداول والأجندة اللحظية',
+          icon: Globe2,
+          badge: 'Live',
+          badgeColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+        },
+        {
+          id: 'chart' as ActiveTab,
+          label: 'الرسم البياني (TradingView)',
+          sublabel: 'محطة الشارت والتحليل الفني',
+          icon: LineChart
+        }
+      ]
     },
     {
-      id: 'signals' as ActiveTab,
-      label: 'إشارات التداول الحية',
-      icon: Radio,
-      badge: `${activeSignalsCount} نشطة`,
-      badgeColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+      group: 'سجل الصفقات والنماذج (Journal & Playbooks)',
+      items: [
+        {
+          id: 'journal' as ActiveTab,
+          label: 'سجل الصفقات (Smart Journal)',
+          sublabel: 'كاشف العادات والتحليل النفسي',
+          icon: BookOpen,
+          badge: 'AI Habits',
+          badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
+        },
+        {
+          id: 'playbooks' as ActiveTab,
+          label: 'نماذج التداول (Playbooks)',
+          sublabel: 'استراتيجيات SMC وشروط الدخول',
+          icon: Layers,
+          badge: 'Edge',
+          badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+        },
+        {
+          id: 'backtest' as ActiveTab,
+          label: 'مختبر الباك تيست (Backtest Lab)',
+          sublabel: 'محاكاة الجدوى الإحصائية للمحفظة',
+          icon: FlaskConical
+        }
+      ]
     },
     {
-      id: 'bot' as ActiveTab,
-      label: 'البوت الآلي (Auto Bot)',
-      icon: Cpu,
-      badge: botRunning ? 'يعمل 🟢' : 'متوقف ⚪',
-      badgeColor: botRunning ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30' : 'bg-slate-700 text-slate-400'
+      group: 'الذكاء الاصطناعي والإشارات (AI & Alpha)',
+      items: [
+        {
+          id: 'aicoach' as ActiveTab,
+          label: 'الموجّه الذكي (AI Coach)',
+          sublabel: 'مراجعة الصفقات ومستشار الشارت',
+          icon: Brain,
+          badge: 'Gemini 3.8',
+          badgeColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30'
+        },
+        {
+          id: 'signals' as ActiveTab,
+          label: 'إشارات التداول (Alpha Signals)',
+          sublabel: 'إشارات مؤسسية فورية مع مناطق SMC',
+          icon: Radio,
+          badge: `${activeSignalsCount} نشطة`,
+          badgeColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+        }
+      ]
     },
     {
-      id: 'copytrading' as ActiveTab,
-      label: 'نسخ الصفقات (Copy Trading)',
-      icon: Copy,
-      badge: '+342%'
+      group: 'التنفيذ والمحافظ (Execution & Portfolio)',
+      items: [
+        {
+          id: 'paper' as ActiveTab,
+          label: 'المحفظة الافتراضية (Paper Trading)',
+          sublabel: 'تداول تجريبي برأس مال 100K$',
+          icon: Wallet,
+          badge: '$100K',
+          badgeColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+        },
+        {
+          id: 'bot' as ActiveTab,
+          label: 'البوت الآلي (Auto MT5 Bot)',
+          sublabel: 'تنفيذ خوارزمي على خوادم ميتاتريدر',
+          icon: Cpu,
+          badge: 'قريباً'
+        },
+        {
+          id: 'copytrading' as ActiveTab,
+          label: 'نسخ الصفقات (Copy Trading)',
+          sublabel: 'نسخ محافظ محللي MBK المعتمدين',
+          icon: Copy,
+          badge: '+342%'
+        }
+      ]
     },
     {
-      id: 'accounts' as ActiveTab,
-      label: 'إدارة الحسابات (VIP Portfolio)',
-      icon: Briefcase
-    },
-    {
-      id: 'indicators' as ActiveTab,
-      label: 'مؤشرات MBK الخاصة (Pine Script)',
-      icon: Boxes,
-      badge: 'v4.2',
-      badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-    },
-    {
-      id: 'aisentiment' as ActiveTab,
-      label: 'التحليل الاصطناعي (AI Sentiment)',
-      icon: Sparkles,
-      badge: 'Batch AI',
-      badgeColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30'
-    },
-    {
-      id: 'technical' as ActiveTab,
-      label: 'التحليل الفني والأسواق',
-      icon: TrendingUp
-    },
-    {
-      id: 'charts' as ActiveTab,
-      label: 'الرسوم البيانية (TradingView)',
-      icon: LineChart
-    },
-    {
-      id: 'chat' as ActiveTab,
-      label: 'المجتمع والدردشة الحية',
-      icon: MessageSquare,
-      badge: '1K+ VIP'
-    },
-    {
-      id: 'calendar' as ActiveTab,
-      label: 'الأخبار الاقتصادية (Calendar)',
-      icon: Calendar
-    },
-    {
-      id: 'subscription' as ActiveTab,
-      label: 'إدارة الاشتراك والترقية',
-      icon: CreditCard
-    },
-    {
-      id: 'settings' as ActiveTab,
-      label: 'إعدادات المنصة والربط',
-      icon: Settings
+      group: 'المجتمع والترقية (Community & Account)',
+      items: [
+        {
+          id: 'community' as ActiveTab,
+          label: 'غرفة المجتمع (Community Chat)',
+          sublabel: 'نقاشات المتداولين وتحليلات VIP',
+          icon: MessageSquare,
+          badge: 'Live'
+        },
+        {
+          id: 'pricing' as ActiveTab,
+          label: 'باقات الاشتراك (MBK Plans)',
+          sublabel: 'الترقية إلى Pro و Elite AI',
+          icon: CreditCard,
+          badge: isVIP ? 'VIP 👑' : 'ترقية'
+        },
+        {
+          id: 'settings' as ActiveTab,
+          label: 'إعدادات المنصة (Settings)',
+          sublabel: 'ربط الوسطاء ومظهر حماية العين',
+          icon: Settings
+        }
+      ]
     }
   ];
 
   const handleSelect = (tab: ActiveTab) => {
+    soundManager.playClick();
     setActiveTab(tab);
     setIsOpenMobile(false);
   };
@@ -149,12 +207,16 @@ export const NavigationSidebar: React.FC<Props> = ({
 
       {/* Sidebar Container */}
       <aside
-        className={`fixed lg:sticky top-0 right-0 h-screen w-72 bg-[#0d131f] border-l border-slate-800 flex flex-col z-50 transition-transform duration-300 ${
+        className={`fixed lg:sticky top-0 right-0 h-screen w-72 border-l border-slate-800 flex flex-col z-50 transition-all duration-300 ${
           isOpenMobile ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'
         }`}
+        style={{ backgroundColor: 'var(--bg-secondary)' }}
       >
         {/* Brand Header */}
-        <div className="p-4 border-b border-slate-800/80 bg-[#090d16] flex items-center justify-between">
+        <div
+          className="p-4 border-b border-slate-800/80 flex items-center justify-between"
+          style={{ backgroundColor: 'var(--bg-primary)' }}
+        >
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 via-sky-600 to-indigo-700 p-0.5 shadow-lg shadow-cyan-500/20 flex items-center justify-center">
               <div className="w-full h-full bg-[#0d131f] rounded-[10px] flex items-center justify-center">
@@ -164,10 +226,10 @@ export const NavigationSidebar: React.FC<Props> = ({
 
             <div>
               <div className="flex items-center gap-1.5">
-                <h1 className="font-black text-slate-100 text-sm tracking-wide font-mono">MBK TRADING</h1>
+                <h1 className="font-black text-slate-100 text-sm tracking-wide font-mono">MBK Trading</h1>
                 <Award className="w-3.5 h-3.5 text-amber-400" />
               </div>
-              <p className="text-[10px] text-cyan-400 font-semibold">المنصة المؤسسية للتداول المالي</p>
+              <p className="text-[10px] text-cyan-400 font-semibold">غرفة الأسواق وسجل التداول الذكي</p>
             </div>
           </div>
 
@@ -179,75 +241,90 @@ export const NavigationSidebar: React.FC<Props> = ({
           </button>
         </div>
 
-        {/* Live Connectivity Badge */}
-        <div className="px-4 py-2 bg-slate-900/40 border-b border-slate-800/60 flex items-center justify-between text-[11px]">
+        {/* Live Status Ribbon */}
+        <div className="px-4 py-2 bg-slate-900/60 border-b border-slate-800/60 flex items-center justify-between text-[11px]">
           <div className="flex items-center gap-1.5 text-emerald-400">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span>خادم الويب هوك: متصل بنجاح</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>بيانات السوق الحية: متصل</span>
           </div>
-          <span className="text-slate-500 font-mono">v3.4 PRO</span>
+          <span className="text-slate-500 font-mono text-[10px]">MBK Desk v4.0</span>
         </div>
 
-        {/* Navigation Items (Scrollable) */}
-        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1">
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => handleSelect(item.id)}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all group ${
-                  isActive
-                    ? 'bg-gradient-to-l from-cyan-600/20 to-sky-600/10 text-cyan-300 border border-cyan-500/30 shadow-sm shadow-cyan-500/10'
-                    : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60'
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <Icon
-                    className={`w-4 h-4 transition-colors ${
-                      isActive ? 'text-cyan-400' : 'text-slate-400 group-hover:text-cyan-400'
-                    }`}
-                  />
-                  <span>{item.label}</span>
-                </div>
-
-                {item.badge && (
-                  <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                      item.badgeColor || 'bg-slate-800 text-slate-400 border-slate-700'
+        {/* Navigation Sections */}
+        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4">
+          {navSections.map((sec, secIdx) => (
+            <div key={secIdx} className="space-y-1">
+              <span className="text-[10px] font-bold text-slate-500 px-3 tracking-wider block uppercase mb-1">
+                {sec.group}
+              </span>
+              {sec.items.map((item) => {
+                const Icon = item.icon;
+                const isActive = activeTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleSelect(item.id)}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-right transition-all cursor-pointer group ${
+                      isActive
+                        ? 'bg-gradient-to-r from-cyan-600/30 to-sky-600/20 text-white border border-cyan-500/40 shadow-sm'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border border-transparent'
                     }`}
                   >
-                    {item.badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className={`p-1.5 rounded-lg transition-colors ${
+                          isActive
+                            ? 'bg-cyan-500/20 text-cyan-300'
+                            : 'bg-slate-800/80 text-slate-400 group-hover:text-slate-200'
+                        }`}
+                      >
+                        <Icon className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className={`text-xs font-bold leading-tight ${isActive ? 'text-white' : 'text-slate-300'}`}>
+                          {item.label}
+                        </div>
+                        <div className="text-[10px] text-slate-500 font-normal leading-tight">
+                          {item.sublabel}
+                        </div>
+                      </div>
+                    </div>
+
+                    {item.badge && (
+                      <span
+                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${
+                          item.badgeColor || 'bg-slate-800 text-slate-400 border-slate-700'
+                        }`}
+                      >
+                        {item.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
         </nav>
 
-        {/* Partner Broker IB Banner (Bottom Conversion Engine) */}
-        <div className="p-3 border-t border-slate-800 bg-gradient-to-t from-amber-950/20 to-transparent">
-          <div className="rounded-xl p-3 bg-gradient-to-br from-[#1a2333] to-[#161c28] border border-amber-500/30 shadow-lg relative overflow-hidden group">
-            <div className="absolute top-0 left-0 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl group-hover:bg-amber-500/20 transition-all pointer-events-none" />
-
-            <div className="flex items-center gap-2 text-amber-400 mb-1.5">
-              <ShieldCheck className="w-4 h-4" />
-              <span className="text-xs font-black">شراكة الوسيط المعتمد ECN</span>
+        {/* Bottom VIP Ribbon / Status */}
+        <div className="p-3 border-t border-slate-800/80 bg-slate-950/60 text-xs">
+          {isVIP ? (
+            <div className="flex items-center gap-2 p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300">
+              <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+              <div>
+                <span className="font-black text-[11px] block">عضوية VIP مفعلة 👑</span>
+                <span className="text-[10px] text-amber-400/80">وصول كامل لجميع أدوات MBK Trading</span>
+              </div>
             </div>
-
-            <p className="text-[11px] text-slate-300 leading-snug mb-2.5">
-              احصل على اشتراك <strong className="text-amber-300">VIP مجاني مدى الحياة</strong> وبوت التداول ومؤشرات MBK عند فتح حساب تحت وكالتنا.
-            </p>
-
+          ) : (
             <button
-              onClick={onOpenBrokerModal}
-              className="w-full py-2 px-3 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs transition-all shadow-md shadow-amber-500/20 flex items-center justify-center gap-1.5 cursor-pointer"
+              onClick={() => handleSelect('pricing')}
+              className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-cyan-600 to-sky-600 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-cyan-600/20 cursor-pointer"
             >
-              <span>انضم الآن للوسيط المعتمد</span>
-              <Flame className="w-3.5 h-3.5" />
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>ترقية إلى Pro / Elite AI</span>
             </button>
-          </div>
+          )}
         </div>
       </aside>
     </>

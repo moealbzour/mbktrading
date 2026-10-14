@@ -188,7 +188,10 @@ export const NewsCalendar: React.FC = () => {
   );
 
   return (
-    <div className="bg-[#06080C] border border-[#1E2638] rounded-2xl overflow-hidden shadow-2xl flex flex-col font-['Cairo',sans-serif]">
+    <div
+      className="border border-[#1E2638] rounded-2xl overflow-hidden shadow-2xl flex flex-col font-['Cairo',sans-serif] transition-colors duration-200"
+      style={{ backgroundColor: 'var(--bg-secondary)' }}
+    >
       {/* 1. Header with Gold Accents */}
       <div className="p-4 sm:p-5 bg-gradient-to-r from-[#06080C] via-[#0d1422] to-[#06080C] border-b border-[#1E2638] flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">

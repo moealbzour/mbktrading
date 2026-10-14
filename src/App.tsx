@@ -22,7 +22,7 @@ import {
 // Tier Components
 import { PublicLandingPage } from './components/PublicLandingPage';
 import { ProtectedDashboard } from './components/ProtectedDashboard';
-import { AuthModal } from './components/AuthModal';
+import { AuthGateModal } from './components/AuthGateModal';
 import { PromoCodeModal } from './components/PromoCodeModal';
 import { PartnerBrokerModal } from './components/PartnerBrokerModal';
 import { NewSignalModal } from './components/NewSignalModal';
@@ -56,6 +56,8 @@ export default function App() {
   const [isMuted, setIsMuted] = useState(false);
 
   // Sound Mute Toggle
+  const [lang, setLang] = useState<'ar' | 'en'>('ar');
+
   const handleToggleMute = () => {
     const next = !isMuted;
     setIsMuted(next);
@@ -127,16 +129,9 @@ export default function App() {
     }
   };
 
-  // Direct Enter Dashboard (for quick preview/demo evaluation)
+  // Direct Enter Dashboard: Opens mandatory Auth Gate so user registers or signs in
   const handleDirectEnterDashboard = () => {
-    const demoUser: UserProfile = {
-      name: 'متداول مسجل (Free Demo)',
-      email: 'guest@mbktrading.live',
-      role: 'FREE',
-      planName: 'الحساب المجاني (Standard Free)',
-      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'
-    };
-    handleLoginSuccess(demoUser);
+    handleOpenAuth('signup');
   };
 
   // Promo code apply (instantly upgrade user to VIP and persist in Firestore!)
@@ -250,7 +245,12 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0b0f17] text-slate-100 flex flex-col font-['Cairo',sans-serif]">
+    <div
+      dir={lang === 'ar' ? 'rtl' : 'ltr'}
+      className={`min-h-screen bg-[#131722] text-[#d1d4dc] flex flex-col ${
+        lang === 'ar' ? "font-['Cairo',sans-serif]" : "font-['Plus_Jakarta_Sans',sans-serif]"
+      }`}
+    >
       {/* TIER 1 vs TIER 2:
           - If NO currentUser: Render Public Landing Page
           - If currentUser: Render Protected Dashboard (Free or VIP based on user.role)
@@ -269,12 +269,15 @@ export default function App() {
           onSendMessage={handleSendMessage}
           onLikeMessage={handleLikeMessage}
           onLogout={handleLogout}
+          onBackToHome={() => setCurrentUser(null)}
           onOpenBrokerModal={() => setBrokerModalOpen(true)}
           onOpenNewSignalModal={() => setNewSignalModalOpen(true)}
           onOpenPromoModal={() => setPromoModalOpen(true)}
           isMuted={isMuted}
           onToggleMute={handleToggleMute}
           onlineTraders={onlineTraders}
+          lang={lang}
+          onToggleLang={() => setLang((prev) => (prev === 'ar' ? 'en' : 'ar'))}
         />
       ) : (
         <PublicLandingPage
@@ -282,17 +285,21 @@ export default function App() {
           winningSignals={signals}
           onOpenAuth={handleOpenAuth}
           onOpenBrokerModal={() => setBrokerModalOpen(true)}
+          onOpenPromoModal={() => setPromoModalOpen(true)}
           onDirectEnterDashboard={handleDirectEnterDashboard}
+          lang={lang}
+          onToggleLang={() => setLang((prev) => (prev === 'ar' ? 'en' : 'ar'))}
         />
       )}
 
       {/* Global Modals */}
-      <AuthModal
+      <AuthGateModal
         isOpen={authModalOpen}
         onClose={() => setAuthModalOpen(false)}
         defaultTab={authDefaultTab}
         initialPromoCode={initialPromoCode}
         onLoginSuccess={handleLoginSuccess}
+        lang={lang}
       />
 
       <PromoCodeModal
@@ -300,11 +307,13 @@ export default function App() {
         onClose={() => setPromoModalOpen(false)}
         onApplyCode={handleApplyPromoCode}
         currentUser={currentUser}
+        lang={lang}
       />
 
       <PartnerBrokerModal
         isOpen={brokerModalOpen}
         onClose={() => setBrokerModalOpen(false)}
+        lang={lang}
       />
 
       <NewSignalModal

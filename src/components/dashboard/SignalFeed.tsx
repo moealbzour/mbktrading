@@ -362,7 +362,10 @@ export const SignalFeed: React.FC<Props> = ({
   );
 
   return (
-    <div className="bg-[#0b0f17] border border-slate-800 rounded-2xl overflow-hidden shadow-2xl font-['Cairo',sans-serif]">
+    <div
+      className="border border-slate-800 rounded-2xl overflow-hidden shadow-2xl font-['Cairo',sans-serif] transition-colors duration-200"
+      style={{ backgroundColor: 'var(--bg-secondary)' }}
+    >
       {/* 1. TOP HEADER & CHANNEL SWITCHER */}
       <div className="p-4 sm:p-5 bg-gradient-to-r from-[#0d131f] via-[#101726] to-[#0d131f] border-b border-slate-800 flex flex-wrap items-center justify-between gap-4">
         <div>

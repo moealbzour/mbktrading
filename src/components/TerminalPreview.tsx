@@ -52,7 +52,10 @@ export const TerminalPreview: React.FC<TerminalPreviewProps> = ({
   const gainText = activeTab === 'US100' ? '+123.4 Pips' : '+242 Pips';
 
   return (
-    <div className="relative mx-auto max-w-5xl rounded-2xl bg-[#0d131f] border border-cyan-500/30 p-2 sm:p-4 shadow-2xl shadow-cyan-950/50 overflow-hidden">
+    <div
+      className="relative mx-auto max-w-5xl rounded-2xl border border-slate-800/80 p-2 sm:p-4 shadow-2xl shadow-black/60 overflow-hidden transition-colors duration-200"
+      style={{ backgroundColor: 'var(--bg-secondary)' }}
+    >
       {/* Scanline sweep animation across terminal */}
       <div className="ticket-scanline" />
 
@@ -69,7 +72,10 @@ export const TerminalPreview: React.FC<TerminalPreviewProps> = ({
           <div className="h-4 w-px bg-slate-800" />
 
           {/* Symbol Switchers */}
-          <div className="flex items-center gap-1 bg-[#141b29] p-0.5 rounded-lg border border-slate-800 text-xs">
+          <div
+            className="flex items-center gap-1 p-0.5 rounded-lg border border-slate-800 text-xs"
+            style={{ backgroundColor: 'var(--bg-card)' }}
+          >
             <button
               onClick={() => setActiveTab('US100')}
               className={`px-3 py-1 rounded-md font-bold font-mono transition-all cursor-pointer ${

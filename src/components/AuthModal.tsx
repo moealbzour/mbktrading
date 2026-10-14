@@ -154,7 +154,10 @@ export const AuthModal: React.FC<Props> = ({
 
   return (
     <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-[#121927] border border-cyan-500/30 rounded-2xl max-w-md w-full p-6 shadow-2xl relative animate-in fade-in zoom-in-95 my-6">
+      <div
+        className="border border-slate-700/80 rounded-2xl max-w-md w-full p-6 shadow-2xl relative animate-in fade-in zoom-in-95 my-6 transition-colors duration-200"
+        style={{ backgroundColor: 'var(--bg-secondary)' }}
+      >
         {/* Close Button */}
         <button
           onClick={onClose}

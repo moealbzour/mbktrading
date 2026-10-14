@@ -313,7 +313,10 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
   ];
 
   return (
-    <div className="bg-[#0b0f17] border border-[#1e293b] rounded-2xl overflow-hidden shadow-2xl flex flex-col h-[670px] relative font-['Cairo',sans-serif]">
+    <div
+      className="border border-[#1e293b] rounded-2xl overflow-hidden shadow-2xl flex flex-col h-[670px] relative font-['Cairo',sans-serif] transition-colors duration-200"
+      style={{ backgroundColor: 'var(--bg-secondary)' }}
+    >
       {/* 1. TOP HEADER & REAL-TIME DATA INDICATOR */}
       <div className="p-4 bg-gradient-to-r from-[#06080C] via-[#0d1422] to-[#06080C] border-b border-[#1E2638] flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">

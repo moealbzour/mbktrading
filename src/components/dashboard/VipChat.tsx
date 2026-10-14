@@ -242,10 +242,14 @@ export const VipChat: React.FC<VipChatProps> = ({
 
   return (
     <div
-      className={`bg-[#111827] border border-slate-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col h-[600px] relative font-['Cairo',sans-serif] ${className}`}
+      className={`border border-slate-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col h-[600px] relative font-['Cairo',sans-serif] transition-colors duration-200 ${className}`}
+      style={{ backgroundColor: 'var(--bg-secondary)' }}
     >
       {/* 1. HEADER */}
-      <div className="p-4 bg-[#0f172a] border-b border-slate-800 flex items-center justify-between gap-3 shrink-0">
+      <div
+        className="p-4 border-b border-slate-800 flex items-center justify-between gap-3 shrink-0"
+        style={{ backgroundColor: 'var(--bg-card)' }}
+      >
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 via-amber-600 to-emerald-500 p-0.5 shadow-md flex items-center justify-center">
             <div className="w-full h-full bg-[#0d131f] rounded-[10px] flex items-center justify-center text-amber-400">
@@ -287,7 +291,10 @@ export const VipChat: React.FC<VipChatProps> = ({
       </div>
 
       {/* 2. CHAT FEED CONTAINER */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#0b0f17] relative">
+      <div
+        className="flex-1 overflow-y-auto p-4 space-y-3 relative transition-colors duration-200"
+        style={{ backgroundColor: 'var(--bg-primary)' }}
+      >
         {/* FREE USER BLURRED OVERLAY */}
         {!isVip && (
           <div className="absolute inset-0 bg-[#0b0f17]/85 backdrop-blur-[6px] z-20 flex flex-col items-center justify-center p-6 text-center animate-in fade-in">

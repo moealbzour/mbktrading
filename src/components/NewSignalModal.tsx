@@ -55,7 +55,10 @@ export const NewSignalModal: React.FC<Props> = ({
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-[#141b29] border border-cyan-500/40 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative animate-in fade-in zoom-in-95">
+      <div
+        className="border border-slate-700/80 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative animate-in fade-in zoom-in-95 transition-colors duration-200"
+        style={{ backgroundColor: 'var(--bg-secondary)' }}
+      >
         <button
           onClick={onClose}
           className="absolute top-4 left-4 p-1 rounded-lg bg-slate-800 text-slate-400 hover:text-white"

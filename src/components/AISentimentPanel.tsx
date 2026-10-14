@@ -51,9 +51,15 @@ export const AISentimentPanel: React.FC = () => {
   };
 
   return (
-    <div className="bg-[#111827] border border-slate-800 rounded-xl overflow-hidden shadow-2xl">
+    <div
+      className="border border-slate-800 rounded-xl overflow-hidden shadow-2xl transition-colors duration-200"
+      style={{ backgroundColor: 'var(--bg-secondary)' }}
+    >
       {/* Header */}
-      <div className="p-4 bg-[#0f172a] border-b border-slate-800 flex flex-wrap items-center justify-between gap-3">
+      <div
+        className="p-4 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3"
+        style={{ backgroundColor: 'var(--bg-card)' }}
+      >
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
             <Sparkles className="w-5 h-5 animate-pulse" />

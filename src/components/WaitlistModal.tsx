@@ -100,7 +100,10 @@ export const WaitlistModal: React.FC<Props> = ({
 
   return (
     <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 font-['Cairo',sans-serif]">
-      <div className="bg-[#121927] border-2 border-cyan-500/50 rounded-2xl max-w-md w-full p-6 shadow-2xl relative animate-in fade-in zoom-in-95">
+      <div
+        className="border-2 border-cyan-500/50 rounded-2xl max-w-md w-full p-6 shadow-2xl relative animate-in fade-in zoom-in-95 transition-colors duration-200"
+        style={{ backgroundColor: 'var(--bg-secondary)' }}
+      >
         <button
           onClick={handleCloseModal}
           className="absolute top-4 left-4 p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white cursor-pointer"
