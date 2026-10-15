@@ -1055,8 +1055,10 @@ export function ProtectedDashboard({
           </div>
         </aside>
 
-        {/* MOBILE TOP TAB BAR (Clean horizontal scrollable pills) */}
-        <div className="md:hidden flex items-center gap-1.5 p-2 bg-[#1e222d] border-b border-[#2a2e39] overflow-x-auto smooth-scroll-x shrink-0 select-none">
+        {/* WORKSPACE COLUMN (Mobile tabs on top, scrollable main below) */}
+        <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative w-full">
+          {/* MOBILE TOP TAB BAR (Clean horizontal scrollable pills) */}
+          <div className="md:hidden w-full flex items-center gap-1.5 p-2 bg-[#1e222d] border-b border-[#2a2e39] overflow-x-auto smooth-scroll-x shrink-0 select-none">
           <button
             onClick={() => {
               setActiveTab('signals');
@@ -1158,7 +1160,7 @@ export function ProtectedDashboard({
         </div>
 
         {/* WORKSPACE MAIN CONTENT AREA */}
-        <main className="flex-1 overflow-y-auto bg-[#131722] relative p-3 sm:p-5 pb-28 md:pb-6">
+        <main className="flex-1 overflow-y-auto bg-[#131722] relative p-3 sm:p-5 pb-36 md:pb-6 min-w-0 w-full">
           {/* ======================================================== */}
           {/* TAB 1: 📡 LIVE SIGNALS & AUDITED TRACK RECORD */}
           {/* ======================================================== */}
@@ -1231,7 +1233,7 @@ export function ProtectedDashboard({
                       </div>
 
                       {/* Numerical Levels Matrix */}
-                      <div className="grid grid-cols-4 gap-2 mb-3 font-mono text-center">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2 mb-3 font-mono text-center">
                         <div className="bg-[#131722] p-2 rounded border border-[#2a2e39]">
                           <div className="text-[10px] text-[#787b86]">ENTRY</div>
                           <div className="text-xs font-bold text-white" dir="ltr">20,440.00</div>
@@ -1328,7 +1330,7 @@ export function ProtectedDashboard({
                       </div>
 
                       {/* Numerical Levels Matrix */}
-                      <div className="grid grid-cols-4 gap-2 mb-3 font-mono text-center">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2 mb-3 font-mono text-center">
                         <div className="bg-[#131722] p-2 rounded border border-[#2a2e39]">
                           <div className="text-[10px] text-[#787b86]">ENTRY</div>
                           <div className="text-xs font-bold text-white" dir="ltr">2,668.00</div>
@@ -1724,7 +1726,7 @@ export function ProtectedDashboard({
 
                             <div className="text-sm font-semibold text-white">{isAr ? post.titleAr : post.titleEn}</div>
 
-                            <div className="grid grid-cols-4 gap-2 bg-[#131722] p-2 rounded border border-[#2a2e39] font-mono text-xs text-center">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2 bg-[#131722] p-2 rounded border border-[#2a2e39] font-mono text-xs text-center">
                               <div>
                                 <span className="text-[10px] text-[#787b86]">ENTRY:</span> <span className="text-white font-bold" dir="ltr">{post.entryPrice}</span>
                               </div>
@@ -2110,7 +2112,7 @@ export function ProtectedDashboard({
           {activeTab === 'ai_agent' && (
             <div className="max-w-4xl mx-auto space-y-4">
               {/* Header */}
-              <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 flex items-center justify-between">
+              <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <Bot className="w-5 h-5 text-[#089981]" />
@@ -2562,6 +2564,7 @@ export function ProtectedDashboard({
             </div>
           )}
         </main>
+        </div>
       </div>
 
       {/* 4. UNLOCK TRADER MODAL */}
