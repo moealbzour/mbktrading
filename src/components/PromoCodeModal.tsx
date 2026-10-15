@@ -102,9 +102,9 @@ export const PromoCodeModal: React.FC<Props> = ({
   return (
     <div
       dir={isAr ? 'rtl' : 'ltr'}
-      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
     >
-      <div className="bg-[#1e222d] border border-[#363a45] rounded-xl max-w-md w-full p-6 shadow-2xl relative text-[#d1d4dc]">
+      <div className="bg-[#1e222d] border border-[#363a45] rounded-xl max-w-md w-full p-4 sm:p-6 shadow-2xl relative text-[#d1d4dc] my-auto max-h-[92dvh] overflow-y-auto">
         <button
           onClick={onClose}
           disabled={isSubmitting}

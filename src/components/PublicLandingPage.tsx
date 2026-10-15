@@ -525,15 +525,16 @@ export const PublicLandingPage: React.FC<Props> = ({
           </nav>
 
           {/* Action Controls */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3">
             {/* Language Switcher */}
             <button
               onClick={toggleLang}
-              className="px-2.5 py-1.5 rounded bg-[#2a2e39] hover:bg-[#363a45] text-xs font-bold text-white border border-[#363a45] transition-colors cursor-pointer flex items-center gap-1.5"
+              className="px-2 sm:px-2.5 py-1.5 rounded bg-[#2a2e39] hover:bg-[#363a45] text-xs font-bold text-white border border-[#363a45] transition-colors cursor-pointer flex items-center gap-1"
               title={isAr ? 'Switch to English' : 'التحويل للعربية'}
             >
               <Globe className="w-3.5 h-3.5 text-[#089981]" />
-              <span>{isAr ? '🇬🇧 English' : '🇸🇦 العربية'}</span>
+              <span className="hidden sm:inline">{isAr ? '🇬🇧 English' : '🇸🇦 العربية'}</span>
+              <span className="sm:hidden font-mono text-[11px]">{isAr ? 'EN' : 'عربي'}</span>
             </button>
 
             {/* VIP Code Button */}
@@ -548,7 +549,7 @@ export const PublicLandingPage: React.FC<Props> = ({
             {/* Sign In */}
             <button
               onClick={() => handleAuthClick('login')}
-              className="px-3 py-1.5 rounded text-xs font-semibold text-[#d1d4dc] hover:text-white hover:bg-[#2a2e39] transition-colors cursor-pointer"
+              className="px-2 sm:px-3 py-1.5 rounded text-xs font-semibold text-[#d1d4dc] hover:text-white hover:bg-[#2a2e39] transition-colors cursor-pointer whitespace-nowrap"
             >
               {isAr ? 'تسجيل الدخول' : 'Sign In'}
             </button>
@@ -556,9 +557,9 @@ export const PublicLandingPage: React.FC<Props> = ({
             {/* Launch MBK Desk ↗ */}
             <button
               onClick={handleDemoClick}
-              className="px-4 py-1.5 rounded bg-white text-[#131722] hover:bg-[#d1d4dc] text-xs font-bold transition-all shadow-sm cursor-pointer flex items-center gap-1"
+              className="px-2.5 sm:px-4 py-1.5 rounded bg-white text-[#131722] hover:bg-[#d1d4dc] text-xs font-bold transition-all shadow-sm cursor-pointer flex items-center gap-1 whitespace-nowrap"
             >
-              <span>{isAr ? 'افتح MBK Desk ↗' : 'Launch MBK Desk ↗'}</span>
+              <span>{isAr ? 'MBK Desk ↗' : 'Launch Desk ↗'}</span>
             </button>
           </div>
         </div>
@@ -1896,15 +1897,20 @@ export const PublicLandingPage: React.FC<Props> = ({
 
           {/* Full Comparison Table (25 Rows) */}
           <div className="bg-[#1e222d] border border-[#2a2e39] rounded-2xl overflow-hidden shadow-xl">
-            <div className="p-5 border-b border-[#2a2e39] flex items-center justify-between">
-              <h3 className="text-base font-bold text-white">
+            <div className="p-3.5 sm:p-5 border-b border-[#2a2e39] flex items-center justify-between">
+              <h3 className="text-sm sm:text-base font-bold text-white">
                 {isAr ? 'قارن بين المجاني وPro وElite' : 'Compare Free, Pro & Elite'}
               </h3>
-              <span className="text-xs font-mono text-[#787b86]">25 Capabilities Matrix</span>
+              <div className="flex items-center gap-2">
+                <span className="md:hidden text-[10px] text-[#787b86]">
+                  {isAr ? '← اسحب أفقياً →' : '← Swipe →'}
+                </span>
+                <span className="text-xs font-mono text-[#787b86] hidden sm:inline">25 Capabilities Matrix</span>
+              </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-start text-xs font-mono">
+            <div className="overflow-x-auto smooth-scroll-x">
+              <table className="w-full text-start text-xs font-mono min-w-[540px]">
                 <thead className="bg-[#131722] text-[#787b86] border-b border-[#2a2e39]">
                   <tr>
                     <th className="p-3 text-start w-1/2">{isAr ? 'الميزة / الأداة' : 'Feature / Capability'}</th>

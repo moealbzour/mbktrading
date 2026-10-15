@@ -26,6 +26,7 @@ import { AuthGateModal } from './components/AuthGateModal';
 import { PromoCodeModal } from './components/PromoCodeModal';
 import { PartnerBrokerModal } from './components/PartnerBrokerModal';
 import { NewSignalModal } from './components/NewSignalModal';
+import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 
 export default function App() {
   // Authentication & Flow State
@@ -321,6 +322,9 @@ export default function App() {
         onClose={() => setNewSignalModalOpen(false)}
         onAddSignal={handleAddSignal}
       />
+
+      {/* Mobile Web App PWA Add to Home Screen Prompt */}
+      <PWAInstallPrompt lang={lang} />
     </div>
   );
 }

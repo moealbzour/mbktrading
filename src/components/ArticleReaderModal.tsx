@@ -38,9 +38,9 @@ export const ArticleReaderModal: React.FC<Props> = ({
   return (
     <div
       dir={isAr ? 'rtl' : 'ltr'}
-      className="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto"
+      className="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
     >
-      <div className="bg-[#1e222d] border border-[#363a45] rounded-2xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative text-[#d1d4dc] my-8 animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto">
+      <div className="bg-[#1e222d] border border-[#363a45] rounded-2xl max-w-2xl w-full p-4 sm:p-8 shadow-2xl relative text-[#d1d4dc] my-auto max-h-[92dvh] overflow-y-auto animate-in fade-in zoom-in-95">
         {/* Close Button */}
         <button
           onClick={() => {

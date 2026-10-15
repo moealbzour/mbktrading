@@ -50,6 +50,7 @@ import {
 } from 'lucide-react';
 import { TradingViewChart } from './TradingViewChart';
 import { HeaderTicker } from './layout/HeaderTicker';
+import { MobileBottomNav } from './MobileBottomNav';
 import { soundManager } from '../utils/audio';
 import confetti from 'canvas-confetti';
 
@@ -864,37 +865,6 @@ export function ProtectedDashboard({
         </div>
       </header>
 
-      {/* 2.5 INSTITUTIONAL TELEMETRY STATUS BAR */}
-      <div className="h-7 bg-[#0d1017] border-b border-[#2a2e39] px-4 flex items-center justify-between text-[11px] font-mono text-[#787b86] shrink-0 overflow-x-auto whitespace-nowrap select-none">
-        <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1.5 text-[#089981] font-bold">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#089981] animate-ping" />
-            <span>EQX-LD4</span>
-          </span>
-          <span className="text-[#363a45]">|</span>
-          <span>
-            LATENCY: <strong className="text-white" dir="ltr">0.9ms</strong>
-          </span>
-          <span className="text-[#363a45]">|</span>
-          <span>
-            FIX API: <strong className="text-[#089981]">CONNECTED</strong>
-          </span>
-          <span className="text-[#363a45]">|</span>
-          <span>
-            FEED: <strong className="text-white">CME / FXCM DIRECT</strong>
-          </span>
-        </div>
-        <div className="flex items-center gap-3">
-          <span>
-            SESSION: <strong className="text-white">NEW YORK / LONDON OVERLAP</strong>
-          </span>
-          <span className="text-[#363a45]">|</span>
-          <span>
-            SERVER TIME: <strong className="text-white" dir="ltr">{serverTimeUtc} UTC</strong>
-          </span>
-        </div>
-      </div>
-
       {/* 3. MAIN TERMINAL WORKSPACE: FIXED SIDEBAR + TAB CONTENT */}
       <div className="flex-1 flex overflow-hidden">
         {/* FIXED SIDEBAR (Desktop) */}
@@ -1085,37 +1055,74 @@ export function ProtectedDashboard({
           </div>
         </aside>
 
-        {/* MOBILE TOP TAB BAR (Sticky for Mobile Users) */}
-        <div className="md:hidden flex items-center gap-1.5 p-2 bg-[#1e222d] border-b border-[#2a2e39] overflow-x-auto shrink-0 select-none">
+        {/* MOBILE TOP TAB BAR (Clean horizontal scrollable pills) */}
+        <div className="md:hidden flex items-center gap-1.5 p-2 bg-[#1e222d] border-b border-[#2a2e39] overflow-x-auto smooth-scroll-x shrink-0 select-none">
           <button
             onClick={() => {
               setActiveTab('signals');
               setSelectedTrader(null);
+              soundManager.playClick();
             }}
-            className={`px-3 py-1.5 rounded text-xs font-semibold whitespace-nowrap cursor-pointer ${
-              activeTab === 'signals' ? 'bg-white text-[#131722] font-bold' : 'text-[#787b86]'
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+              activeTab === 'signals'
+                ? 'bg-white text-[#131722] font-bold shadow-sm'
+                : 'bg-[#131722] text-[#787b86] border border-[#2a2e39]'
             }`}
           >
-            {isAr ? '📡 الإشارات' : 'Signals'}
+            {isAr ? '📡 الإشارات الحية' : 'Live Signals'}
           </button>
           <button
             onClick={() => {
               setActiveTab('traders');
               setSelectedTrader(null);
+              soundManager.playClick();
             }}
-            className={`px-3 py-1.5 rounded text-xs font-semibold whitespace-nowrap cursor-pointer ${
-              activeTab === 'traders' ? 'bg-white text-[#131722] font-bold' : 'text-[#787b86]'
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+              activeTab === 'traders'
+                ? 'bg-white text-[#131722] font-bold shadow-sm'
+                : 'bg-[#131722] text-[#787b86] border border-[#2a2e39]'
             }`}
           >
             {isAr ? '🏆 المحللين' : 'Analysts'}
           </button>
           <button
             onClick={() => {
+              setActiveTab('ai_agent');
+              setSelectedTrader(null);
+              soundManager.playClick();
+            }}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+              activeTab === 'ai_agent'
+                ? 'bg-white text-[#131722] font-bold shadow-sm'
+                : 'bg-[#131722] text-[#787b86] border border-[#2a2e39]'
+            }`}
+          >
+            {isAr ? '🤖 المستشار AI' : 'AI Agent'}
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab('journal');
+              setSelectedTrader(null);
+              soundManager.playClick();
+            }}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+              activeTab === 'journal'
+                ? 'bg-white text-[#131722] font-bold shadow-sm'
+                : 'bg-[#131722] text-[#787b86] border border-[#2a2e39]'
+            }`}
+          >
+            {isAr ? '📓 المفكرة $100K' : 'Journal Desk'}
+          </button>
+          <button
+            onClick={() => {
               setActiveTab('indicators');
               setSelectedTrader(null);
+              soundManager.playClick();
             }}
-            className={`px-3 py-1.5 rounded text-xs font-semibold whitespace-nowrap cursor-pointer ${
-              activeTab === 'indicators' ? 'bg-white text-[#131722] font-bold' : 'text-[#787b86]'
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+              activeTab === 'indicators'
+                ? 'bg-white text-[#131722] font-bold shadow-sm'
+                : 'bg-[#131722] text-[#787b86] border border-[#2a2e39]'
             }`}
           >
             {isAr ? '🛍️ المؤشرات' : 'Indicators'}
@@ -1124,42 +1131,26 @@ export function ProtectedDashboard({
             onClick={() => {
               setActiveTab('copy_trading');
               setSelectedTrader(null);
+              soundManager.playClick();
             }}
-            className={`px-3 py-1.5 rounded text-xs font-semibold whitespace-nowrap cursor-pointer ${
-              activeTab === 'copy_trading' ? 'bg-white text-[#131722] font-bold' : 'text-[#787b86]'
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+              activeTab === 'copy_trading'
+                ? 'bg-white text-[#131722] font-bold shadow-sm'
+                : 'bg-[#131722] text-[#787b86] border border-[#2a2e39]'
             }`}
           >
             {isAr ? '🤝 نسخ الصفقات' : 'Copy'}
           </button>
           <button
             onClick={() => {
-              setActiveTab('ai_agent');
-              setSelectedTrader(null);
-            }}
-            className={`px-3 py-1.5 rounded text-xs font-semibold whitespace-nowrap cursor-pointer ${
-              activeTab === 'ai_agent' ? 'bg-white text-[#131722] font-bold' : 'text-[#787b86]'
-            }`}
-          >
-            {isAr ? '🤖 الذكاء الاصطناعي' : 'AI'}
-          </button>
-          <button
-            onClick={() => {
-              setActiveTab('journal');
-              setSelectedTrader(null);
-            }}
-            className={`px-3 py-1.5 rounded text-xs font-semibold whitespace-nowrap cursor-pointer ${
-              activeTab === 'journal' ? 'bg-white text-[#131722] font-bold' : 'text-[#787b86]'
-            }`}
-          >
-            {isAr ? '📓 المفكرة' : 'Journal'}
-          </button>
-          <button
-            onClick={() => {
               setActiveTab('admin');
               setSelectedTrader(null);
+              soundManager.playClick();
             }}
-            className={`px-3 py-1.5 rounded text-xs font-semibold whitespace-nowrap cursor-pointer ${
-              activeTab === 'admin' ? 'bg-white text-[#131722] font-bold' : 'text-[#787b86]'
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+              activeTab === 'admin'
+                ? 'bg-white text-[#131722] font-bold shadow-sm'
+                : 'bg-[#131722] text-[#787b86] border border-[#2a2e39]'
             }`}
           >
             {isAr ? '⚙️ الإدارة' : 'Admin'}
@@ -1167,7 +1158,7 @@ export function ProtectedDashboard({
         </div>
 
         {/* WORKSPACE MAIN CONTENT AREA */}
-        <main className="flex-1 overflow-y-auto bg-[#131722] relative p-3 sm:p-5">
+        <main className="flex-1 overflow-y-auto bg-[#131722] relative p-3 sm:p-5 pb-28 md:pb-6">
           {/* ======================================================== */}
           {/* TAB 1: 📡 LIVE SIGNALS & AUDITED TRACK RECORD */}
           {/* ======================================================== */}
@@ -1443,8 +1434,17 @@ export function ProtectedDashboard({
 
                 {/* Audit Table */}
                 <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg overflow-hidden shadow-sm">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-start text-xs font-mono">
+                  <div className="p-2.5 sm:p-3 border-b border-[#2a2e39] bg-[#131722]/50 flex items-center justify-between">
+                    <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-[#089981]" />
+                      <span>{isAr ? 'بيانات الصفقات الموثقة' : 'Verified Trade Log'}</span>
+                    </span>
+                    <span className="md:hidden text-[10px] text-[#787b86]">
+                      {isAr ? '← اسحب أفقياً لعرض باقي البيانات →' : '← Swipe horizontally →'}
+                    </span>
+                  </div>
+                  <div className="overflow-x-auto smooth-scroll-x">
+                    <table className="w-full text-start text-xs font-mono min-w-[680px]">
                       <thead className="bg-[#131722] text-[#787b86] border-b border-[#2a2e39] select-none text-[11px]">
                         <tr>
                           <th className="py-2.5 px-3 text-start">ID / TIME</th>
@@ -2261,18 +2261,23 @@ export function ProtectedDashboard({
               </div>
 
               {/* 6.2 ACTIVE OPEN POSITIONS ROWS */}
-              <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg overflow-hidden space-y-2 p-4">
+              <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg overflow-hidden space-y-2 p-3 sm:p-4">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-xs font-mono font-bold text-[#787b86] uppercase tracking-wider">
                     {isAr ? 'الصفقات الافتراضية المفتوحة حالياً' : 'OPEN SIMULATED POSITIONS'}
                   </h3>
-                  <span className="text-xs font-mono text-[#089981] font-bold" dir="ltr">
-                    Floating: +$4,040.00
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="md:hidden text-[10px] text-[#787b86]">
+                      {isAr ? '← اسحب أفقياً →' : '← Swipe →'}
+                    </span>
+                    <span className="text-xs font-mono text-[#089981] font-bold" dir="ltr">
+                      Floating: +$4,040.00
+                    </span>
+                  </div>
                 </div>
 
-                <div className="overflow-x-auto">
-                  <table className="w-full text-start text-xs font-mono">
+                <div className="overflow-x-auto smooth-scroll-x">
+                  <table className="w-full text-start text-xs font-mono min-w-[620px]">
                     <thead className="bg-[#131722] text-[#787b86] border-b border-[#2a2e39] select-none text-[11px]">
                       <tr>
                         <th className="py-2 px-3 text-start">ASSET</th>
@@ -2618,6 +2623,21 @@ export function ProtectedDashboard({
           </div>
         </div>
       )}
+
+      {/* NATIVE MOBILE BOTTOM NAVIGATION DOCK (Phones & Small Tablets) */}
+      <MobileBottomNav
+        activeTab={activeTab}
+        onChangeTab={(tab) => {
+          setActiveTab(tab);
+          setSelectedTrader(null);
+        }}
+        lang={lang}
+        signalsCount={2}
+        isMuted={isMuted}
+        onToggleMute={onToggleMute}
+        onLogout={onLogout}
+        onOpenBrokerModal={onOpenBrokerModal}
+      />
     </div>
   );
 }

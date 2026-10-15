@@ -145,7 +145,7 @@ export const AuthGateModal: React.FC<Props> = ({
       className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md overflow-y-auto"
       dir={isAr ? 'rtl' : 'ltr'}
     >
-      <div className="relative w-full max-w-md bg-[#1e222d] border border-[#2a2e39] rounded-2xl p-6 sm:p-7 shadow-2xl text-[#d1d4dc] my-8">
+      <div className="relative w-full max-w-md bg-[#1e222d] border border-[#2a2e39] rounded-2xl p-4 sm:p-7 shadow-2xl text-[#d1d4dc] my-auto max-h-[92dvh] overflow-y-auto">
         {/* Close Button */}
         <button
           onClick={onClose}
