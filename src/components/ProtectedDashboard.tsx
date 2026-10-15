@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Component, ErrorInfo, ReactNode } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   UserProfile,
   MarketSymbol,
@@ -7,12 +7,7 @@ import {
   ChatMessage,
   EconomicNewsItem,
   TraderProfile,
-  TraderPost,
-  BotState,
-  BotStrategy,
-  BotLogEntry,
-  CopyTradingMaster,
-  MBKIndicator
+  TraderPost
 } from '../types/trading';
 import {
   Radio,
@@ -51,79 +46,12 @@ import {
   VolumeX,
   X,
   Sliders,
-  Wallet,
-  Cpu,
-  Layers,
-  FlaskConical,
-  Brain,
-  MessageSquare,
-  RefreshCw,
-  Compass,
-  Play,
-  Menu,
-  Smartphone,
-  Download
+  Wallet
 } from 'lucide-react';
 import { TradingViewChart } from './TradingViewChart';
 import { HeaderTicker } from './layout/HeaderTicker';
 import { soundManager } from '../utils/audio';
 import confetti from 'canvas-confetti';
-import { PWAInstallModal } from './PWAInstallModal';
-import { usePWAInstall } from '../hooks/usePWAInstall';
-
-// Core Sub-Components
-import { MarketDesk } from './tic/MarketDesk';
-import { PaperTrading } from './tic/PaperTrading';
-import { SmartJournal } from './tic/SmartJournal';
-import { PlaybooksLibrary } from './tic/PlaybooksLibrary';
-import { BacktestLab } from './tic/BacktestLab';
-import { AICoachReview } from './tic/AICoachReview';
-import { CommunityChat } from './CommunityChat';
-import { IndicatorsStorePanel } from './IndicatorsStorePanel';
-import { CopyTradingPanel } from './CopyTradingPanel';
-import { AutoBotPanel } from './AutoBotPanel';
-
-import {
-  INITIAL_BOT_STATE,
-  INITIAL_BOT_LOGS,
-  MASTER_TRADER_PROFILE,
-  MBK_INDICATORS,
-  ECONOMIC_CALENDAR_ITEMS
-} from '../data/mockTradingData';
-
-// Safe Error Boundary to prevent any blank screen
-class TabErrorBoundary extends Component<{ children: ReactNode; tabName: string }, { hasError: boolean; error: string | null }> {
-  constructor(props: { children: ReactNode; tabName: string }) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error: error.message };
-  }
-  componentDidCatch(error: Error, info: ErrorInfo) {
-    console.warn('Tab render error:', error, info);
-  }
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="p-8 rounded-lg bg-[#1e222d] border border-[#2a2e39] text-center my-6 max-w-xl mx-auto">
-          <div className="w-12 h-12 rounded-full bg-[#f23645]/20 text-[#f23645] flex items-center justify-center mx-auto mb-3">
-            <AlertTriangle className="w-6 h-6" />
-          </div>
-          <h3 className="text-base font-bold text-white mb-2">جاري تهيئة بيانات القسم التجريبي ({this.props.tabName})</h3>
-          <p className="text-xs text-[#787b86] mb-4">تم حفظ الإعدادات، انقر لإعادة تحميل القسم في وضع المحاكاة.</p>
-          <button
-            onClick={() => this.setState({ hasError: false, error: null })}
-            className="px-4 py-2 rounded bg-white text-[#131722] text-xs font-bold hover:bg-[#d1d4dc] transition-all cursor-pointer"
-          >
-            إعادة المحاولة
-          </button>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
 
 interface Props {
   user: UserProfile;
@@ -150,20 +78,13 @@ interface Props {
 }
 
 export type DashboardTab =
-  | 'signals'       // 📡 إشارات التداول الحية وسجل النتائج
-  | 'desk'          // 🧭 غرفة الأسواق والجلسات العالمية (Market Desk)
-  | 'paper'         // 💼 محفظة $100K الافتراضية (Paper Desk)
-  | 'autobot'       // 🤖 محرك الصفقات الآلي (Pine Script Webhook Engine)
-  | 'journal'       // 📓 مفكرة التداول والتحليل النفسي (Smart Journal)
-  | 'playbooks'     // 📚 مكتبة استراتيجيات صناع السوق (SMC Playbooks)
-  | 'backtest'      // 🧪 مختبر الباك تست والفحص (Backtest Lab)
-  | 'aicoach'       // 🧠 الموجّه والمحلل الذكي (AI Coach & SMC Agent)
-  | 'traders'       // 🏆 نخبة المحللين وغرف التداول (Top Analysts)
-  | 'indicators'    // 🛍️ متجر المؤشرات وخوارزميات Pine (Indicators Store)
-  | 'copy_trading'  // 🤝 نسخ الصفقات وربط الوسطاء (Copy Trading)
-  | 'calendar'      // 📅 المفكرة الاقتصادية والبيانات (Economic Calendar)
-  | 'community'     // 💬 شات المتداولين المباشر (Community Live Chat)
-  | 'admin';        // ⚙️ لوحة الإدارة والتحكم (Admin Command Center)
+  | 'signals'
+  | 'traders'
+  | 'indicators'
+  | 'copy_trading'
+  | 'ai_agent'
+  | 'journal'
+  | 'admin';
 
 // Verified Traders Directory
 const INITIAL_TRADERS: TraderProfile[] = [
@@ -327,39 +248,196 @@ const TRADER_POSTS_DATA: Record<string, TraderPost[]> = {
       action: 'BUY',
       entryPrice: 20420.0,
       tp1: 20480.0,
-      tp2: 20540.0,
-      sl: 20380.0,
-      pips: 60,
-      status: 'TP1_HIT',
-      notesAr: 'حصد 60 نقطة سريعة مع تدفق أوامر الشراء الصباحية في وول ستريت.',
-      notesEn: 'Locked 60 quick points with morning Wall Street liquidity inflow.',
+      tp2: 20550.0,
+      sl: 20370.0,
+      pips: 130,
+      status: 'TP2_HIT',
+      notesAr: 'حصدنا 130 نقطة خلال 20 دقيقة فقط من الافتتاح. مبروك للجميع.',
+      notesEn: 'Banked 130 pips in under 20 minutes from the open. Outstanding execution.',
       timestamp: 'منذ 3 ساعات',
-      likes: 27
+      likes: 54
     }
   ],
   karim_sayed: [
     {
-      id: 'post-s1',
+      id: 'post-ks1',
       traderId: 'karim_sayed',
       traderName: 'كريم السيد (محلل السوينغ)',
       traderAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
-      titleAr: 'سوينغ EURUSD: ارتداد من مستوى دعم البنك المركزي',
-      titleEn: 'EURUSD Swing: Rebound from ECB Macro Level',
+      titleAr: 'تحديث اليورو دولار: ارتداد من خط الدعم الأسبوعي',
+      titleEn: 'EURUSD Update: Rebound from Weekly Support',
       symbol: 'EURUSD',
       action: 'BUY',
-      entryPrice: 1.0820,
-      tp1: 1.0880,
-      tp2: 1.0940,
-      sl: 1.0780,
-      pips: 60,
+      entryPrice: 1.0835,
+      tp1: 1.0875,
+      tp2: 1.0920,
+      sl: 1.0805,
+      pips: 40,
       status: 'ACTIVE',
-      notesAr: 'صفقة مستمرة تستهدف مستويات 1.0940 مع نهاية الأسبوع.',
-      notesEn: 'Multi-day setup aiming for 1.0940 liquidity target.',
-      timestamp: 'منذ 4 ساعات',
-      likes: 19
+      notesAr: 'الصفقة مستمرة بإيجابية، نستهدف مستويات 1.0875 كمحطة أولى.',
+      notesEn: 'Trade active in profit, targeting 1.0875 first station.',
+      timestamp: 'منذ 5 ساعات',
+      likes: 22
     }
   ]
 };
+
+// Simulated Portfolio Positions
+interface SimulatedPosition {
+  id: string;
+  symbol: MarketSymbol;
+  type: 'BUY' | 'SELL';
+  lots: number;
+  entryPrice: number;
+  currentPrice: number;
+  floatingPnl: number;
+  pips: number;
+  openTime: string;
+}
+
+// Track Record Audit Trades
+interface AuditTrade {
+  id: string;
+  date: string;
+  symbol: MarketSymbol;
+  type: 'BUY' | 'SELL';
+  entryPrice: string;
+  exitPrice: string;
+  pips: number;
+  riskReward: string;
+  status: 'TP_HIT' | 'SL_HIT' | 'BE';
+  strategy: string;
+}
+
+const AUDIT_TRADES: AuditTrade[] = [
+  {
+    id: 'AUD-901',
+    date: '2026-10-14 14:30',
+    symbol: 'US100',
+    type: 'BUY',
+    entryPrice: '20,440.00',
+    exitPrice: '20,560.00',
+    pips: 120,
+    riskReward: '1 : 2.4',
+    status: 'TP_HIT',
+    strategy: 'MBK Scalp Breakout & FVG'
+  },
+  {
+    id: 'AUD-902',
+    date: '2026-10-14 11:15',
+    symbol: 'XAUUSD',
+    type: 'BUY',
+    entryPrice: '2,668.00',
+    exitPrice: '2,684.40',
+    pips: 164,
+    riskReward: '1 : 2.5',
+    status: 'TP_HIT',
+    strategy: 'Alligator & Liquidity Sweep'
+  },
+  {
+    id: 'AUD-903',
+    date: '2026-10-13 16:20',
+    symbol: 'US100',
+    type: 'BUY',
+    entryPrice: '20,380.00',
+    exitPrice: '20,495.00',
+    pips: 115,
+    riskReward: '1 : 2.3',
+    status: 'TP_HIT',
+    strategy: 'NY Cash Open Momentum'
+  },
+  {
+    id: 'AUD-904',
+    date: '2026-10-13 09:40',
+    symbol: 'EURUSD',
+    type: 'SELL',
+    entryPrice: '1.0875',
+    exitPrice: '1.0842',
+    pips: 33,
+    riskReward: '1 : 3.0',
+    status: 'TP_HIT',
+    strategy: '50 EMA Institutional Pullback'
+  },
+  {
+    id: 'AUD-905',
+    date: '2026-10-12 15:10',
+    symbol: 'BTCUSD',
+    type: 'BUY',
+    entryPrice: '66,800.00',
+    exitPrice: '67,900.00',
+    pips: 1100,
+    riskReward: '1 : 2.2',
+    status: 'TP_HIT',
+    strategy: 'Order Block Sweep'
+  },
+  {
+    id: 'AUD-906',
+    date: '2026-10-11 10:20',
+    symbol: 'XAUUSD',
+    type: 'BUY',
+    entryPrice: '2,652.00',
+    exitPrice: '2,670.00',
+    pips: 180,
+    riskReward: '1 : 2.8',
+    status: 'TP_HIT',
+    strategy: 'London Session High Breakout'
+  }
+];
+
+// Macro Economic Event Cards Data
+interface MacroEvent {
+  id: string;
+  nameAr: string;
+  nameEn: string;
+  currency: string;
+  impact: 'HIGH' | 'MEDIUM';
+  countdown: string;
+  forecast: string;
+  previous: string;
+}
+
+const MACRO_EVENTS: MacroEvent[] = [
+  {
+    id: 'ev-1',
+    nameAr: 'مؤشر أسعار المستهلكين الأمريكي (US CPI YoY)',
+    nameEn: 'US CPI Inflation Rate (YoY)',
+    currency: 'USD',
+    impact: 'HIGH',
+    countdown: '02h : 14m',
+    forecast: '3.1%',
+    previous: '3.2%'
+  },
+  {
+    id: 'ev-2',
+    nameAr: 'قرار الفائدة للبنك الفيدرالي الأمريكي (FOMC)',
+    nameEn: 'FOMC Interest Rate Decision',
+    currency: 'USD',
+    impact: 'HIGH',
+    countdown: '18h : 45m',
+    forecast: '5.25%',
+    previous: '5.50%'
+  },
+  {
+    id: 'ev-3',
+    nameAr: 'تقرير الوظائف غير الزراعية (US NFP)',
+    nameEn: 'US Non-Farm Payrolls (NFP)',
+    currency: 'USD',
+    impact: 'HIGH',
+    countdown: '2d : 06h',
+    forecast: '175K',
+    previous: '216K'
+  },
+  {
+    id: 'ev-4',
+    nameAr: 'بيان السياسة النقدية للبنك المركزي الأوروبي',
+    nameEn: 'ECB Monetary Policy Statement',
+    currency: 'EUR',
+    impact: 'MEDIUM',
+    countdown: '3d : 11h',
+    forecast: '3.75%',
+    previous: '3.75%'
+  }
+];
 
 export function ProtectedDashboard({
   user,
@@ -385,28 +463,10 @@ export function ProtectedDashboard({
   onToggleLang
 }: Props) {
   const isAr = lang === 'ar';
+  const isVIP = user.role === 'VIP' || user.role === 'ADMIN' || user.isAdmin;
 
-  // Bulletproof user info with absolute safety against undefined/null
-  const safeUser = user || {
-    uid: 'demo_uid',
-    name: 'متداول MBK المعتمد',
-    email: 'trader@mbk.io',
-    role: 'VIP',
-    planName: 'عضوية تجريبية شاملة'
-  };
-  const userName = safeUser.name || (safeUser.email ? safeUser.email.split('@')[0] : 'Trader');
-  const isVIP = safeUser.role === 'VIP' || safeUser.role === 'ADMIN' || safeUser.isAdmin;
-
-  // Active Sidebar Workspace Tab (Default: Live Signals)
+  // Active Sidebar Workspace Tab
   const [activeTab, setActiveTab] = useState<DashboardTab>('signals');
-
-  // Mobile Drawer and PWA Install States
-  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
-  const [pwaModalOpen, setPwaModalOpen] = useState(false);
-  const { isInstallable, isInstalled, isIOS, isAndroid } = usePWAInstall();
-
-  // Demo / Live Environment Mode Toggle
-  const [envMode, setEnvMode] = useState<'DEMO' | 'LIVE_READY'>('DEMO');
 
   // Expanded Chart Card IDs
   const [expandedChartId, setExpandedChartId] = useState<string | null>('card-us100');
@@ -414,7 +474,7 @@ export function ProtectedDashboard({
   // Copied state feedback
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Selected Trader Room State (when inside Tab: traders)
+  // Selected Trader Room State (when inside Tab 2)
   const [selectedTrader, setSelectedTrader] = useState<TraderProfile | null>(null);
   const [traderChatInput, setTraderChatInput] = useState('');
   const [traderRoomMessages, setTraderRoomMessages] = useState<
@@ -447,7 +507,7 @@ export function ProtectedDashboard({
   const [unlockCodeError, setUnlockCodeError] = useState(false);
   const [unlockedTraderIds, setUnlockedTraderIds] = useState<string[]>(['mbk_master']);
 
-  // SMC AI Agent Chat State (Tab: aicoach)
+  // SMC AI Agent Chat State (Tab 5)
   const [aiInput, setAiInput] = useState('');
   const [aiIsTyping, setAiIsTyping] = useState(false);
   const [aiMessages, setAiMessages] = useState<Array<{ role: 'user' | 'model'; text: string; time: string }>>([
@@ -460,47 +520,72 @@ export function ProtectedDashboard({
     }
   ]);
 
-  // Automated Bot State
-  const [botState, setBotState] = useState<BotState>(INITIAL_BOT_STATE);
-  const [botLogs, setBotLogs] = useState<BotLogEntry[]>(INITIAL_BOT_LOGS);
-
-  // Admin PIN Gate State
-  const [isAdminUnlocked, setIsAdminUnlocked] = useState(false);
-  const [adminPin, setAdminPin] = useState('');
-  const [adminPinError, setAdminPinError] = useState(false);
-  const [adminToast, setAdminToast] = useState<string | null>(null);
-
-  // Admin Signal Publisher State
-  const [adminSymbol, setAdminSymbol] = useState<MarketSymbol>('US100');
-  const [adminType, setAdminType] = useState<'BUY' | 'SELL'>('BUY');
-  const [adminEntry, setAdminEntry] = useState('20440.00');
-  const [adminTp1, setAdminTp1] = useState('20880.00');
-  const [adminTp2, setAdminTp2] = useState('20950.00');
-  const [adminSl, setAdminSl] = useState('20380.00');
-  const [adminStrategy, setAdminStrategy] = useState('MBK Scalp Breakout & Liquidity Sweep');
-  const [adminPublishSuccess, setAdminPublishSuccess] = useState(false);
-
-  // Admin Generated Codes List
-  const [generatedCodes, setGeneratedCodes] = useState<Array<{ code: string; type: string; date: string }>>([
-    { code: 'MBK2026', type: 'VIP Unlimited', date: 'دائم' },
-    { code: 'VIP2026', type: 'VIP Full Access', date: 'دائم' },
-    { code: 'TARIQ2026', type: 'Gold Sniper Room', date: 'دائم' },
-    { code: 'KHALED2026', type: 'NY Scalp Room', date: 'دائم' }
+  // Paper Trading Simulated Portfolio State (Tab 6)
+  const [paperBalance, setPaperBalance] = useState(100000);
+  const [paperEquity, setPaperEquity] = useState(104820.5);
+  const [paperPositions, setPaperPositions] = useState<SimulatedPosition[]>([
+    {
+      id: 'pos-1',
+      symbol: 'US100',
+      type: 'BUY',
+      lots: 2.0,
+      entryPrice: 20440.0,
+      currentPrice: 20560.0,
+      floatingPnl: 2400.0,
+      pips: 120,
+      openTime: '13:45'
+    },
+    {
+      id: 'pos-2',
+      symbol: 'XAUUSD',
+      type: 'BUY',
+      lots: 1.0,
+      entryPrice: 2668.0,
+      currentPrice: 2684.4,
+      floatingPnl: 1640.0,
+      pips: 164,
+      openTime: '11:20'
+    }
   ]);
 
-  // UTC Live Server Time String
+  // Admin PIN Protection State (Tab 7)
+  const [adminPin, setAdminPin] = useState('');
+  const [isAdminUnlocked, setIsAdminUnlocked] = useState(false);
+  const [adminPinError, setAdminPinError] = useState(false);
+
+  // Admin Signal Publish Form
+  const [adminSymbol, setAdminSymbol] = useState<MarketSymbol>('US100');
+  const [adminType, setAdminType] = useState<'BUY' | 'SELL'>('BUY');
+  const [adminEntry, setAdminEntry] = useState('20440');
+  const [adminTp1, setAdminTp1] = useState('20880');
+  const [adminTp2, setAdminTp2] = useState('20950');
+  const [adminSl, setAdminSl] = useState('20380');
+  const [adminStrategy, setAdminStrategy] = useState('MBK Scalp Breakout');
+  const [adminPublishSuccess, setAdminPublishSuccess] = useState(false);
+
+  // Admin Generated Codes State
+  const [generatedCodes, setGeneratedCodes] = useState<
+    Array<{ code: string; type: string; date: string }>
+  >([
+    { code: 'VIP-9941', type: 'عضوية VIP سنوية', date: 'اليوم' },
+    { code: 'TARIQ-2841', type: 'غرفة كابتن طارق', date: 'أمس' },
+    { code: 'KHALED-5520', type: 'غرفة أبو خالد', date: 'أمس' }
+  ]);
+  const [adminToast, setAdminToast] = useState<string | null>(null);
+
+  // UTC Server Time
   const [serverTimeUtc, setServerTimeUtc] = useState('');
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
-      setServerTimeUtc(now.toISOString().substring(11, 19));
+      setServerTimeUtc(now.toUTCString().slice(17, 25));
     };
     updateTime();
-    const timer = setInterval(updateTime, 1000);
-    return () => clearInterval(timer);
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
   }, []);
 
-  // Quick Copy Action Helper
+  // Handler: Copy Signal Feedback
   const handleCopy = (text: string, id: string) => {
     soundManager.playClick();
     navigator.clipboard.writeText(text);
@@ -508,25 +593,30 @@ export function ProtectedDashboard({
     setTimeout(() => setCopiedId(null), 2500);
   };
 
-  // Handler: Send SMC AI Chat Query
-  const handleSendAiPrompt = (query: string) => {
+  // Handler: Submit AI Prompt
+  const handleSendAiPrompt = (promptText?: string) => {
+    const query = promptText || aiInput;
     if (!query.trim()) return;
     soundManager.playClick();
-    const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    setAiMessages((prev) => [...prev, { role: 'user', text: query, time: nowTime }]);
+    const userMsg = {
+      role: 'user' as const,
+      text: query,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+    setAiMessages((prev) => [...prev, userMsg]);
     setAiInput('');
     setAiIsTyping(true);
 
     setTimeout(() => {
       setAiIsTyping(false);
-      soundManager.playProfitChime();
+      soundManager.playSignalPing();
 
       let reply = '';
       if (query.includes('ذهب') || query.includes('XAU') || query.toLowerCase().includes('gold')) {
         reply = isAr
-          ? '【تحليل SMC للذهب XAUUSD】\n• الاتجاه العام: صعودي قوي (Bullish Order Flow).\n• مستويات السيولة: تم سحب سيولة قاع آسيا عند 2,668$.\n• منطقة الدخول المثالية: 2,672$ - 2,674$ (كتلة أوامر شرائية Bullish Order Block).\n• الأهداف: 2,684$ (+100 نقطة) ثم 2,692$.\n• وقف الخسارة: إغلاق شمعة ساعة أسفل 2,658$ يلغي الفكرة.'
-          : '【XAUUSD Spot Gold SMC Analysis】\n• Structure: Bullish Order Flow with Asian Low sweep at $2,668.\n• Optimal Entry: $2,672 - $2,674 (Bullish Order Block).\n• Targets: $2,684 (+100 pips) then $2,692.\n• Stop Loss: Hourly close below $2,658 invalidates.';
+          ? '【تحليل SMC للذهب XAUUSD】\n• الهيكل اللحظي: صعودي قوي فوق 2,660$.\n• مناطق السيولة (Liquidity Pools): تم سحب سيولة قاع لندن عند 2,668$ بنجاح.\n• كتل الأوامر (Order Blocks): منطقة ارتداد FVG قوية بين 2,674$ و 2,678$.\n• الأهداف: استهداف 2,695$ ثم 2,705$.\n• وقف الخسارة البنيوي: إغلاق شمعة ساعة أسفل 2,662$.'
+          : '【XAUUSD Spot Gold SMC Analysis】\n• Bias: Strong Bullish above $2,660.\n• Liquidity Sweep: London lows at $2,668 cleanly swept.\n• Order Block: Bullish FVG active at $2,674 - $2,678.\n• Targets: $2,695 then $2,705.\n• Invalidation: Close below $2,662.';
       } else if (query.includes('ناسداك') || query.includes('US100') || query.toLowerCase().includes('nasdaq')) {
         reply = isAr
           ? '【تحليل SMC لمؤشر ناسداك US100】\n• الهيكل اللحظي: صعودي بعد سحب سيولة البائعين عند 20,420.\n• فجوة القيمة العادلة (FVG): مدعومة بمتوسط EMA 21 عند 20,460.\n• الأهداف: 20,880 (+440 pips) ثم 20,950 (+510 pips).\n• وقف الخسارة: كسر 20,380 يلغي نموذج الشراء.'
@@ -550,6 +640,17 @@ export function ProtectedDashboard({
         }
       ]);
     }, 600);
+  };
+
+  // Handler: Close Paper Position
+  const handleClosePosition = (posId: string) => {
+    soundManager.playProfitChime();
+    confetti({ particleCount: 30, spread: 50 });
+    const pos = paperPositions.find((p) => p.id === posId);
+    if (!pos) return;
+    setPaperBalance((prev) => +(prev + pos.floatingPnl).toFixed(2));
+    setPaperEquity((prev) => +(prev + pos.floatingPnl).toFixed(2));
+    setPaperPositions((prev) => prev.filter((p) => p.id !== posId));
   };
 
   // Handler: Verify Admin PIN
@@ -616,7 +717,7 @@ export function ProtectedDashboard({
     soundManager.playClick();
     const newMsg = {
       id: `tm-${Date.now()}`,
-      user: userName,
+      user: user.name || user.email.split('@')[0],
       text: traderChatInput.trim(),
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
@@ -648,139 +749,9 @@ export function ProtectedDashboard({
     }
   };
 
-  // Navigation Items with Clear Grouping
-  const NAV_CATEGORIES = [
-    {
-      id: 'trading',
-      titleAr: 'التداول المباشر ومراقبة السوق',
-      titleEn: 'LIVE TRADING & DESK',
-      items: [
-        {
-          id: 'signals' as DashboardTab,
-          labelAr: '📡 الإشارات الحية وسجل النتائج',
-          labelEn: 'Live Signals & Audit',
-          badge: '+4 LIVE',
-          badgeColor: 'text-[#089981] bg-[#089981]/15'
-        },
-        {
-          id: 'desk' as DashboardTab,
-          labelAr: '🧭 غرفة الأسواق والجلسات',
-          labelEn: 'Market Desk & Sessions',
-          badge: '4 SESSIONS',
-          badgeColor: 'text-white bg-[#2a2e39]'
-        },
-        {
-          id: 'paper' as DashboardTab,
-          labelAr: '💼 محفظة $100K الافتراضية',
-          labelEn: 'Paper Trading $100K',
-          badge: '$100K DEMO',
-          badgeColor: 'text-[#089981] bg-[#089981]/15'
-        },
-        {
-          id: 'autobot' as DashboardTab,
-          labelAr: '🤖 محرك الصفقات الآلي',
-          labelEn: 'Auto Bot & Webhook',
-          badge: 'ONLINE',
-          badgeColor: 'text-[#089981] bg-[#089981]/15'
-        }
-      ]
-    },
-    {
-      id: 'intelligence',
-      titleAr: 'استراتيجيات وأدوات SMC',
-      titleEn: 'SMC INTELLIGENCE & EDGE',
-      items: [
-        {
-          id: 'journal' as DashboardTab,
-          labelAr: '📓 مفكرة التداول والتحليل النفسي',
-          labelEn: 'Smart Trade Journal',
-          badge: 'AUTO STATS',
-          badgeColor: 'text-white bg-[#2a2e39]'
-        },
-        {
-          id: 'playbooks' as DashboardTab,
-          labelAr: '📚 مكتبة استراتيجيات صناع السوق',
-          labelEn: 'SMC Playbooks Library',
-          badge: '4 BUILT-IN',
-          badgeColor: 'text-[#089981] bg-[#089981]/15'
-        },
-        {
-          id: 'backtest' as DashboardTab,
-          labelAr: '🧪 مختبر الباك تست والفحص',
-          labelEn: 'Backtest Lab Simulator',
-          badge: 'R:R MATRIX',
-          badgeColor: 'text-white bg-[#2a2e39]'
-        },
-        {
-          id: 'aicoach' as DashboardTab,
-          labelAr: '🧠 الموجّه الذكي والمحلل النفسي',
-          labelEn: 'AI Coach & Review',
-          badge: 'BEHAVIORAL',
-          badgeColor: 'text-[#089981] bg-[#089981]/15'
-        }
-      ]
-    },
-    {
-      id: 'ecosystem',
-      titleAr: 'المنظومة والمجتمع',
-      titleEn: 'ECOSYSTEM & MARKETPLACE',
-      items: [
-        {
-          id: 'traders' as DashboardTab,
-          labelAr: '🏆 نخبة المحللين وغرف التداول',
-          labelEn: 'Top Analysts Rooms',
-          badge: '4 ROOMS',
-          badgeColor: 'text-white bg-[#2a2e39]'
-        },
-        {
-          id: 'indicators' as DashboardTab,
-          labelAr: '🛍️ متجر المؤشرات (Pine Script)',
-          labelEn: 'Indicators Store',
-          badge: 'PINE V5',
-          badgeColor: 'text-white bg-[#2a2e39]'
-        },
-        {
-          id: 'copy_trading' as DashboardTab,
-          labelAr: '🤝 نسخ الصفقات وربط الوسطاء',
-          labelEn: 'Copy Trading Bridge',
-          badge: '0.0 PIP',
-          badgeColor: 'text-[#089981] bg-[#089981]/15'
-        },
-        {
-          id: 'calendar' as DashboardTab,
-          labelAr: '📅 المفكرة الاقتصادية والبيانات',
-          labelEn: 'Economic Calendar',
-          badge: 'HIGH IMPACT',
-          badgeColor: 'text-[#f23645] bg-[#f23645]/15'
-        },
-        {
-          id: 'community' as DashboardTab,
-          labelAr: '💬 شات المتداولين المباشر',
-          labelEn: 'Community Live Chat',
-          badge: '280+ ONLINE',
-          badgeColor: 'text-[#089981] bg-[#089981]/15'
-        }
-      ]
-    },
-    {
-      id: 'administration',
-      titleAr: 'الإدارة والتحكم',
-      titleEn: 'ADMINISTRATION',
-      items: [
-        {
-          id: 'admin' as DashboardTab,
-          labelAr: '⚙️ لوحة الإدارة ونشر الإشارات',
-          labelEn: 'Command Center',
-          badge: 'PIN 2026',
-          badgeColor: 'text-[#787b86] bg-[#2a2e39]'
-        }
-      ]
-    }
-  ];
-
   return (
     <div
-      className={`h-[100dvh] min-h-[100dvh] w-full bg-[#131722] text-[#d1d4dc] flex flex-col antialiased selection:bg-[#089981]/30 selection:text-[#089981] overflow-hidden ${
+      className={`min-h-screen bg-[#131722] text-[#d1d4dc] flex flex-col antialiased selection:bg-[#089981]/30 selection:text-[#089981] ${
         isAr ? 'font-sans' : ''
       }`}
       dir={isAr ? 'rtl' : 'ltr'}
@@ -789,33 +760,18 @@ export function ProtectedDashboard({
       <HeaderTicker onSelectSymbol={onSelectSymbol} lang={lang} />
 
       {/* 2. TOP DASHBOARD NAVIGATION BAR */}
-      <header className="h-14 bg-[#1e222d] border-b border-[#2a2e39] px-3 sm:px-4 flex items-center justify-between shrink-0 z-30">
-        {/* Left: Mobile Menu Toggle + Brand + Back to Home */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* Mobile Drawer Hamburger Button */}
-          <button
-            onClick={() => {
-              setMobileDrawerOpen(true);
-              soundManager.playClick();
-            }}
-            className="md:hidden flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-white transition-colors cursor-pointer"
-            title={isAr ? 'القائمة والأدوات' : 'Menu & Desks'}
-          >
-            <Menu className="w-4 h-4 text-[#089981]" />
-            <span className="text-[11px] font-bold text-white">
-              {isAr ? 'الأدوات ☰' : 'Desks ☰'}
-            </span>
-          </button>
-
+      <header className="h-14 bg-[#1e222d] border-b border-[#2a2e39] px-4 flex items-center justify-between shrink-0 z-30">
+        {/* Left: Brand + Back to Home */}
+        <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-white text-[#131722] font-mono font-bold text-sm flex items-center justify-center shadow-sm shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-white text-[#131722] font-mono font-bold text-sm flex items-center justify-center shadow-sm">
               MBK
             </div>
-            <div className="hidden xs:block">
+            <div>
               <div className="flex items-center gap-1.5">
                 <span className="font-bold text-white text-sm tracking-wide">MBK DESK</span>
-                <span className="hidden sm:inline-block px-1.5 py-0.2 rounded text-[10px] font-mono font-semibold bg-[#2a2e39] text-[#089981] border border-[#089981]/30">
-                  INSTITUTIONAL v3.2
+                <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-semibold bg-[#2a2e39] text-[#089981] border border-[#089981]/30">
+                  v3.0 INSTITUTIONAL
                 </span>
               </div>
             </div>
@@ -832,51 +788,25 @@ export function ProtectedDashboard({
           )}
         </div>
 
-        {/* Center: Environment Mode Badge (Demo vs Live Ready) */}
-        <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full bg-[#131722] border border-[#2a2e39]">
-          <span className="w-2 h-2 rounded-full bg-[#089981] animate-pulse" />
-          <span className="text-xs font-semibold text-white">
-            {isAr ? 'وضع المحاكاة الكامل (Demo Mode)' : 'Full Demo Mode Active'}
-          </span>
-          <span className="text-[#363a45]">|</span>
-          <span className="text-[11px] text-[#787b86]">
-            {isAr ? 'جميع الأدوات الـ 13 مفعلة ومتاحة للتجربة' : 'All 13 Institutional Desks Unlocked'}
-          </span>
-        </div>
+        {/* Right: User Status, Live Traders, Lang, Audio & Sign Out */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Live Online Traders Counter */}
+          <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#131722] border border-[#2a2e39] text-xs font-mono">
+            <span className="w-2 h-2 rounded-full bg-[#089981] animate-pulse"></span>
+            <span className="text-[#089981] font-bold" dir="ltr">
+              +{onlineTraders}
+            </span>
+            <span className="text-[#787b86] text-[11px]">{isAr ? 'متداول نشط' : 'active'}</span>
+          </div>
 
-        {/* Right: User Profile + PWA Install + Controls */}
-        <div className="flex items-center gap-1.5 sm:gap-2.5">
-          {/* PWA Install Button (Quick trigger on mobile & desktop) */}
-          {!isInstalled && (
-            <button
-              onClick={() => {
-                setPwaModalOpen(true);
-                soundManager.playClick();
-              }}
-              className="flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded bg-[#089981]/15 hover:bg-[#089981]/25 text-[#089981] border border-[#089981]/30 text-xs font-bold transition-all cursor-pointer shadow-sm"
-              title={isAr ? 'تثبيت التطبيق على الهاتف' : 'Install Mobile App'}
-            >
-              <Smartphone className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{isAr ? 'تثبيت التطبيق' : 'Install App'}</span>
-              <span className="sm:hidden text-[10px]">{isAr ? 'تثبيت' : 'App'}</span>
-            </button>
-          )}
-
-          {/* User Profile Badge (tapping opens drawer on mobile) */}
-          <div
-            onClick={() => {
-              if (typeof window !== 'undefined' && window.innerWidth < 768) {
-                setMobileDrawerOpen(true);
-              }
-            }}
-            className="flex items-center gap-2 px-2 sm:px-2.5 py-1 rounded-lg bg-[#131722] border border-[#2a2e39] cursor-pointer md:cursor-default"
-          >
+          {/* User Profile Badge */}
+          <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-[#131722] border border-[#2a2e39]">
             <div className="w-6 h-6 rounded-full bg-[#2a2e39] border border-[#363a45] flex items-center justify-center text-xs font-bold text-white uppercase">
-              {userName ? userName[0] : 'U'}
+              {user.name ? user.name[0] : 'U'}
             </div>
             <div className="text-right hidden sm:block">
-              <div className="text-xs font-semibold text-white leading-tight truncate max-w-[120px]">
-                {userName}
+              <div className="text-xs font-semibold text-white leading-tight truncate max-w-[130px]">
+                {user.name || user.email.split('@')[0]}
               </div>
               <div className="flex items-center gap-1">
                 {isVIP ? (
@@ -885,7 +815,7 @@ export function ProtectedDashboard({
                     VIP MEMBER
                   </span>
                 ) : (
-                  <span className="text-[10px] text-[#787b86]">DEMO ACCESS</span>
+                  <span className="text-[10px] text-[#787b86]">FREE DEMO</span>
                 )}
               </div>
             </div>
@@ -895,10 +825,10 @@ export function ProtectedDashboard({
           {!isVIP && (
             <button
               onClick={onOpenPromoModal}
-              className="px-2 sm:px-2.5 py-1 rounded bg-[#089981] hover:bg-[#089981]/80 text-[#131722] text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
+              className="px-2.5 py-1 rounded bg-[#089981] hover:bg-[#089981]/80 text-[#131722] text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
             >
               <Crown className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{isAr ? 'تفعيل VIP' : 'Upgrade VIP'}</span>
+              <span>{isAr ? 'تفعيل VIP' : 'Upgrade VIP'}</span>
             </button>
           )}
 
@@ -935,21 +865,7 @@ export function ProtectedDashboard({
       </header>
 
       {/* 2.5 INSTITUTIONAL TELEMETRY STATUS BAR */}
-      {/* Mobile-compact telemetry */}
-      <div className="sm:hidden h-7 bg-[#0d1017] border-b border-[#2a2e39] px-3 flex items-center justify-between text-[10px] font-mono text-[#787b86] shrink-0 select-none">
-        <span className="flex items-center gap-1.5 text-[#089981] font-bold">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#089981] animate-ping" />
-          <span>EQX-LD4</span>
-          <span className="text-white font-medium" dir="ltr">0.9ms</span>
-        </span>
-        <span className="text-[#363a45]">|</span>
-        <span className="text-white font-bold" dir="ltr">{serverTimeUtc} UTC</span>
-        <span className="text-[#363a45]">|</span>
-        <span className="text-[#089981] font-bold">DEMO ACTIVE</span>
-      </div>
-
-      {/* Desktop telemetry */}
-      <div className="hidden sm:flex h-7 bg-[#0d1017] border-b border-[#2a2e39] px-4 items-center justify-between text-[11px] font-mono text-[#787b86] shrink-0 overflow-x-auto whitespace-nowrap select-none">
+      <div className="h-7 bg-[#0d1017] border-b border-[#2a2e39] px-4 flex items-center justify-between text-[11px] font-mono text-[#787b86] shrink-0 overflow-x-auto whitespace-nowrap select-none">
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-1.5 text-[#089981] font-bold">
             <span className="w-1.5 h-1.5 rounded-full bg-[#089981] animate-ping" />
@@ -961,16 +877,16 @@ export function ProtectedDashboard({
           </span>
           <span className="text-[#363a45]">|</span>
           <span>
-            DEMO ENGINE: <strong className="text-[#089981]">ACTIVE &amp; READY FOR LIVE</strong>
+            FIX API: <strong className="text-[#089981]">CONNECTED</strong>
           </span>
           <span className="text-[#363a45]">|</span>
           <span>
-            DATA STREAM: <strong className="text-white">CME / FXCM DIRECT</strong>
+            FEED: <strong className="text-white">CME / FXCM DIRECT</strong>
           </span>
         </div>
         <div className="flex items-center gap-3">
           <span>
-            SESSION: <strong className="text-white">LONDON / NY OVERLAP</strong>
+            SESSION: <strong className="text-white">NEW YORK / LONDON OVERLAP</strong>
           </span>
           <span className="text-[#363a45]">|</span>
           <span>
@@ -980,913 +896,862 @@ export function ProtectedDashboard({
       </div>
 
       {/* 3. MAIN TERMINAL WORKSPACE: FIXED SIDEBAR + TAB CONTENT */}
-      <div className="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden w-full">
-        {/* FIXED INSTITUTIONAL SIDEBAR (Desktop) */}
-        <aside className="w-68 bg-[#1e222d] border-e border-[#2a2e39] hidden md:flex flex-col justify-between shrink-0 select-none">
-          <div className="p-3 space-y-4 overflow-y-auto">
-            {NAV_CATEGORIES.map((cat) => (
-              <div key={cat.id} className="space-y-1">
-                <div className="px-2 text-[10px] font-mono font-bold text-[#787b86] uppercase tracking-wider">
-                  {isAr ? cat.titleAr : cat.titleEn}
-                </div>
-                {cat.items.map((item) => {
-                  const isActive = activeTab === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => {
-                        setActiveTab(item.id);
-                        setSelectedTrader(null);
-                        soundManager.playClick();
-                      }}
-                      className={`w-full flex items-center justify-between px-2.5 py-2 rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                        isActive
-                          ? 'bg-white text-[#131722] font-bold shadow-sm'
-                          : 'text-[#d1d4dc] hover:bg-[#2a2e39] hover:text-white'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 truncate">
-                        <span className="truncate">{isAr ? item.labelAr : item.labelEn}</span>
-                      </div>
-                      <span
-                        className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold shrink-0 ${
-                          isActive ? 'bg-[#131722] text-white' : item.badgeColor
-                        }`}
-                        dir="ltr"
-                      >
-                        {item.badge}
-                      </span>
-                    </button>
-                  );
-                })}
+      <div className="flex-1 flex overflow-hidden">
+        {/* FIXED SIDEBAR (Desktop) */}
+        <aside className="w-64 bg-[#1e222d] border-e border-[#2a2e39] hidden md:flex flex-col justify-between shrink-0 select-none">
+          {/* Sidebar Nav Links */}
+          <div className="p-2.5 space-y-1 overflow-y-auto">
+            {/* Tab 1: Signals Feed */}
+            <button
+              onClick={() => {
+                setActiveTab('signals');
+                setSelectedTrader(null);
+                soundManager.playClick();
+              }}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                activeTab === 'signals'
+                  ? 'bg-white text-[#131722] font-bold shadow-sm'
+                  : 'text-[#d1d4dc] hover:bg-[#2a2e39] hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <Radio className={`w-4 h-4 ${activeTab === 'signals' ? 'text-[#131722]' : 'text-[#089981]'}`} />
+                <span>{isAr ? '📡 الإشارات الحية' : 'Live Signals'}</span>
               </div>
-            ))}
+              <span
+                className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${
+                  activeTab === 'signals' ? 'bg-[#131722] text-white' : 'bg-[#089981]/20 text-[#089981]'
+                }`}
+                dir="ltr"
+              >
+                +4 LIVE
+              </span>
+            </button>
+
+            {/* Tab 2: Top Analysts / Traders Marketplace */}
+            <button
+              onClick={() => {
+                setActiveTab('traders');
+                soundManager.playClick();
+              }}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                activeTab === 'traders'
+                  ? 'bg-white text-[#131722] font-bold shadow-sm'
+                  : 'text-[#d1d4dc] hover:bg-[#2a2e39] hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <Users className={`w-4 h-4 ${activeTab === 'traders' ? 'text-[#131722]' : 'text-white'}`} />
+                <span>{isAr ? '🏆 نخبة المحللين' : 'Top Analysts'}</span>
+              </div>
+              <span
+                className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${
+                  activeTab === 'traders' ? 'bg-[#131722] text-white' : 'bg-[#2a2e39] text-[#d1d4dc]'
+                }`}
+                dir="ltr"
+              >
+                4 ROOMS
+              </span>
+            </button>
+
+            {/* Tab 3: Indicators Store & Pine Script */}
+            <button
+              onClick={() => {
+                setActiveTab('indicators');
+                setSelectedTrader(null);
+                soundManager.playClick();
+              }}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                activeTab === 'indicators'
+                  ? 'bg-white text-[#131722] font-bold shadow-sm'
+                  : 'text-[#d1d4dc] hover:bg-[#2a2e39] hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <ShoppingBag className={`w-4 h-4 ${activeTab === 'indicators' ? 'text-[#131722]' : 'text-white'}`} />
+                <span>{isAr ? '🛍️ متجر المؤشرات' : 'Indicators Store'}</span>
+              </div>
+              <span
+                className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${
+                  activeTab === 'indicators' ? 'bg-[#131722] text-white' : 'bg-[#2a2e39] text-[#787b86]'
+                }`}
+              >
+                Pine v5
+              </span>
+            </button>
+
+            {/* Tab 4: Copy Trading & Brokers */}
+            <button
+              onClick={() => {
+                setActiveTab('copy_trading');
+                setSelectedTrader(null);
+                soundManager.playClick();
+              }}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                activeTab === 'copy_trading'
+                  ? 'bg-white text-[#131722] font-bold shadow-sm'
+                  : 'text-[#d1d4dc] hover:bg-[#2a2e39] hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <Share2 className={`w-4 h-4 ${activeTab === 'copy_trading' ? 'text-[#131722]' : 'text-white'}`} />
+                <span>{isAr ? '🤝 نسخ الصفقات والوسطاء' : 'Copy Trading & Brokers'}</span>
+              </div>
+              <span
+                className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${
+                  activeTab === 'copy_trading' ? 'bg-[#131722] text-white' : 'bg-[#2a2e39] text-[#089981]'
+                }`}
+              >
+                0.0 Pip
+              </span>
+            </button>
+
+            {/* Tab 5: SMC AI Agent & Assistant */}
+            <button
+              onClick={() => {
+                setActiveTab('ai_agent');
+                setSelectedTrader(null);
+                soundManager.playClick();
+              }}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                activeTab === 'ai_agent'
+                  ? 'bg-white text-[#131722] font-bold shadow-sm'
+                  : 'text-[#d1d4dc] hover:bg-[#2a2e39] hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <Bot className={`w-4 h-4 ${activeTab === 'ai_agent' ? 'text-[#131722]' : 'text-[#089981]'}`} />
+                <span>{isAr ? '🤖 وكيل الذكاء الاصطناعي' : 'SMC AI Agent'}</span>
+              </div>
+              <span
+                className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${
+                  activeTab === 'ai_agent' ? 'bg-[#131722] text-white' : 'bg-[#2a2e39] text-[#089981]'
+                }`}
+              >
+                SMC AI
+              </span>
+            </button>
+
+            {/* Tab 6: Smart Journal & Paper Desk */}
+            <button
+              onClick={() => {
+                setActiveTab('journal');
+                setSelectedTrader(null);
+                soundManager.playClick();
+              }}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                activeTab === 'journal'
+                  ? 'bg-white text-[#131722] font-bold shadow-sm'
+                  : 'text-[#d1d4dc] hover:bg-[#2a2e39] hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <BookOpen className={`w-4 h-4 ${activeTab === 'journal' ? 'text-[#131722]' : 'text-white'}`} />
+                <span>{isAr ? '📓 مفكرة التداول ومحفظة $100K' : 'Journal & $100K Desk'}</span>
+              </div>
+              <span
+                className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${
+                  activeTab === 'journal' ? 'bg-[#131722] text-white' : 'bg-[#2a2e39] text-[#089981]'
+                }`}
+                dir="ltr"
+              >
+                +$4.8K
+              </span>
+            </button>
           </div>
 
-          {/* Bottom Sidebar: Quick Demo Guide */}
-          <div className="p-3 border-t border-[#2a2e39] bg-[#131722]/50 text-center">
-            <div className="text-[11px] font-bold text-white mb-0.5">
-              {isAr ? 'منصة MBK Institutional Desk' : 'MBK Institutional Desk'}
-            </div>
-            <div className="text-[10px] text-[#787b86]">
-              {isAr ? '13 قسماً تفاعلياً جاهزة للربط الحي' : '13 Desks Ready for Live Deployment'}
-            </div>
+          {/* Bottom Sidebar: Admin / CEO Command Center Link */}
+          <div className="p-2.5 border-t border-[#2a2e39]">
+            <button
+              onClick={() => {
+                setActiveTab('admin');
+                setSelectedTrader(null);
+                soundManager.playClick();
+              }}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                activeTab === 'admin'
+                  ? 'bg-white text-[#131722] font-bold shadow-sm'
+                  : 'text-[#787b86] hover:bg-[#2a2e39] hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <Settings className="w-4 h-4" />
+                <span>{isAr ? '⚙️ لوحة الإدارة' : 'Command Center'}</span>
+              </div>
+              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-[#2a2e39] text-[#787b86]">
+                PIN 2026
+              </span>
+            </button>
           </div>
         </aside>
 
-        {/* MOBILE TOP TAB BAR (Horizontal Swipe Strip with active focus) */}
-        <div className="md:hidden flex items-center gap-1.5 px-2.5 py-2 bg-[#1e222d] border-b border-[#2a2e39] overflow-x-auto shrink-0 select-none w-full scrollbar-none">
-          {NAV_CATEGORIES.flatMap((c) => c.items).map((item) => {
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => {
-                  setActiveTab(item.id);
-                  setSelectedTrader(null);
-                  soundManager.playClick();
-                }}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold whitespace-nowrap cursor-pointer transition-all flex items-center gap-1.5 shrink-0 ${
-                  isActive
-                    ? 'bg-white text-[#131722] font-bold shadow-sm'
-                    : 'bg-[#131722] text-[#787b86] hover:text-white border border-[#2a2e39]'
-                }`}
-              >
-                <span>{isAr ? item.labelAr.split(' ')[0] + ' ' + (item.labelAr.split(' ')[1] || '') : item.labelEn}</span>
-              </button>
-            );
-          })}
+        {/* MOBILE TOP TAB BAR (Sticky for Mobile Users) */}
+        <div className="md:hidden flex items-center gap-1.5 p-2 bg-[#1e222d] border-b border-[#2a2e39] overflow-x-auto shrink-0 select-none">
+          <button
+            onClick={() => {
+              setActiveTab('signals');
+              setSelectedTrader(null);
+            }}
+            className={`px-3 py-1.5 rounded text-xs font-semibold whitespace-nowrap cursor-pointer ${
+              activeTab === 'signals' ? 'bg-white text-[#131722] font-bold' : 'text-[#787b86]'
+            }`}
+          >
+            {isAr ? '📡 الإشارات' : 'Signals'}
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab('traders');
+              setSelectedTrader(null);
+            }}
+            className={`px-3 py-1.5 rounded text-xs font-semibold whitespace-nowrap cursor-pointer ${
+              activeTab === 'traders' ? 'bg-white text-[#131722] font-bold' : 'text-[#787b86]'
+            }`}
+          >
+            {isAr ? '🏆 المحللين' : 'Analysts'}
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab('indicators');
+              setSelectedTrader(null);
+            }}
+            className={`px-3 py-1.5 rounded text-xs font-semibold whitespace-nowrap cursor-pointer ${
+              activeTab === 'indicators' ? 'bg-white text-[#131722] font-bold' : 'text-[#787b86]'
+            }`}
+          >
+            {isAr ? '🛍️ المؤشرات' : 'Indicators'}
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab('copy_trading');
+              setSelectedTrader(null);
+            }}
+            className={`px-3 py-1.5 rounded text-xs font-semibold whitespace-nowrap cursor-pointer ${
+              activeTab === 'copy_trading' ? 'bg-white text-[#131722] font-bold' : 'text-[#787b86]'
+            }`}
+          >
+            {isAr ? '🤝 نسخ الصفقات' : 'Copy'}
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab('ai_agent');
+              setSelectedTrader(null);
+            }}
+            className={`px-3 py-1.5 rounded text-xs font-semibold whitespace-nowrap cursor-pointer ${
+              activeTab === 'ai_agent' ? 'bg-white text-[#131722] font-bold' : 'text-[#787b86]'
+            }`}
+          >
+            {isAr ? '🤖 الذكاء الاصطناعي' : 'AI'}
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab('journal');
+              setSelectedTrader(null);
+            }}
+            className={`px-3 py-1.5 rounded text-xs font-semibold whitespace-nowrap cursor-pointer ${
+              activeTab === 'journal' ? 'bg-white text-[#131722] font-bold' : 'text-[#787b86]'
+            }`}
+          >
+            {isAr ? '📓 المفكرة' : 'Journal'}
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab('admin');
+              setSelectedTrader(null);
+            }}
+            className={`px-3 py-1.5 rounded text-xs font-semibold whitespace-nowrap cursor-pointer ${
+              activeTab === 'admin' ? 'bg-white text-[#131722] font-bold' : 'text-[#787b86]'
+            }`}
+          >
+            {isAr ? '⚙️ الإدارة' : 'Admin'}
+          </button>
         </div>
 
         {/* WORKSPACE MAIN CONTENT AREA */}
-        <main className="flex-1 min-h-0 w-full overflow-y-auto bg-[#131722] relative p-3 sm:p-5 pb-28 md:pb-6 overscroll-contain">
+        <main className="flex-1 overflow-y-auto bg-[#131722] relative p-3 sm:p-5">
           {/* ======================================================== */}
           {/* TAB 1: 📡 LIVE SIGNALS & AUDITED TRACK RECORD */}
           {/* ======================================================== */}
           {activeTab === 'signals' && (
-            <TabErrorBoundary tabName="Live Signals">
-              <div className="max-w-7xl mx-auto space-y-6">
-                {/* Section Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="w-2.5 h-2.5 rounded-full bg-[#089981] animate-ping" />
-                      <h1 className="text-base sm:text-lg font-bold text-white">
-                        {isAr ? 'إشارات التداول المؤسسية الحية وسجل الأداء' : 'Live Institutional Signals Stream & Audit'}
-                      </h1>
-                    </div>
-                    <p className="text-xs text-[#787b86]">
-                      {isAr
-                        ? 'بث مباشر لتوصيات المحرك الخوارزمي وفريق أبحاث MBK مع تدقيق فوري لمستويات الدخول والأهداف.'
-                        : 'Live algorithmic alerts and verified research team trades with real-time audit.'}
-                    </p>
+            <div className="max-w-7xl mx-auto space-y-6">
+              {/* Section Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#089981] animate-ping" />
+                    <h1 className="text-base sm:text-lg font-bold text-white">
+                      {isAr ? 'إشارات التداول المؤسسية الحية' : 'Live Institutional Signals Stream'}
+                    </h1>
                   </div>
-
-                  <div className="flex items-center gap-2">
-                    <span className="px-3 py-1 rounded bg-[#131722] border border-[#2a2e39] font-mono text-xs text-[#089981] font-bold" dir="ltr">
-                      +1,420 Pips Verified
-                    </span>
-                    <button
-                      onClick={onOpenNewSignalModal}
-                      className="px-3 py-1.5 rounded bg-white hover:bg-[#d1d4dc] text-[#131722] text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-sm"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>{isAr ? 'نشر توصية' : 'Post Signal'}</span>
-                    </button>
-                  </div>
+                  <p className="text-xs text-[#787b86]">
+                    {isAr
+                      ? 'بث مباشر لتوصيات المحرك الآلي وفريق أبحاث MBK مع تدقيق فوري لمستويات الدخول والأهداف.'
+                      : 'Live algorithmic alerts and verified research team trades with real-time audit.'}
+                  </p>
                 </div>
 
-                {/* 1.1 ACTIVE LIVE SIGNAL CARDS WITH EXPANDABLE CHART & COPY */}
-                <div className="space-y-4">
-                  <h2 className="text-xs font-mono font-bold text-[#787b86] uppercase tracking-wider">
-                    {isAr ? 'الصفقات النشطة قيد المتابعة اللحظية' : 'ACTIVE EXECUTIONS'}
-                  </h2>
-
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {/* Card 1: US100 */}
-                    <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 flex flex-col justify-between hover:border-[#363a45] transition-all">
-                      <div>
-                        {/* Top Bar */}
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-2.5">
-                            <span className="px-2 py-0.5 rounded text-xs font-mono font-bold bg-[#089981]/15 text-[#089981] border border-[#089981]/30">
-                              BUY
-                            </span>
-                            <span className="text-base font-mono font-bold text-white tracking-wide">
-                              US100
-                            </span>
-                            <span className="text-[11px] text-[#787b86] font-mono">15m</span>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <span className="px-2.5 py-0.5 rounded bg-[#089981]/10 text-[#089981] border border-[#089981]/30 text-xs font-mono font-bold flex items-center gap-1" dir="ltr">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-[#089981]" />
-                              <span>🎯 TP2 HIT • +120 Pips</span>
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Strategy & Author */}
-                        <div className="text-xs text-[#787b86] mb-3 flex items-center justify-between pb-2 border-b border-[#2a2e39]">
-                          <span>MBK Scalp Breakout & Liquidity Sweep</span>
-                          <span className="text-[#089981] font-mono text-[11px]" dir="ltr">R:R 1 : 2.4</span>
-                        </div>
-
-                        {/* Numerical Levels Matrix */}
-                        <div className="grid grid-cols-4 gap-2 mb-3 font-mono text-center">
-                          <div className="bg-[#131722] p-2 rounded border border-[#2a2e39]">
-                            <div className="text-[10px] text-[#787b86]">ENTRY</div>
-                            <div className="text-xs font-bold text-white" dir="ltr">20,440.00</div>
-                          </div>
-                          <div className="bg-[#131722] p-2 rounded border border-[#2a2e39]">
-                            <div className="text-[10px] text-[#f23645]">SL</div>
-                            <div className="text-xs font-bold text-[#f23645]" dir="ltr">20,380.00</div>
-                          </div>
-                          <div className="bg-[#131722] p-2 rounded border border-[#2a2e39]">
-                            <div className="text-[10px] text-[#089981]">TP1</div>
-                            <div className="text-xs font-bold text-[#089981]" dir="ltr">20,880.00</div>
-                          </div>
-                          <div className="bg-[#131722] p-2 rounded border border-[#2a2e39]">
-                            <div className="text-[10px] text-[#089981]">TP2</div>
-                            <div className="text-xs font-bold text-[#089981]" dir="ltr">20,950.00</div>
-                          </div>
-                        </div>
-
-                        <p className="text-xs text-[#787b86] leading-relaxed mb-3">
-                          {isAr
-                            ? 'سحب سيولة قاع لندن بدقة عند 20,420 مع تأكيد شمعة الـ 15 دقيقة فوق خط المتوسط. تم ضرب الهدف الثاني بنجاح.'
-                            : 'Clean London low liquidity sweep at 20,420 followed by bullish continuation above 21 EMA.'}
-                        </p>
-                      </div>
-
-                      {/* Actions & Expandable Chart Toggle */}
-                      <div className="space-y-3 pt-2 border-t border-[#2a2e39]">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => setExpandedChartId(expandedChartId === 'card-us100' ? null : 'card-us100')}
-                            className="flex-1 py-1.5 px-3 rounded bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-xs font-semibold text-white flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                          >
-                            <BarChart2 className="w-3.5 h-3.5 text-[#089981]" />
-                            <span>
-                              {expandedChartId === 'card-us100'
-                                ? isAr ? 'إخفاء الشارت' : 'Hide Chart'
-                                : isAr ? 'عرض الشارت التفاعلي' : 'Expand Chart'}
-                            </span>
-                          </button>
-
-                          <button
-                            onClick={() => handleCopy('US100 BUY @ 20,440 | TP1: 20,880 | TP2: 20,950 | SL: 20,380', 'us100')}
-                            className={`py-1.5 px-4 rounded text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
-                              copiedId === 'us100' ? 'bg-[#089981] text-[#131722]' : 'bg-white text-[#131722] hover:bg-[#d1d4dc]'
-                            }`}
-                          >
-                            <Copy className="w-3.5 h-3.5" />
-                            <span>{copiedId === 'us100' ? (isAr ? '✓ تم النسخ' : 'Copied!') : (isAr ? 'نسخ التوصية' : 'Copy')}</span>
-                          </button>
-                        </div>
-
-                        {/* Expandable Chart Frame */}
-                        {expandedChartId === 'card-us100' && (
-                          <div className="pt-2 border-t border-[#2a2e39] animate-fade-in">
-                            <div className="h-64 w-full rounded overflow-hidden border border-[#2a2e39]">
-                              <TradingViewChart
-                                symbol="US100"
-                                onSymbolChange={onSelectSymbol}
-                                tickers={tickers}
-                              />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Card 2: XAUUSD */}
-                    <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 flex flex-col justify-between hover:border-[#363a45] transition-all">
-                      <div>
-                        {/* Top Bar */}
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-2.5">
-                            <span className="px-2 py-0.5 rounded text-xs font-mono font-bold bg-[#089981]/15 text-[#089981] border border-[#089981]/30">
-                              BUY
-                            </span>
-                            <span className="text-base font-mono font-bold text-white tracking-wide">
-                              XAUUSD
-                            </span>
-                            <span className="text-[11px] text-[#787b86] font-mono">1h</span>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <span className="px-2.5 py-0.5 rounded bg-[#089981]/10 text-[#089981] border border-[#089981]/30 text-xs font-mono font-bold flex items-center gap-1" dir="ltr">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-[#089981]" />
-                              <span>🎯 ALL TARGETS HIT • +164 Pips</span>
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Strategy & Author */}
-                        <div className="text-xs text-[#787b86] mb-3 flex items-center justify-between pb-2 border-b border-[#2a2e39]">
-                          <span>MBK Alligator & Fair Value Gap Suite</span>
-                          <span className="text-[#089981] font-mono text-[11px]" dir="ltr">R:R 1 : 2.5</span>
-                        </div>
-
-                        {/* Numerical Levels Matrix */}
-                        <div className="grid grid-cols-4 gap-2 mb-3 font-mono text-center">
-                          <div className="bg-[#131722] p-2 rounded border border-[#2a2e39]">
-                            <div className="text-[10px] text-[#787b86]">ENTRY</div>
-                            <div className="text-xs font-bold text-white" dir="ltr">2,668.00</div>
-                          </div>
-                          <div className="bg-[#131722] p-2 rounded border border-[#2a2e39]">
-                            <div className="text-[10px] text-[#f23645]">SL</div>
-                            <div className="text-xs font-bold text-[#f23645]" dir="ltr">2,658.00</div>
-                          </div>
-                          <div className="bg-[#131722] p-2 rounded border border-[#2a2e39]">
-                            <div className="text-[10px] text-[#089981]">TP1</div>
-                            <div className="text-xs font-bold text-[#089981]" dir="ltr">2,676.00</div>
-                          </div>
-                          <div className="bg-[#131722] p-2 rounded border border-[#2a2e39]">
-                            <div className="text-[10px] text-[#089981]">TP2</div>
-                            <div className="text-xs font-bold text-[#089981]" dir="ltr">2,684.40</div>
-                          </div>
-                        </div>
-
-                        <p className="text-xs text-[#787b86] leading-relaxed mb-3">
-                          {isAr
-                            ? 'ارتداد دقيق من فجوة القيمة العادلة (FVG) على فريم الساعة مع استهداف سيولة القمة اليومية. أرباح استثنائية تفوق 164 نقطة.'
-                            : 'Flawless 1H FVG rejection expanding towards buy-side liquidity above daily highs.'}
-                        </p>
-                      </div>
-
-                      {/* Actions & Expandable Chart Toggle */}
-                      <div className="space-y-3 pt-2 border-t border-[#2a2e39]">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => setExpandedChartId(expandedChartId === 'card-xau' ? null : 'card-xau')}
-                            className="flex-1 py-1.5 px-3 rounded bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-xs font-semibold text-white flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                          >
-                            <BarChart2 className="w-3.5 h-3.5 text-[#089981]" />
-                            <span>
-                              {expandedChartId === 'card-xau'
-                                ? isAr ? 'إخفاء الشارت' : 'Hide Chart'
-                                : isAr ? 'عرض الشارت التفاعلي' : 'Expand Chart'}
-                            </span>
-                          </button>
-
-                          <button
-                            onClick={() => handleCopy('XAUUSD BUY @ 2,668 | TP1: 2,676 | TP2: 2,684.40 | SL: 2,658', 'xau')}
-                            className={`py-1.5 px-4 rounded text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
-                              copiedId === 'xau' ? 'bg-[#089981] text-[#131722]' : 'bg-white text-[#131722] hover:bg-[#d1d4dc]'
-                            }`}
-                          >
-                            <Copy className="w-3.5 h-3.5" />
-                            <span>{copiedId === 'xau' ? (isAr ? '✓ تم النسخ' : 'Copied!') : (isAr ? 'نسخ التوصية' : 'Copy')}</span>
-                          </button>
-                        </div>
-
-                        {/* Expandable Chart Frame */}
-                        {expandedChartId === 'card-xau' && (
-                          <div className="pt-2 border-t border-[#2a2e39] animate-fade-in">
-                            <div className="h-64 w-full rounded overflow-hidden border border-[#2a2e39]">
-                              <TradingViewChart
-                                symbol="XAUUSD"
-                                onSymbolChange={onSelectSymbol}
-                                tickers={tickers}
-                              />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <span className="px-3 py-1 rounded bg-[#131722] border border-[#2a2e39] font-mono text-xs text-[#089981] font-bold" dir="ltr">
+                    +1,420 Pips Verified
+                  </span>
+                  <button
+                    onClick={onOpenNewSignalModal}
+                    className="px-3 py-1.5 rounded bg-white hover:bg-[#d1d4dc] text-[#131722] text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-sm"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>{isAr ? 'نشر توصية' : 'Post Signal'}</span>
+                  </button>
                 </div>
+              </div>
 
-                {/* 1.2 VERIFIED PERFORMANCE AUDIT LOG TABLE & MONTHLY SUMMARIES */}
-                <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#2a2e39]">
+              {/* 1.1 ACTIVE LIVE SIGNAL CARDS WITH EXPANDABLE CHART & COPY */}
+              <div className="space-y-4">
+                <h2 className="text-xs font-mono font-bold text-[#787b86] uppercase tracking-wider">
+                  {isAr ? 'الصفقات النشطة قيد المتابعة' : 'ACTIVE EXECUTIONS'}
+                </h2>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {/* Card 1: US100 */}
+                  <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 flex flex-col justify-between hover:border-[#363a45] transition-all">
                     <div>
-                      <h2 className="text-sm font-bold text-white flex items-center gap-2">
-                        <ShieldCheck className="w-4 h-4 text-[#089981]" />
-                        <span>{isAr ? 'سجل الأداء والصفقات الموثق (Audited Track Record)' : 'Audited Track Record & Logs'}</span>
-                      </h2>
-                      <p className="text-xs text-[#787b86]">
+                      {/* Top Bar */}
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2.5">
+                          <span className="px-2 py-0.5 rounded text-xs font-mono font-bold bg-[#089981]/15 text-[#089981] border border-[#089981]/30">
+                            BUY
+                          </span>
+                          <span className="text-base font-mono font-bold text-white tracking-wide">
+                            US100
+                          </span>
+                          <span className="text-[11px] text-[#787b86] font-mono">15m</span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="px-2.5 py-0.5 rounded bg-[#089981]/10 text-[#089981] border border-[#089981]/30 text-xs font-mono font-bold flex items-center gap-1" dir="ltr">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-[#089981]" />
+                            <span>🎯 TP2 HIT • +120 Pips</span>
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Strategy & Author */}
+                      <div className="text-xs text-[#787b86] mb-3 flex items-center justify-between pb-2 border-b border-[#2a2e39]">
+                        <span>MBK Scalp Breakout & Liquidity Sweep</span>
+                        <span className="text-[#089981] font-mono text-[11px]" dir="ltr">R:R 1 : 2.4</span>
+                      </div>
+
+                      {/* Numerical Levels Matrix */}
+                      <div className="grid grid-cols-4 gap-2 mb-3 font-mono text-center">
+                        <div className="bg-[#131722] p-2 rounded border border-[#2a2e39]">
+                          <div className="text-[10px] text-[#787b86]">ENTRY</div>
+                          <div className="text-xs font-bold text-white" dir="ltr">20,440.00</div>
+                        </div>
+                        <div className="bg-[#131722] p-2 rounded border border-[#2a2e39]">
+                          <div className="text-[10px] text-[#f23645]">SL</div>
+                          <div className="text-xs font-bold text-[#f23645]" dir="ltr">20,380.00</div>
+                        </div>
+                        <div className="bg-[#131722] p-2 rounded border border-[#2a2e39]">
+                          <div className="text-[10px] text-[#089981]">TP1</div>
+                          <div className="text-xs font-bold text-[#089981]" dir="ltr">20,880.00</div>
+                        </div>
+                        <div className="bg-[#131722] p-2 rounded border border-[#2a2e39]">
+                          <div className="text-[10px] text-[#089981]">TP2</div>
+                          <div className="text-xs font-bold text-[#089981]" dir="ltr">20,950.00</div>
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-[#787b86] leading-relaxed mb-3">
                         {isAr
-                          ? 'جميع الصفقات مدققة مع حساب النقاط الصافية ومعدل العائد للمخاطرة 1:2.4+'
-                          : 'Full audit of recent executions with net pips and risk/reward verification.'}
+                          ? 'سحب سيولة قاع لندن بدقة عند 20,420 مع تأكيد شمعة الـ 15 دقيقة فوق خط المتوسط. تم ضرب الهدف الثاني بنجاح.'
+                          : 'Clean London low liquidity sweep at 20,420 followed by bullish continuation above 21 EMA.'}
                       </p>
                     </div>
 
-                    {/* Monthly Performance Summary Cards */}
-                    <div className="flex items-center gap-2 font-mono text-xs">
-                      <div className="px-2.5 py-1 rounded bg-[#131722] border border-[#2a2e39]">
-                        <span className="text-[#787b86] me-1">Jan:</span>
-                        <span className="text-[#089981] font-bold" dir="ltr">+410 Pips</span>
+                    {/* Actions & Expandable Chart Toggle */}
+                    <div className="space-y-3 pt-2 border-t border-[#2a2e39]">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setExpandedChartId(expandedChartId === 'card-us100' ? null : 'card-us100')}
+                          className="flex-1 py-1.5 px-3 rounded bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-xs font-semibold text-white flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                        >
+                          <BarChart2 className="w-3.5 h-3.5 text-[#089981]" />
+                          <span>
+                            {expandedChartId === 'card-us100'
+                              ? isAr ? 'إخفاء الشارت' : 'Hide Chart'
+                              : isAr ? 'عرض الشارت التفاعلي' : 'Expand Chart'}
+                          </span>
+                        </button>
+
+                        <button
+                          onClick={() => handleCopy('US100 BUY @ 20,440 | TP1: 20,880 | TP2: 20,950 | SL: 20,380', 'us100')}
+                          className={`py-1.5 px-4 rounded text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                            copiedId === 'us100' ? 'bg-[#089981] text-[#131722]' : 'bg-white text-[#131722] hover:bg-[#d1d4dc]'
+                          }`}
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>{copiedId === 'us100' ? (isAr ? '✓ تم النسخ' : 'Copied!') : (isAr ? 'نسخ التوصية' : 'Copy')}</span>
+                        </button>
                       </div>
-                      <div className="px-2.5 py-1 rounded bg-[#131722] border border-[#2a2e39]">
-                        <span className="text-[#787b86] me-1">Feb:</span>
-                        <span className="text-[#089981] font-bold" dir="ltr">+390 Pips</span>
-                      </div>
-                      <div className="px-2.5 py-1 rounded bg-[#131722] border border-[#2a2e39]">
-                        <span className="text-[#787b86] me-1">Mar:</span>
-                        <span className="text-[#089981] font-bold" dir="ltr">+620 Pips</span>
-                      </div>
+
+                      {/* Expandable Chart Frame */}
+                      {expandedChartId === 'card-us100' && (
+                        <div className="pt-2 border-t border-[#2a2e39] animate-fade-in">
+                          <div className="h-64 w-full rounded overflow-hidden border border-[#2a2e39]">
+                            <TradingViewChart
+                              symbol="US100"
+                              onSymbolChange={onSelectSymbol}
+                              tickers={tickers}
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  {/* Audit Table */}
+                  {/* Card 2: XAUUSD */}
+                  <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 flex flex-col justify-between hover:border-[#363a45] transition-all">
+                    <div>
+                      {/* Top Bar */}
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2.5">
+                          <span className="px-2 py-0.5 rounded text-xs font-mono font-bold bg-[#089981]/15 text-[#089981] border border-[#089981]/30">
+                            BUY
+                          </span>
+                          <span className="text-base font-mono font-bold text-white tracking-wide">
+                            XAUUSD
+                          </span>
+                          <span className="text-[11px] text-[#787b86] font-mono">1h</span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="px-2.5 py-0.5 rounded bg-[#089981]/10 text-[#089981] border border-[#089981]/30 text-xs font-mono font-bold flex items-center gap-1" dir="ltr">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-[#089981]" />
+                            <span>🎯 ALL TARGETS HIT • +164 Pips</span>
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Strategy & Author */}
+                      <div className="text-xs text-[#787b86] mb-3 flex items-center justify-between pb-2 border-b border-[#2a2e39]">
+                        <span>MBK Alligator & Fair Value Gap Suite</span>
+                        <span className="text-[#089981] font-mono text-[11px]" dir="ltr">R:R 1 : 2.5</span>
+                      </div>
+
+                      {/* Numerical Levels Matrix */}
+                      <div className="grid grid-cols-4 gap-2 mb-3 font-mono text-center">
+                        <div className="bg-[#131722] p-2 rounded border border-[#2a2e39]">
+                          <div className="text-[10px] text-[#787b86]">ENTRY</div>
+                          <div className="text-xs font-bold text-white" dir="ltr">2,668.00</div>
+                        </div>
+                        <div className="bg-[#131722] p-2 rounded border border-[#2a2e39]">
+                          <div className="text-[10px] text-[#f23645]">SL</div>
+                          <div className="text-xs font-bold text-[#f23645]" dir="ltr">2,658.00</div>
+                        </div>
+                        <div className="bg-[#131722] p-2 rounded border border-[#2a2e39]">
+                          <div className="text-[10px] text-[#089981]">TP1</div>
+                          <div className="text-xs font-bold text-[#089981]" dir="ltr">2,676.00</div>
+                        </div>
+                        <div className="bg-[#131722] p-2 rounded border border-[#2a2e39]">
+                          <div className="text-[10px] text-[#089981]">TP2</div>
+                          <div className="text-xs font-bold text-[#089981]" dir="ltr">2,684.40</div>
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-[#787b86] leading-relaxed mb-3">
+                        {isAr
+                          ? 'ارتداد دقيق من فجوة القيمة العادلة المؤسسية (FVG) عند 2,668$ مع حصد كامل الأهداف (+164 نقطة).'
+                          : 'Flawless institutional FVG bounce at $2,668 achieving complete target execution (+164 pips).'}
+                      </p>
+                    </div>
+
+                    {/* Actions & Expandable Chart Toggle */}
+                    <div className="space-y-3 pt-2 border-t border-[#2a2e39]">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setExpandedChartId(expandedChartId === 'card-xau' ? null : 'card-xau')}
+                          className="flex-1 py-1.5 px-3 rounded bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-xs font-semibold text-white flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                        >
+                          <BarChart2 className="w-3.5 h-3.5 text-[#089981]" />
+                          <span>
+                            {expandedChartId === 'card-xau'
+                              ? isAr ? 'إخفاء الشارت' : 'Hide Chart'
+                              : isAr ? 'عرض الشارت التفاعلي' : 'Expand Chart'}
+                          </span>
+                        </button>
+
+                        <button
+                          onClick={() => handleCopy('XAUUSD BUY @ 2,668.00 | TP1: 2,676.00 | TP2: 2,684.40 | SL: 2,658.00', 'xauusd')}
+                          className={`py-1.5 px-4 rounded text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                            copiedId === 'xauusd' ? 'bg-[#089981] text-[#131722]' : 'bg-white text-[#131722] hover:bg-[#d1d4dc]'
+                          }`}
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>{copiedId === 'xauusd' ? (isAr ? '✓ تم النسخ' : 'Copied!') : (isAr ? 'نسخ التوصية' : 'Copy')}</span>
+                        </button>
+                      </div>
+
+                      {/* Expandable Chart Frame */}
+                      {expandedChartId === 'card-xau' && (
+                        <div className="pt-2 border-t border-[#2a2e39] animate-fade-in">
+                          <div className="h-64 w-full rounded overflow-hidden border border-[#2a2e39]">
+                            <TradingViewChart
+                              symbol="XAUUSD"
+                              onSymbolChange={onSelectSymbol}
+                              tickers={tickers}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 1.2 MONTHLY PERFORMANCE SUMMARY CARDS & VERIFIED AUDIT TABLE */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xs font-mono font-bold text-[#787b86] uppercase tracking-wider">
+                    {isAr ? 'سجل الأداء وتدقيق الصفقات المعتمدة' : 'AUDITED PERFORMANCE & TRACK RECORD'}
+                  </h2>
+                  <span className="text-xs font-mono text-[#089981]" dir="ltr">
+                    Win Rate: 84.5%
+                  </span>
+                </div>
+
+                {/* Monthly Summary Cards */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-3">
+                    <div className="text-[11px] text-[#787b86] mb-1">{isAr ? 'يناير 2026' : 'Jan 2026'}</div>
+                    <div className="text-lg font-mono font-bold text-[#089981]" dir="ltr">+410 Pips</div>
+                    <div className="text-[10px] text-[#787b86] mt-0.5" dir="ltr">28 Trades • 82.4% WR</div>
+                  </div>
+                  <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-3">
+                    <div className="text-[11px] text-[#787b86] mb-1">{isAr ? 'فبراير 2026' : 'Feb 2026'}</div>
+                    <div className="text-lg font-mono font-bold text-[#089981]" dir="ltr">+390 Pips</div>
+                    <div className="text-[10px] text-[#787b86] mt-0.5" dir="ltr">24 Trades • 78.9% WR</div>
+                  </div>
+                  <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-3">
+                    <div className="text-[11px] text-[#787b86] mb-1">{isAr ? 'مارس 2026' : 'Mar 2026'}</div>
+                    <div className="text-lg font-mono font-bold text-[#089981]" dir="ltr">+620 Pips</div>
+                    <div className="text-[10px] text-[#787b86] mt-0.5" dir="ltr">31 Trades • 85.2% WR</div>
+                  </div>
+                  <div className="bg-[#1e222d] border border-[#089981]/40 rounded-lg p-3 bg-gradient-to-br from-[#1e222d] to-[#089981]/10">
+                    <div className="text-[11px] text-[#089981] font-semibold mb-1">{isAr ? 'الإجمالي التراكمي' : 'Total Verified'}</div>
+                    <div className="text-lg font-mono font-bold text-white" dir="ltr">+1,420 Pips</div>
+                    <div className="text-[10px] text-[#089981] mt-0.5" dir="ltr">Max DD: 3.8%</div>
+                  </div>
+                </div>
+
+                {/* Audit Table */}
+                <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg overflow-hidden shadow-sm">
                   <div className="overflow-x-auto">
-                    <table className="w-full text-xs text-left rtl:text-right">
-                      <thead className="text-[11px] font-mono text-[#787b86] bg-[#131722] border-b border-[#2a2e39]">
+                    <table className="w-full text-start text-xs font-mono">
+                      <thead className="bg-[#131722] text-[#787b86] border-b border-[#2a2e39] select-none text-[11px]">
                         <tr>
-                          <th className="py-2.5 px-3">SYMBOL</th>
-                          <th className="py-2.5 px-3">TYPE</th>
-                          <th className="py-2.5 px-3">ENTRY</th>
-                          <th className="py-2.5 px-3">TARGET</th>
-                          <th className="py-2.5 px-3">SL</th>
-                          <th className="py-2.5 px-3">NET RESULT</th>
-                          <th className="py-2.5 px-3">R:R</th>
-                          <th className="py-2.5 px-3">STATUS</th>
+                          <th className="py-2.5 px-3 text-start">ID / TIME</th>
+                          <th className="py-2.5 px-3 text-start">ASSET</th>
+                          <th className="py-2.5 px-2 text-start">TYPE</th>
+                          <th className="py-2.5 px-3 text-start font-sans">{isAr ? 'الاستراتيجية' : 'STRATEGY'}</th>
+                          <th className="py-2.5 px-3 text-start">ENTRY</th>
+                          <th className="py-2.5 px-3 text-start">EXIT</th>
+                          <th className="py-2.5 px-3 text-start">{isAr ? 'النقاط المحققة' : 'PIPS'}</th>
+                          <th className="py-2.5 px-3 text-start">R:R</th>
+                          <th className="py-2.5 px-3 text-end">{isAr ? 'الحالة' : 'STATUS'}</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-[#2a2e39]/50 font-mono">
-                        <tr className="hover:bg-[#131722]/50 transition-colors">
-                          <td className="py-3 px-3 font-bold text-white">US100</td>
-                          <td className="py-3 px-3 text-[#089981] font-bold">BUY</td>
-                          <td className="py-3 px-3 text-white" dir="ltr">20,440.00</td>
-                          <td className="py-3 px-3 text-[#089981]" dir="ltr">20,950.00</td>
-                          <td className="py-3 px-3 text-[#f23645]" dir="ltr">20,380.00</td>
-                          <td className="py-3 px-3 text-[#089981] font-bold" dir="ltr">+120 Pips</td>
-                          <td className="py-3 px-3 text-white" dir="ltr">1 : 2.4</td>
-                          <td className="py-3 px-3">
-                            <span className="px-2 py-0.5 rounded bg-[#089981]/20 text-[#089981] text-[10px] font-bold">
-                              TP2 HIT
-                            </span>
-                          </td>
-                        </tr>
-                        <tr className="hover:bg-[#131722]/50 transition-colors">
-                          <td className="py-3 px-3 font-bold text-white">XAUUSD</td>
-                          <td className="py-3 px-3 text-[#089981] font-bold">BUY</td>
-                          <td className="py-3 px-3 text-white" dir="ltr">2,668.00</td>
-                          <td className="py-3 px-3 text-[#089981]" dir="ltr">2,684.40</td>
-                          <td className="py-3 px-3 text-[#f23645]" dir="ltr">2,658.00</td>
-                          <td className="py-3 px-3 text-[#089981] font-bold" dir="ltr">+164 Pips</td>
-                          <td className="py-3 px-3 text-white" dir="ltr">1 : 2.5</td>
-                          <td className="py-3 px-3">
-                            <span className="px-2 py-0.5 rounded bg-[#089981]/20 text-[#089981] text-[10px] font-bold">
-                              ALL TARGETS
-                            </span>
-                          </td>
-                        </tr>
-                        <tr className="hover:bg-[#131722]/50 transition-colors">
-                          <td className="py-3 px-3 font-bold text-white">EURUSD</td>
-                          <td className="py-3 px-3 text-[#089981] font-bold">BUY</td>
-                          <td className="py-3 px-3 text-white" dir="ltr">1.0840</td>
-                          <td className="py-3 px-3 text-[#089981]" dir="ltr">1.0873</td>
-                          <td className="py-3 px-3 text-[#f23645]" dir="ltr">1.0825</td>
-                          <td className="py-3 px-3 text-[#089981] font-bold" dir="ltr">+33 Pips</td>
-                          <td className="py-3 px-3 text-white" dir="ltr">1 : 2.2</td>
-                          <td className="py-3 px-3">
-                            <span className="px-2 py-0.5 rounded bg-[#089981]/20 text-[#089981] text-[10px] font-bold">
-                              TP1 HIT
-                            </span>
-                          </td>
-                        </tr>
-                        <tr className="hover:bg-[#131722]/50 transition-colors">
-                          <td className="py-3 px-3 font-bold text-white">BTCUSD</td>
-                          <td className="py-3 px-3 text-[#089981] font-bold">BUY</td>
-                          <td className="py-3 px-3 text-white" dir="ltr">66,200</td>
-                          <td className="py-3 px-3 text-[#089981]" dir="ltr">68,000</td>
-                          <td className="py-3 px-3 text-[#f23645]" dir="ltr">65,400</td>
-                          <td className="py-3 px-3 text-[#089981] font-bold" dir="ltr">+180 Pips</td>
-                          <td className="py-3 px-3 text-white" dir="ltr">1 : 2.3</td>
-                          <td className="py-3 px-3">
-                            <span className="px-2 py-0.5 rounded bg-[#089981]/20 text-[#089981] text-[10px] font-bold">
-                              TP2 HIT
-                            </span>
-                          </td>
-                        </tr>
+                      <tbody className="divide-y divide-[#2a2e39]/60">
+                        {AUDIT_TRADES.map((trade) => (
+                          <tr key={trade.id} className="hover:bg-[#2a2e39]/30 transition-colors">
+                            <td className="py-2.5 px-3 text-[#787b86]">{trade.date}</td>
+                            <td className="py-2.5 px-3 font-bold text-white">{trade.symbol}</td>
+                            <td className="py-2.5 px-2">
+                              <span
+                                className={`px-1.5 py-0.2 rounded text-[10px] font-bold ${
+                                  trade.type === 'BUY'
+                                    ? 'bg-[#089981]/15 text-[#089981]'
+                                    : 'bg-[#f23645]/15 text-[#f23645]'
+                                }`}
+                              >
+                                {trade.type}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3 text-xs text-[#d1d4dc] font-sans truncate max-w-[180px]">
+                              {trade.strategy}
+                            </td>
+                            <td className="py-2.5 px-3 text-white" dir="ltr">{trade.entryPrice}</td>
+                            <td className="py-2.5 px-3 text-white" dir="ltr">{trade.exitPrice}</td>
+                            <td className="py-2.5 px-3 text-[#089981] font-bold" dir="ltr">
+                              +{trade.pips} Pips
+                            </td>
+                            <td className="py-2.5 px-3 text-[#787b86]" dir="ltr">{trade.riskReward}</td>
+                            <td className="py-2.5 px-3 text-end">
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#089981]/15 text-[#089981] border border-[#089981]/30">
+                                ✓ VERIFIED
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
                       </tbody>
                     </table>
                   </div>
                 </div>
               </div>
-            </TabErrorBoundary>
-          )}
 
-          {/* ======================================================== */}
-          {/* TAB 2: 🧭 MARKET DESK & GLOBAL SESSIONS */}
-          {/* ======================================================== */}
-          {activeTab === 'desk' && (
-            <TabErrorBoundary tabName="Market Desk">
-              <div className="max-w-7xl mx-auto space-y-5">
-                <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <h1 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-                      <Compass className="w-5 h-5 text-[#089981]" />
-                      <span>{isAr ? 'غرفة تداول الأسواق وجلسات التداول العالمية' : 'Global Market Desk & Sessions'}</span>
-                    </h1>
-                    <p className="text-xs text-[#787b86]">
-                      {isAr
-                        ? 'مراقبة حية لساعات افتتاح وإغلاق بورصات سيدني، طوكيو، لندن، ونيويورك مع مؤشر السيولة ومقياس قوة العملات.'
-                        : 'Real-time session clocks, liquidity overlap windows, and currency strength matrix.'}
-                    </p>
-                  </div>
-                  <span className="px-3 py-1 rounded bg-[#131722] border border-[#2a2e39] font-mono text-xs text-[#089981] font-bold self-start sm:self-auto" dir="ltr">
-                    4 SESSIONS ONLINE
-                  </span>
+              {/* 1.3 MACRO ECONOMIC CALENDAR CARDS */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xs font-mono font-bold text-[#787b86] uppercase tracking-wider">
+                    {isAr ? 'الأجندة الاقتصادية اللحظية والأحداث عالية التأثير' : 'MACRO ECONOMIC CALENDAR & RADAR'}
+                  </h2>
+                  <span className="text-[11px] text-[#787b86] font-mono">Live UTC Sync</span>
                 </div>
 
-                {/* Render MarketDesk Component */}
-                <MarketDesk tickers={tickers} onSelectSymbol={onSelectSymbol} />
-              </div>
-            </TabErrorBoundary>
-          )}
-
-          {/* ======================================================== */}
-          {/* TAB 3: 💼 $100K PAPER TRADING TERMINAL */}
-          {/* ======================================================== */}
-          {activeTab === 'paper' && (
-            <TabErrorBoundary tabName="Paper Trading">
-              <div className="max-w-7xl mx-auto space-y-5">
-                <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <h1 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-                      <Wallet className="w-5 h-5 text-[#089981]" />
-                      <span>{isAr ? 'محفظة التداول الافتراضية ($100K Paper Trading Desk)' : 'Paper Trading Terminal ($100K Desk)'}</span>
-                    </h1>
-                    <p className="text-xs text-[#787b86]">
-                      {isAr
-                        ? 'تداول تجريبي واقعي بأسعار السوق المباشرة، تنفيذ أوامر الشراء والبيع، إدارة وقف الخسارة وجني الأرباح.'
-                        : 'Simulate trades with live market order flow, custom lot sizing, and risk parameters.'}
-                    </p>
-                  </div>
-                  <span className="px-3 py-1 rounded bg-[#089981]/15 text-[#089981] border border-[#089981]/30 font-mono text-xs font-bold self-start sm:self-auto" dir="ltr">
-                    $100,000 VIRTUAL BALANCE
-                  </span>
-                </div>
-
-                {/* Render PaperTrading Component */}
-                <PaperTrading
-                  tickers={tickers}
-                  selectedSymbol={selectedSymbol}
-                  onSelectSymbol={onSelectSymbol}
-                />
-              </div>
-            </TabErrorBoundary>
-          )}
-
-          {/* ======================================================== */}
-          {/* TAB 4: 🤖 AUTO BOT & PINE SCRIPT WEBHOOK ENGINE */}
-          {/* ======================================================== */}
-          {activeTab === 'autobot' && (
-            <TabErrorBoundary tabName="Auto Bot">
-              <div className="max-w-7xl mx-auto space-y-5">
-                <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <h1 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-                      <Cpu className="w-5 h-5 text-[#089981]" />
-                      <span>{isAr ? 'محرك الصفقات الآلي وخوارزمية Webhook المباشرة' : 'Automated Bot & Pine Script Webhook'}</span>
-                    </h1>
-                    <p className="text-xs text-[#787b86]">
-                      {isAr
-                        ? 'استقبال إشارات TradingView Pine Script عبر Webhook آمن وتنفيذ الصفقات تلقائياً مع حماية وقف الخسارة المتحرك.'
-                        : 'Execute TradingView alerts with zero latency, automated trailing stops, and multi-broker routing.'}
-                    </p>
-                  </div>
-                  <span className="px-3 py-1 rounded bg-[#089981]/15 text-[#089981] border border-[#089981]/30 font-mono text-xs font-bold self-start sm:self-auto" dir="ltr">
-                    WEBHOOK ACTIVE
-                  </span>
-                </div>
-
-                {/* Render AutoBotPanel */}
-                <AutoBotPanel
-                  botState={botState}
-                  botLogs={botLogs}
-                  onToggleBot={() => {
-                    soundManager.playClick();
-                    setBotState((prev) => ({ ...prev, isRunning: !prev.isRunning }));
-                  }}
-                  onUpdateStrategy={(strat: BotStrategy) => {
-                    soundManager.playClick();
-                    setBotState((prev) => ({ ...prev, activeStrategy: strat }));
-                  }}
-                  onUpdateRisk={(risk: number) => {
-                    setBotState((prev) => ({ ...prev, riskPerTrade: risk }));
-                  }}
-                  onUpdateLimit={(limit: number) => {
-                    setBotState((prev) => ({ ...prev, dailyTradesLimit: limit }));
-                  }}
-                  onClearLogs={() => setBotLogs([])}
-                />
-              </div>
-            </TabErrorBoundary>
-          )}
-
-          {/* ======================================================== */}
-          {/* TAB 5: 📓 SMART JOURNAL & PSYCHOLOGICAL AUDIT */}
-          {/* ======================================================== */}
-          {activeTab === 'journal' && (
-            <TabErrorBoundary tabName="Smart Journal">
-              <div className="max-w-7xl mx-auto space-y-5">
-                <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <h1 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-                      <BookOpen className="w-5 h-5 text-[#089981]" />
-                      <span>{isAr ? 'مفكرة التداول الذكية ومحلل الانضباط النفسي' : 'Smart Trade Journal & Behavioral Discipline'}</span>
-                    </h1>
-                    <p className="text-xs text-[#787b86]">
-                      {isAr
-                        ? 'توثيق كل صفقة مع لقطات الشارت، تصنيف المشاعر (FOMO، انتقام، انضباط)، وحساب نسبة العائد للمخاطرة R:R تلقائياً.'
-                        : 'Audit trade executions, emotional discipline, mistakes tagging, and cumulative R-multiple curve.'}
-                    </p>
-                  </div>
-                  <span className="px-3 py-1 rounded bg-[#131722] border border-[#2a2e39] font-mono text-xs text-[#089981] font-bold self-start sm:self-auto" dir="ltr">
-                    AUTO R:R CALCULATOR
-                  </span>
-                </div>
-
-                {/* Render SmartJournal Component */}
-                <SmartJournal />
-              </div>
-            </TabErrorBoundary>
-          )}
-
-          {/* ======================================================== */}
-          {/* TAB 6: 📚 SMC PLAYBOOKS LIBRARY */}
-          {/* ======================================================== */}
-          {activeTab === 'playbooks' && (
-            <TabErrorBoundary tabName="SMC Playbooks">
-              <div className="max-w-7xl mx-auto space-y-5">
-                <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <h1 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-                      <Layers className="w-5 h-5 text-[#089981]" />
-                      <span>{isAr ? 'مكتبة استراتيجيات صناع السوق المعتمدة (SMC Playbooks)' : 'Institutional SMC Playbooks Library'}</span>
-                    </h1>
-                    <p className="text-xs text-[#787b86]">
-                      {isAr
-                        ? 'نماذج سحب السيولة (Asian Sweep + MSS)، الرصاصة الفضية (ICT Silver Bullet)، كتل الأوامر (Order Blocks)، وفجوات القيمة العادلة (FVG) مع قوائم فحص تفاعلية.'
-                        : 'Systematized institutional execution playbooks with interactive pre-trade checklists and rules.'}
-                    </p>
-                  </div>
-                  <span className="px-3 py-1 rounded bg-[#131722] border border-[#2a2e39] font-mono text-xs text-[#089981] font-bold self-start sm:self-auto" dir="ltr">
-                    4 VERIFIED PLAYBOOKS
-                  </span>
-                </div>
-
-                {/* Render PlaybooksLibrary Component */}
-                <PlaybooksLibrary />
-              </div>
-            </TabErrorBoundary>
-          )}
-
-          {/* ======================================================== */}
-          {/* TAB 7: 🧪 BACKTEST LAB SIMULATOR */}
-          {/* ======================================================== */}
-          {activeTab === 'backtest' && (
-            <TabErrorBoundary tabName="Backtest Lab">
-              <div className="max-w-7xl mx-auto space-y-5">
-                <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <h1 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-                      <FlaskConical className="w-5 h-5 text-[#089981]" />
-                      <span>{isAr ? 'مختبر الفحص التاريخي ومحاكي الاستراتيجيات (Backtest Lab)' : 'Backtest Lab & Strategy Simulator'}</span>
-                    </h1>
-                    <p className="text-xs text-[#787b86]">
-                      {isAr
-                        ? 'اختبر استراتيجياتك على البيانات التاريخية، احسب نسبة الفوز ومضاعف R المتوقع، وشاهد منحنى نمو الحساب.'
-                        : 'Simulate historical setups, log R-multiples, and verify system expectancy.'}
-                    </p>
-                  </div>
-                  <span className="px-3 py-1 rounded bg-[#131722] border border-[#2a2e39] font-mono text-xs text-[#089981] font-bold self-start sm:self-auto" dir="ltr">
-                    QUANT LAB READY
-                  </span>
-                </div>
-
-                {/* Render BacktestLab Component */}
-                <BacktestLab />
-              </div>
-            </TabErrorBoundary>
-          )}
-
-          {/* ======================================================== */}
-          {/* TAB 8: 🧠 AI COACH & BEHAVIORAL REVIEW */}
-          {/* ======================================================== */}
-          {activeTab === 'aicoach' && (
-            <TabErrorBoundary tabName="AI Coach">
-              <div className="max-w-7xl mx-auto space-y-6">
-                <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <h1 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-                      <Brain className="w-5 h-5 text-[#089981]" />
-                      <span>{isAr ? 'الموجّه الذكي ومحلل السيولة اللحظي (SMC AI Assistant)' : 'Behavioral AI Coach & SMC Intelligence'}</span>
-                    </h1>
-                    <p className="text-xs text-[#787b86]">
-                      {isAr
-                        ? 'استشر الذكاء الاصطناعي المؤسسي لرصد فجوات FVG، كتل الأوامر، وحساب اللوت المناسب لكل صفقة.'
-                        : 'Consult institutional AI on order flow, liquidity imbalances, and disciplined risk execution.'}
-                    </p>
-                  </div>
-                  <span className="px-3 py-1 rounded bg-[#089981]/15 text-[#089981] border border-[#089981]/30 font-mono text-xs font-bold self-start sm:self-auto" dir="ltr">
-                    SMC AI ACTIVE
-                  </span>
-                </div>
-
-                {/* Interactive AI Chat Box with Sample Questions */}
-                <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 flex flex-col h-[480px]">
-                  {/* Chat Messages Log */}
-                  <div className="flex-1 overflow-y-auto space-y-3 p-2">
-                    {aiMessages.map((msg, idx) => (
-                      <div
-                        key={idx}
-                        className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                      >
-                        {msg.role === 'model' && (
-                          <div className="w-7 h-7 rounded bg-[#131722] border border-[#2a2e39] flex items-center justify-center text-[#089981] shrink-0">
-                            <Bot className="w-4 h-4" />
-                          </div>
-                        )}
-                        <div
-                          className={`max-w-[85%] rounded p-3 text-xs leading-relaxed whitespace-pre-line ${
-                            msg.role === 'user'
-                              ? 'bg-white text-[#131722] font-semibold'
-                              : 'bg-[#131722] text-[#d1d4dc] border border-[#2a2e39]'
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {MACRO_EVENTS.map((ev) => (
+                    <div key={ev.id} className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-3.5 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-xs font-bold text-white px-2 py-0.5 rounded bg-[#131722] border border-[#2a2e39]">
+                          {ev.currency}
+                        </span>
+                        <span
+                          className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${
+                            ev.impact === 'HIGH'
+                              ? 'bg-[#f23645]/20 text-[#f23645] border border-[#f23645]/30'
+                              : 'bg-[#787b86]/20 text-[#d1d4dc]'
                           }`}
                         >
-                          <div className="text-[10px] text-[#787b86] mb-1 font-mono">{msg.time}</div>
-                          {msg.text}
+                          {ev.impact} IMPACT
+                        </span>
+                      </div>
+
+                      <div className="text-xs font-semibold text-white leading-snug">
+                        {isAr ? ev.nameAr : ev.nameEn}
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-[#2a2e39] text-xs font-mono">
+                        <div className="text-[11px] text-[#787b86]">
+                          Forecast: <span className="text-white font-bold">{ev.forecast}</span>
+                        </div>
+                        <div className="text-[11px] text-[#089981] font-bold flex items-center gap-1" dir="ltr">
+                          <Clock className="w-3 h-3 text-[#089981]" />
+                          <span>{ev.countdown}</span>
                         </div>
                       </div>
-                    ))}
-                    {aiIsTyping && (
-                      <div className="flex items-center gap-2 text-xs text-[#089981] font-mono p-2">
-                        <span className="w-2 h-2 rounded-full bg-[#089981] animate-ping" />
-                        <span>{isAr ? 'جاري فحص سيولة السوق وكتل الأوامر...' : 'Scanning order flow and liquidity pools...'}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Sample Query Quick Action Pills */}
-                  <div className="pt-2 border-t border-[#2a2e39] flex items-center gap-1.5 overflow-x-auto pb-2 shrink-0">
-                    <span className="text-[10px] text-[#787b86] shrink-0 font-mono">
-                      {isAr ? 'أسئلة مقترحة:' : 'Quick Prompts:'}
-                    </span>
-                    <button
-                      onClick={() => handleSendAiPrompt(isAr ? 'ما هي مستويات السيولة على الذهب الآن؟' : 'Analyze Gold liquidity levels')}
-                      className="px-2.5 py-1 rounded bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-[11px] text-[#d1d4dc] hover:text-white transition-colors whitespace-nowrap cursor-pointer"
-                    >
-                      {isAr ? '💰 سيولة الذهب الآن' : 'Gold Liquidity'}
-                    </button>
-                    <button
-                      onClick={() => handleSendAiPrompt(isAr ? 'حلل صفقة النازداك ومناطق FVG' : 'Analyze Nasdaq FVG')}
-                      className="px-2.5 py-1 rounded bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-[11px] text-[#d1d4dc] hover:text-white transition-colors whitespace-nowrap cursor-pointer"
-                    >
-                      {isAr ? '📈 تحليل ناسداك وFVG' : 'Nasdaq FVG'}
-                    </button>
-                    <button
-                      onClick={() => handleSendAiPrompt(isAr ? 'احسب لي حجم اللوت لحساب 10,000$ بمخاطرة 1%' : 'Calculate 1% risk for $10,000')}
-                      className="px-2.5 py-1 rounded bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-[11px] text-[#d1d4dc] hover:text-white transition-colors whitespace-nowrap cursor-pointer"
-                    >
-                      {isAr ? '🧮 حاسبة اللوت 1%' : '1% Risk Calc'}
-                    </button>
-                  </div>
-
-                  {/* Input Form */}
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      handleSendAiPrompt(aiInput);
-                    }}
-                    className="flex gap-2 pt-2 border-t border-[#2a2e39]"
-                  >
-                    <input
-                      type="text"
-                      value={aiInput}
-                      onChange={(e) => setAiInput(e.target.value)}
-                      placeholder={isAr ? 'اكتب استفسارك للذكاء الاصطناعي (مثل: هل الدخول الآن مناسب؟)...' : 'Ask AI Agent about order flow or liquidity...'}
-                      className="flex-1 bg-[#131722] border border-[#2a2e39] rounded px-3 py-2 text-xs text-white placeholder-[#787b86] focus:border-[#089981] outline-none"
-                    />
-                    <button
-                      type="submit"
-                      className="px-4 py-2 rounded bg-white hover:bg-[#d1d4dc] text-[#131722] text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-sm shrink-0"
-                    >
-                      <Send className="w-3.5 h-3.5" />
-                      <span>{isAr ? 'إرسال' : 'Send'}</span>
-                    </button>
-                  </form>
+                    </div>
+                  ))}
                 </div>
-
-                {/* Deep Behavioral Audit Component */}
-                <AICoachReview activeSymbol={selectedSymbol} tickers={tickers} onSelectSymbol={onSelectSymbol} />
               </div>
-            </TabErrorBoundary>
+            </div>
           )}
 
           {/* ======================================================== */}
-          {/* TAB 9: 🏆 TOP ANALYSTS MARKETPLACE & PRIVATE ROOMS */}
+          {/* TAB 2: 🏆 TRADERS MARKETPLACE & PRIVATE ROOMS */}
           {/* ======================================================== */}
           {activeTab === 'traders' && (
-            <TabErrorBoundary tabName="Top Analysts">
-              <div className="max-w-7xl mx-auto space-y-6">
-                {!selectedTrader ? (
-                  <>
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4">
-                      <div>
-                        <h1 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-                          <Users className="w-5 h-5 text-white" />
-                          <span>{isAr ? 'نخبة المحللين وغرف التداول الخاصة' : 'Top Verified Analysts & Private Rooms'}</span>
-                        </h1>
-                        <p className="text-xs text-[#787b86]">
-                          {isAr
-                            ? 'تابع المحرك الآلي الرسمي والمحللين الشركاء المعتمدين مع إمكانية الدخول للغرفة الخاصة برمز الدعوة.'
-                            : 'Follow verified quantitative engines and partner analysts with private trading rooms.'}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <span className="px-3 py-1 rounded bg-[#131722] border border-[#2a2e39] font-mono text-xs text-[#089981] font-bold" dir="ltr">
-                          4 VERIFIED ROOMS
-                        </span>
-                      </div>
+            <div className="max-w-7xl mx-auto space-y-6">
+              {!selectedTrader ? (
+                <>
+                  {/* Directory Header */}
+                  <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h1 className="text-base sm:text-lg font-bold text-white mb-1">
+                        {isAr ? 'نخبة المحللين المعتمدين وغرف التداول الحصرية' : 'Certified Analysts Marketplace'}
+                      </h1>
+                      <p className="text-xs text-[#787b86]">
+                        {isAr
+                          ? 'تابع أفضل المتداولين، ادخل غرفهم الخاصة، واطلع على تحليلاتهم ونقاشات المشتركين لحظياً.'
+                          : 'Follow verified traders, access private hubs, and engage in real-time subscriber chats.'}
+                      </p>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {INITIAL_TRADERS.map((trader) => {
-                        const isUnlocked = unlockedTraderIds.includes(trader.id);
-                        return (
-                          <div
-                            key={trader.id}
-                            className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-5 flex flex-col justify-between hover:border-[#363a45] transition-all"
-                          >
-                            <div>
-                              <div className="flex items-start justify-between gap-3 mb-3">
-                                <div className="flex items-center gap-3">
-                                  <img
-                                    src={trader.avatar}
-                                    alt={trader.nameAr}
-                                    className="w-12 h-12 rounded-lg object-cover border border-[#2a2e39]"
-                                  />
-                                  <div>
-                                    <div className="flex items-center gap-1.5">
-                                      <h3 className="text-sm font-bold text-white">
-                                        {isAr ? trader.nameAr : trader.nameEn}
-                                      </h3>
-                                      {trader.isOfficial && (
-                                        <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-[#089981]/20 text-[#089981] border border-[#089981]/30">
-                                          OFFICIAL
-                                        </span>
-                                      )}
-                                    </div>
-                                    <p className="text-xs text-[#787b86] mt-0.5">
-                                      {isAr ? trader.specialtyAr : trader.specialtyEn}
-                                    </p>
-                                  </div>
-                                </div>
-
-                                <div className="text-right">
-                                  <div className="text-xs font-mono font-bold text-[#089981]" dir="ltr">
-                                    +{trader.verifiedPipsMonth} Pips
-                                  </div>
-                                  <div className="text-[10px] text-[#787b86] font-mono" dir="ltr">
-                                    {trader.winRate}% Win
-                                  </div>
-                                </div>
-                              </div>
-
-                              <p className="text-xs text-[#787b86] leading-relaxed mb-4">
-                                {isAr ? trader.descriptionAr : trader.descriptionEn}
-                              </p>
-
-                              <div className="grid grid-cols-3 gap-2 mb-4 font-mono text-center">
-                                <div className="bg-[#131722] p-2 rounded border border-[#2a2e39]">
-                                  <div className="text-[10px] text-[#787b86]">SIGNALS</div>
-                                  <div className="text-xs font-bold text-white" dir="ltr">{trader.signalsCount}</div>
-                                </div>
-                                <div className="bg-[#131722] p-2 rounded border border-[#2a2e39]">
-                                  <div className="text-[10px] text-[#787b86]">SUBSCRIBERS</div>
-                                  <div className="text-xs font-bold text-white" dir="ltr">{trader.subscribersCount}</div>
-                                </div>
-                                <div className="bg-[#131722] p-2 rounded border border-[#2a2e39]">
-                                  <div className="text-[10px] text-[#787b86]">INVITE CODE</div>
-                                  <div className="text-xs font-bold text-[#089981]" dir="ltr">{trader.inviteCode}</div>
-                                </div>
-                              </div>
-                            </div>
-
-                            <div>
-                              {isUnlocked ? (
-                                <button
-                                  onClick={() => {
-                                    soundManager.playClick();
-                                    setSelectedTrader(trader);
-                                  }}
-                                  className="w-full py-2 px-3 rounded bg-white hover:bg-[#d1d4dc] text-[#131722] text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
-                                >
-                                  <Unlock className="w-3.5 h-3.5 text-[#089981]" />
-                                  <span>{isAr ? 'دخول غرفة التداول المباشرة' : 'Enter Live Trading Room'}</span>
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => {
-                                    soundManager.playClick();
-                                    setUnlockTraderModal(trader);
-                                    setUnlockCodeInput(trader.inviteCode);
-                                    setUnlockCodeError(false);
-                                  }}
-                                  className="w-full py-2 px-3 rounded bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-xs font-semibold text-white transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                                >
-                                  <Lock className="w-3.5 h-3.5 text-[#787b86]" />
-                                  <span>{isAr ? `تفعيل برمز الدعوة (${trader.inviteCode})` : 'Unlock with Invite Code'}</span>
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
+                    <div className="text-xs font-mono text-[#089981] bg-[#131722] border border-[#2a2e39] px-3 py-1.5 rounded">
+                      <span>{unlockedTraderIds.length} {isAr ? 'غرف مفعلة لديك' : 'Rooms Unlocked'}</span>
                     </div>
-                  </>
-                ) : (
-                  /* Single Trader Live Room View */
-                  <div className="space-y-4 animate-fade-in">
-                    <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <button
-                          onClick={() => setSelectedTrader(null)}
-                          className="p-1.5 rounded bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-[#787b86] hover:text-white transition-colors cursor-pointer"
+                  </div>
+
+                  {/* Traders Cards Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {INITIAL_TRADERS.map((trader) => {
+                      const isUnlocked = isVIP || unlockedTraderIds.includes(trader.id);
+
+                      return (
+                        <div
+                          key={trader.id}
+                          className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 flex flex-col justify-between hover:border-[#363a45] transition-all space-y-4"
                         >
-                          <ArrowRight className="w-4 h-4 rtl:rotate-180" />
-                        </button>
-                        <img
-                          src={selectedTrader.avatar}
-                          alt={selectedTrader.nameAr}
-                          className="w-10 h-10 rounded-lg object-cover border border-[#2a2e39]"
-                        />
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h2 className="text-base font-bold text-white">
-                              {isAr ? selectedTrader.nameAr : selectedTrader.nameEn}
-                            </h2>
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#089981]/20 text-[#089981]">
-                              LIVE ROOM
-                            </span>
-                          </div>
-                          <p className="text-xs text-[#787b86]">
-                            {isAr ? selectedTrader.specialtyAr : selectedTrader.specialtyEn}
-                          </p>
-                        </div>
-                      </div>
+                          <div>
+                            {/* Trader Top Bar */}
+                            <div className="flex items-start justify-between gap-3 mb-3">
+                              <div className="flex items-center gap-3">
+                                <img
+                                  src={trader.avatar}
+                                  alt={trader.nameAr}
+                                  className="w-12 h-12 rounded-full border border-[#363a45] object-cover"
+                                />
+                                <div>
+                                  <div className="flex items-center gap-1.5">
+                                    <h3 className="font-bold text-white text-sm">
+                                      {isAr ? trader.nameAr : trader.nameEn}
+                                    </h3>
+                                    {trader.isOfficial && (
+                                      <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-[#089981]/20 text-[#089981]">
+                                        OFFICIAL
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-[#787b86]">{isAr ? trader.specialtyAr : trader.specialtyEn}</p>
+                                </div>
+                              </div>
 
-                      <div className="flex items-center gap-2 font-mono text-xs">
-                        <span className="px-2.5 py-1 rounded bg-[#131722] border border-[#2a2e39] text-[#089981] font-bold" dir="ltr">
-                          +{selectedTrader.verifiedPipsMonth} Pips
-                        </span>
-                        <span className="px-2.5 py-1 rounded bg-[#131722] border border-[#2a2e39] text-white" dir="ltr">
-                          {selectedTrader.winRate}% Win
-                        </span>
+                              <div className="text-end font-mono">
+                                <div className="text-sm font-bold text-white">
+                                  {trader.monthlyPrice === 0 ? (isAr ? 'مجاناً مع المنصة' : 'Included') : `$${trader.monthlyPrice}/mo`}
+                                </div>
+                                <div className="text-[10px] text-[#787b86]">{trader.subscribersCount} {isAr ? 'مشترك' : 'subs'}</div>
+                              </div>
+                            </div>
+
+                            {/* Trader Performance Metrics */}
+                            <div className="grid grid-cols-3 gap-2 bg-[#131722] p-2.5 rounded border border-[#2a2e39] text-center font-mono text-xs mb-3">
+                              <div>
+                                <div className="text-[10px] text-[#787b86]">{isAr ? 'النقاط الشهرية' : 'Monthly Pips'}</div>
+                                <div className="font-bold text-[#089981]" dir="ltr">+{trader.verifiedPipsMonth}</div>
+                              </div>
+                              <div>
+                                <div className="text-[10px] text-[#787b86]">{isAr ? 'نسبة النجاح' : 'Win Rate'}</div>
+                                <div className="font-bold text-white" dir="ltr">{trader.winRate}%</div>
+                              </div>
+                              <div>
+                                <div className="text-[10px] text-[#787b86]">{isAr ? 'إجمالي الصفقات' : 'Signals'}</div>
+                                <div className="font-bold text-white" dir="ltr">{trader.signalsCount}</div>
+                              </div>
+                            </div>
+
+                            <p className="text-xs text-[#787b86] leading-relaxed line-clamp-2">
+                              {isAr ? trader.descriptionAr : trader.descriptionEn}
+                            </p>
+                          </div>
+
+                          {/* Action Button */}
+                          <div className="pt-2 border-t border-[#2a2e39]">
+                            {isUnlocked ? (
+                              <button
+                                onClick={() => {
+                                  setSelectedTrader(trader);
+                                  soundManager.playClick();
+                                }}
+                                className="w-full py-2 px-3 rounded bg-white hover:bg-[#d1d4dc] text-[#131722] font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+                              >
+                                <Unlock className="w-3.5 h-3.5 text-[#089981]" />
+                                <span>{isAr ? 'دخول غرفة المحلل المباشرة' : 'Enter Private Room'}</span>
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  setUnlockTraderModal(trader);
+                                  soundManager.playClick();
+                                }}
+                                className="w-full py-2 px-3 rounded bg-[#2a2e39] hover:bg-[#363a45] text-white border border-[#363a45] font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                              >
+                                <Lock className="w-3.5 h-3.5 text-[#787b86]" />
+                                <span>{isAr ? 'فتح الغرفة برمز الدعوة / اشتراك' : 'Unlock with Invite Code'}</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : (
+                /* Dedicated Private Trader Room Workspace */
+                <div className="space-y-4">
+                  {/* Trader Room Header */}
+                  <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={selectedTrader.avatar}
+                        alt={selectedTrader.nameAr}
+                        className="w-12 h-12 rounded-full border border-[#363a45] object-cover"
+                      />
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h2 className="text-base font-bold text-white">
+                            {isAr ? selectedTrader.nameAr : selectedTrader.nameEn}
+                          </h2>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#089981]/20 text-[#089981]">
+                            LIVE ROOM
+                          </span>
+                        </div>
+                        <p className="text-xs text-[#787b86]">{isAr ? selectedTrader.specialtyAr : selectedTrader.specialtyEn}</p>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                      {/* Left 2 Cols: Posts Feed + Chart */}
-                      <div className="lg:col-span-2 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setSelectedTrader(null)}
+                        className="px-3 py-1.5 rounded bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-xs font-semibold text-white transition-colors cursor-pointer flex items-center gap-1"
+                      >
+                        <ArrowLeft className="w-3.5 h-3.5 rtl:rotate-180" />
+                        <span>{isAr ? 'العودة للدليل' : 'Back to Directory'}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 2-Column Grid: Left Column (Chat) & Right Column (Signals/Chart) */}
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    {/* Trader Signals & Chart (2 Cols) */}
+                    <div className="lg:col-span-2 space-y-4">
+                      {/* Active Posts by this Trader */}
+                      <div className="space-y-3">
+                        <h3 className="text-xs font-mono font-bold text-[#787b86] uppercase tracking-wider">
+                          {isAr ? 'التوصيات الحصرية لغرفة المحلل' : 'ANALYST POSTS & SIGNALS'}
+                        </h3>
+
+                        {(TRADER_POSTS_DATA[selectedTrader.id] || TRADER_POSTS_DATA['mbk_master']).map((post) => (
+                          <div key={post.id} className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 font-mono">
+                                <span className="px-2 py-0.5 rounded text-xs font-bold bg-[#089981]/15 text-[#089981]">
+                                  {post.action}
+                                </span>
+                                <span className="font-bold text-white text-sm">{post.symbol}</span>
+                                <span className="text-xs text-[#787b86] font-sans">{post.timestamp}</span>
+                              </div>
+                              <span className="px-2 py-0.5 rounded bg-[#089981]/10 text-[#089981] font-mono text-xs font-bold" dir="ltr">
+                                +{post.pips} Pips
+                              </span>
+                            </div>
+
+                            <div className="text-sm font-semibold text-white">{isAr ? post.titleAr : post.titleEn}</div>
+
+                            <div className="grid grid-cols-4 gap-2 bg-[#131722] p-2 rounded border border-[#2a2e39] font-mono text-xs text-center">
+                              <div>
+                                <span className="text-[10px] text-[#787b86]">ENTRY:</span> <span className="text-white font-bold" dir="ltr">{post.entryPrice}</span>
+                              </div>
+                              <div>
+                                <span className="text-[10px] text-[#f23645]">SL:</span> <span className="text-[#f23645] font-bold" dir="ltr">{post.sl}</span>
+                              </div>
+                              <div>
+                                <span className="text-[10px] text-[#089981]">TP1:</span> <span className="text-[#089981] font-bold" dir="ltr">{post.tp1}</span>
+                              </div>
+                              <div>
+                                <span className="text-[10px] text-[#089981]">TP2:</span> <span className="text-[#089981] font-bold" dir="ltr">{post.tp2}</span>
+                              </div>
+                            </div>
+
+                            <p className="text-xs text-[#787b86] leading-relaxed">
+                              {isAr ? post.notesAr : post.notesEn}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Interactive TradingView Chart */}
+                      <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-3 space-y-2">
+                        <div className="text-xs font-bold text-white flex items-center justify-between">
+                          <span>{isAr ? 'شارت التحليل المباشر' : 'Live Interactive Chart'}</span>
+                          <span className="font-mono text-[11px] text-[#787b86]">TradingView Embed</span>
+                        </div>
                         <div className="h-80 w-full rounded overflow-hidden border border-[#2a2e39]">
                           <TradingViewChart
                             symbol={(selectedTrader.specialties[0] as MarketSymbol) || 'US100'}
@@ -1894,737 +1759,820 @@ export function ProtectedDashboard({
                             tickers={tickers}
                           />
                         </div>
-
-                        <div className="space-y-3">
-                          <h3 className="text-xs font-mono font-bold text-[#787b86] uppercase">
-                            {isAr ? 'آخر تحليلات وتوصيات المحلل' : 'ANALYST POSTS & SIGNALS'}
-                          </h3>
-                          {(TRADER_POSTS_DATA[selectedTrader.id] || []).map((post) => (
-                            <div key={post.id} className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 space-y-3">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <span className="px-2 py-0.5 rounded text-xs font-mono font-bold bg-[#089981]/20 text-[#089981]">
-                                    {post.action}
-                                  </span>
-                                  <span className="text-sm font-bold text-white font-mono">{post.symbol}</span>
-                                </div>
-                                <span className="text-[11px] text-[#787b86]">{post.timestamp}</span>
-                              </div>
-                              <h4 className="text-sm font-bold text-white">
-                                {isAr ? post.titleAr : post.titleEn}
-                              </h4>
-                              <p className="text-xs text-[#787b86] leading-relaxed">
-                                {isAr ? post.notesAr : post.notesEn}
-                              </p>
-                              <div className="grid grid-cols-4 gap-2 font-mono text-center text-xs">
-                                <div className="bg-[#131722] p-1.5 rounded border border-[#2a2e39]">
-                                  <div className="text-[9px] text-[#787b86]">ENTRY</div>
-                                  <div className="font-bold text-white" dir="ltr">{post.entryPrice}</div>
-                                </div>
-                                <div className="bg-[#131722] p-1.5 rounded border border-[#2a2e39]">
-                                  <div className="text-[9px] text-[#f23645]">SL</div>
-                                  <div className="font-bold text-[#f23645]" dir="ltr">{post.sl}</div>
-                                </div>
-                                <div className="bg-[#131722] p-1.5 rounded border border-[#2a2e39]">
-                                  <div className="text-[9px] text-[#089981]">TP1</div>
-                                  <div className="font-bold text-[#089981]" dir="ltr">{post.tp1}</div>
-                                </div>
-                                <div className="bg-[#131722] p-1.5 rounded border border-[#2a2e39]">
-                                  <div className="text-[9px] text-[#089981]">TP2</div>
-                                  <div className="font-bold text-[#089981]" dir="ltr">{post.tp2}</div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Right Col: Private Room Live Member Discussion */}
-                      <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 flex flex-col h-[580px]">
-                        <div className="pb-3 border-b border-[#2a2e39] mb-3">
-                          <h3 className="text-xs font-bold text-white flex items-center gap-1.5">
-                            <MessageSquare className="w-3.5 h-3.5 text-[#089981]" />
-                            <span>{isAr ? 'شات المشتركين والمحلل المباشر' : 'Private Room Live Chat'}</span>
-                          </h3>
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto space-y-3 p-1">
-                          {traderRoomMessages.map((m) => (
-                            <div key={m.id} className="p-2.5 rounded bg-[#131722] border border-[#2a2e39] space-y-1">
-                              <div className="flex items-center justify-between text-[11px]">
-                                <span className="font-bold text-white flex items-center gap-1">
-                                  {m.user}
-                                  {m.isAnalyst && (
-                                    <span className="px-1 py-0.2 rounded bg-[#089981]/20 text-[#089981] text-[9px]">
-                                      ANALYST
-                                    </span>
-                                  )}
-                                </span>
-                                <span className="text-[10px] text-[#787b86] font-mono">{m.time}</span>
-                              </div>
-                              <p className="text-xs text-[#d1d4dc] leading-relaxed">{m.text}</p>
-                            </div>
-                          ))}
-                        </div>
-
-                        <form onSubmit={handleSendTraderMessage} className="pt-3 border-t border-[#2a2e39] flex gap-2">
-                          <input
-                            type="text"
-                            value={traderChatInput}
-                            onChange={(e) => setTraderChatInput(e.target.value)}
-                            placeholder={isAr ? 'اكتب للمحلل في الغرفة...' : 'Type a message...'}
-                            className="flex-1 bg-[#131722] border border-[#2a2e39] rounded px-3 py-1.5 text-xs text-white placeholder-[#787b86] focus:border-[#089981] outline-none"
-                          />
-                          <button
-                            type="submit"
-                            className="px-3 py-1.5 rounded bg-white text-[#131722] text-xs font-bold hover:bg-[#d1d4dc] transition-all cursor-pointer shadow-sm"
-                          >
-                            <Send className="w-3.5 h-3.5" />
-                          </button>
-                        </form>
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            </TabErrorBoundary>
-          )}
 
-          {/* ======================================================== */}
-          {/* TAB 10: 🛍️ INDICATORS STORE (PINE SCRIPT V5) */}
-          {/* ======================================================== */}
-          {activeTab === 'indicators' && (
-            <TabErrorBoundary tabName="Indicators Store">
-              <div className="max-w-7xl mx-auto space-y-5">
-                <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <h1 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-                      <ShoppingBag className="w-5 h-5 text-white" />
-                      <span>{isAr ? 'متجر مؤشرات وخوارزميات Pine Script v5 الحصرية' : 'Proprietary Pine Script v5 Indicators Store'}</span>
-                    </h1>
-                    <p className="text-xs text-[#787b86]">
-                      {isAr
-                        ? 'خوارزميات برمجية حصرية طورها فريق أبحاث MBK لفلترة الضوضاء واصطياد السيولة الصفرية على TradingView.'
-                        : 'Institutional TradingView algorithms with instant demo activation for your account.'}
-                    </p>
-                  </div>
-                  <span className="px-3 py-1 rounded bg-[#131722] border border-[#2a2e39] font-mono text-xs text-[#089981] font-bold self-start sm:self-auto" dir="ltr">
-                    TRADINGVIEW INVITE-ONLY
-                  </span>
-                </div>
-
-                {/* Render IndicatorsStorePanel Component */}
-                <IndicatorsStorePanel
-                  indicators={MBK_INDICATORS}
-                  onOpenBrokerModal={onOpenBrokerModal}
-                />
-              </div>
-            </TabErrorBoundary>
-          )}
-
-          {/* ======================================================== */}
-          {/* TAB 11: 🤝 COPY TRADING & BROKER BRIDGE */}
-          {/* ======================================================== */}
-          {activeTab === 'copy_trading' && (
-            <TabErrorBoundary tabName="Copy Trading">
-              <div className="max-w-7xl mx-auto space-y-5">
-                <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <h1 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-                      <Share2 className="w-5 h-5 text-white" />
-                      <span>{isAr ? 'خدمة نسخ الصفقات المباشرة وربط حسابات الوسطاء' : 'Live Institutional Copy Trading Bridge'}</span>
-                    </h1>
-                    <p className="text-xs text-[#787b86]">
-                      {isAr
-                        ? 'اربط حسابك في MT4 / MT5 أو cTrader لنسخ صفقات المحرك المعتمد تلقائياً بنفس اللحظة بفارق سبريد صفر نقطة.'
-                        : 'Sync your MT4/MT5 accounts to copy institutional master signals with zero latency.'}
-                    </p>
-                  </div>
-                  <span className="px-3 py-1 rounded bg-[#089981]/15 text-[#089981] border border-[#089981]/30 font-mono text-xs font-bold self-start sm:self-auto" dir="ltr">
-                    ECN 0.0 PIP BRIDGE
-                  </span>
-                </div>
-
-                {/* Render CopyTradingPanel Component */}
-                <CopyTradingPanel
-                  masterProfile={MASTER_TRADER_PROFILE}
-                  onOpenBrokerModal={onOpenBrokerModal}
-                />
-              </div>
-            </TabErrorBoundary>
-          )}
-
-          {/* ======================================================== */}
-          {/* TAB 12: 📅 ECONOMIC CALENDAR & MACRO NEWS */}
-          {/* ======================================================== */}
-          {activeTab === 'calendar' && (
-            <TabErrorBoundary tabName="Economic Calendar">
-              <div className="max-w-7xl mx-auto space-y-5">
-                <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <h1 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-                      <Calendar className="w-5 h-5 text-[#089981]" />
-                      <span>{isAr ? 'المفكرة الاقتصادية وأخبار السياسة النقدية الكبرى' : 'Economic News & High-Impact Macro Events'}</span>
-                    </h1>
-                    <p className="text-xs text-[#787b86]">
-                      {isAr
-                        ? 'متابعة مباشرة لقرارات الفائدة الفيدرالية، أرقام التضخم CPI، وبيانات التوظيف NFP مع مؤشرات التأثير على الذهب والنازداك.'
-                        : 'Real-time macro calendar tracking FOMC rate decisions, US CPI inflation, and NFP payrolls.'}
-                    </p>
-                  </div>
-                  <span className="px-3 py-1 rounded bg-[#f23645]/15 text-[#f23645] border border-[#f23645]/30 font-mono text-xs font-bold self-start sm:self-auto" dir="ltr">
-                    HIGH VOLATILITY RADAR
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {ECONOMIC_CALENDAR_ITEMS.map((item) => (
-                    <div
-                      key={item.id}
-                      className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 space-y-3 hover:border-[#363a45] transition-all"
-                    >
-                      <div className="flex items-center justify-between">
+                    {/* Private Subscriber Chat Room (1 Col) */}
+                    <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg flex flex-col h-[580px]">
+                      <div className="p-3 border-b border-[#2a2e39] bg-[#131722] flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-white font-mono text-xs">{item.currency}</span>
-                          <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                              item.impact === 'HIGH'
-                                ? 'bg-[#f23645]/20 text-[#f23645] border border-[#f23645]/30'
-                                : 'bg-[#089981]/20 text-[#089981] border border-[#089981]/30'
+                          <span className="w-2 h-2 rounded-full bg-[#089981] animate-pulse" />
+                          <span className="text-xs font-bold text-white">{isAr ? 'شات المشتركين الخاص' : 'Subscriber Chat'}</span>
+                        </div>
+                        <span className="text-[10px] font-mono text-[#787b86]">Live Feed</span>
+                      </div>
+
+                      {/* Messages Feed */}
+                      <div className="flex-1 overflow-y-auto p-3 space-y-3">
+                        {traderRoomMessages.map((msg) => (
+                          <div
+                            key={msg.id}
+                            className={`p-2.5 rounded text-xs leading-relaxed ${
+                              msg.isAnalyst
+                                ? 'bg-[#089981]/15 border border-[#089981]/30 text-white'
+                                : 'bg-[#131722] border border-[#2a2e39] text-[#d1d4dc]'
                             }`}
                           >
-                            {item.impact} IMPACT
-                          </span>
-                        </div>
-                        <span className="text-[11px] text-[#787b86] font-mono">{item.timeAr}</span>
+                            <div className="flex items-center justify-between mb-1 text-[11px]">
+                              <span className={`font-bold ${msg.isAnalyst ? 'text-[#089981]' : 'text-white'}`}>
+                                {msg.user}
+                              </span>
+                              <span className="text-[10px] text-[#787b86] font-mono">{msg.time}</span>
+                            </div>
+                            <p>{msg.text}</p>
+                          </div>
+                        ))}
                       </div>
 
-                      <h3 className="text-sm font-bold text-white">{item.titleAr}</h3>
-                      <p className="text-xs text-[#787b86] leading-relaxed">{item.country}</p>
-
-                      <div className="grid grid-cols-3 gap-2 font-mono text-center text-xs pt-2 border-t border-[#2a2e39]">
-                        <div className="bg-[#131722] p-1.5 rounded border border-[#2a2e39]">
-                          <div className="text-[9px] text-[#787b86]">ACTUAL</div>
-                          <div className="font-bold text-white" dir="ltr">{item.actual || 'قيد الانتظار'}</div>
-                        </div>
-                        <div className="bg-[#131722] p-1.5 rounded border border-[#2a2e39]">
-                          <div className="text-[9px] text-[#787b86]">FORECAST</div>
-                          <div className="font-bold text-[#089981]" dir="ltr">{item.forecast}</div>
-                        </div>
-                        <div className="bg-[#131722] p-1.5 rounded border border-[#2a2e39]">
-                          <div className="text-[9px] text-[#787b86]">PREVIOUS</div>
-                          <div className="font-bold text-[#787b86]" dir="ltr">{item.previous}</div>
-                        </div>
-                      </div>
+                      {/* Input Box */}
+                      <form onSubmit={handleSendTraderMessage} className="p-2 border-t border-[#2a2e39] bg-[#131722] flex gap-2">
+                        <input
+                          type="text"
+                          value={traderChatInput}
+                          onChange={(e) => setTraderChatInput(e.target.value)}
+                          placeholder={isAr ? 'اكتب رسالتك للمحلل والمشتركين...' : 'Send message...'}
+                          className="flex-1 bg-[#1e222d] border border-[#2a2e39] rounded px-3 py-1.5 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#089981]"
+                        />
+                        <button
+                          type="submit"
+                          className="px-3 py-1.5 rounded bg-white hover:bg-[#d1d4dc] text-[#131722] text-xs font-bold transition-all cursor-pointer"
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                        </button>
+                      </form>
                     </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ======================================================== */}
+          {/* TAB 3: 🛍️ INDICATORS STORE & PINE SCRIPT TOOLS */}
+          {/* ======================================================== */}
+          {activeTab === 'indicators' && (
+            <div className="max-w-7xl mx-auto space-y-6">
+              {/* Header */}
+              <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h1 className="text-base sm:text-lg font-bold text-white mb-1">
+                    {isAr ? 'حزمة مؤشرات MBK الخوارزمية (Pine Script v5)' : 'MBK Proprietary Indicators Suite'}
+                  </h1>
+                  <p className="text-xs text-[#787b86]">
+                    {isAr
+                      ? 'مؤشرات مؤسسية مبرمجة لمنصة TradingView لاكتشاف كتل الأوامر وفجوات السعر وتحديد اتجاه السيولة بدقة.'
+                      : 'Institutional TradingView scripts detecting Order Blocks, FVGs, and session liquidity sweeps.'}
+                  </p>
+                </div>
+                <span className="px-3 py-1.5 rounded bg-[#131722] border border-[#2a2e39] text-xs font-mono text-[#089981] font-bold">
+                  {isVIP ? (isAr ? '✓ مفعلة بحسابك' : 'VIP Active') : (isAr ? 'متاحة مع VIP' : 'Included in VIP')}
+                </span>
+              </div>
+
+              {/* Indicators Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Indicator 1 */}
+                <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs font-bold text-[#089981] px-2 py-0.5 rounded bg-[#089981]/15">
+                      PINE SCRIPT v5
+                    </span>
+                    <span className="text-xs font-mono text-white font-bold">{isAr ? 'مجاناً مع VIP' : 'Included with VIP'}</span>
+                  </div>
+                  <h3 className="text-sm font-bold text-white">
+                    {isAr ? 'MBK Smart Money Suite (SMC 2026)' : 'MBK Smart Money Suite (SMC 2026)'}
+                  </h3>
+                  <p className="text-xs text-[#787b86] leading-relaxed">
+                    {isAr
+                      ? 'رسم تلقائي لمناطق كتل الأوامر (Order Blocks)، فجوات القيمة العادلة (FVG)، وكسر وتغيير هيكل السوق (BOS / CHoCH).'
+                      : 'Automated plotting of institutional Order Blocks, Fair Value Gaps, and structural shifts.'}
+                  </p>
+                  <div className="pt-2 border-t border-[#2a2e39] flex items-center justify-between">
+                    <button
+                      onClick={() => handleCopy('//@version=5\nindicator("MBK Smart Money Concepts", overlay=true)\n// Institutional OB & FVG Suite', 'pine1')}
+                      className="px-3 py-1.5 rounded bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-xs font-semibold text-white flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>{copiedId === 'pine1' ? (isAr ? '✓ تم النسخ' : 'Copied') : (isAr ? 'نسخ كود باين سكريبت' : 'Copy Pine Script')}</span>
+                    </button>
+                    <a
+                      href="https://www.tradingview.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-[#787b86] hover:text-white flex items-center gap-1"
+                    >
+                      <span>TradingView ↗</span>
+                    </a>
+                  </div>
+                </div>
+
+                {/* Indicator 2 */}
+                <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs font-bold text-[#089981] px-2 py-0.5 rounded bg-[#089981]/15">
+                      PINE SCRIPT v5
+                    </span>
+                    <span className="text-xs font-mono text-white font-bold">{isAr ? 'مجاناً مع VIP' : 'Included with VIP'}</span>
+                  </div>
+                  <h3 className="text-sm font-bold text-white">
+                    {isAr ? 'MBK Precision Ribbon & Volume Profile' : 'MBK Precision Ribbon & Volume Profile'}
+                  </h3>
+                  <p className="text-xs text-[#787b86] leading-relaxed">
+                    {isAr
+                      ? 'شرائط الزخم الديناميكية (EMA 21/50/200) متزامنة مع قنوات سيولة التداول لتحديد الإجهاد السعري والانعكاس.'
+                      : 'Dynamic institutional trend ribbons and momentum exhaustion triggers synchronized with delta volume.'}
+                  </p>
+                  <div className="pt-2 border-t border-[#2a2e39] flex items-center justify-between">
+                    <button
+                      onClick={() => handleCopy('//@version=5\nindicator("MBK Precision Ribbon", overlay=true)', 'pine2')}
+                      className="px-3 py-1.5 rounded bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-xs font-semibold text-white flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>{copiedId === 'pine2' ? (isAr ? '✓ تم النسخ' : 'Copied') : (isAr ? 'نسخ كود باين سكريبت' : 'Copy Pine Script')}</span>
+                    </button>
+                    <a
+                      href="https://www.tradingview.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-[#787b86] hover:text-white flex items-center gap-1"
+                    >
+                      <span>TradingView ↗</span>
+                    </a>
+                  </div>
+                </div>
+
+                {/* Indicator 3 */}
+                <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs font-bold text-[#089981] px-2 py-0.5 rounded bg-[#089981]/15">
+                      PINE SCRIPT v5
+                    </span>
+                    <span className="text-xs font-mono text-white font-bold">{isAr ? 'مجاناً مع VIP' : 'Included with VIP'}</span>
+                  </div>
+                  <h3 className="text-sm font-bold text-white">
+                    {isAr ? 'MBK Session Liquidity & Killzones Box' : 'MBK Session Liquidity & Killzones Box'}
+                  </h3>
+                  <p className="text-xs text-[#787b86] leading-relaxed">
+                    {isAr
+                      ? 'تحديد تلقائي لجلسات طوكيو ولندن ونيويورك مع خطوط سحب السيولة اللحظية اليومية والأسبوعية.'
+                      : 'Automatic highlighting of London and NY killzones with previous day/week high-low liquidity.'}
+                  </p>
+                  <div className="pt-2 border-t border-[#2a2e39] flex items-center justify-between">
+                    <button
+                      onClick={() => handleCopy('//@version=5\nindicator("MBK Killzones Box", overlay=true)', 'pine3')}
+                      className="px-3 py-1.5 rounded bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-xs font-semibold text-white flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>{copiedId === 'pine3' ? (isAr ? '✓ تم النسخ' : 'Copied') : (isAr ? 'نسخ كود باين سكريبت' : 'Copy Pine Script')}</span>
+                    </button>
+                    <a
+                      href="https://www.tradingview.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-[#787b86] hover:text-white flex items-center gap-1"
+                    >
+                      <span>TradingView ↗</span>
+                    </a>
+                  </div>
+                </div>
+
+                {/* Indicator 4 */}
+                <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs font-bold text-[#089981] px-2 py-0.5 rounded bg-[#089981]/15">
+                      PINE SCRIPT v5
+                    </span>
+                    <span className="text-xs font-mono text-white font-bold">{isAr ? 'مجاناً مع VIP' : 'Included with VIP'}</span>
+                  </div>
+                  <h3 className="text-sm font-bold text-white">
+                    {isAr ? 'MBK Webhook Signals Bridge' : 'MBK Webhook Signals Bridge'}
+                  </h3>
+                  <p className="text-xs text-[#787b86] leading-relaxed">
+                    {isAr
+                      ? 'كود ربط تنبيهات TradingView مع خادم MBKtrading لإرسال الصفقات مباشرة إلى المنصة عبر Webhook.'
+                      : 'TradingView webhook alert integration template broadcasting directly to the live terminal.'}
+                  </p>
+                  <div className="pt-2 border-t border-[#2a2e39] flex items-center justify-between">
+                    <button
+                      onClick={() => handleCopy('https://ais-dev-wncejxgfjzqoofgs6snjvu-6705890240.us-east5.run.app/api/webhook/signal?secret=MBK_WEBHOOK_SECRET_2026', 'whcode')}
+                      className="px-3 py-1.5 rounded bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-xs font-semibold text-white flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>{copiedId === 'whcode' ? (isAr ? '✓ تم النسخ' : 'Copied') : (isAr ? 'نسخ رابط Webhook URL' : 'Copy Webhook URL')}</span>
+                    </button>
+                    <span className="text-[11px] text-[#089981] font-mono">PORT 3000 API</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ======================================================== */}
+          {/* TAB 4: 🤝 COPY TRADING & RECOMMENDED BROKERS */}
+          {/* ======================================================== */}
+          {activeTab === 'copy_trading' && (
+            <div className="max-w-7xl mx-auto space-y-6">
+              {/* Header */}
+              <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h1 className="text-base sm:text-lg font-bold text-white mb-1">
+                    {isAr ? 'نسخ الصفقات الآلي والوسطاء المعتمدين' : 'Automated Copy Trading & Partner Brokers'}
+                  </h1>
+                  <p className="text-xs text-[#787b86]">
+                    {isAr
+                      ? 'ربط حساب التداول الشخصي مع محرك MBK للتنفيذ اللحظي بفوارق أسعار صفرية وتنفيذ عالي السرعة.'
+                      : 'Direct account sync with MBK Execution Engine offering 0.0 pip spreads and ultra-low latency.'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#089981] animate-pulse" />
+                  <span className="text-xs font-mono font-bold text-[#089981]">BRIDGE ACTIVE • 0.9ms</span>
+                </div>
+              </div>
+
+              {/* Recommended Brokers Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Broker 1 */}
+                <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 flex flex-col justify-between space-y-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="px-2 py-0.5 rounded text-xs font-mono font-bold bg-[#089981]/15 text-[#089981]">
+                        RAW SPREAD
+                      </span>
+                      <span className="text-xs font-mono text-white font-bold" dir="ltr">0.0 Pips</span>
+                    </div>
+                    <h3 className="text-base font-bold text-white">IC Markets Global</h3>
+                    <ul className="text-xs text-[#787b86] space-y-1.5 font-sans">
+                      <li>• فوارق سعرية تبدأ من 0.0 نقطة على الذهب والنازداك</li>
+                      <li>• خوادم Equinix LD4 في لندن متصلة بمحرك MBK</li>
+                      <li>• رافعة مالية مرنة تصل حتى 1:500</li>
+                    </ul>
+                  </div>
+                  <button
+                    onClick={onOpenBrokerModal}
+                    className="w-full py-2 px-3 rounded bg-white hover:bg-[#d1d4dc] text-[#131722] text-xs font-bold transition-all cursor-pointer shadow-sm"
+                  >
+                    {isAr ? 'فتح حساب برعاية MBK' : 'Open Account with MBK'}
+                  </button>
+                </div>
+
+                {/* Broker 2 */}
+                <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 flex flex-col justify-between space-y-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="px-2 py-0.5 rounded text-xs font-mono font-bold bg-[#089981]/15 text-[#089981]">
+                        INSTANT PAY
+                      </span>
+                      <span className="text-xs font-mono text-white font-bold" dir="ltr">Zero Swap</span>
+                    </div>
+                    <h3 className="text-base font-bold text-white">Exness Pro</h3>
+                    <ul className="text-xs text-[#787b86] space-y-1.5 font-sans">
+                      <li>• سحب وإيداع فوري عبر البنوك المحلية والعملات المشفرة</li>
+                      <li>• حسابات إسلامية خالية تماماً من فوائد التبييت (Swap-Free)</li>
+                      <li>• تنفيذ سريع ومستقر حتى أثناء الأخبار القوية</li>
+                    </ul>
+                  </div>
+                  <button
+                    onClick={onOpenBrokerModal}
+                    className="w-full py-2 px-3 rounded bg-white hover:bg-[#d1d4dc] text-[#131722] text-xs font-bold transition-all cursor-pointer shadow-sm"
+                  >
+                    {isAr ? 'فتح حساب معتمد' : 'Open Certified Account'}
+                  </button>
+                </div>
+
+                {/* Broker 3 */}
+                <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 flex flex-col justify-between space-y-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="px-2 py-0.5 rounded text-xs font-mono font-bold bg-[#089981]/15 text-[#089981]">
+                        cTRADER & FIX
+                      </span>
+                      <span className="text-xs font-mono text-white font-bold" dir="ltr">1ms VPS</span>
+                    </div>
+                    <h3 className="text-base font-bold text-white">Pepperstone Razor</h3>
+                    <ul className="text-xs text-[#787b86] space-y-1.5 font-sans">
+                      <li>• ربط مباشر عبر FIX API مع TradingView و cTrader</li>
+                      <li>• عمولة منخفضة جداً وتنفيذ مؤسسي شفاف</li>
+                      <li>• دعم فني مخصص لعملاء MBKtrading</li>
+                    </ul>
+                  </div>
+                  <button
+                    onClick={onOpenBrokerModal}
+                    className="w-full py-2 px-3 rounded bg-white hover:bg-[#d1d4dc] text-[#131722] text-xs font-bold transition-all cursor-pointer shadow-sm"
+                  >
+                    {isAr ? 'ربط الحساب عبر cTrader' : 'Connect via cTrader'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Copy Trading Multiplier Settings Desk */}
+              <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-white">
+                    {isAr ? 'إعدادات مضاعف المخاطرة للنسخ الآلي (Risk Multiplier)' : 'Copy Risk Multiplier'}
+                  </h3>
+                  <span className="text-xs font-mono text-[#089981] font-bold">Auto Execution Ready</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                  <div className="bg-[#131722] p-3 rounded border border-[#2a2e39] space-y-1">
+                    <div className="text-xs font-bold text-white">{isAr ? 'محافظ (Conservative)' : 'Conservative'}</div>
+                    <div className="text-xs text-[#787b86]">1.0x Multiplier • 1% Risk / Trade</div>
+                    <div className="text-[10px] text-[#089981] font-mono">Recommended for Accounts &gt; $5,000</div>
+                  </div>
+                  <div className="bg-[#131722] p-3 rounded border border-[#089981]/40 space-y-1">
+                    <div className="text-xs font-bold text-white">{isAr ? 'معتدل (Moderate)' : 'Moderate'}</div>
+                    <div className="text-xs text-[#787b86]">1.5x Multiplier • 1.5% Risk / Trade</div>
+                    <div className="text-[10px] text-[#089981] font-mono">Balanced Growth Profile</div>
+                  </div>
+                  <div className="bg-[#131722] p-3 rounded border border-[#2a2e39] space-y-1">
+                    <div className="text-xs font-bold text-white">{isAr ? 'نشط (Aggressive)' : 'Aggressive'}</div>
+                    <div className="text-xs text-[#787b86]">2.0x Multiplier • 2.0% Risk / Trade</div>
+                    <div className="text-[10px] text-[#f23645] font-mono">High Return / High Drawdown</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ======================================================== */}
+          {/* TAB 5: 🤖 SMC AI AGENT & ASSISTANT */}
+          {/* ======================================================== */}
+          {activeTab === 'ai_agent' && (
+            <div className="max-w-4xl mx-auto space-y-4">
+              {/* Header */}
+              <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Bot className="w-5 h-5 text-[#089981]" />
+                    <h1 className="text-base font-bold text-white">
+                      {isAr ? 'وكيل الذكاء الاصطناعي المؤسسي (SMC AI Agent)' : 'MBK Smart AI Agent'}
+                    </h1>
+                  </div>
+                  <p className="text-xs text-[#787b86]">
+                    {isAr
+                      ? 'مساعد التحليل الفني ومفاهيم الأموال الذكية. يجيبك بلغة أرقام دقيقة حول مستويات الدخول، الـ FVG، وإدارة المخاطر.'
+                      : 'Elite institutional assistant providing real-time Order Block, FVG, and session intelligence.'}
+                  </p>
+                </div>
+                <span className="px-2.5 py-1 rounded bg-[#131722] border border-[#2a2e39] text-xs font-mono text-[#089981]">
+                  gemini-3.8-flash
+                </span>
+              </div>
+
+              {/* Sample Question Pills */}
+              <div className="space-y-1.5">
+                <div className="text-[11px] font-mono text-[#787b86]">
+                  {isAr ? 'أسئلة واستفسارات جاهزة للتنفيذ الفوري:' : 'Suggested Quick Prompts:'}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    isAr ? 'ما هي مستويات السيولة على الذهب الآن؟' : 'Gold liquidity levels right now?',
+                    isAr ? 'حلل صفقة النازداك (US100)' : 'Analyze US100 Nasdaq setup',
+                    isAr ? 'ما هي مناطق كتل الأوامر (Order Blocks) لجلسة نيويورك؟' : 'New York Order Blocks today?',
+                    isAr ? 'احسب لي حجم اللوت لحساب 10,000$ بمخاطرة 1%' : 'Lot size for $10k account at 1% risk'
+                  ].map((p, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => handleSendAiPrompt(p)}
+                      className="px-3 py-1 rounded-full bg-[#1e222d] hover:bg-[#2a2e39] border border-[#2a2e39] hover:border-[#363a45] text-xs text-[#d1d4dc] hover:text-white transition-all cursor-pointer text-start"
+                    >
+                      {p}
+                    </button>
                   ))}
                 </div>
               </div>
-            </TabErrorBoundary>
+
+              {/* Chat Container */}
+              <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg flex flex-col h-[480px]">
+                {/* Chat Feed */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                  {aiMessages.map((msg, idx) => (
+                    <div
+                      key={idx}
+                      className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
+                    >
+                      <div
+                        className={`max-w-[85%] rounded-lg p-3.5 text-xs leading-relaxed whitespace-pre-wrap ${
+                          msg.role === 'user'
+                            ? 'bg-white text-[#131722] font-semibold'
+                            : 'bg-[#131722] border border-[#2a2e39] text-[#d1d4dc]'
+                        }`}
+                      >
+                        {msg.text}
+                      </div>
+                      <span className="text-[10px] text-[#787b86] font-mono mt-1 px-1">{msg.time}</span>
+                    </div>
+                  ))}
+
+                  {aiIsTyping && (
+                    <div className="flex items-center gap-2 p-3 bg-[#131722] border border-[#2a2e39] rounded-lg max-w-[220px] text-xs text-[#787b86]">
+                      <span className="w-2 h-2 rounded-full bg-[#089981] animate-ping" />
+                      <span>{isAr ? 'جاري تحليل هيكل السوق...' : 'Analyzing SMC order flow...'}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Input Box */}
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSendAiPrompt();
+                  }}
+                  className="p-3 border-t border-[#2a2e39] bg-[#131722] flex gap-2"
+                >
+                  <input
+                    type="text"
+                    value={aiInput}
+                    onChange={(e) => setAiInput(e.target.value)}
+                    placeholder={isAr ? 'اسأل المحرك الذكي عن أي أصل أو خطة تداول...' : 'Ask MBK Smart AI Agent...'}
+                    className="flex-1 bg-[#1e222d] border border-[#2a2e39] rounded px-3 py-2 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#089981]"
+                  />
+                  <button
+                    type="submit"
+                    className="px-4 py-2 rounded bg-white hover:bg-[#d1d4dc] text-[#131722] text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-sm"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>{isAr ? 'إرسال' : 'Send'}</span>
+                  </button>
+                </form>
+              </div>
+            </div>
           )}
 
           {/* ======================================================== */}
-          {/* TAB 13: 💬 COMMUNITY LIVE CHAT */}
+          {/* TAB 6: 📓 SMART JOURNAL & SIMULATED $100K DESK */}
           {/* ======================================================== */}
-          {activeTab === 'community' && (
-            <TabErrorBoundary tabName="Community Chat">
-              <div className="max-w-7xl mx-auto space-y-5">
-                <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <h1 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-                      <MessageSquare className="w-5 h-5 text-[#089981]" />
-                      <span>{isAr ? 'شات مجتمع المتداولين المباشر (284+ متداول نشط)' : 'Institutional Community Chat (284+ Online)'}</span>
-                    </h1>
-                    <p className="text-xs text-[#787b86]">
-                      {isAr
-                        ? 'نقاشات تحليلية فورية بين نخبة المتداولين، تبادل صفقات السكالبينج، وتحديثات افتتاح الأسواق العالمية.'
-                        : 'Connect with disciplined quantitative and discretionary institutional traders.'}
-                    </p>
-                  </div>
-                  <span className="px-3 py-1 rounded bg-[#089981]/15 text-[#089981] border border-[#089981]/30 font-mono text-xs font-bold self-start sm:self-auto" dir="ltr">
-                    LIVE ROOM ACTIVE
+          {activeTab === 'journal' && (
+            <div className="max-w-7xl mx-auto space-y-6">
+              {/* Header */}
+              <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h1 className="text-base sm:text-lg font-bold text-white mb-1">
+                    {isAr ? 'مفكرة التداول الذكية والمحفظة التجريبية ($100K Desk)' : 'Trading Journal & $100K Paper Desk'}
+                  </h1>
+                  <p className="text-xs text-[#787b86]">
+                    {isAr
+                      ? 'تدرب بمحفظة افتراضية 100 ألف دولار مع تتبع عاداتك النفسية ومعدل التزامك بخطة إدارة رأس المال.'
+                      : 'Simulate trades with a $100,000 virtual portfolio while tracking emotional discipline.'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="px-3 py-1.5 rounded bg-[#089981]/15 text-[#089981] border border-[#089981]/30 text-xs font-mono font-bold" dir="ltr">
+                    +$4,820.50 Profit (+4.82%)
+                  </span>
+                </div>
+              </div>
+
+              {/* 6.1 VIRTUAL PORTFOLIO BALANCE CARD */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono">
+                <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-3.5">
+                  <div className="text-[11px] text-[#787b86] mb-1">{isAr ? 'رأس المال الابتدائي' : 'Starting Balance'}</div>
+                  <div className="text-lg font-bold text-white" dir="ltr">$100,000.00</div>
+                  <div className="text-[10px] text-[#787b86] mt-0.5">Demo Virtual Cash</div>
+                </div>
+
+                <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-3.5">
+                  <div className="text-[11px] text-[#787b86] mb-1">{isAr ? 'القيمة الحالية (Equity)' : 'Equity'}</div>
+                  <div className="text-lg font-bold text-[#089981]" dir="ltr">${paperEquity.toLocaleString()}</div>
+                  <div className="text-[10px] text-[#089981] mt-0.5">+$4,820.50 (+4.82%)</div>
+                </div>
+
+                <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-3.5">
+                  <div className="text-[11px] text-[#787b86] mb-1">{isAr ? 'الهامش المتاح' : 'Free Margin'}</div>
+                  <div className="text-lg font-bold text-white" dir="ltr">$92,400.00</div>
+                  <div className="text-[10px] text-[#787b86] mt-0.5">Margin Level: 1,240%</div>
+                </div>
+
+                <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-3.5">
+                  <div className="text-[11px] text-[#787b86] mb-1">{isAr ? 'معدل الانضباط' : 'Discipline Score'}</div>
+                  <div className="text-lg font-bold text-[#089981]" dir="ltr">88%</div>
+                  <div className="text-[10px] text-[#089981] mt-0.5">Zero revenge trades</div>
+                </div>
+              </div>
+
+              {/* 6.2 ACTIVE OPEN POSITIONS ROWS */}
+              <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg overflow-hidden space-y-2 p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xs font-mono font-bold text-[#787b86] uppercase tracking-wider">
+                    {isAr ? 'الصفقات الافتراضية المفتوحة حالياً' : 'OPEN SIMULATED POSITIONS'}
+                  </h3>
+                  <span className="text-xs font-mono text-[#089981] font-bold" dir="ltr">
+                    Floating: +$4,040.00
                   </span>
                 </div>
 
-                {/* Render CommunityChat Component */}
-                <CommunityChat
-                  messages={chatMessages}
-                  onSendMessage={onSendMessage}
-                  onLikeMessage={onLikeMessage}
-                />
+                <div className="overflow-x-auto">
+                  <table className="w-full text-start text-xs font-mono">
+                    <thead className="bg-[#131722] text-[#787b86] border-b border-[#2a2e39] select-none text-[11px]">
+                      <tr>
+                        <th className="py-2 px-3 text-start">ASSET</th>
+                        <th className="py-2 px-2 text-start">SIDE</th>
+                        <th className="py-2 px-3 text-start">LOTS</th>
+                        <th className="py-2 px-3 text-start">OPEN PRICE</th>
+                        <th className="py-2 px-3 text-start">CURRENT</th>
+                        <th className="py-2 px-3 text-start">PIPS</th>
+                        <th className="py-2 px-3 text-start text-[#089981]">FLOATING P&amp;L</th>
+                        <th className="py-2 px-3 text-end">ACTION</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#2a2e39]/60">
+                      {paperPositions.map((pos) => (
+                        <tr key={pos.id} className="hover:bg-[#2a2e39]/30 transition-colors">
+                          <td className="py-2.5 px-3 font-bold text-white">{pos.symbol}</td>
+                          <td className="py-2.5 px-2">
+                            <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-[#089981]/15 text-[#089981]">
+                              {pos.type}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-white" dir="ltr">{pos.lots.toFixed(1)}</td>
+                          <td className="py-2.5 px-3 text-white" dir="ltr">{pos.entryPrice.toLocaleString()}</td>
+                          <td className="py-2.5 px-3 text-white font-bold" dir="ltr">{pos.currentPrice.toLocaleString()}</td>
+                          <td className="py-2.5 px-3 text-[#089981] font-bold" dir="ltr">+{pos.pips} Pips</td>
+                          <td className="py-2.5 px-3 text-[#089981] font-bold" dir="ltr">+${pos.floatingPnl.toLocaleString()}</td>
+                          <td className="py-2.5 px-3 text-end">
+                            <button
+                              onClick={() => handleClosePosition(pos.id)}
+                              className="px-2.5 py-1 rounded bg-[#2a2e39] hover:bg-[#f23645]/20 hover:text-[#f23645] border border-[#363a45] text-xs font-semibold text-white transition-all cursor-pointer"
+                            >
+                              {isAr ? 'إغلاق الصفقة' : 'Close'}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </TabErrorBoundary>
+
+              {/* 6.3 PSYCHOLOGY & HABIT DETECTIVE BANNER */}
+              <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 space-y-2">
+                <div className="flex items-center gap-2 text-xs font-bold text-white">
+                  <Sparkles className="w-4 h-4 text-[#089981]" />
+                  <span>{isAr ? 'كاشف العادات النفسية (Habit Detective AI)' : 'Psychological Habit Detective'}</span>
+                </div>
+                <p className="text-xs text-[#787b86] leading-relaxed">
+                  {isAr
+                    ? '💡 تحليل الصفقات: 88% من صفقاتك الرابحة تم الالتزام فيها بوقف الخسارة دون تحريكه أبداً. صفقاتك التي تم إغلاقها خلال جلسة لندن حققت أعلى نسبة ربح (+720 نقطة).'
+                    : '💡 AI Behavioral Audit: 88% of your winning trades adhered strictly to the initial stop-loss without moving it. London sessions delivered the highest Sharpe ratio.'}
+                </p>
+              </div>
+            </div>
           )}
 
           {/* ======================================================== */}
-          {/* TAB 14: ⚙️ CEO & ADMIN COMMAND CENTER */}
+          {/* TAB 7: ⚙️ CEO & ANALYST COMMAND CENTER (PIN PROTECTED) */}
           {/* ======================================================== */}
           {activeTab === 'admin' && (
-            <TabErrorBoundary tabName="Admin Center">
-              <div className="max-w-7xl mx-auto space-y-6">
-                {!isAdminUnlocked ? (
-                  /* Admin PIN Form */
-                  <div className="max-w-md mx-auto bg-[#1e222d] border border-[#2a2e39] rounded-lg p-6 text-center space-y-4 my-10">
-                    <div className="w-12 h-12 rounded-lg bg-white text-[#131722] flex items-center justify-center mx-auto shadow-sm">
-                      <KeyRound className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <h2 className="text-base font-bold text-white">
-                        {isAr ? 'مركز قيادة المنصة (CEO Command Center)' : 'Command Center Access'}
-                      </h2>
-                      <p className="text-xs text-[#787b86] mt-1">
-                        {isAr ? 'أدخل رمز الحماية (PIN: 2026) لفتح أدوات نشر الصفقات وإصدار الرموز' : 'Enter security PIN: 2026 for management controls'}
-                      </p>
-                    </div>
-
-                    <form onSubmit={handleVerifyAdminPin} className="space-y-3">
-                      <input
-                        type="password"
-                        value={adminPin}
-                        onChange={(e) => setAdminPin(e.target.value)}
-                        placeholder="PIN: 2026"
-                        className="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-2 text-center text-sm font-mono text-white tracking-widest outline-none focus:border-[#089981]"
-                      />
-                      {adminPinError && (
-                        <p className="text-xs text-[#f23645]">
-                          {isAr ? 'رمز الحماية غير صحيح. الرمز التجريبي هو 2026.' : 'Invalid PIN. Demo PIN is 2026.'}
-                        </p>
-                      )}
-                      <button
-                        type="submit"
-                        className="w-full py-2 rounded bg-white hover:bg-[#d1d4dc] text-[#131722] text-xs font-bold transition-all cursor-pointer shadow-sm"
-                      >
-                        {isAr ? 'فتح لوحة التحكم' : 'Unlock Dashboard'}
-                      </button>
-                    </form>
+            <div className="max-w-4xl mx-auto space-y-6">
+              {!isAdminUnlocked ? (
+                /* PIN Gate */
+                <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-6 max-w-md mx-auto text-center space-y-4 my-8">
+                  <div className="w-12 h-12 rounded-full bg-[#131722] border border-[#363a45] flex items-center justify-center mx-auto text-white">
+                    <KeyRound className="w-6 h-6 text-[#089981]" />
                   </div>
-                ) : (
-                  /* Admin Center Full Controls */
-                  <div className="space-y-6 animate-fade-in">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="w-2.5 h-2.5 rounded-full bg-[#089981] animate-ping" />
-                          <h1 className="text-base sm:text-lg font-bold text-white">
-                            {isAr ? 'مركز إدارة المنصة ونشر التوصيات (Admin Command)' : 'Platform Command Center'}
-                          </h1>
-                        </div>
-                        <p className="text-xs text-[#787b86]">
-                          {isAr
-                            ? 'نشر توصيات حية، توليد رموز تفعيل VIP، وإدارة صلاحيات المحللين الشركاء.'
-                            : 'Publish live trade signals, generate VIP codes, and manage institutional settings.'}
-                        </p>
-                      </div>
+                  <div>
+                    <h2 className="text-base font-bold text-white mb-1">
+                      {isAr ? 'لوحة إدارة المنصة والمحللين (CEO Command)' : 'Platform Command Center'}
+                    </h2>
+                    <p className="text-xs text-[#787b86]">
+                      {isAr ? 'هذه المنطقة مخصصة للإدارة لنشر التوصيات وتوليد رموز الدعوة. أدخل رمز الأمان 2026' : 'Admin & Analyst controls. Enter security PIN: 2026'}
+                    </p>
+                  </div>
 
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setIsAdminUnlocked(false)}
-                          className="px-3 py-1.5 rounded bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-xs font-semibold text-white transition-colors cursor-pointer"
-                        >
-                          {isAr ? 'قفل الإدارة' : 'Lock Center'}
-                        </button>
-                      </div>
-                    </div>
+                  <form onSubmit={handleVerifyAdminPin} className="space-y-3">
+                    <input
+                      type="password"
+                      value={adminPin}
+                      onChange={(e) => setAdminPin(e.target.value)}
+                      placeholder="PIN (2026)"
+                      className="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-2 text-center text-sm font-mono text-white tracking-widest focus:outline-none focus:border-[#089981]"
+                    />
 
-                    {adminToast && (
-                      <div className="p-3 rounded bg-[#089981]/20 border border-[#089981]/40 text-[#089981] text-xs font-mono font-bold text-center">
-                        {adminToast}
+                    {adminPinError && (
+                      <div className="text-xs text-[#f23645]">
+                        {isAr ? 'رمز غير صحيح! الرمز الافتراضي للإدارة هو 2026' : 'Invalid PIN! Use 2026'}
                       </div>
                     )}
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      {/* Form: Post New Signal */}
-                      <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-5 space-y-4">
-                        <div className="flex items-center justify-between border-b border-[#2a2e39] pb-3">
-                          <h2 className="text-sm font-bold text-white flex items-center gap-2">
-                            <Plus className="w-4 h-4 text-[#089981]" />
-                            <span>{isAr ? 'نشر توصية تداول فورية إلى البث الحي' : 'Publish Live Signal to Stream'}</span>
-                          </h2>
-                          <span className="text-[10px] font-mono text-[#089981] font-bold">INSTANT BROADCAST</span>
+                    <button
+                      type="submit"
+                      className="w-full py-2 rounded bg-white hover:bg-[#d1d4dc] text-[#131722] font-bold text-xs transition-all cursor-pointer shadow-sm"
+                    >
+                      {isAr ? 'فتح لوحة التحكم' : 'Unlock Dashboard'}
+                    </button>
+                  </form>
+                </div>
+              ) : (
+                /* Unlocked Admin Center */
+                <div className="space-y-6">
+                  {/* Header */}
+                  <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 flex items-center justify-between">
+                    <div>
+                      <h2 className="text-base font-bold text-white mb-1">
+                        {isAr ? 'لوحة تحكم المشرف والمحللين المعتمدين' : 'CEO & Analyst Publishing Desk'}
+                      </h2>
+                      <p className="text-xs text-[#787b86]">
+                        {isAr ? 'نشر توصيات فورية، توليد رموز التفعيل للعملاء، وإدارة المحللين.' : 'Broadcast live signals and generate client access tokens.'}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setIsAdminUnlocked(false)}
+                      className="px-3 py-1 rounded bg-[#131722] border border-[#2a2e39] text-xs text-[#787b86] hover:text-white"
+                    >
+                      {isAr ? 'قفل اللوحة' : 'Lock'}
+                    </button>
+                  </div>
+
+                  {/* Signal Publisher Form */}
+                  <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 space-y-4">
+                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                      <Radio className="w-4 h-4 text-[#089981]" />
+                      <span>{isAr ? 'نشر توصية فورية على المنصة' : 'Broadcast Live Signal'}</span>
+                    </h3>
+
+                    {adminPublishSuccess && (
+                      <div className="p-3 bg-[#089981]/15 border border-[#089981]/30 text-[#089981] rounded text-xs font-bold">
+                        {isAr ? '✓ تم نشر التوصية بنجاح على شريط الإشارات الحية!' : '✓ Signal successfully broadcast to live desk!'}
+                      </div>
+                    )}
+
+                    <form onSubmit={handleAdminPublishSignal} className="space-y-3 text-xs">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div>
+                          <label className="text-[#787b86] block mb-1">Asset</label>
+                          <select
+                            value={adminSymbol}
+                            onChange={(e) => setAdminSymbol(e.target.value as MarketSymbol)}
+                            className="w-full bg-[#131722] border border-[#2a2e39] rounded p-2 text-white font-mono"
+                          >
+                            <option value="US100">US100</option>
+                            <option value="XAUUSD">XAUUSD</option>
+                            <option value="EURUSD">EURUSD</option>
+                            <option value="BTCUSD">BTCUSD</option>
+                          </select>
                         </div>
 
-                        {adminPublishSuccess && (
-                          <div className="p-2.5 rounded bg-[#089981]/20 border border-[#089981]/40 text-[#089981] text-xs font-bold text-center">
-                            ✓ {isAr ? 'تم نشر الصفقة بنجاح إلى شريط الإشارات الحية!' : 'Signal broadcasted successfully!'}
-                          </div>
-                        )}
-
-                        <form onSubmit={handleAdminPublishSignal} className="space-y-3 text-xs">
-                          <div className="grid grid-cols-2 gap-3">
-                            <div>
-                              <label className="block text-[#787b86] mb-1">الرمز (Symbol)</label>
-                              <select
-                                value={adminSymbol}
-                                onChange={(e) => setAdminSymbol(e.target.value as MarketSymbol)}
-                                className="w-full bg-[#131722] border border-[#2a2e39] rounded p-2 text-white font-mono outline-none"
-                              >
-                                <option value="US100">US100 (Nasdaq)</option>
-                                <option value="XAUUSD">XAUUSD (Gold)</option>
-                                <option value="EURUSD">EURUSD (Forex)</option>
-                                <option value="BTCUSD">BTCUSD (Crypto)</option>
-                              </select>
-                            </div>
-
-                            <div>
-                              <label className="block text-[#787b86] mb-1">نوع الصفقة (Type)</label>
-                              <select
-                                value={adminType}
-                                onChange={(e) => setAdminType(e.target.value as 'BUY' | 'SELL')}
-                                className="w-full bg-[#131722] border border-[#2a2e39] rounded p-2 text-white font-mono outline-none"
-                              >
-                                <option value="BUY">BUY (شراء)</option>
-                                <option value="SELL">SELL (بيع)</option>
-                              </select>
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-4 gap-2 font-mono">
-                            <div>
-                              <label className="block text-[#787b86] text-[10px] mb-1">ENTRY</label>
-                              <input
-                                type="text"
-                                value={adminEntry}
-                                onChange={(e) => setAdminEntry(e.target.value)}
-                                className="w-full bg-[#131722] border border-[#2a2e39] rounded p-1.5 text-white"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-[#f23645] text-[10px] mb-1">SL</label>
-                              <input
-                                type="text"
-                                value={adminSl}
-                                onChange={(e) => setAdminSl(e.target.value)}
-                                className="w-full bg-[#131722] border border-[#2a2e39] rounded p-1.5 text-[#f23645]"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-[#089981] text-[10px] mb-1">TP1</label>
-                              <input
-                                type="text"
-                                value={adminTp1}
-                                onChange={(e) => setAdminTp1(e.target.value)}
-                                className="w-full bg-[#131722] border border-[#2a2e39] rounded p-1.5 text-[#089981]"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-[#089981] text-[10px] mb-1">TP2</label>
-                              <input
-                                type="text"
-                                value={adminTp2}
-                                onChange={(e) => setAdminTp2(e.target.value)}
-                                className="w-full bg-[#131722] border border-[#2a2e39] rounded p-1.5 text-[#089981]"
-                              />
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="block text-[#787b86] mb-1">اسم الاستراتيجية (Strategy Name)</label>
-                            <input
-                              type="text"
-                              value={adminStrategy}
-                              onChange={(e) => setAdminStrategy(e.target.value)}
-                              className="w-full bg-[#131722] border border-[#2a2e39] rounded p-2 text-white"
-                            />
-                          </div>
-
-                          <button
-                            type="submit"
-                            className="w-full py-2.5 rounded bg-white hover:bg-[#d1d4dc] text-[#131722] text-xs font-bold transition-all cursor-pointer shadow-sm"
+                        <div>
+                          <label className="text-[#787b86] block mb-1">Action</label>
+                          <select
+                            value={adminType}
+                            onChange={(e) => setAdminType(e.target.value as 'BUY' | 'SELL')}
+                            className="w-full bg-[#131722] border border-[#2a2e39] rounded p-2 text-white font-mono"
                           >
-                            {isAr ? 'نشر التوصية الآن إلى المشتركين' : 'Broadcast Signal Now'}
-                          </button>
-                        </form>
+                            <option value="BUY">BUY</option>
+                            <option value="SELL">SELL</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-[#787b86] block mb-1">Entry Price</label>
+                          <input
+                            type="text"
+                            value={adminEntry}
+                            onChange={(e) => setAdminEntry(e.target.value)}
+                            className="w-full bg-[#131722] border border-[#2a2e39] rounded p-2 text-white font-mono"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[#f23645] block mb-1">Stop Loss</label>
+                          <input
+                            type="text"
+                            value={adminSl}
+                            onChange={(e) => setAdminSl(e.target.value)}
+                            className="w-full bg-[#131722] border border-[#2a2e39] rounded p-2 text-white font-mono"
+                          />
+                        </div>
                       </div>
 
-                      {/* VIP Code Generator & List */}
-                      <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-5 space-y-4">
-                        <div className="flex items-center justify-between border-b border-[#2a2e39] pb-3">
-                          <h2 className="text-sm font-bold text-white flex items-center gap-2">
-                            <Crown className="w-4 h-4 text-[#089981]" />
-                            <span>{isAr ? 'توليد رموز تفعيل VIP ودعوات المحللين' : 'Generate VIP & Invite Codes'}</span>
-                          </h2>
-                          <span className="text-[10px] font-mono text-[#787b86]">CLICK TO GENERATE</span>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        <div>
+                          <label className="text-[#089981] block mb-1">Take Profit 1</label>
+                          <input
+                            type="text"
+                            value={adminTp1}
+                            onChange={(e) => setAdminTp1(e.target.value)}
+                            className="w-full bg-[#131722] border border-[#2a2e39] rounded p-2 text-white font-mono"
+                          />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2">
-                          <button
-                            onClick={() => handleGenerateCode('VIP')}
-                            className="py-2 px-3 rounded bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-xs font-semibold text-white transition-colors cursor-pointer flex items-center justify-center gap-1.5"
-                          >
-                            <Sparkles className="w-3.5 h-3.5 text-[#089981]" />
-                            <span>+ توليد رمز VIP جديد</span>
-                          </button>
-                          <button
-                            onClick={() => handleGenerateCode('ROOM')}
-                            className="py-2 px-3 rounded bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-xs font-semibold text-white transition-colors cursor-pointer flex items-center justify-center gap-1.5"
-                          >
-                            <KeyRound className="w-3.5 h-3.5 text-white" />
-                            <span>+ توليد رمز غرفة محلل</span>
-                          </button>
+                        <div>
+                          <label className="text-[#089981] block mb-1">Take Profit 2</label>
+                          <input
+                            type="text"
+                            value={adminTp2}
+                            onChange={(e) => setAdminTp2(e.target.value)}
+                            className="w-full bg-[#131722] border border-[#2a2e39] rounded p-2 text-white font-mono"
+                          />
                         </div>
 
-                        <div className="space-y-2">
-                          <div className="text-[11px] font-mono text-[#787b86]">الرموز النشطة الجاهزة للنسخ:</div>
-                          <div className="space-y-1.5 max-h-56 overflow-y-auto">
-                            {generatedCodes.map((item, idx) => (
-                              <div
-                                key={idx}
-                                className="flex items-center justify-between p-2 rounded bg-[#131722] border border-[#2a2e39] text-xs font-mono"
-                              >
-                                <div>
-                                  <span className="font-bold text-[#089981] tracking-wider me-2">{item.code}</span>
-                                  <span className="text-[#787b86] text-[10px]">({item.type})</span>
-                                </div>
-                                <button
-                                  onClick={() => handleCopy(item.code, item.code)}
-                                  className="px-2 py-0.5 rounded bg-[#2a2e39] hover:bg-[#363a45] text-white text-[11px] cursor-pointer"
-                                >
-                                  {copiedId === item.code ? '✓ تم' : 'نسخ'}
-                                </button>
-                              </div>
-                            ))}
+                        <div>
+                          <label className="text-[#787b86] block mb-1">Strategy Name</label>
+                          <input
+                            type="text"
+                            value={adminStrategy}
+                            onChange={(e) => setAdminStrategy(e.target.value)}
+                            className="w-full bg-[#131722] border border-[#2a2e39] rounded p-2 text-white"
+                          />
+                        </div>
+                      </div>
+
+                      <button
+                        type="submit"
+                        className="py-2.5 px-4 rounded bg-white hover:bg-[#d1d4dc] text-[#131722] font-bold transition-all cursor-pointer shadow-sm"
+                      >
+                        {isAr ? 'نشر التوصية الآن' : 'Publish Signal'}
+                      </button>
+                    </form>
+                  </div>
+
+                  {/* VIP & Trader Code Generator */}
+                  <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                        <KeyRound className="w-4 h-4 text-[#089981]" />
+                        <span>{isAr ? 'توليد رموز التفعيل للعملاء (VIP & Trader Codes)' : 'Invite Code Generator'}</span>
+                      </h3>
+                      {adminToast && (
+                        <span className="text-xs font-mono text-[#089981]">{adminToast}</span>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => handleGenerateCode('VIP')}
+                        className="px-3 py-1.5 rounded bg-white hover:bg-[#d1d4dc] text-[#131722] text-xs font-bold transition-all cursor-pointer"
+                      >
+                        {isAr ? '+ توليد رمز VIP جديد' : '+ New VIP Code'}
+                      </button>
+                      <button
+                        onClick={() => handleGenerateCode('TARIQ')}
+                        className="px-3 py-1.5 rounded bg-[#2a2e39] hover:bg-[#363a45] text-white border border-[#363a45] text-xs font-bold transition-all cursor-pointer"
+                      >
+                        {isAr ? '+ رمز غرفة كابتن طارق' : '+ Tariq Room Code'}
+                      </button>
+                      <button
+                        onClick={() => handleGenerateCode('KHALED')}
+                        className="px-3 py-1.5 rounded bg-[#2a2e39] hover:bg-[#363a45] text-white border border-[#363a45] text-xs font-bold transition-all cursor-pointer"
+                      >
+                        {isAr ? '+ رمز غرفة أبو خالد' : '+ Khaled Room Code'}
+                      </button>
+                    </div>
+
+                    <div className="space-y-2 pt-2 border-t border-[#2a2e39]">
+                      <div className="text-[11px] font-mono text-[#787b86]">{isAr ? 'الرموز النشطة المولدة مؤخراً:' : 'Active Generated Codes:'}</div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        {generatedCodes.map((gc, idx) => (
+                          <div
+                            key={idx}
+                            onClick={() => {
+                              navigator.clipboard.writeText(gc.code);
+                              setAdminToast(`Copied ${gc.code}`);
+                              setTimeout(() => setAdminToast(null), 2500);
+                            }}
+                            className="bg-[#131722] p-2.5 rounded border border-[#2a2e39] hover:border-[#363a45] cursor-pointer flex items-center justify-between font-mono text-xs"
+                          >
+                            <div>
+                              <div className="font-bold text-white">{gc.code}</div>
+                              <div className="text-[10px] text-[#787b86]">{gc.type}</div>
+                            </div>
+                            <Copy className="w-3.5 h-3.5 text-[#787b86]" />
                           </div>
-                        </div>
+                        ))}
                       </div>
                     </div>
                   </div>
-                )}
-              </div>
-            </TabErrorBoundary>
+                </div>
+              )}
+            </div>
           )}
         </main>
       </div>
 
-      {/* 4. MOBILE PERSISTENT BOTTOM NAVIGATION BAR (iOS / Android Native Style) */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#1e222d]/95 backdrop-blur-md border-t border-[#2a2e39] pb-safe select-none shadow-2xl">
-        <div className="grid grid-cols-5 h-14">
-          <button
-            onClick={() => {
-              setActiveTab('signals');
-              setSelectedTrader(null);
-              soundManager.playClick();
-            }}
-            className={`flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-colors cursor-pointer ${
-              activeTab === 'signals' ? 'text-white' : 'text-[#787b86] hover:text-[#d1d4dc]'
-            }`}
-          >
-            <Radio className={`w-4 h-4 ${activeTab === 'signals' ? 'text-[#089981]' : ''}`} />
-            <span>{isAr ? 'الإشارات' : 'Signals'}</span>
-          </button>
-
-          <button
-            onClick={() => {
-              setActiveTab('desk');
-              setSelectedTrader(null);
-              soundManager.playClick();
-            }}
-            className={`flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-colors cursor-pointer ${
-              activeTab === 'desk' ? 'text-white' : 'text-[#787b86] hover:text-[#d1d4dc]'
-            }`}
-          >
-            <Compass className={`w-4 h-4 ${activeTab === 'desk' ? 'text-[#089981]' : ''}`} />
-            <span>{isAr ? 'الأسواق' : 'Desk'}</span>
-          </button>
-
-          <button
-            onClick={() => {
-              setActiveTab('aicoach');
-              setSelectedTrader(null);
-              soundManager.playClick();
-            }}
-            className={`flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-colors cursor-pointer ${
-              activeTab === 'aicoach' ? 'text-white' : 'text-[#787b86] hover:text-[#d1d4dc]'
-            }`}
-          >
-            <Bot className={`w-4 h-4 ${activeTab === 'aicoach' ? 'text-[#089981]' : ''}`} />
-            <span>{isAr ? 'الذكاء' : 'AI Coach'}</span>
-          </button>
-
-          <button
-            onClick={() => {
-              setActiveTab('community');
-              setSelectedTrader(null);
-              soundManager.playClick();
-            }}
-            className={`flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-colors cursor-pointer ${
-              activeTab === 'community' ? 'text-white' : 'text-[#787b86] hover:text-[#d1d4dc]'
-            }`}
-          >
-            <MessageSquare className={`w-4 h-4 ${activeTab === 'community' ? 'text-[#089981]' : ''}`} />
-            <span>{isAr ? 'الشات' : 'Chat'}</span>
-          </button>
-
-          <button
-            onClick={() => {
-              setMobileDrawerOpen(true);
-              soundManager.playClick();
-            }}
-            className={`flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-colors cursor-pointer ${
-              mobileDrawerOpen ? 'text-[#089981]' : 'text-[#787b86] hover:text-[#d1d4dc]'
-            }`}
-          >
-            <Menu className="w-4 h-4 text-[#089981]" />
-            <span>{isAr ? 'الأدوات (13)' : 'All (13)'}</span>
-          </button>
-        </div>
-      </nav>
-
-      {/* 5. MOBILE FULL NAVIGATION DRAWER (Slide-over with all 13 Desks) */}
-      {mobileDrawerOpen && (
-        <div className="fixed inset-0 z-50 md:hidden flex justify-end bg-black/80 backdrop-blur-sm animate-fade-in">
-          {/* Backdrop click target */}
-          <div className="flex-1" onClick={() => setMobileDrawerOpen(false)} />
-
-          {/* Drawer Panel */}
-          <div
-            className="w-[85%] max-w-sm h-full bg-[#1e222d] border-s border-[#2a2e39] flex flex-col justify-between overflow-hidden shadow-2xl"
-            dir={isAr ? 'rtl' : 'ltr'}
-          >
-            {/* Drawer Header */}
-            <div className="p-4 border-b border-[#2a2e39] bg-[#131722]/90 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-white text-[#131722] font-mono font-bold text-xs flex items-center justify-center shadow">
-                  MBK
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-white leading-tight truncate max-w-[150px]">
-                    {userName}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#089981]" />
-                    <span className="text-[10px] text-[#089981] font-mono font-bold">
-                      {isVIP ? 'VIP MEMBER' : 'DEMO MODE'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <button
-                onClick={() => setMobileDrawerOpen(false)}
-                className="p-1.5 rounded-lg text-[#787b86] hover:text-white hover:bg-[#2a2e39] transition-colors cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Drawer Body: 13 Desks Categorized */}
-            <div className="p-3 space-y-4 overflow-y-auto flex-1">
-              {/* PWA Install Banner inside Drawer */}
-              <div className="p-3 rounded-lg bg-[#131722] border border-[#089981]/40 flex items-center justify-between gap-2 shadow-sm">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-md bg-[#089981]/20 text-[#089981] flex items-center justify-center shrink-0">
-                    <Smartphone className="w-4 h-4" />
-                  </div>
-                  <div className="text-xs">
-                    <div className="font-bold text-white">{isAr ? 'تطبيق الهاتف MBK' : 'MBK Mobile Web App'}</div>
-                    <div className="text-[10px] text-[#787b86]">
-                      {isAr ? 'تثبيت سريع لـ iOS و Android' : 'Install for Android & iOS'}
-                    </div>
-                  </div>
-                </div>
-                <button
-                  onClick={() => {
-                    setMobileDrawerOpen(false);
-                    setPwaModalOpen(true);
-                  }}
-                  className="px-2.5 py-1 rounded bg-[#089981] text-[#131722] text-[11px] font-bold shrink-0 hover:bg-[#089981]/90 cursor-pointer shadow-sm"
-                >
-                  {isAr ? 'تثبيت ↗' : 'Install ↗'}
-                </button>
-              </div>
-
-              {/* All 4 Categories */}
-              {NAV_CATEGORIES.map((cat) => (
-                <div key={cat.id} className="space-y-1">
-                  <div className="px-2 text-[10px] font-mono font-bold text-[#787b86] uppercase tracking-wider">
-                    {isAr ? cat.titleAr : cat.titleEn}
-                  </div>
-                  {cat.items.map((item) => {
-                    const isActive = activeTab === item.id;
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => {
-                          setActiveTab(item.id);
-                          setSelectedTrader(null);
-                          setMobileDrawerOpen(false);
-                          soundManager.playClick();
-                        }}
-                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                          isActive
-                            ? 'bg-white text-[#131722] font-bold shadow-sm'
-                            : 'text-[#d1d4dc] hover:bg-[#2a2e39] hover:text-white'
-                        }`}
-                      >
-                        <span className="truncate">{isAr ? item.labelAr : item.labelEn}</span>
-                        <span
-                          className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold shrink-0 ${
-                            isActive ? 'bg-[#131722] text-white' : item.badgeColor
-                          }`}
-                          dir="ltr"
-                        >
-                          {item.badge}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
-
-            {/* Drawer Footer: Quick Controls */}
-            <div className="p-3 border-t border-[#2a2e39] bg-[#131722] flex items-center justify-between gap-2 pb-safe">
-              {onToggleLang && (
-                <button
-                  onClick={onToggleLang}
-                  className="flex-1 py-1.5 rounded bg-[#1e222d] border border-[#2a2e39] text-xs font-bold text-white flex items-center justify-center gap-1 cursor-pointer hover:bg-[#2a2e39]"
-                >
-                  <Globe className="w-3.5 h-3.5 text-[#089981]" />
-                  <span>{isAr ? 'English' : 'عربي'}</span>
-                </button>
-              )}
-
-              <button
-                onClick={onToggleMute}
-                className="p-2 rounded bg-[#1e222d] border border-[#2a2e39] text-[#787b86] hover:text-white transition-colors cursor-pointer hover:bg-[#2a2e39]"
-                title={isMuted ? 'Unmute' : 'Mute'}
-              >
-                {isMuted ? <VolumeX className="w-4 h-4 text-[#f23645]" /> : <Volume2 className="w-4 h-4 text-[#089981]" />}
-              </button>
-
-              <button
-                onClick={onLogout}
-                className="p-2 rounded bg-[#1e222d] border border-[#2a2e39] text-[#787b86] hover:text-[#f23645] transition-colors cursor-pointer hover:bg-[#f23645]/20"
-                title={isAr ? 'تسجيل الخروج' : 'Sign Out'}
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 6. PWA INSTALL MODAL */}
-      <PWAInstallModal
-        isOpen={pwaModalOpen}
-        onClose={() => setPwaModalOpen(false)}
-        lang={lang}
-      />
-
-      {/* MODAL: UNLOCK TRADER ROOM */}
+      {/* 4. UNLOCK TRADER MODAL */}
       {unlockTraderModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg max-w-sm w-full p-5 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[#2a2e39] pb-3">
-              <div className="flex items-center gap-2">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg max-w-md w-full p-5 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-[#2a2e39]">
+              <div className="flex items-center gap-2.5">
                 <Lock className="w-4 h-4 text-[#089981]" />
-                <h3 className="text-sm font-bold text-white">
-                  {isAr ? `تفعيل غرفة ${unlockTraderModal.nameAr}` : `Unlock ${unlockTraderModal.nameEn}`}
+                <h3 className="font-bold text-white text-sm">
+                  {isAr ? `تفعيل دخول غرفة ${unlockTraderModal.nameAr}` : `Unlock ${unlockTraderModal.nameEn}'s Room`}
                 </h3>
               </div>
               <button
                 onClick={() => setUnlockTraderModal(null)}
-                className="p-1 rounded text-[#787b86] hover:text-white cursor-pointer"
+                className="text-[#787b86] hover:text-white p-1"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -2632,8 +2580,8 @@ export function ProtectedDashboard({
 
             <p className="text-xs text-[#787b86] leading-relaxed">
               {isAr
-                ? `أدخل رمز الدعوة الخاص بالمحلل (${unlockTraderModal.inviteCode}) أو رمز VIP2026 لتأكيد الصلاحية فورياً.`
-                : `Enter invite code (${unlockTraderModal.inviteCode}) or master code VIP2026.`}
+                ? `هذه الغرفة حصرية لمشتركي المحلل ($${unlockTraderModal.monthlyPrice}/شهرياً). إذا استلمت رمز دعوة عبر تيليجرام، أدخله هنا لتفعيل الوصول الدائم فوراً:`
+                : `Enter your private subscriber invite code to gain permanent access to this analyst room:`}
             </p>
 
             <form onSubmit={handleUnlockTrader} className="space-y-3">
@@ -2641,27 +2589,29 @@ export function ProtectedDashboard({
                 type="text"
                 value={unlockCodeInput}
                 onChange={(e) => setUnlockCodeInput(e.target.value)}
-                placeholder="MBK2026 / VIP2026"
-                className="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-2 text-center text-sm font-mono text-white tracking-wider outline-none focus:border-[#089981]"
+                placeholder={isAr ? `مثال: ${unlockTraderModal.inviteCode}` : `e.g. ${unlockTraderModal.inviteCode}`}
+                className="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-2 text-xs font-mono text-white placeholder-[#787b86] focus:outline-none focus:border-[#089981]"
               />
+
               {unlockCodeError && (
-                <p className="text-xs text-[#f23645] text-center">
-                  {isAr ? 'الرمز غير صحيح، يرجى كتابة الرمز بدقة.' : 'Invalid invite code.'}
-                </p>
+                <div className="text-xs text-[#f23645]">
+                  {isAr ? 'رمز غير صحيح! تواصل مع المحلل أو استخدم رمز VIP2026' : 'Invalid code! Contact analyst or use VIP2026'}
+                </div>
               )}
-              <div className="flex gap-2">
+
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="submit"
+                  className="flex-1 py-2 rounded bg-white hover:bg-[#d1d4dc] text-[#131722] font-bold text-xs transition-all cursor-pointer shadow-sm"
+                >
+                  {isAr ? 'تأكيد الرمز ودخول الغرفة' : 'Confirm Code & Enter'}
+                </button>
                 <button
                   type="button"
                   onClick={() => setUnlockTraderModal(null)}
-                  className="flex-1 py-2 rounded bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-xs font-semibold text-[#787b86] hover:text-white transition-colors cursor-pointer"
+                  className="px-3 py-2 rounded bg-[#131722] border border-[#2a2e39] text-xs text-[#787b86] hover:text-white"
                 >
                   {isAr ? 'إلغاء' : 'Cancel'}
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-2 rounded bg-white hover:bg-[#d1d4dc] text-[#131722] text-xs font-bold transition-all cursor-pointer shadow-sm"
-                >
-                  {isAr ? 'تأكيد ودخول' : 'Unlock Now'}
                 </button>
               </div>
             </form>

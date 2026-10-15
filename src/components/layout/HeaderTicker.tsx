@@ -62,16 +62,16 @@ export const HeaderTicker: React.FC<HeaderTickerProps> = ({
 
   return (
     <div
-      className={`w-full bg-[#131722] border-b border-[#2a2e39] relative overflow-hidden transition-all text-[11px] sm:text-xs font-mono select-none h-8 sm:h-9 flex items-center z-30 ${className}`}
+      className={`w-full bg-[#131722] border-b border-[#2a2e39] relative overflow-hidden transition-all text-xs font-mono select-none h-10 flex items-center z-30 ${className}`}
     >
       {/* Live Market Pulse Dot on the start */}
-      <div className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-0.5 sm:py-1 bg-[#1e222d] border-inline-end border-[#2a2e39] shrink-0 z-20">
-        <span className="relative flex h-1.5 w-1.5 sm:h-2 sm:w-2">
+      <div className="flex items-center gap-2 px-3 py-1 bg-[#1e222d] border-inline-end border-[#2a2e39] shrink-0 z-20">
+        <span className="relative flex h-2 w-2">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#089981] opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-1.5 w-1.5 sm:h-2 sm:w-2 bg-[#089981]"></span>
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-[#089981]"></span>
         </span>
-        <span className="text-[10px] sm:text-[11px] font-bold text-white tracking-wider font-mono">
-          {isAr ? 'مباشر' : 'LIVE'}
+        <span className="text-[11px] font-bold text-white tracking-wider font-mono">
+          {isAr ? 'مباشر' : 'LIVE TAPE'}
         </span>
       </div>
 

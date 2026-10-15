@@ -399,32 +399,8 @@ export const AuthGateModal: React.FC<Props> = ({
           <span>{isAr ? 'المتابعة باستخدام Google' : 'Continue with Google'}</span>
         </button>
 
-        {/* 1-Click Instant Demo Terminal Access */}
-        <button
-          type="button"
-          onClick={() => {
-            soundManager.playProfitChime();
-            const demoUser: UserProfile = {
-              uid: 'demo-trader-' + Date.now(),
-              name: isAr ? 'المتداول التجريبي (MBK Trader)' : 'Demo Trader (MBK Desk)',
-              email: 'demo.trader@mbktrading.live',
-              role: 'VIP',
-              planName: 'عضوية VIP التجريبية الكاملة',
-              promoCode: 'MBK2026',
-              avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-              unlockedTraders: ['mbk_master', 'captain_tariq', 'abu_khaled', 'karim_sayed']
-            };
-            onLoginSuccess(demoUser);
-            onClose();
-          }}
-          className="w-full mt-2 py-2 px-3 rounded-xl bg-[#089981]/15 hover:bg-[#089981]/25 border border-[#089981]/30 text-xs font-bold text-[#089981] transition-all flex items-center justify-center gap-2 cursor-pointer"
-        >
-          <Sparkles className="w-3.5 h-3.5 text-[#089981]" />
-          <span>{isAr ? '⚡ الدخول الفوري بوضع التجربة والمحاكاة (Instant Demo Access)' : '⚡ Instant 1-Click Demo Terminal Access'}</span>
-        </button>
-
         {/* Security badge footer */}
-        <div className="mt-4 pt-3 border-t border-[#2a2e39] flex items-center justify-center gap-1.5 text-[11px] text-[#787b86]">
+        <div className="mt-5 pt-3 border-t border-[#2a2e39] flex items-center justify-center gap-1.5 text-[11px] text-[#787b86]">
           <ShieldCheck className="w-3.5 h-3.5 text-[#089981]" />
           <span>{isAr ? 'تشفير آمن 256-bit • خصوصية تامة للبيانات والتداولات' : '256-bit encrypted • Complete privacy for data & trades'}</span>
         </div>
