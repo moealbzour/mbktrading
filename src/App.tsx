@@ -247,7 +247,9 @@ export default function App() {
   return (
     <div
       dir={lang === 'ar' ? 'rtl' : 'ltr'}
-      className={`min-h-screen bg-[#131722] text-[#d1d4dc] flex flex-col ${
+      className={`min-h-[100dvh] w-full bg-[#131722] text-[#d1d4dc] flex flex-col ${
+        currentUser ? 'h-[100dvh] overflow-hidden' : 'overflow-x-hidden'
+      } ${
         lang === 'ar' ? "font-['Cairo',sans-serif]" : "font-['Plus_Jakarta_Sans',sans-serif]"
       }`}
     >

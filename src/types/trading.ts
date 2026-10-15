@@ -273,3 +273,80 @@ export interface EconomicNewsItem {
   forecast: string;
   previous: string;
 }
+
+// TIC Lab & Playbooks Types
+export interface BacktestLog {
+  id: string;
+  symbol: MarketSymbol | string;
+  playbookTitle: string;
+  timeframe: string;
+  direction: 'LONG' | 'SHORT';
+  entryPrice: number;
+  slPrice: number;
+  tpPrice: number;
+  outcome: 'WIN' | 'LOSS' | 'BE' | 'BREAKEVEN';
+  rMultiple: number;
+  notes: string;
+  date: string;
+}
+
+export interface PaperPosition {
+  id: string;
+  symbol: MarketSymbol;
+  type: 'BUY' | 'SELL';
+  entryPrice: number;
+  currentPrice: number;
+  lotSize: number;
+  stopLoss: number;
+  takeProfit: number;
+  openTime: string;
+  floatingPnL: number;
+}
+
+export interface PlaybookItem {
+  id: string;
+  title: string;
+  titleAr: string;
+  category: string;
+  timeframe: string;
+  recommendedSessions: string[];
+  descriptionAr: string;
+  checklist: string[];
+  invalidationRules: string[];
+  takeProfitRules: string[];
+  winRate?: number;
+  avgRR?: string;
+  avgRiskReward?: string;
+  tradesSample?: number;
+  tradesCount?: number;
+  badge?: string;
+  isBuiltIn?: boolean;
+}
+
+export type TradeEmotion = 'DISCIPLINED' | 'CONFIDENT' | 'FOMO' | 'REVENGE' | 'ANXIOUS' | 'NEUTRAL' | 'IMPATIENT';
+
+export type TradeOutcome = 'WIN' | 'LOSS' | 'BREAKEVEN';
+export type TradingSessionTag = 'ASIAN' | 'LONDON' | 'NEW_YORK' | 'LONDON_NY_OVERLAP';
+
+export interface JournalTrade {
+  id: string;
+  symbol: MarketSymbol | string;
+  direction: 'LONG' | 'SHORT';
+  entryPrice: number;
+  exitPrice: number;
+  stopLoss: number;
+  takeProfit: number;
+  lotSize: number;
+  pnl: number;
+  rMultiple: number;
+  outcome: 'WIN' | 'LOSS' | 'BREAKEVEN';
+  session: TradingSessionTag;
+  playbookName: string;
+  emotion: TradeEmotion;
+  mistakeTag: string;
+  notes: string;
+  entryDate: string;
+  tags?: string[];
+  chartScreenshot?: string;
+}
+

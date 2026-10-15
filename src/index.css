@@ -1,12 +1,28 @@
 @import "tailwindcss";
 
 @layer base {
-  body {
+  html, body {
     font-family: 'Cairo', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
     background-color: #131722;
     color: #d1d4dc;
     overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    overscroll-behavior-y: contain;
   }
+}
+
+/* Mobile PWA Safe Area insets */
+.pb-safe {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+}
+
+.pt-safe {
+  padding-top: max(0.5rem, env(safe-area-inset-top, 0px));
+}
+
+.min-h-screen-safe {
+  min-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
 }
 
 /* TradingView Custom scrollbars */
@@ -41,3 +57,17 @@
     linear-gradient(to right, rgba(42, 46, 57, 0.4) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(42, 46, 57, 0.4) 1px, transparent 1px);
 }
+
+/* Hide scrollbars for mobile horizontal strips */
+.no-scrollbar::-webkit-scrollbar,
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+.no-scrollbar,
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+

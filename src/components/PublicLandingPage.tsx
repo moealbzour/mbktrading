@@ -23,11 +23,17 @@ import {
   Lock,
   ArrowRight,
   TrendingUp,
-  Activity
+  Activity,
+  Menu,
+  X,
+  Smartphone,
+  Download
 } from 'lucide-react';
 import { HeaderTicker } from './layout/HeaderTicker';
 import { ArticleReaderModal, ArticleData } from './ArticleReaderModal';
 import { soundManager } from '../utils/audio';
+import { PWAInstallModal } from './PWAInstallModal';
+import { usePWAInstall } from '../hooks/usePWAInstall';
 
 interface Props {
   tickers: MarketTicker[];
@@ -262,6 +268,11 @@ export const PublicLandingPage: React.FC<Props> = ({
   const [activeArticle, setActiveArticle] = useState<ArticleData | null>(null);
   const [articleModalOpen, setArticleModalOpen] = useState(false);
 
+  // Mobile Menu & PWA State
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [pwaModalOpen, setPwaModalOpen] = useState(false);
+  const { isInstallable, isInstalled, isIOS, isAndroid } = usePWAInstall();
+
   const handleAuthClick = (tab: 'login' | 'signup', promo?: string) => {
     soundManager.playClick();
     onOpenAuth(tab, promo);
@@ -483,20 +494,20 @@ export const PublicLandingPage: React.FC<Props> = ({
 
       {/* 2. TOP INSTITUTIONAL NAVIGATION BAR WITH CENTER LINKS */}
       <header className="sticky top-0 z-40 bg-[#1e222d] border-b border-[#2a2e39] shadow-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2 sm:gap-4">
           {/* Brand Logo */}
           <div
             onClick={handleDemoClick}
-            className="flex items-center gap-3 cursor-pointer shrink-0"
+            className="flex items-center gap-2.5 sm:gap-3 cursor-pointer shrink-0"
           >
             <div className="w-8 h-8 rounded bg-white text-[#131722] flex items-center justify-center font-mono font-black text-sm tracking-wider">
               MBK
             </div>
             <div className="flex flex-col">
-              <span className="font-extrabold text-white text-base tracking-tight font-mono">
+              <span className="font-extrabold text-white text-sm sm:text-base tracking-tight font-mono">
                 MBK TRADING
               </span>
-              <span className="text-[10px] text-[#787b86] font-mono tracking-wider -mt-1">
+              <span className="text-[10px] text-[#787b86] font-mono tracking-wider -mt-1 hidden xs:inline">
                 {isAr ? 'منصة التداول المؤسسي' : 'DESK + INTELLIGENCE'}
               </span>
             </div>
@@ -525,43 +536,182 @@ export const PublicLandingPage: React.FC<Props> = ({
           </nav>
 
           {/* Action Controls */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3">
+            {/* PWA Install Button */}
+            {!isInstalled && (
+              <button
+                onClick={() => {
+                  soundManager.playClick();
+                  setPwaModalOpen(true);
+                }}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded bg-[#089981]/15 hover:bg-[#089981]/25 text-[#089981] border border-[#089981]/30 text-xs font-bold transition-all cursor-pointer shadow-sm"
+                title={isAr ? 'تثبيت تطبيق الهاتف' : 'Install Mobile App'}
+              >
+                <Smartphone className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{isAr ? 'تثبيت التطبيق' : 'Install App'}</span>
+                <span className="sm:hidden text-[11px]">{isAr ? 'تثبيت' : 'App'}</span>
+              </button>
+            )}
+
             {/* Language Switcher */}
             <button
               onClick={toggleLang}
-              className="px-2.5 py-1.5 rounded bg-[#2a2e39] hover:bg-[#363a45] text-xs font-bold text-white border border-[#363a45] transition-colors cursor-pointer flex items-center gap-1.5"
+              className="p-1.5 sm:px-2.5 sm:py-1.5 rounded bg-[#2a2e39] hover:bg-[#363a45] text-xs font-bold text-white border border-[#363a45] transition-colors cursor-pointer flex items-center gap-1"
               title={isAr ? 'Switch to English' : 'التحويل للعربية'}
             >
               <Globe className="w-3.5 h-3.5 text-[#089981]" />
-              <span>{isAr ? '🇬🇧 English' : '🇸🇦 العربية'}</span>
+              <span className="hidden sm:inline">{isAr ? '🇬🇧 English' : '🇸🇦 العربية'}</span>
+              <span className="sm:hidden text-[11px] font-mono">{isAr ? 'EN' : 'عربي'}</span>
             </button>
 
-            {/* VIP Code Button */}
+            {/* VIP Code Button (Desktop) */}
             <button
               onClick={handlePromoClick}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#2a2e39] hover:bg-[#363a45] text-[#d1d4dc] hover:text-white border border-[#363a45] text-xs font-semibold transition-colors cursor-pointer"
+              className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#2a2e39] hover:bg-[#363a45] text-[#d1d4dc] hover:text-white border border-[#363a45] text-xs font-semibold transition-colors cursor-pointer"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-[#089981]"></span>
               <span>{isAr ? 'تفعيل VIP' : 'VIP Code'}</span>
             </button>
 
-            {/* Sign In */}
+            {/* Sign In (Desktop) */}
             <button
               onClick={() => handleAuthClick('login')}
-              className="px-3 py-1.5 rounded text-xs font-semibold text-[#d1d4dc] hover:text-white hover:bg-[#2a2e39] transition-colors cursor-pointer"
+              className="hidden sm:block px-3 py-1.5 rounded text-xs font-semibold text-[#d1d4dc] hover:text-white hover:bg-[#2a2e39] transition-colors cursor-pointer"
             >
               {isAr ? 'تسجيل الدخول' : 'Sign In'}
             </button>
 
-            {/* Launch MBK Desk ↗ */}
+            {/* Launch MBK Desk ↗ (Desktop & Tablet) */}
             <button
               onClick={handleDemoClick}
-              className="px-4 py-1.5 rounded bg-white text-[#131722] hover:bg-[#d1d4dc] text-xs font-bold transition-all shadow-sm cursor-pointer flex items-center gap-1"
+              className="hidden sm:flex px-4 py-1.5 rounded bg-white text-[#131722] hover:bg-[#d1d4dc] text-xs font-bold transition-all shadow-sm cursor-pointer items-center gap-1"
             >
               <span>{isAr ? 'افتح MBK Desk ↗' : 'Launch MBK Desk ↗'}</span>
             </button>
+
+            {/* Mobile Hamburger Menu Button */}
+            <button
+              onClick={() => {
+                soundManager.playClick();
+                setMobileMenuOpen(!mobileMenuOpen);
+              }}
+              className="md:hidden p-2 rounded-lg bg-[#2a2e39] hover:bg-[#363a45] text-white border border-[#363a45] transition-colors cursor-pointer"
+              title={isAr ? 'القائمة' : 'Menu'}
+            >
+              {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+            </button>
           </div>
         </div>
+
+        {/* MOBILE SLIDE-DOWN DRAWER MENU */}
+        {mobileMenuOpen && (
+          <div className="md:hidden bg-[#1e222d] border-b border-[#2a2e39] px-4 py-4 space-y-4 animate-fade-in shadow-2xl">
+            {/* Quick Actions at Top of Mobile Menu */}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  handleDemoClick();
+                }}
+                className="w-full py-2.5 px-3 rounded-lg bg-white text-[#131722] hover:bg-[#d1d4dc] font-bold text-xs text-center transition-all shadow-sm cursor-pointer"
+              >
+                {isAr ? '🚀 افتح MBK Desk (تجريبي)' : '🚀 Launch MBK Desk'}
+              </button>
+
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  handleAuthClick('login');
+                }}
+                className="w-full py-2.5 px-3 rounded-lg bg-[#131722] border border-[#2a2e39] text-white hover:bg-[#2a2e39] font-bold text-xs text-center transition-all cursor-pointer"
+              >
+                {isAr ? '🔑 تسجيل الدخول' : '🔑 Sign In'}
+              </button>
+            </div>
+
+            {/* PWA App Install Banner in Mobile Menu */}
+            <div className="p-3 rounded-lg bg-[#131722] border border-[#089981]/30 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Smartphone className="w-4 h-4 text-[#089981] shrink-0" />
+                <div className="text-xs">
+                  <div className="font-bold text-white">{isAr ? 'تطبيق الهاتف MBK Trading' : 'MBK Trading Mobile App'}</div>
+                  <div className="text-[10px] text-[#787b86]">
+                    {isAr ? 'تثبيت للشاشة الرئيسية لـ iOS و Android' : 'Web App for Android & iOS'}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setPwaModalOpen(true);
+                }}
+                className="px-2.5 py-1 rounded bg-[#089981] text-[#131722] text-[11px] font-bold shrink-0 hover:bg-[#089981]/90 cursor-pointer shadow-sm"
+              >
+                {isAr ? 'تثبيت ↗' : 'Install ↗'}
+              </button>
+            </div>
+
+            {/* Mobile Navigation Anchor Links */}
+            <nav className="space-y-1 text-xs font-semibold text-[#d1d4dc] border-t border-[#2a2e39] pt-3">
+              <a
+                href="#desk-preview"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-2 rounded-md hover:bg-[#131722] transition-colors"
+              >
+                🧭 {isAr ? 'غرفة الأسواق والشارت' : 'Live Market Desk'}
+              </a>
+              <a
+                href="#workflow"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-2 rounded-md hover:bg-[#131722] transition-colors"
+              >
+                ⚙️ {isAr ? 'كيف تعمل المنصة (Workflow)' : 'How It Works'}
+              </a>
+              <a
+                href="#features"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-2 rounded-md hover:bg-[#131722] transition-colors"
+              >
+                ⚡ {isAr ? 'المميزات المؤسسية' : 'Institutional Features'}
+              </a>
+              <a
+                href="#track-record"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-2 rounded-md hover:bg-[#131722] transition-colors"
+              >
+                📊 {isAr ? 'سجل النتائج والتدقيق' : 'Audited Track Record'}
+              </a>
+              <a
+                href="#pricing"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-2 rounded-md hover:bg-[#131722] transition-colors"
+              >
+                💎 {isAr ? 'الأسعار وخطط العضوية' : 'Pricing & Plans'}
+              </a>
+              <a
+                href="#faq"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-2 rounded-md hover:bg-[#131722] transition-colors"
+              >
+                ❓ {isAr ? 'الأسئلة الشائعة' : 'FAQ'}
+              </a>
+            </nav>
+
+            {/* VIP Code Promo button in Mobile Menu */}
+            <div className="border-t border-[#2a2e39] pt-3 flex items-center justify-between">
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  handlePromoClick();
+                }}
+                className="w-full py-2 px-3 rounded-lg bg-[#2a2e39] hover:bg-[#363a45] text-xs font-bold text-white flex items-center justify-center gap-2 cursor-pointer transition-colors"
+              >
+                <span className="w-2 h-2 rounded-full bg-[#089981]" />
+                <span>{isAr ? 'تفعيل عضوية VIP برمز ترويجي' : 'Activate VIP with Promo Code'}</span>
+              </button>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* SECTION 1: HERO + LIVE WEB TERMINAL PREVIEW (#desk-preview) */}
@@ -645,7 +795,7 @@ export const PublicLandingPage: React.FC<Props> = ({
               </div>
 
               {/* 4 Main Interactive Tabs */}
-              <div className="flex flex-wrap items-center gap-1 bg-[#131722] p-1 rounded-lg border border-[#2a2e39] text-xs font-semibold">
+              <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-1 bg-[#131722] p-1 rounded-lg border border-[#2a2e39] text-xs font-semibold w-full sm:w-auto">
                 <button
                   onClick={() => setHeroTab('live_desk')}
                   className={`px-3 py-1.5 rounded transition-colors cursor-pointer ${
@@ -2124,6 +2274,13 @@ export const PublicLandingPage: React.FC<Props> = ({
         article={activeArticle}
         lang={lang}
         onOpenDashboard={handleDemoClick}
+      />
+
+      {/* PWA Install Modal */}
+      <PWAInstallModal
+        isOpen={pwaModalOpen}
+        onClose={() => setPwaModalOpen(false)}
+        lang={lang}
       />
     </div>
   );
