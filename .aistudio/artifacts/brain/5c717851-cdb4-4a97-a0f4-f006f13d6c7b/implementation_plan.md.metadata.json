@@ -1,6 +1,6 @@
 {
-  "summary": "Comprehensive architecture and implementation plan to remodel the front page into a live interactive app frame matching the layout, tabs organization, and feature suite of the reference platform, while preserving MBK Trading's brand identity.",
-  "updatedAt": "2026-10-14T00:02:46.411110978Z",
+  "summary": "Complete implementation plan to reverse-engineer TradingView layout with a sleek icon tool rail and collapsible side panels on desktop, a native bottom dock on mobile, dual VIP and Free Telegram-style signal feeds, blurred Webhook bot signals for free users with code unlocking, a real multi-source financial RSS news feed under ticker quotes, a unified community discussion channel, and a VIP-gated AI assistant with free demo preview mode.",
+  "updatedAt": "2026-10-20T00:20:48.623275823Z",
   "requestFeedback": true,
   "userFacing": true
 }

@@ -84,3 +84,49 @@
     -webkit-user-select: auto;
   }
 }
+
+/* Live Moving News Ticker Marquee */
+@keyframes tv-ticker-ltr {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(-50%, 0, 0); }
+}
+
+@keyframes tv-ticker-rtl {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(50%, 0, 0); }
+}
+
+.animate-ticker-moving {
+  display: flex;
+  width: max-content;
+  animation: tv-ticker-ltr 55s linear infinite;
+  will-change: transform;
+}
+
+.animate-ticker-moving-rtl {
+  display: flex;
+  width: max-content;
+  animation: tv-ticker-rtl 55s linear infinite;
+  will-change: transform;
+}
+
+.animate-ticker-moving:hover,
+.animate-ticker-moving-rtl:hover {
+  animation-play-state: paused;
+}
+
+.ticker-paused {
+  animation-play-state: paused !important;
+}
+
+.ticker-speed-fast {
+  animation-duration: 28s !important;
+}
+
+.ticker-speed-normal {
+  animation-duration: 55s !important;
+}
+
+.ticker-speed-slow {
+  animation-duration: 90s !important;
+}

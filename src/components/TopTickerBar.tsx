@@ -47,9 +47,9 @@ export const TopTickerBar: React.FC<Props> = ({
       <div className="border-b border-slate-800/60 bg-[#070b12] py-1.5 px-4 overflow-hidden flex items-center justify-between text-xs">
         {/* Ticker items marquee / scroll */}
         <div className="flex items-center gap-6 overflow-x-auto no-scrollbar py-0.5">
-          <div className="flex items-center gap-2 text-cyan-400 font-bold shrink-0">
-            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
-            <span>بث الأسعار الحية:</span>
+          <div className="flex items-center gap-2 text-emerald-400 font-bold shrink-0">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+            <span>أسعار حية حقيقية (Real Feed):</span>
           </div>
 
           {tickers.map((ticker) => (

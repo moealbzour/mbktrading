@@ -57,6 +57,25 @@ export interface TraderPost {
 
 export type MarketSymbol = 'US100' | 'XAUUSD' | 'EURUSD' | 'BTCUSD' | 'WTI' | 'GBPUSD';
 
+export type NewsImpact = 'HIGH' | 'MEDIUM' | 'LOW';
+
+export interface RSSNewsItem {
+  id: string;
+  title: string;
+  titleAr?: string;
+  link: string;
+  pubDate: string;
+  timeAgo: string;
+  timeAgoAr?: string;
+  source: string;
+  category: string;
+  sentiment: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
+  impact: NewsImpact;
+  impactLabelAr: string;
+  impactLabelEn: string;
+  impactScore: 1 | 2 | 3;
+}
+
 export interface MarketTicker {
   symbol: MarketSymbol;
   nameAr: string;
@@ -136,6 +155,51 @@ export interface TradeSignal {
   channel?: 'ENGINE' | 'MANUAL';
   riskLevel?: RiskLevel;
   author?: string;
+}
+
+export type TradeSource = 'BOT_WEBHOOK' | 'VIP_MANUAL' | 'FREE_PUBLIC';
+export type DailyTradeStatus = 'RUNNING' | 'TP_HIT' | 'SL_HIT' | 'BREAKEVEN';
+
+export interface DailyTrade {
+  id: string;
+  symbol: string;
+  nameAr: string;
+  action: 'BUY' | 'SELL';
+  source: TradeSource;
+  sourceLabelAr: string;
+  sourceLabelEn: string;
+  status: DailyTradeStatus;
+  statusLabelAr: string;
+  openTime: string;
+  closeTime?: string;
+  duration?: string;
+  pips: number; // Net pips gained or lost
+  entryPrice: number; // Hidden for free users
+  exitPrice?: number; // Shown when closed or hidden
+  currentPrice?: number;
+  tp1: number;
+  tp2?: number;
+  sl: number; // Hidden for free users
+  riskReward: string;
+  strategy: string;
+  confidence: number;
+  notesAr?: string;
+  isBlurredForFree: boolean; // Blurs entire card if running for free users
+}
+
+export interface DailyTradesStats {
+  totalTrades: number;
+  runningTrades: number;
+  closedTrades: number;
+  winTrades: number;
+  lossTrades: number;
+  winRate: number;
+  netPips: number;
+  grossGainPips: number;
+  grossLossPips: number;
+  botNetPips: number;
+  vipNetPips: number;
+  freeNetPips: number;
 }
 
 export type BotStrategy = 

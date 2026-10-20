@@ -65,23 +65,31 @@ export default function App() {
     soundManager.setMuted(next);
   };
 
-  // Periodic simulated ticker updates
+  // Real-time market prices from live financial feeds (Yahoo Finance & global market feeds)
   useEffect(() => {
-    const interval = setInterval(() => {
-      setTickers((prev) =>
-        prev.map((t) => {
-          const delta = (Math.random() - 0.49) * (t.digits === 5 ? 0.0003 : t.digits === 2 ? 1.4 : 0.05);
-          const newPrice = +(t.price + delta).toFixed(t.digits);
-          return {
-            ...t,
-            price: newPrice,
-            isUp: delta >= 0
-          };
-        })
-      );
-    }, 3000);
+    let isMounted = true;
 
-    return () => clearInterval(interval);
+    const fetchRealPrices = async () => {
+      try {
+        const res = await fetch('/api/market/real-prices');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.tickers && Array.isArray(data.tickers) && isMounted) {
+            setTickers(data.tickers);
+          }
+        }
+      } catch {
+        // Keep current prices on momentary network blips
+      }
+    };
+
+    fetchRealPrices();
+    const interval = setInterval(fetchRealPrices, 4000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
   // Subscribe to live Firebase Auth state and Firestore user roles

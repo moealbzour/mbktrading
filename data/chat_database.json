@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "dbDriver": "Persistent JSON Storage Engine",
+  "status": "LIVE_SYNCED",
+  "lastUpdated": "2026-10-20T01:50:00.000Z",
+  "onlineCount": 164,
+  "messages": [
+    {
+      "id": "msg-pinned-official",
+      "user": "MBK Chief Analyst (المشرف العام)",
+      "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+      "role": "ADMIN",
+      "text": "📌 إعلان رسمي مثبت: أهلاً بكم في غرفة تداول MBK الرسمية المباشرة. يرجى الالتزام الصارم بقواعد إدارة رأس المال (1-2% لكل صفقة). صور التحليل الفني وشارتات الصفقات يتم نشرها حصرياً بواسطة المشرفين والمحللين المعتمدين لضمان أعلى دقة وجودة.",
+      "time": "الآن",
+      "timestampMs": 1774057800000,
+      "likes": 56,
+      "reactions": { "🔥": 38, "❤️": 22, "🚀": 29 },
+      "isPinned": true
+    },
+    {
+      "id": "msg-xau-1",
+      "user": "م. طارق الأحمد (كبير المحللين)",
+      "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+      "role": "ANALYST",
+      "text": "تحديث فني عاجل لشارت الذهب (XAUUSD): تم تأكيد اختراق القمة اللحظية وإعادة اختبار منطقة 2,684$. الهدف القادم 2,710$. انظر الشارت الفني المرفق مع مناطق السيولة المؤسسية:",
+      "imageUrl": "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800&auto=format&fit=crop&q=80",
+      "imageCaption": "XAUUSD 4H Breakout Retest Setup (Target: 2,710.00)",
+      "time": "منذ 10 دقائق",
+      "timestampMs": 1774057200000,
+      "likes": 42,
+      "reactions": { "🚀": 31, "🎯": 24, "🔥": 19 },
+      "symbolTag": "XAUUSD"
+    },
+    {
+      "id": "msg-xau-2",
+      "user": "خالد المنصوري (VIP)",
+      "avatar": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+      "role": "VIP",
+      "text": "تم تحقيق كامل أهداف صفقة الذهب بنجاح (+164 نقطة)! دقة متناهية من فريق أبحاث MBK وتم تأمين الحساب وسحب جزء من الأرباح 🎯",
+      "replyTo": {
+        "id": "msg-xau-1",
+        "user": "م. طارق الأحمد (كبير المحللين)",
+        "text": "تحديث فني عاجل لشارت الذهب (XAUUSD): تم تأكيد اختراق القمة اللحظية..."
+      },
+      "time": "منذ 8 دقائق",
+      "timestampMs": 1774057320000,
+      "likes": 28,
+      "reactions": { "❤️": 15, "🔥": 12 },
+      "symbolTag": "XAUUSD"
+    },
+    {
+      "id": "msg-us100-3",
+      "user": "سامي الحجازي",
+      "avatar": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
+      "role": "FREE",
+      "text": "ألف مبروك لكل من دخل الصفقة! هل إشارة الناسداك القادمة ستكون متوفرة لجميع الأعضاء؟",
+      "time": "منذ 5 دقائق",
+      "timestampMs": 1774057500000,
+      "likes": 9,
+      "reactions": { "👍": 8 }
+    },
+    {
+      "id": "msg-us100-4",
+      "user": "MBK Head of Research (المشرف)",
+      "avatar": "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80",
+      "role": "ADMIN",
+      "text": "أهلاً بك يا سامي. نعم إشارات القناة العامة متوفرة دائماً، وإشارات الروبوت الآلي وشارتات الـ Scalp متوفرة في قنوات الـ VIP. إليكم شارت الناسداك US100 FVG 15M الحالي:",
+      "imageUrl": "https://images.unsplash.com/photo-1642543492481-44e81e3914a7?w=800&auto=format&fit=crop&q=80",
+      "imageCaption": "US100 Nasdaq Fair Value Gap 15M Execution Zone",
+      "time": "منذ 2 دقيقة",
+      "timestampMs": 1774057680000,
+      "likes": 47,
+      "reactions": { "🔥": 34, "🚀": 26, "🎯": 18 },
+      "symbolTag": "US100"
+    }
+  ]
+}
