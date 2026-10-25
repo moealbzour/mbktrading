@@ -16,6 +16,7 @@ import {
   Filter,
   Volume2
 } from 'lucide-react';
+import { io } from 'socket.io-client';
 import { soundManager } from '../../utils/audio';
 import { RSSNewsItem, NewsImpact } from '../../types/trading';
 
@@ -37,16 +38,34 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar' }) => {
   const fetchNews = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/news/rss');
+      // Fetch directly from SQLite /api/news or /api/news/rss
+      const res = await fetch('/api/news');
       if (res.ok) {
         const data = await res.json();
-        if (data.news && Array.isArray(data.news) && data.news.length > 0) {
-          setNews(data.news);
+        const rawList = data.news || [];
+        if (Array.isArray(rawList) && rawList.length > 0) {
+          const formatted: RSSNewsItem[] = rawList.map((item: any) => ({
+            id: item.id,
+            title: item.title,
+            titleAr: item.titleAr || item.title,
+            link: item.link || 'https://sa.investing.com/news',
+            pubDate: item.createdAt || new Date().toISOString(),
+            timeAgo: 'Live',
+            timeAgoAr: 'مباشر',
+            source: item.source || 'MBK Research',
+            category: item.category || 'أخبار اقتصادية',
+            sentiment: (item.sentiment || 'NEUTRAL') as any,
+            impact: (item.impact || 'HIGH') as NewsImpact,
+            impactLabelAr: item.impact === 'HIGH' ? 'تأثير قوي' : item.impact === 'MEDIUM' ? 'تأثير متوسط' : 'تأثير منخفض',
+            impactLabelEn: item.impact === 'HIGH' ? 'High Impact' : item.impact === 'MEDIUM' ? 'Med Impact' : 'Low Impact',
+            impactScore: item.impactScore || (item.impact === 'HIGH' ? 3 : item.impact === 'MEDIUM' ? 2 : 1)
+          }));
+          setNews(formatted);
           setLastRefreshed(new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }));
         }
       }
     } catch (err) {
-      console.warn('Arabic News RSS fetch error:', err);
+      console.warn('News fetch from SQLite error:', err);
     } finally {
       setLoading(false);
     }
@@ -54,8 +73,18 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar' }) => {
 
   useEffect(() => {
     fetchNews();
-    const interval = setInterval(fetchNews, 45000); // 45s auto refresh
-    return () => clearInterval(interval);
+
+    // Socket.io real-time listener for SQLite news changes
+    const socket = io();
+    socket.on('news_updated', () => {
+      fetchNews();
+    });
+
+    const interval = setInterval(fetchNews, 30000); // 30s auto polling fallback
+    return () => {
+      clearInterval(interval);
+      socket.disconnect();
+    };
   }, []);
 
   // Filtered items for expanded drawer

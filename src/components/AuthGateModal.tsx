@@ -12,7 +12,8 @@ import {
   Loader2,
   X,
   Send,
-  Sparkles
+  Sparkles,
+  Crown
 } from 'lucide-react';
 import { soundManager } from '../utils/audio';
 import confetti from 'canvas-confetti';
@@ -63,19 +64,118 @@ export const AuthGateModal: React.FC<Props> = ({
 
   if (!isOpen) return null;
 
+  const handleQuickRoleLogin = async (username: string, pass: string) => {
+    setIsLoading(true);
+    setErrorMessage(null);
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password: pass })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.user) {
+        if (data.token) {
+          localStorage.setItem('mbk_jwt_token', data.token);
+        }
+        const loggedUser: UserProfile = {
+          uid: data.user.id || data.user.uid,
+          name: data.user.name || data.user.displayName || username,
+          email: data.user.email || `${username}@mbktrading.live`,
+          role: data.user.role,
+          isAdmin: data.user.role === 'ADMIN',
+          planName: data.user.role === 'ADMIN' ? 'مدير المنصة (Administrator)' : data.user.role === 'VIP' ? 'عضوية VIP المفعلة' : 'الحساب المجاني (Standard)',
+          avatar: data.user.avatar,
+          unlockedTraders: ['mbk_master']
+        };
+
+        localStorage.setItem('mbk_user', JSON.stringify(loggedUser));
+        soundManager.playProfitChime();
+        if (loggedUser.role === 'VIP' || loggedUser.role === 'ADMIN') {
+          confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
+        }
+        onLoginSuccess(loggedUser);
+        onClose();
+        return;
+      } else {
+        throw new Error(data.error || 'Failed to authenticate');
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Error logging in');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
     setIsLoading(true);
 
     try {
-      let user: UserProfile;
       const cleanTelegram = telegramUsername.trim()
         ? telegramUsername.startsWith('@')
           ? telegramUsername.trim()
           : `@${telegramUsername.trim()}`
         : '';
 
+      // 1. Try SQLite Database Endpoint First
+      const sqliteEndpoint = tab === 'signup' ? '/api/auth/register' : '/api/auth/login';
+      const sqlitePayload = tab === 'signup'
+        ? {
+            username: email.split('@')[0] || fullName.replace(/\s+/g, '').toLowerCase(),
+            email: email.trim(),
+            password,
+            displayName: fullName.trim() || email.split('@')[0],
+            role: promoCode ? 'VIP' : 'STANDARD'
+          }
+        : {
+            username: email.trim(),
+            password
+          };
+
+      try {
+        const sqRes = await fetch(sqliteEndpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(sqlitePayload)
+        });
+
+        if (sqRes.ok) {
+          const sqData = await sqRes.json();
+          if (sqData.token) {
+            localStorage.setItem('mbk_jwt_token', sqData.token);
+          }
+          if (sqData.user) {
+            const sqUser: UserProfile = {
+              uid: sqData.user.id || sqData.user.uid,
+              name: sqData.user.name || sqData.user.displayName || fullName || email.split('@')[0],
+              email: sqData.user.email || email,
+              role: sqData.user.role,
+              isAdmin: sqData.user.role === 'ADMIN',
+              planName: sqData.user.role === 'ADMIN' ? 'مدير المنصة (Admin)' : sqData.user.role === 'VIP' ? 'عضوية VIP' : 'الحساب المجاني (Standard)',
+              avatar: sqData.user.avatar,
+              telegramUsername: cleanTelegram,
+              unlockedTraders: ['mbk_master']
+            };
+
+            localStorage.setItem('mbk_user', JSON.stringify(sqUser));
+            soundManager.playProfitChime();
+            if (sqUser.role === 'VIP' || sqUser.role === 'ADMIN') {
+              confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+            }
+            onLoginSuccess(sqUser);
+            onClose();
+            return;
+          }
+        }
+      } catch (sqErr) {
+        console.warn('SQLite auth endpoint attempt:', sqErr);
+      }
+
+      // 2. Fallback to Firebase Auth
+      let user: UserProfile;
       if (tab === 'signup') {
         if (!fullName.trim()) {
           throw new Error(isAr ? 'يرجى كتابة الاسم الكامل.' : 'Please enter your full name.');
@@ -398,6 +498,42 @@ export const AuthGateModal: React.FC<Props> = ({
           </svg>
           <span>{isAr ? 'المتابعة باستخدام Google' : 'Continue with Google'}</span>
         </button>
+
+        {/* Quick Instant Role Logins for SQLite & RBAC Testing */}
+        <div className="mt-3 pt-3 border-t border-[#2a2e39] space-y-1.5">
+          <span className="text-[10px] text-[#787b86] font-mono block text-center uppercase tracking-wider">
+            {isAr ? 'تجربة سريعة لرتب SQLite (RBAC)' : 'Quick Test Roles (SQLite Database)'}
+          </span>
+          <div className="grid grid-cols-3 gap-1.5">
+            <button
+              type="button"
+              onClick={() => handleQuickRoleLogin('admin', 'admin123')}
+              className="p-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-400 text-[10px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
+              title="admin / admin123"
+            >
+              <Crown className="w-2.5 h-2.5" />
+              <span>Admin 👑</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickRoleLogin('vip_trader', 'vip123')}
+              className="p-1.5 rounded-lg bg-[#089981]/15 hover:bg-[#089981]/25 border border-[#089981]/30 text-[#089981] text-[10px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
+              title="vip_trader / vip123"
+            >
+              <Sparkles className="w-2.5 h-2.5" />
+              <span>VIP 💎</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickRoleLogin('trader', 'trader123')}
+              className="p-1.5 rounded-lg bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-[#d1d4dc] text-[10px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
+              title="trader / trader123"
+            >
+              <User className="w-2.5 h-2.5" />
+              <span>Standard</span>
+            </button>
+          </div>
+        </div>
 
         {/* Security badge footer */}
         <div className="mt-5 pt-3 border-t border-[#2a2e39] flex items-center justify-center gap-1.5 text-[11px] text-[#787b86]">

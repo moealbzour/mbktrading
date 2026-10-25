@@ -13,20 +13,22 @@ import {
   Layers,
   Filter
 } from 'lucide-react';
+import { io } from 'socket.io-client';
 import { soundManager } from '../../utils/audio';
 
 interface HighImpactEvent {
   id: string;
   name: string;
-  currency: 'USD' | 'EUR' | 'GBP';
-  impact: 'HIGH';
+  currency: 'USD' | 'EUR' | 'GBP' | string;
+  impact: 'HIGH' | 'MEDIUM' | 'LOW';
   targetDate: Date;
   forecast: string;
   previous: string;
+  actual?: string;
   descriptionAr: string;
 }
 
-// Fixed or calculated upcoming high impact economic events
+// Fixed or calculated upcoming high impact economic events (fallback)
 const UPCOMING_EVENTS: HighImpactEvent[] = [
   {
     id: 'cpi-usd',
@@ -36,6 +38,7 @@ const UPCOMING_EVENTS: HighImpactEvent[] = [
     targetDate: new Date(Date.now() + 18 * 60 * 60 * 1000 + 30 * 60 * 1000), // ~18.5 hours
     forecast: '3.1%',
     previous: '3.2%',
+    actual: '—',
     descriptionAr: 'المحرك الأساسي لقرارات الفيدرالي وسيولة الذهب ومؤشر ناسداك'
   },
   {
@@ -46,6 +49,7 @@ const UPCOMING_EVENTS: HighImpactEvent[] = [
     targetDate: new Date(Date.now() + 42 * 60 * 60 * 1000), // ~42 hours
     forecast: '5.25%',
     previous: '5.25%',
+    actual: '—',
     descriptionAr: 'تثبيت متوقع مع ترقب تصريحات جيروم باول حول مسار التضخم'
   },
   {
@@ -56,6 +60,7 @@ const UPCOMING_EVENTS: HighImpactEvent[] = [
     targetDate: new Date(Date.now() + 66 * 60 * 60 * 1000 + 15 * 60 * 1000), // ~66 hours
     forecast: '185K',
     previous: '216K',
+    actual: '—',
     descriptionAr: 'بيانات التوظيف وساعات العمل ومتوسط الأجور في الساعة'
   },
   {
@@ -66,6 +71,7 @@ const UPCOMING_EVENTS: HighImpactEvent[] = [
     targetDate: new Date(Date.now() + 88 * 60 * 60 * 1000), // ~88 hours
     forecast: '3.75%',
     previous: '4.00%',
+    actual: '—',
     descriptionAr: 'تحديد السياسة النقدية لمنطقة اليورو وزوج EUR/USD'
   },
   {
@@ -76,6 +82,7 @@ const UPCOMING_EVENTS: HighImpactEvent[] = [
     targetDate: new Date(Date.now() + 112 * 60 * 60 * 1000),
     forecast: '5.00%',
     previous: '5.25%',
+    actual: '—',
     descriptionAr: 'تصويت لجنة السياسة النقدية البريطانية وبيانات تضخم الخدمات'
   }
 ];
@@ -84,9 +91,57 @@ export const NewsCalendar: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'calendar' | 'news'>('calendar');
   const [selectedCurrency, setSelectedCurrency] = useState<'ALL' | 'USD' | 'EUR' | 'GBP'>('ALL');
   const [now, setNow] = useState<number>(Date.now());
+  const [dynamicEvents, setDynamicEvents] = useState<HighImpactEvent[]>(UPCOMING_EVENTS);
 
   const calendarContainerRef = useRef<HTMLDivElement>(null);
   const newsContainerRef = useRef<HTMLDivElement>(null);
+
+  // Fetch calendar from SQLite table calendar_events
+  const fetchCalendar = async () => {
+    try {
+      const res = await fetch('/api/calendar');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.events && Array.isArray(data.events) && data.events.length > 0) {
+          const mapped: HighImpactEvent[] = data.events.map((ev: any) => {
+            // Calculate target date
+            let target = new Date();
+            if (ev.date && ev.time) {
+              const parsed = new Date(`${ev.date}T${ev.time}:00`);
+              if (!isNaN(parsed.getTime())) target = parsed;
+            }
+            return {
+              id: ev.id,
+              name: ev.eventAr || ev.event,
+              currency: ev.currency || 'USD',
+              impact: ev.impact || 'HIGH',
+              targetDate: target,
+              forecast: ev.forecast || '—',
+              previous: ev.previous || '—',
+              actual: ev.actual || '—',
+              descriptionAr: `${ev.country || ''} - موعد الصدور: ${ev.time || '15:30'}`
+            };
+          });
+          setDynamicEvents(mapped);
+        }
+      }
+    } catch (err) {
+      console.warn('Error fetching calendar from SQLite in NewsCalendar:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchCalendar();
+
+    const socket = io();
+    socket.on('calendar_updated', () => {
+      fetchCalendar();
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
 
   // Update countdown clock every second
   useEffect(() => {
@@ -183,7 +238,7 @@ export const NewsCalendar: React.FC = () => {
       .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  const filteredEvents = UPCOMING_EVENTS.filter(
+  const filteredEvents = dynamicEvents.filter(
     (ev) => selectedCurrency === 'ALL' || ev.currency === selectedCurrency
   );
 

@@ -1,12 +1,59 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { EconomicNewsItem } from '../types/trading';
 import { Calendar, AlertTriangle, Clock, Globe } from 'lucide-react';
+import { io } from 'socket.io-client';
 
 interface Props {
-  events: EconomicNewsItem[];
+  events?: EconomicNewsItem[];
 }
 
-export const EconomicCalendarPanel: React.FC<Props> = ({ events }) => {
+export const EconomicCalendarPanel: React.FC<Props> = ({ events: propEvents }) => {
+  const [events, setEvents] = useState<EconomicNewsItem[]>(propEvents || []);
+
+  const fetchCalendar = async () => {
+    try {
+      const res = await fetch('/api/calendar');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.events && Array.isArray(data.events)) {
+          const mapped: EconomicNewsItem[] = data.events.map((ev: any) => ({
+            id: ev.id,
+            timeAr: `${ev.time} (${ev.date || 'اليوم'})`,
+            timeEn: `${ev.time} (${ev.date || 'Today'})`,
+            currency: ev.currency,
+            countryAr: ev.country,
+            countryEn: ev.country,
+            titleAr: ev.eventAr || ev.event,
+            titleEn: ev.event,
+            impact: ev.impact,
+            forecast: ev.forecast || '—',
+            previous: ev.previous || '—',
+            actual: ev.actual || '—'
+          }));
+          setEvents(mapped);
+        }
+      }
+    } catch (err) {
+      console.warn('Error fetching calendar from SQLite:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (!propEvents || propEvents.length === 0) {
+      fetchCalendar();
+    } else {
+      setEvents(propEvents);
+    }
+
+    const socket = io();
+    socket.on('calendar_updated', () => {
+      fetchCalendar();
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [propEvents]);
   return (
     <div className="bg-[#111827] border border-slate-800 rounded-xl overflow-hidden shadow-2xl">
       <div className="p-4 bg-[#0f172a] border-b border-slate-800 flex items-center justify-between gap-3">
