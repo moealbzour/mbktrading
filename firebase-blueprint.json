@@ -1,0 +1,124 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with CRM details and role access control in Firestore",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["free", "vip", "admin", "moderator", "sales"] },
+        "displayName": { "type": "string" },
+        "phone": { "type": "string" },
+        "country": { "type": "string" },
+        "dob": { "type": "string" },
+        "experienceLevel": { "type": "string" },
+        "assetClasses": { "type": "array", "items": { "type": "string" } },
+        "favoritePairs": { "type": "string" },
+        "totalPaid": { "type": "number" },
+        "isBanned": { "type": "boolean" },
+        "isMutedFromChat": { "type": "boolean" },
+        "subscription_status": { "type": "string" },
+        "subscription_end_date": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "lastActiveAt": { "type": "string" }
+      },
+      "required": ["email", "role"]
+    },
+    "Signal": {
+      "title": "Signal",
+      "description": "Trading signal published by admin or analyser",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "symbol": { "type": "string" },
+        "action": { "type": "string", "enum": ["BUY", "SELL", "BUY LIMIT", "SELL LIMIT"] },
+        "orderType": { "type": "string" },
+        "entryPrice": { "type": "number" },
+        "tp1": { "type": "number" },
+        "tp2": { "type": "number" },
+        "sl": { "type": "number" },
+        "strategy": { "type": "string" },
+        "timeframe": { "type": "string" },
+        "notesAr": { "type": "string" },
+        "notesEn": { "type": "string" },
+        "author": { "type": "string" },
+        "authorRole": { "type": "string" },
+        "accessLevel": { "type": "string", "enum": ["free", "vip", "all"] },
+        "status": { "type": "string" },
+        "pips": { "type": "number" },
+        "confidence": { "type": "number" },
+        "createdAt": { "type": "string" },
+        "timestampMs": { "type": "number" }
+      },
+      "required": ["symbol", "action", "entryPrice", "tp1", "sl", "accessLevel"]
+    },
+    "MarketIdea": {
+      "title": "MarketIdea",
+      "description": "Market analysis and trading ideas published by admins, analysers, or VIPs",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "symbol": { "type": "string" },
+        "sentiment": { "type": "string", "enum": ["Bullish", "Bearish", "Neutral"] },
+        "chartUrl": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorAvatar": { "type": "string" },
+        "authorRole": { "type": "string" },
+        "likesCount": { "type": "number" },
+        "likedBy": { "type": "array", "items": { "type": "string" } },
+        "commentsCount": { "type": "number" },
+        "comments": { "type": "array" },
+        "createdAt": { "type": "string" },
+        "timestampMs": { "type": "number" }
+      },
+      "required": ["title", "content", "symbol", "sentiment", "authorName"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Public community chat messages stored in Firestore",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string" },
+        "text": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "imageCaption": { "type": "string" },
+        "symbolTag": { "type": "string" },
+        "replyTo": { "type": "object" },
+        "isPinned": { "type": "boolean" },
+        "likes": { "type": "number" },
+        "reactions": { "type": "object" },
+        "createdAt": { "type": "string" },
+        "timestampMs": { "type": "number" }
+      },
+      "required": ["uid", "displayName", "text"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Firestore user account profile registry & CRM"
+    },
+    "/public_chat/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Public community chat messages"
+    },
+    "/signals/{signalId}": {
+      "schema": "Signal",
+      "description": "Published trading signals"
+    },
+    "/market_ideas/{ideaId}": {
+      "schema": "MarketIdea",
+      "description": "Market ideas and technical analysis posts"
+    },
+    "/bot_alerts/{alertId}": {
+      "schema": "object",
+      "description": "Pine Script bot alert logs"
+    }
+  }
+}

@@ -13,7 +13,6 @@ import {
   Layers,
   Filter
 } from 'lucide-react';
-import { io } from 'socket.io-client';
 import { soundManager } from '../../utils/audio';
 
 interface HighImpactEvent {
@@ -132,14 +131,9 @@ export const NewsCalendar: React.FC = () => {
 
   useEffect(() => {
     fetchCalendar();
-
-    const socket = io();
-    socket.on('calendar_updated', () => {
-      fetchCalendar();
-    });
-
+    const interval = setInterval(fetchCalendar, 60000); // 1 minute auto refresh
     return () => {
-      socket.disconnect();
+      clearInterval(interval);
     };
   }, []);
 

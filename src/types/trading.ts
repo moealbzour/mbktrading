@@ -1,15 +1,32 @@
 export interface UserProfile {
   uid?: string;
+  id?: string;
+  username?: string;
   name: string;
   email: string;
-  role: 'FREE' | 'VIP' | 'ADMIN';
+  role: 'FREE' | 'VIP' | 'ADMIN' | 'STANDARD' | 'ANALYSER' | 'MODERATOR' | 'SALES' | string;
   promoCode?: string;
   planName: string;
   avatar?: string;
   isAdmin?: boolean;
+  isStaff?: boolean;
+  subscriptionStatus?: 'active' | 'expired' | 'none';
+  subscriptionEndDate?: string | null;
   telegramUsername?: string;
   unlockedTraders?: string[];
   followedTraders?: string[];
+  isEmailVerified?: boolean;
+  needsOnboarding?: boolean;
+  phone?: string;
+  country?: string;
+  dob?: string;
+  experienceLevel?: string;
+  assetClasses?: string[];
+  favoritePairs?: string;
+  totalPaid?: number;
+  isBanned?: boolean;
+  isMutedFromChat?: boolean;
+  lastActiveAt?: string;
 }
 
 export interface TraderProfile {
@@ -155,6 +172,26 @@ export interface TradeSignal {
   channel?: 'ENGINE' | 'MANUAL';
   riskLevel?: RiskLevel;
   author?: string;
+  accessLevel?: 'free' | 'vip' | 'all';
+}
+
+export interface MarketAnalysis {
+  id: string;
+  title: string;
+  titleAr?: string;
+  symbol: MarketSymbol | string;
+  author: string;
+  authorRole?: string;
+  authorAvatar?: string;
+  content: string;
+  contentAr?: string;
+  sentiment: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
+  targetPrice?: number;
+  stopLevel?: number;
+  chartUrl?: string;
+  accessLevel: 'free' | 'vip' | 'all';
+  createdAt: string;
+  likes?: number;
 }
 
 export type TradeSource = 'BOT_WEBHOOK' | 'VIP_MANUAL' | 'FREE_PUBLIC';
@@ -179,12 +216,16 @@ export interface DailyTrade {
   currentPrice?: number;
   tp1: number;
   tp2?: number;
+  tp3?: number;
   sl: number; // Hidden for free users
   riskReward: string;
   strategy: string;
   confidence: number;
   notesAr?: string;
+  textMsg?: string;
+  isBotSignal?: boolean;
   isBlurredForFree: boolean; // Blurs entire card if running for free users
+  accessLevel?: 'free' | 'vip' | 'all';
 }
 
 export interface DailyTradesStats {
@@ -329,9 +370,13 @@ export interface ChatMessage {
 export interface EconomicNewsItem {
   id: string;
   titleAr: string;
+  titleEn?: string;
   country: string;
+  countryAr?: string;
+  countryEn?: string;
   currency: string;
   timeAr: string;
+  timeEn?: string;
   impact: 'HIGH' | 'MEDIUM' | 'LOW';
   actual?: string;
   forecast: string;
@@ -414,3 +459,31 @@ export interface JournalTrade {
   chartScreenshot?: string;
 }
 
+export interface MarketIdeaComment {
+  id: string;
+  authorId?: string;
+  authorName: string;
+  authorAvatar?: string;
+  authorRole?: string;
+  text: string;
+  createdAt: string;
+}
+
+export interface MarketIdea {
+  id: string;
+  title: string;
+  content: string;
+  symbol: MarketSymbol | string;
+  sentiment: 'Bullish' | 'Bearish' | 'Neutral';
+  chartUrl?: string;
+  authorId?: string;
+  authorName: string;
+  authorAvatar?: string;
+  authorRole?: string;
+  likesCount: number;
+  likedBy: string[];
+  commentsCount: number;
+  comments: MarketIdeaComment[];
+  createdAt: string;
+  timestampMs?: number;
+}

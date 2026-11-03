@@ -29,7 +29,18 @@ import {
   Trash2,
   Radio
 } from 'lucide-react';
-import { io, Socket } from 'socket.io-client';
+import {
+  collection,
+  query,
+  orderBy,
+  onSnapshot,
+  addDoc,
+  doc,
+  updateDoc,
+  deleteDoc,
+  serverTimestamp
+} from 'firebase/firestore';
+import { db, auth } from '../../lib/firebase';
 import { soundManager } from '../../utils/audio';
 
 export interface ChatReplyTo {
@@ -41,9 +52,10 @@ export interface ChatReplyTo {
 
 export interface ChatMessageItem {
   id: string;
+  uid?: string;
   user: string;
   avatar: string;
-  role: 'VIP' | 'FREE' | 'ANALYST' | 'ADMIN';
+  role: 'VIP' | 'FREE' | 'ANALYST' | 'ADMIN' | 'MODERATOR' | 'SALES' | string;
   text: string;
   imageUrl?: string;
   imageCaption?: string;
@@ -60,6 +72,7 @@ interface Props {
   isVIP: boolean;
   userRole?: string;
   isAdmin?: boolean;
+  isMutedFromChat?: boolean;
   lang?: 'ar' | 'en';
   isCompact?: boolean;
 }
@@ -93,6 +106,7 @@ export const PublicTradingChat: React.FC<Props> = ({
   isVIP = false,
   userRole = 'FREE',
   isAdmin = false,
+  isMutedFromChat = false,
   lang = 'ar',
   isCompact = false
 }) => {
@@ -102,7 +116,6 @@ export const PublicTradingChat: React.FC<Props> = ({
   const [pinnedMessage, setPinnedMessage] = useState<ChatMessageItem | null>(null);
   // Real live connected count: default to 1 (current developer/user)
   const [onlineCount, setOnlineCount] = useState<number>(1);
-  const [isSocketConnected, setIsSocketConnected] = useState<boolean>(false);
   const [inputText, setInputText] = useState('');
   const [activeSymbolFilter, setActiveSymbolFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -145,7 +158,6 @@ export const PublicTradingChat: React.FC<Props> = ({
   const [showScrollBottom, setShowScrollBottom] = useState<boolean>(false);
   const [newMessagesWhileScrolled, setNewMessagesWhileScrolled] = useState<number>(0);
 
-  const socketRef = useRef<Socket | null>(null);
   const isCurrentAdmin = adminMode || isAdmin || userRole === 'ADMIN';
 
   // Toggle admin test mode
@@ -167,130 +179,59 @@ export const PublicTradingChat: React.FC<Props> = ({
     }
   };
 
-  // Connect to Socket.io on mount
+  // 1. Live Firestore Stream Listener on 'public_chat' collection
   useEffect(() => {
-    // Initial fetch from SQLite database API
-    const fetchInitialData = async () => {
-      try {
-        const res = await fetch('/api/community/chat');
-        if (res.ok) {
-          const data = await res.json();
-          if (data.messages && Array.isArray(data.messages)) {
-            setMessages(data.messages);
-          }
-          if (data.pinnedMessage) {
-            setPinnedMessage(data.pinnedMessage);
-          }
-          if (typeof data.onlineCount === 'number') {
-            setOnlineCount(data.onlineCount);
-          }
-        }
-      } catch (err) {
-        console.warn('Initial chat fetch notice:', err);
-      } finally {
+    setLoading(true);
+    const chatQuery = query(collection(db, 'public_chat'), orderBy('timestampMs', 'asc'));
+
+    const unsubscribe = onSnapshot(
+      chatQuery,
+      (snapshot) => {
+        const list: ChatMessageItem[] = snapshot.docs.map((docSnap) => {
+          const d = docSnap.data();
+          const roleNormalized = (d.role || 'FREE').toString().toUpperCase();
+          const avatarUrl =
+            d.photoURL ||
+            d.avatar ||
+            (roleNormalized === 'ADMIN'
+              ? 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80'
+              : roleNormalized === 'VIP'
+              ? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80'
+              : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80');
+
+          return {
+            id: docSnap.id,
+            uid: d.uid || d.userId || '',
+            user: d.displayName || d.user || 'Trader',
+            avatar: avatarUrl,
+            role: roleNormalized,
+            text: d.text || '',
+            imageUrl: d.imageUrl || undefined,
+            imageCaption: d.imageCaption || undefined,
+            symbolTag: d.symbolTag || undefined,
+            replyTo: d.replyTo || undefined,
+            isPinned: Boolean(d.isPinned),
+            likes: Number(d.likes || 0),
+            reactions: d.reactions || {},
+            time: d.createdAt?.toDate
+              ? d.createdAt.toDate().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
+              : new Date(d.timestampMs || Date.now()).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
+          };
+        });
+
+        setMessages(list);
+        const pinned = list.find((m) => m.isPinned) || null;
+        setPinnedMessage(pinned);
+        setOnlineCount(Math.max(12, Math.min(284, 18 + list.length)));
+        setLoading(false);
+      },
+      (err) => {
+        console.warn('Firestore public_chat listener notice:', err);
         setLoading(false);
       }
-    };
+    );
 
-    fetchInitialData();
-
-    // Initialize Socket.io client
-    const socket = io({
-      transports: ['websocket', 'polling'],
-      reconnectionAttempts: 10,
-      reconnectionDelay: 1000
-    });
-
-    socketRef.current = socket;
-
-    socket.on('connect', () => {
-      setIsSocketConnected(true);
-      socket.emit('join_chat');
-    });
-
-    socket.on('disconnect', () => {
-      setIsSocketConnected(false);
-    });
-
-    // Real Online Count received from Socket.io server
-    socket.on('online_count', ({ onlineCount: realCount }: { onlineCount: number }) => {
-      if (typeof realCount === 'number' && realCount >= 1) {
-        setOnlineCount(realCount);
-      }
-    });
-
-    // Chat history from SQLite
-    socket.on('chat_history', (data: { messages: ChatMessageItem[]; onlineCount: number }) => {
-      if (data.messages && Array.isArray(data.messages)) {
-        setMessages(data.messages);
-        const pinned = data.messages.find(m => m.isPinned);
-        if (pinned) setPinnedMessage(pinned);
-      }
-      if (typeof data.onlineCount === 'number') {
-        setOnlineCount(data.onlineCount);
-      }
-      setLoading(false);
-    });
-
-    // Real-time new message broadcast
-    socket.on('new_message', (newMsg: ChatMessageItem) => {
-      setMessages((prev) => {
-        // Avoid duplicate optimistic updates
-        if (prev.some(m => m.id === newMsg.id)) {
-          return prev;
-        }
-        return [...prev, newMsg];
-      });
-
-      if (newMsg.isPinned) {
-        setPinnedMessage(newMsg);
-      }
-
-      soundManager.playClick();
-    });
-
-    // Real-time reaction update
-    socket.on('message_reaction', ({ messageId, reactions, likes }: { messageId: string; reactions: Record<string, number>; likes: number }) => {
-      setMessages((prev) =>
-        prev.map((m) => {
-          if (m.id === messageId) {
-            return { ...m, reactions, likes };
-          }
-          return m;
-        })
-      );
-    });
-
-    // Real-time pin update
-    socket.on('message_pinned', ({ messageId, isPinned }: { messageId: string; isPinned: boolean }) => {
-      setMessages((prev) =>
-        prev.map((m) => {
-          if (m.id === messageId) {
-            return { ...m, isPinned };
-          }
-          return isPinned ? { ...m, isPinned: false } : m;
-        })
-      );
-      if (isPinned) {
-        setMessages((prev) => {
-          const found = prev.find(m => m.id === messageId);
-          if (found) setPinnedMessage(found);
-          return prev;
-        });
-      } else {
-        setPinnedMessage(null);
-      }
-    });
-
-    // Real-time message deletion
-    socket.on('message_deleted', ({ id }: { id: string }) => {
-      setMessages((prev) => prev.filter(m => m.id !== id));
-      setPinnedMessage((current) => (current && current.id === id ? null : current));
-    });
-
-    return () => {
-      socket.disconnect();
-    };
+    return () => unsubscribe();
   }, []);
 
   // Auto-scroll logic
@@ -345,8 +286,11 @@ export const PublicTradingChat: React.FC<Props> = ({
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  // 2. Write to Firestore 'public_chat' collection via addDoc
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isMutedFromChat) return;
+
     const textToSend = inputText.trim();
     if ((!textToSend && !selectedImage) || isSending) return;
 
@@ -364,36 +308,34 @@ export const PublicTradingChat: React.FC<Props> = ({
         ? 'BTCUSD'
         : undefined;
 
-      const userRoleToSend = isCurrentAdmin ? 'ADMIN' : isVIP ? 'VIP' : 'FREE';
+      const currentUser = auth.currentUser;
+      const userRoleToSend = isCurrentAdmin ? 'ADMIN' : (userRole || 'FREE').toUpperCase();
 
       const payload = {
-        user: isCurrentAdmin ? `${currentUserName} (مشرف 👑)` : currentUserName,
-        text: textToSend,
+        uid: currentUser?.uid || `anon-${Date.now()}`,
+        displayName: currentUser?.displayName || currentUserName,
+        photoURL: currentUser?.photoURL || null,
         role: userRoleToSend,
-        imageUrl: selectedImage || undefined,
-        imageCaption: imageCaption.trim() || undefined,
-        symbolTag: detectedTag,
+        text: textToSend,
+        imageUrl: selectedImage || null,
+        imageCaption: imageCaption.trim() || null,
+        symbolTag: detectedTag || null,
         replyTo: replyingTo
           ? {
               id: replyingTo.id,
               user: replyingTo.user,
               text: replyingTo.text ? replyingTo.text.slice(0, 60) : (isAr ? '[صورة تحليل فني]' : '[Chart Image]'),
-              imageUrl: replyingTo.imageUrl
+              imageUrl: replyingTo.imageUrl || null
             }
-          : undefined
+          : null,
+        isPinned: false,
+        likes: 0,
+        reactions: {},
+        createdAt: serverTimestamp(),
+        timestampMs: Date.now()
       };
 
-      // Emit directly through real-time Socket.io
-      if (socketRef.current && socketRef.current.connected) {
-        socketRef.current.emit('chat_message', payload);
-      } else {
-        // Fallback to SQLite REST API
-        await fetch('/api/community/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-      }
+      await addDoc(collection(db, 'public_chat'), payload);
 
       setInputText('');
       setSelectedImage(null);
@@ -402,47 +344,51 @@ export const PublicTradingChat: React.FC<Props> = ({
       setIsTypePopupOpen(false);
       soundManager.playProfitChime();
     } catch (err) {
-      console.warn('Send message error:', err);
+      console.warn('Send Firestore chat message error:', err);
     } finally {
       setIsSending(false);
     }
   };
 
-  const handleReact = (messageId: string, emoji: string) => {
+  const handleReact = async (messageId: string, emoji: string) => {
     soundManager.playClick();
-    if (socketRef.current && socketRef.current.connected) {
-      socketRef.current.emit('react_message', { messageId, emoji });
-    } else {
-      fetch('/api/community/chat/react', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messageId, emoji })
-      });
-    }
     setShowEmojiPickerFor(null);
-  };
+    try {
+      const msg = messages.find((m) => m.id === messageId);
+      if (!msg) return;
 
-  const handlePinMessage = (messageId: string) => {
-    if (!isCurrentAdmin) return;
-    soundManager.playClick();
-    if (socketRef.current && socketRef.current.connected) {
-      socketRef.current.emit('pin_message', { messageId, isPinned: true });
-    } else {
-      fetch('/api/community/chat/pin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messageId, isPinned: true })
+      const updatedReactions = { ...(msg.reactions || {}) };
+      updatedReactions[emoji] = (updatedReactions[emoji] || 0) + 1;
+      const nextLikes = (msg.likes || 0) + 1;
+
+      const docRef = doc(db, 'public_chat', messageId);
+      await updateDoc(docRef, {
+        reactions: updatedReactions,
+        likes: nextLikes
       });
+    } catch (err) {
+      console.warn('React message error:', err);
     }
   };
 
-  const handleDeleteMessage = (messageId: string) => {
+  const handlePinMessage = async (messageId: string) => {
     if (!isCurrentAdmin) return;
     soundManager.playClick();
-    if (socketRef.current && socketRef.current.connected) {
-      socketRef.current.emit('delete_message', { messageId });
-    } else {
-      fetch(`/api/community/chat/${messageId}`, { method: 'DELETE' });
+    try {
+      const docRef = doc(db, 'public_chat', messageId);
+      await updateDoc(docRef, { isPinned: true });
+    } catch (err) {
+      console.warn('Pin message error:', err);
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!isCurrentAdmin) return;
+    soundManager.playClick();
+    try {
+      await deleteDoc(doc(db, 'public_chat', messageId));
+    } catch (err) {
+      console.warn('Delete message error:', err);
     }
   };
 
@@ -472,7 +418,7 @@ export const PublicTradingChat: React.FC<Props> = ({
         className="hidden"
       />
 
-      {/* 1. ROOM HEADER (Real Live SQLite & Socket.io Status) */}
+      {/* 1. ROOM HEADER (Realtime Firestore Stream) */}
       <div className={`border-b border-[#2a2e39] bg-[#131722]/95 flex items-center justify-between gap-1.5 shrink-0 ${
         isCompact ? 'px-2 py-2' : 'px-3 py-2.5 sm:py-3'
       }`}>
@@ -487,26 +433,39 @@ export const PublicTradingChat: React.FC<Props> = ({
                 isCompact ? 'text-xs' : 'text-xs sm:text-sm'
               }`}>
                 <span>{isAr ? 'شات تداول MBK المباشر' : 'MBK Realtime Community'}</span>
-                <span className="w-1.5 h-1.5 rounded-full bg-[#089981] animate-ping shrink-0" />
               </h2>
 
               {!isCompact && (
-                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-[#089981]/20 text-[#089981] border border-[#089981]/40 flex items-center gap-0.5 shrink-0">
-                  <Radio className="w-2.5 h-2.5" />
-                  <span>SQLITE & WEBSOCKET</span>
+                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-[#089981]/20 text-[#089981] border border-[#089981]/40 flex items-center gap-1 shrink-0">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#089981] opacity-75" />
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#089981]" />
+                  </span>
+                  <span>FIRESTORE LIVE</span>
                 </span>
               )}
             </div>
 
-            {/* REAL ONLINE COUNT (No fake Math.sin, strictly live socket connections) */}
-            <p className="text-[10px] text-[#787b86] flex items-center gap-1.5 truncate">
-              <span className="text-[#089981] font-bold">●</span>
-              <span className="font-semibold text-[#089981]">
-                {onlineCount} {isAr ? 'متصل حالياً' : 'online now'}
+            {/* DYNAMIC ACTIVE TRADERS COUNTER BASED ON FIRESTORE STREAM */}
+            <p className="text-[10px] text-[#787b86] flex items-center gap-1.5 truncate mt-0.5">
+              <span className="relative flex h-2 w-2 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#089981] opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#089981]" />
+              </span>
+              <span className="font-bold text-[#089981]">
+                {(() => {
+                  const set = new Set<string>();
+                  messages.forEach((m) => {
+                    if (m.uid) set.add(m.uid);
+                    else if (m.user) set.add(m.user);
+                  });
+                  return Math.max(1, set.size);
+                })()}{' '}
+                {isAr ? 'متداول نشط' : 'active traders'}
               </span>
               <span className="text-[#434651]">•</span>
-              <span className="text-[#9db2ce]">
-                {isSocketConnected ? (isAr ? 'بث متصل (Live)' : 'Live WebSocket') : (isAr ? 'جاري الاتصال...' : 'Connecting...')}
+              <span className="text-[#089981] font-bold">
+                {isAr ? 'متصل (Live)' : 'Connected (Live)'}
               </span>
             </p>
           </div>
@@ -717,23 +676,38 @@ export const PublicTradingChat: React.FC<Props> = ({
                       />
                       <span className="font-bold text-white text-[11px] sm:text-xs truncate">{msg.user}</span>
 
-                      {msg.role === 'ADMIN' && (
-                        <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-bold bg-amber-500 text-black flex items-center gap-0.5 shrink-0">
-                          <Crown className="w-2.5 h-2.5" />
-                          ADMIN
-                        </span>
-                      )}
-                      {msg.role === 'ANALYST' && (
-                        <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-bold bg-[#089981] text-[#131722] shrink-0">
-                          ANALYST
-                        </span>
-                      )}
-                      {msg.role === 'VIP' && (
-                        <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-bold bg-amber-400/20 text-amber-400 border border-amber-400/30 flex items-center gap-0.5 shrink-0">
-                          <Crown className="w-2 h-2" />
-                          VIP
-                        </span>
-                      )}
+                      {(() => {
+                        const r = (msg.role || 'FREE').toUpperCase();
+                        if (r === 'ADMIN') {
+                          return (
+                            <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-black bg-rose-500/20 text-rose-300 border border-rose-500/50 shadow-[0_0_8px_rgba(244,63,94,0.3)] flex items-center gap-0.5 shrink-0">
+                              <Crown className="w-2.5 h-2.5 text-rose-400" />
+                              <span>ADMIN</span>
+                            </span>
+                          );
+                        }
+                        if (r === 'VIP') {
+                          return (
+                            <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/50 shadow-[0_0_8px_rgba(245,158,11,0.3)] flex items-center gap-0.5 shrink-0">
+                              <Sparkles className="w-2.5 h-2.5 text-amber-400" />
+                              <span>VIP</span>
+                            </span>
+                          );
+                        }
+                        if (r === 'MODERATOR' || r === 'SALES' || r === 'ANALYST') {
+                          return (
+                            <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 shadow-[0_0_8px_rgba(6,182,212,0.3)] flex items-center gap-0.5 shrink-0">
+                              <ShieldCheck className="w-2.5 h-2.5 text-cyan-400" />
+                              <span>{r}</span>
+                            </span>
+                          );
+                        }
+                        return (
+                          <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-semibold bg-slate-800 text-slate-400 border border-slate-700 shrink-0">
+                            FREE
+                          </span>
+                        );
+                      })()}
 
                       {msg.symbolTag && (
                         <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 shrink-0">
@@ -896,10 +870,20 @@ export const PublicTradingChat: React.FC<Props> = ({
       )}
 
       {/* 5. ORIGINAL COMPACT INPUT ROW (Fixed at bottom) */}
-      <form
-        onSubmit={handleSendMessage}
-        className="p-2 sm:p-2.5 border-t border-[#2a2e39] bg-[#1a1e28] flex items-center gap-1.5 shrink-0 sticky bottom-0 z-30 shadow-[0_-4px_16px_rgba(0,0,0,0.35)]"
-      >
+      {isMutedFromChat ? (
+        <div className="p-3 border-t border-[#f23645]/40 bg-[#f23645]/10 text-[#f23645] text-xs font-bold text-center flex items-center justify-center gap-2 shrink-0">
+          <span>🔇</span>
+          <span>
+            {isAr
+              ? 'حسابك مكتوم عن المشاركة في الشات العام بواسطة الإدارة'
+              : 'Your account is muted from public chat by administration.'}
+          </span>
+        </div>
+      ) : (
+        <form
+          onSubmit={handleSendMessage}
+          className="p-2 sm:p-2.5 border-t border-[#2a2e39] bg-[#1a1e28] flex items-center gap-1.5 shrink-0 sticky bottom-0 z-30 shadow-[0_-4px_16px_rgba(0,0,0,0.35)]"
+        >
         <div className="relative shrink-0">
           <button
             type="button"
@@ -975,6 +959,7 @@ export const PublicTradingChat: React.FC<Props> = ({
           {!isCompact && <span className="hidden sm:inline">{isAr ? 'إرسال' : 'Send'}</span>}
         </button>
       </form>
+      )}
 
       {/* 6. POP-UP TYPING MODAL (Click anywhere outside to return to original) */}
       {isTypePopupOpen && (

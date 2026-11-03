@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { DailyTrade } from '../../types/trading';
 import { soundManager } from '../../utils/audio';
+import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
 
 interface Props {
   isVIP: boolean;
@@ -55,33 +57,55 @@ export const DailyTradesPanel: React.FC<Props> = ({
   const [codeInputValue, setCodeInputValue] = useState('');
   const [codeError, setCodeError] = useState<string | null>(null);
 
-  const hasFullAccess = isVIP || unlockedViaCode || userRole === 'VIP' || userRole === 'ADMIN';
-
-  const fetchDailyTrades = async () => {
-    try {
-      setRefreshing(true);
-      const res = await fetch('/api/trades/daily');
-      if (res.ok) {
-        const data = await res.json();
-        if (data.trades) setTrades(data.trades);
-      }
-    } catch (err) {
-      console.warn('Failed to fetch daily trades:', err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
+  const hasFullAccess = isVIP || unlockedViaCode || userRole === 'VIP' || userRole === 'ADMIN' || userRole === 'ANALYSER';
 
   useEffect(() => {
-    fetchDailyTrades();
-    const interval = setInterval(fetchDailyTrades, 10000);
-    return () => clearInterval(interval);
+    // Real-time Firestore onSnapshot listener for instant live updates
+    setLoading(true);
+    let isFirstSnapshot = true;
+    const signalsRef = collection(db, 'signals');
+    const q = query(signalsRef, orderBy('timestampMs', 'desc'));
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const liveTrades: DailyTrade[] = [];
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          liveTrades.push({
+            id: docSnap.id,
+            ...data
+          } as DailyTrade);
+        });
+
+        if (liveTrades.length > 0) {
+          if (!isFirstSnapshot && liveTrades.length > trades.length) {
+            soundManager.playProfitChime();
+          }
+          setTrades(liveTrades);
+        }
+        isFirstSnapshot = false;
+        setLoading(false);
+        setRefreshing(false);
+      },
+      (error) => {
+        console.warn('Firestore onSnapshot listener fallback:', error);
+        setLoading(false);
+        setRefreshing(false);
+      }
+    );
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const handleCopyLevels = (trade: DailyTrade) => {
     soundManager.playClick();
-    const text = `${trade.symbol} ${trade.action}\nEntry: ${trade.entryPrice}\nSL: ${trade.sl}\nTP: ${trade.tp1}`;
+    let text = `${trade.symbol} ${trade.action}\nEntry: ${trade.entryPrice}\nSL: ${trade.sl}\nTP1: ${trade.tp1}`;
+    if (trade.tp2) text += `\nTP2: ${trade.tp2}`;
+    if (trade.tp3) text += `\nTP3: ${trade.tp3}`;
+    if (trade.textMsg) text += `\n\n${trade.textMsg}`;
     navigator.clipboard.writeText(text);
     setCopiedId(trade.id);
     setTimeout(() => setCopiedId(null), 2000);
@@ -125,7 +149,8 @@ export const DailyTradesPanel: React.FC<Props> = ({
         <button
           onClick={() => {
             soundManager.playClick();
-            fetchDailyTrades();
+            setRefreshing(true);
+            setTimeout(() => setRefreshing(false), 400);
           }}
           disabled={refreshing}
           className="p-1 rounded bg-[#1e222d] hover:bg-[#2a2e39] text-[#787b86] hover:text-white transition-colors cursor-pointer"
@@ -236,7 +261,11 @@ export const DailyTradesPanel: React.FC<Props> = ({
       ) : (
         <div className="space-y-1.5">
           {displayedTrades.map((trade) => {
-            const isVIPOrBot = trade.source === 'VIP_MANUAL' || trade.source === 'BOT_WEBHOOK';
+            const isVIPOrBot =
+              trade.source === 'VIP_MANUAL' ||
+              trade.source === 'BOT_WEBHOOK' ||
+              trade.accessLevel === 'vip' ||
+              Boolean(trade.isBlurredForFree);
             const shouldBlur = !hasFullAccess && isVIPOrBot;
             const isRunning = trade.status === 'RUNNING';
             const isWin = trade.pips > 0;
@@ -349,11 +378,23 @@ export const DailyTradesPanel: React.FC<Props> = ({
 
                 {/* Small Box for Extra Signal Details */}
                 {isExpanded && (
-                  <div className="p-2 rounded bg-[#131722] border border-[#2a2e39] text-[10px] space-y-1 animate-fade-in">
+                  <div className="p-2 rounded bg-[#131722] border border-[#2a2e39] text-[10px] space-y-1.5 animate-fade-in">
                     <div className="flex justify-between text-[#d1d4dc]">
                       <span className="text-[#787b86]">{isAr ? 'الإستراتيجية:' : 'Strategy:'}</span>
-                      <span>{trade.strategy}</span>
+                      <span className="font-semibold">{trade.strategy}</span>
                     </div>
+                    {trade.tp2 && (
+                      <div className="flex justify-between text-[#d1d4dc]">
+                        <span className="text-[#089981]">{isAr ? 'الهدف الثاني (TP2):' : 'Take Profit 2:'}</span>
+                        <span className="font-mono font-bold text-[#089981]">{trade.tp2}</span>
+                      </div>
+                    )}
+                    {trade.tp3 && (
+                      <div className="flex justify-between text-[#d1d4dc]">
+                        <span className="text-[#089981]">{isAr ? 'الهدف الثالث (TP3):' : 'Take Profit 3:'}</span>
+                        <span className="font-mono font-bold text-[#089981]">{trade.tp3}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-[#d1d4dc]">
                       <span className="text-[#787b86]">{isAr ? 'التوقيت:' : 'Time:'}</span>
                       <span>{trade.openTime}</span>
@@ -362,6 +403,16 @@ export const DailyTradesPanel: React.FC<Props> = ({
                       <div className="flex justify-between text-[#d1d4dc]">
                         <span className="text-[#787b86]">{isAr ? 'مدة الصفقة:' : 'Duration:'}</span>
                         <span>{trade.duration}</span>
+                      </div>
+                    )}
+                    {trade.textMsg && (
+                      <div className="pt-1.5 border-t border-[#2a2e39]/80">
+                        <span className="text-[#787b86] block text-[9px] mb-0.5">
+                          {isAr ? 'نص إشعار التيليجرام / TradingView:' : 'Telegram / Alert Message:'}
+                        </span>
+                        <p className="text-[#d1d4dc] text-[9.5px] bg-[#1a1e29] p-1.5 rounded border border-[#2a2e39] whitespace-pre-wrap font-mono">
+                          {trade.textMsg}
+                        </p>
                       </div>
                     )}
                   </div>

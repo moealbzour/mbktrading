@@ -19,18 +19,20 @@ import {
   applyFirestorePromoCode
 } from './services/firebaseAuthService';
 
-// Tier Components
+// Pages & Components
 import { PublicLandingPage } from './components/PublicLandingPage';
 import { ProtectedDashboard } from './components/ProtectedDashboard';
-import { AuthGateModal } from './components/AuthGateModal';
+import { Login } from './pages/Login';
+import { Register } from './pages/Register';
+
 import { PromoCodeModal } from './components/PromoCodeModal';
 import { PartnerBrokerModal } from './components/PartnerBrokerModal';
 import { NewSignalModal } from './components/NewSignalModal';
+import { EmailVerificationGuard } from './components/EmailVerificationGuard';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 
 export default function App() {
   // Authentication & Flow State
-  // Default is null (unauthenticated visitor viewing Public Landing Page)
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
     try {
       const saved = localStorage.getItem('mbk_user');
@@ -41,9 +43,16 @@ export default function App() {
     return null;
   });
 
-  const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [authDefaultTab, setAuthDefaultTab] = useState<'login' | 'signup'>('signup');
-  const [initialPromoCode, setInitialPromoCode] = useState('');
+  const [pageView, setPageView] = useState<'landing' | 'login' | 'register' | 'dashboard'>(() => {
+    try {
+      const saved = localStorage.getItem('mbk_user');
+      if (saved) return 'dashboard';
+    } catch {
+      // ignore
+    }
+    return 'landing';
+  });
+
   const [promoModalOpen, setPromoModalOpen] = useState(false);
   const [brokerModalOpen, setBrokerModalOpen] = useState(false);
   const [newSignalModalOpen, setNewSignalModalOpen] = useState(false);
@@ -55,8 +64,6 @@ export default function App() {
   const [selectedSymbol, setSelectedSymbol] = useState<MarketSymbol>('US100');
   const [onlineTraders, setOnlineTraders] = useState(284);
   const [isMuted, setIsMuted] = useState(false);
-
-  // Sound Mute Toggle
   const [lang, setLang] = useState<'ar' | 'en'>('ar');
 
   const handleToggleMute = () => {
@@ -65,7 +72,7 @@ export default function App() {
     soundManager.setMuted(next);
   };
 
-  // Real-time market prices from live financial feeds (Yahoo Finance & global market feeds)
+  // Real-time market prices from live financial feeds
   useEffect(() => {
     let isMounted = true;
 
@@ -79,7 +86,7 @@ export default function App() {
           }
         }
       } catch {
-        // Keep current prices on momentary network blips
+        // Keep current prices on network blips
       }
     };
 
@@ -90,6 +97,38 @@ export default function App() {
       isMounted = false;
       clearInterval(interval);
     };
+  }, []);
+
+  // Validate JWT on load via /api/auth/me
+  useEffect(() => {
+    const token = localStorage.getItem('mbk_jwt_token');
+    if (token) {
+      fetch('/api/auth/me', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data && data.success && data.user) {
+            const validUser: UserProfile = {
+              uid: data.user.id || data.user.uid,
+              id: data.user.id,
+              username: data.user.username,
+              name: data.user.name || data.user.displayName || data.user.username,
+              email: data.user.email,
+              role: data.user.role,
+              planName: data.user.role === 'ADMIN' ? 'الادارة العليا (ADMIN)' : data.user.role === 'VIP' ? 'عضوية VIP مميزة' : 'الباقة العادية',
+              avatar: data.user.avatar,
+              subscriptionStatus: data.user.subscriptionStatus,
+              subscriptionEndDate: data.user.subscriptionEndDate
+            };
+            setCurrentUser(validUser);
+            localStorage.setItem('mbk_user', JSON.stringify(validUser));
+          }
+        })
+        .catch(() => {
+          // Keep local user if offline
+        });
+    }
   }, []);
 
   // Subscribe to live Firebase Auth state and Firestore user roles
@@ -109,14 +148,18 @@ export default function App() {
   }, []);
 
   // Auth Handlers
-  const handleOpenAuth = (tab: 'login' | 'signup', promo = '') => {
-    setAuthDefaultTab(tab);
-    setInitialPromoCode(promo);
-    setAuthModalOpen(true);
+  const handleOpenAuth = (tab: 'login' | 'signup') => {
+    soundManager.playClick();
+    if (tab === 'login') {
+      setPageView('login');
+    } else {
+      setPageView('register');
+    }
   };
 
   const handleLoginSuccess = (user: UserProfile) => {
     setCurrentUser(user);
+    setPageView('dashboard');
     try {
       localStorage.setItem('mbk_user', JSON.stringify(user));
     } catch {
@@ -131,19 +174,24 @@ export default function App() {
       console.warn('Sign out error:', err);
     }
     setCurrentUser(null);
+    setPageView('landing');
     try {
       localStorage.removeItem('mbk_user');
+      localStorage.removeItem('mbk_jwt_token');
     } catch {
       // ignore
     }
   };
 
-  // Direct Enter Dashboard: Opens mandatory Auth Gate so user registers or signs in
   const handleDirectEnterDashboard = () => {
-    handleOpenAuth('signup');
+    if (currentUser) {
+      setPageView('dashboard');
+    } else {
+      setPageView('register');
+    }
   };
 
-  // Promo code apply (instantly upgrade user to VIP and persist in Firestore!)
+  // Promo code apply
   const handleApplyPromoCode = async (code: string) => {
     if (currentUser) {
       if (currentUser.uid) {
@@ -158,6 +206,8 @@ export default function App() {
         ...currentUser,
         role: 'VIP',
         promoCode: code,
+        subscriptionStatus: 'active',
+        subscriptionEndDate: new Date(Date.now() + 30 * 86400 * 1000).toISOString(),
         planName: `عضوية VIP مفعلة (${code})`
       };
       setCurrentUser(updated);
@@ -172,10 +222,13 @@ export default function App() {
         email: 'vip.member@mbktrading.live',
         role: 'VIP',
         promoCode: code,
+        subscriptionStatus: 'active',
+        subscriptionEndDate: new Date(Date.now() + 30 * 86400 * 1000).toISOString(),
         planName: `عضوية VIP مفعلة (${code})`,
         avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'
       };
       setCurrentUser(vipUser);
+      setPageView('dashboard');
       try {
         localStorage.setItem('mbk_user', JSON.stringify(vipUser));
       } catch {
@@ -221,7 +274,6 @@ export default function App() {
     };
     setChatMessages((prev) => [...prev, newMsg]);
 
-    // Simulated community reply
     setTimeout(() => {
       const replyMsg: ChatMessage = {
         id: `msg-${Date.now() + 1}`,
@@ -260,13 +312,66 @@ export default function App() {
         lang === 'ar' ? "font-['Cairo',sans-serif]" : "font-['Plus_Jakarta_Sans',sans-serif]"
       }`}
     >
-      {/* TIER 1 vs TIER 2:
-          - If NO currentUser: Render Public Landing Page
-          - If currentUser: Render Protected Dashboard (Free or VIP based on user.role)
-      */}
-      {currentUser ? (
-        <ProtectedDashboard
+      {/* Route Views */}
+      {pageView === 'login' ? (
+        <Login
+          onLoginSuccess={handleLoginSuccess}
+          onNavigateRegister={() => setPageView('register')}
+          onNavigateHome={() => setPageView('landing')}
+          lang={lang}
+        />
+      ) : pageView === 'register' ? (
+        <Register
+          onRegisterSuccess={handleLoginSuccess}
+          onNavigateLogin={() => setPageView('login')}
+          onNavigateHome={() => setPageView('landing')}
+          lang={lang}
+        />
+      ) : currentUser && currentUser.isBanned ? (
+        <div className="min-h-screen bg-[#131722] text-[#d1d4dc] flex flex-col items-center justify-center p-6 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-rose-500/20 border border-rose-500/40 text-rose-500 flex items-center justify-center text-3xl mb-4">
+            🚫
+          </div>
+          <h1 className="text-xl font-bold text-white mb-2">
+            {lang === 'ar' ? 'تم حظر حسابك من الوصول للمنصة' : 'Account Banned'}
+          </h1>
+          <p className="text-sm text-[#787b86] max-w-md mb-6 leading-relaxed">
+            {lang === 'ar'
+              ? 'تم تطبيق حظر شامل على حسابك بواسطة إدارة MBK Trading Hub. يرجى التواصل مع الدعم الفني لمزيد من التفاصيل.'
+              : 'A global ban has been applied to your account by MBK Trading Hub management.'}
+          </p>
+          <button
+            onClick={handleLogout}
+            className="px-6 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs transition-colors cursor-pointer"
+          >
+            {lang === 'ar' ? 'تسجيل الخروج' : 'Log Out'}
+          </button>
+        </div>
+      ) : currentUser && currentUser.isEmailVerified === false ? (
+        <EmailVerificationGuard
           user={currentUser}
+          onLogout={handleLogout}
+          onVerifiedSuccess={() => {
+            const updated = { ...currentUser, isEmailVerified: true };
+            setCurrentUser(updated);
+            try {
+              localStorage.setItem('mbk_user', JSON.stringify(updated));
+            } catch {
+              // ignore
+            }
+          }}
+          lang={lang}
+        />
+      ) : currentUser || pageView === 'dashboard' ? (
+        <ProtectedDashboard
+          user={
+            currentUser || {
+              name: 'متداول MBK',
+              email: 'trader@mbktrading.live',
+              role: 'STANDARD',
+              planName: 'الباقة العادية'
+            }
+          }
           tickers={tickers}
           signals={signals}
           chatMessages={chatMessages}
@@ -278,7 +383,7 @@ export default function App() {
           onSendMessage={handleSendMessage}
           onLikeMessage={handleLikeMessage}
           onLogout={handleLogout}
-          onBackToHome={() => setCurrentUser(null)}
+          onBackToHome={() => setPageView('landing')}
           onOpenBrokerModal={() => setBrokerModalOpen(true)}
           onOpenNewSignalModal={() => setNewSignalModalOpen(true)}
           onOpenPromoModal={() => setPromoModalOpen(true)}
@@ -302,15 +407,6 @@ export default function App() {
       )}
 
       {/* Global Modals */}
-      <AuthGateModal
-        isOpen={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
-        defaultTab={authDefaultTab}
-        initialPromoCode={initialPromoCode}
-        onLoginSuccess={handleLoginSuccess}
-        lang={lang}
-      />
-
       <PromoCodeModal
         isOpen={promoModalOpen}
         onClose={() => setPromoModalOpen(false)}

@@ -51,6 +51,7 @@ import { PublicTradingChat } from '../community/PublicTradingChat';
 import { TradingViewAIPanel } from '../ai/TradingViewAIPanel';
 import { TradingViewChart } from '../TradingViewChart';
 import { TradingViewLiteChart } from '../TradingViewLiteChart';
+import { TradingViewMiniChart } from '../TradingViewMiniChart';
 import { DailyTradesPanel } from '../signals/DailyTradesPanel';
 import { AdminDashboard } from '../admin/AdminDashboard';
 import { AdminManagementPanel } from '../admin/AdminManagementPanel';
@@ -537,16 +538,16 @@ export const TradingViewWorkspace: React.FC<Props> = ({
       shortEn: 'News',
       icon: Newspaper
     },
-    // Admin Management Panel (Available for Admins)
-    ...((user.role === 'ADMIN' || user.isAdmin || (typeof window !== 'undefined' && localStorage.getItem('mbk_chat_admin_mode') === 'true'))
+    // Admin & Analyser Publishing Panel
+    ...((user.role === 'ADMIN' || user.isAdmin || user.email?.toLowerCase() === 'moe.albzour@gmail.com' || user.role === 'ANALYSER' || (typeof window !== 'undefined' && localStorage.getItem('mbk_chat_admin_mode') === 'true'))
       ? [{
           id: 'admin' as WorkspaceView | 'heatmap',
-          labelAr: 'إدارة المنصة (Admin)',
-          labelEn: 'Admin Panel',
-          shortAr: 'الإدارة',
-          shortEn: 'Admin',
+          labelAr: user.role === 'ANALYSER' ? 'مركز النشر والتحليل' : 'إدارة المنصة (Admin)',
+          labelEn: user.role === 'ANALYSER' ? 'Publishing Center' : 'Admin Panel',
+          shortAr: user.role === 'ANALYSER' ? 'النشر' : 'الإدارة',
+          shortEn: user.role === 'ANALYSER' ? 'Publish' : 'Admin',
           icon: Shield,
-          badge: 'ADMIN'
+          badge: user.role === 'ANALYSER' ? 'ANALYST' : 'ADMIN'
         }]
       : [])
   ];
@@ -929,7 +930,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
       )}
 
       {/* 3. MAIN WORKSPACE CANVAS (DESKTOP ICON RAIL + MAIN AREA + COLLAPSIBLE DRAWER) */}
-      <div className="flex-1 flex overflow-hidden relative">
+      <div className="flex-1 min-h-0 flex overflow-hidden relative">
         {/* VERTICAL ICON RAIL (ACTIVE ACROSS ALL SCREEN SIZES INCLUDING MOBILE - FOLDABLE) */}
         <aside
           className={`bg-[#1e222d] border-e border-[#2a2e39] flex flex-col items-center justify-between shrink-0 z-30 select-none overflow-y-auto scrollbar-none transition-all duration-300 ease-in-out relative ${
@@ -1097,7 +1098,6 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                 symbol={selectedSymbol}
                 onSymbolChange={onSelectSymbol}
                 tickers={tickers}
-                fullHeightOnMobile={true}
               />
               {/* Floating Exit Button Overlay */}
               <button
@@ -1293,24 +1293,22 @@ export const TradingViewWorkspace: React.FC<Props> = ({
 
                 {/* VIEW 2: TRADINGVIEW LIVE ADVANCED CHART VIEW */}
                 {activeView === 'chart' && (
-                  <div className="space-y-4">
-                    <div className={`${isBottomFolded ? 'h-[calc(100vh-280px)] min-h-[450px]' : 'h-[calc(100vh-160px)] min-h-[500px]'} w-full rounded-xl overflow-hidden border border-[#2a2e39] shadow-2xl relative transition-all duration-300`}>
+                  <div className="flex flex-col space-y-4 w-full">
+                    <div className={`${isBottomFolded ? 'h-[calc(100vh-280px)] min-h-[380px]' : 'h-[450px] sm:h-[500px]'} w-full rounded-xl overflow-hidden border border-[#2a2e39] shadow-2xl relative transition-all duration-300 shrink-0`}>
                       <TradingViewChart
                         symbol={selectedSymbol}
                         onSymbolChange={onSelectSymbol}
                         tickers={tickers}
                       />
                     </div>
-                    {isBottomFolded && (
-                      <div className="animate-in fade-in transition-all">
-                        <MarketInsightsWidget
-                          selectedSymbol={selectedSymbol}
-                          onSymbolChange={onSelectSymbol}
-                          lang={lang}
-                          activeTicker={activeTicker}
-                        />
-                      </div>
-                    )}
+                    <div className="w-full animate-in fade-in transition-all shrink-0">
+                      <MarketInsightsWidget
+                        selectedSymbol={selectedSymbol}
+                        onSymbolChange={onSelectSymbol}
+                        lang={lang}
+                        activeTicker={activeTicker}
+                      />
+                    </div>
                   </div>
                 )}
 
@@ -1338,7 +1336,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                       <span className="text-xs font-mono text-[#089981]">ForexLive • Yahoo Finance</span>
                     </div>
 
-                    <LiveNewsTicker lang={lang} />
+                    <LiveNewsTicker lang={lang} isFullPage={true} />
                   </div>
                 )}
 
@@ -1358,7 +1356,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
           )}
 
           {/* HELPING PANEL DOCKED AT BOTTOM (Entire panel moved down with all tabs, free move & extreme fold) */}
-          {chatPosition === 'bottom' && !(isMobile && activeView === 'chart') && !isAnalysisMode && (
+          {chatPosition === 'bottom' && !(isMobile && activeView === 'chart') && (
             <div
               style={{
                 height: isBottomFolded ? '48px' : (windowWidth < 640 ? '48vh' : `${bottomChatHeight}px`),
@@ -1513,6 +1511,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                       isVIP={isVIP}
                       userRole={user.role}
                       isAdmin={user.role === 'ADMIN' || user.isAdmin}
+                      isMutedFromChat={user.isMutedFromChat}
                       lang={lang}
                       isCompact={false}
                     />
@@ -1533,7 +1532,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
         )}
 
         {/* FLEXIBLE RESIZABLE BORDER DIVIDER (Platform border resize handle - Free Move) */}
-        {isSidebarVisible && !isAnalysisMode && activeMainView === 'chart' && (
+        {isSidebarVisible && activeMainView === 'chart' && (
           <div
             onMouseDown={handleStartResize}
             onTouchStart={handleStartResize}
@@ -1574,7 +1573,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
         )}
 
         {/* 4. SIDEBAR (DOCKABLE LEFT / RIGHT / BOTTOM / HIDE) */}
-        {isSidebarVisible && !isAnalysisMode && activeMainView === 'chart' && (
+        {isSidebarVisible && activeMainView === 'chart' && (
           <aside
             style={getSidebarWidthStyle()}
             className={`flex flex-col h-full shrink-0 z-30 bg-[#131722]/50 backdrop-blur-md border-s border-white/10 select-none overflow-hidden shadow-2xl ${getSidePanelOrder()} ${
@@ -1748,6 +1747,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                       isVIP={isVIP}
                       userRole={user.role}
                       isAdmin={user.role === 'ADMIN' || user.isAdmin}
+                      isMutedFromChat={user.isMutedFromChat}
                       lang={lang}
                       isCompact={false}
                     />
@@ -1806,6 +1806,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
         onLogout={onLogout}
         onOpenPromoModal={onOpenPromoModal}
         onOpenSupportModal={() => setSupportModalOpen(true)}
+        onNavigateAdmin={() => setActiveView('admin')}
         lang={lang}
         onToggleLang={onToggleLang}
         isMuted={isMuted}

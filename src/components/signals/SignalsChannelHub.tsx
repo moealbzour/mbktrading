@@ -18,8 +18,11 @@ import {
   ExternalLink,
   Shield,
   Eye,
-  EyeOff
+  EyeOff,
+  MessageSquare
 } from 'lucide-react';
+import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
 import { soundManager } from '../../utils/audio';
 import confetti from 'canvas-confetti';
 import { MarketTicker, MarketSymbol } from '../../types/trading';
@@ -42,6 +45,14 @@ export interface ChannelSignalItem {
   timeAgo: string;
   confidence: number;
   isBlurredForFree: boolean;
+}
+
+export interface BotAlertItem {
+  id: string;
+  text: string;
+  chat_id?: string | null;
+  timestamp: string;
+  timestampMs?: number;
 }
 
 interface Props {
@@ -67,7 +78,9 @@ export const SignalsChannelHub: React.FC<Props> = ({
 }) => {
   const [activeChannel, setActiveChannel] = useState<'free' | 'vip' | 'bot'>('free');
   const [signals, setSignals] = useState<ChannelSignalItem[]>([]);
+  const [botAlerts, setBotAlerts] = useState<BotAlertItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [botAlertsLoading, setBotAlertsLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Unlocking Webhook Bot Signals for Free Users
@@ -117,6 +130,49 @@ export const SignalsChannelHub: React.FC<Props> = ({
     fetchSignals();
     const interval = setInterval(fetchSignals, 15000); // 15s refresh
     return () => clearInterval(interval);
+  }, []);
+
+  // Listen to Firestore 'bot_alerts' collection in real-time
+  useEffect(() => {
+    let isFirstSnapshot = true;
+    try {
+      const botAlertsRef = collection(db, 'bot_alerts');
+      const q = query(botAlertsRef, orderBy('timestampMs', 'desc'));
+
+      const unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+          const items: BotAlertItem[] = [];
+          snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            items.push({
+              id: docSnap.id,
+              text: data.text || '',
+              chat_id: data.chat_id || data.chatId || null,
+              timestamp: data.timestamp || new Date().toISOString(),
+              timestampMs: data.timestampMs || Date.now()
+            });
+          });
+
+          if (!isFirstSnapshot && items.length > botAlerts.length) {
+            soundManager.playProfitChime();
+          }
+
+          setBotAlerts(items);
+          isFirstSnapshot = false;
+          setBotAlertsLoading(false);
+        },
+        (err) => {
+          console.warn('Firestore bot_alerts onSnapshot notice:', err);
+          setBotAlertsLoading(false);
+        }
+      );
+
+      return () => unsubscribe();
+    } catch (err) {
+      console.warn('Error connecting to bot_alerts collection:', err);
+      setBotAlertsLoading(false);
+    }
   }, []);
 
   const handleCopyLevels = (text: string, id: string) => {
@@ -315,189 +371,294 @@ export const SignalsChannelHub: React.FC<Props> = ({
         )}
       </div>
 
-      {/* 3. SIGNALS CARDS GRID */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {channelSignals.length === 0 ? (
-          <div className="col-span-full p-8 text-center bg-[#1e222d] border border-[#2a2e39] rounded-xl text-[#787b86]">
-            <Radio className="w-8 h-8 mx-auto mb-2 text-[#787b86] opacity-60" />
-            <p className="text-sm font-semibold">{isAr ? 'لا توجد صفقات معلقة في هذه القناة حالياً' : 'No active trades in this channel right now'}</p>
-            <p className="text-xs text-[#787b86] mt-1">{isAr ? 'سيتم بث الإشارات لحظة استيفاء شروط السيولة' : 'New setups will broadcast upon liquidity confirmation'}</p>
+      {/* 3. SIGNALS OR CHAT FEED VIEW */}
+      {activeChannel === 'bot' ? (
+        /* TELEGRAM-LIKE CHAT FEED FOR TRADINGVIEW BOT ALERTS */
+        <div className="bg-[#1e222d] border border-[#2a2e39] rounded-xl p-4 shadow-xl space-y-4">
+          {/* Chat Header */}
+          <div className="flex items-center justify-between pb-3 border-b border-[#2a2e39]">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-[#089981]/20 border border-[#089981]/40 flex items-center justify-center text-[#089981]">
+                <Bot className="w-5 h-5 animate-pulse" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-bold text-white">
+                    {isAr ? 'قناة تنبيهات TradingView Bot' : 'TradingView Bot Alerts Channel'}
+                  </h4>
+                  <span className="w-2 h-2 rounded-full bg-[#089981] animate-ping" />
+                </div>
+                <p className="text-[11px] text-[#787b86]">
+                  {isAr ? 'تغذية حية ومباشرة لتنبيهات Pine Script المرسلة عبر Webhook' : 'Live real-time Pine Script alert stream via Webhook'}
+                </p>
+              </div>
+            </div>
+
+            <div className="px-2.5 py-1 rounded-lg bg-[#131722] border border-[#2a2e39] text-xs font-mono text-[#089981] font-bold">
+              {botAlerts.length} {isAr ? 'تنبيهات' : 'alerts'}
+            </div>
           </div>
-        ) : (
-          channelSignals.map((signal) => {
-            const isBotLocked = signal.channel === 'bot' && !hasFullAccess;
-            const isVipLocked = signal.channel === 'vip' && !hasFullAccess;
-            const isLocked = isBotLocked || isVipLocked;
 
-            return (
-              <div
-                key={signal.id}
-                className="bg-[#1e222d] border border-[#2a2e39] hover:border-[#363a45] rounded-xl p-4 flex flex-col justify-between shadow-lg relative overflow-hidden transition-all group"
-              >
-                <div>
-                  {/* Card Header: Symbol, Side, Badge, Timestamp */}
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`px-2.5 py-0.5 rounded text-xs font-mono font-bold ${
-                          signal.action === 'BUY'
-                            ? 'bg-[#089981]/15 text-[#089981] border border-[#089981]/30'
-                            : 'bg-[#f23645]/15 text-[#f23645] border border-[#f23645]/30'
-                        }`}
-                      >
-                        {signal.action}
-                      </span>
-                      <span className="text-base font-mono font-bold text-white tracking-wide">
-                        {signal.symbol}
-                      </span>
-                      <span className="text-[11px] text-[#787b86] font-mono">{signal.timeframe}</span>
-                    </div>
+          {/* Chat Messages Feed Container */}
+          <div className="space-y-3 max-h-[550px] overflow-y-auto pr-1 smooth-scroll">
+            {botAlertsLoading ? (
+              <div className="p-8 text-center text-[#787b86] text-xs">
+                <Bot className="w-6 h-6 animate-bounce mx-auto mb-2 text-[#089981]" />
+                <p>{isAr ? 'جاري الاتصال بقناة التنبيهات المباشرة...' : 'Connecting to live alerts stream...'}</p>
+              </div>
+            ) : botAlerts.length === 0 ? (
+              <div className="p-8 text-center bg-[#131722] border border-[#2a2e39] rounded-xl text-[#787b86]">
+                <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-50 text-[#089981]" />
+                <p className="text-sm font-semibold">
+                  {isAr ? 'لا توجد تنبيهات من بوت TradingView حتى الآن' : 'No TradingView bot alerts received yet'}
+                </p>
+                <p className="text-xs text-[#787b86] mt-1">
+                  {isAr
+                    ? 'سيتم عرض الرسائل والنصوص تلقائياً هنا لحظة إرسال Pine Script للتنبيه'
+                    : 'Alert messages will automatically appear here as Pine Script triggers alerts'}
+                </p>
+              </div>
+            ) : (
+              botAlerts.map((alertItem) => {
+                const timeStr = alertItem.timestamp
+                  ? new Date(alertItem.timestamp).toLocaleTimeString(isAr ? 'ar-SA' : 'en-US', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      second: '2-digit'
+                    })
+                  : 'الآن';
 
-                    <div className="flex items-center gap-1.5 text-xs font-mono">
-                      {signal.status === 'TP2_HIT' ? (
-                        <span className="px-2 py-0.5 rounded bg-[#089981]/15 text-[#089981] font-bold border border-[#089981]/30 flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3" />
-                          <span>TP2 HIT (+{signal.pips} Pips)</span>
+                return (
+                  <div
+                    key={alertItem.id}
+                    className="bg-[#131722] border border-[#2a2e39] hover:border-[#363a45] rounded-2xl p-4 shadow-md transition-all group animate-fade-in"
+                  >
+                    {/* Message Bubble Header */}
+                    <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#2a2e39]/60">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-[#089981]" />
+                        <span className="text-xs font-bold text-white flex items-center gap-1">
+                          <Bot className="w-3.5 h-3.5 text-[#089981]" />
+                          <span>TradingView Bot</span>
                         </span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded bg-[#131722] text-[#089981] font-bold border border-[#2a2e39] flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#089981] animate-ping" />
-                          <span>LIVE</span>
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Strategy and Channel badge */}
-                  <div className="flex items-center justify-between text-xs text-[#787b86] pb-2 mb-3 border-b border-[#2a2e39]">
-                    <span className="truncate">{signal.strategy}</span>
-                    <span className="font-mono text-[11px] shrink-0 text-[#089981]">
-                      {signal.timeAgo}
-                    </span>
-                  </div>
-
-                  {/* NUMERICAL MATRIX (BLURRED TEASER IF LOCKED, CRYSTAL CLEAR IF UNLOCKED) */}
-                  <div className="relative mb-3">
-                    <div
-                      className={`grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2 font-mono text-center transition-all ${
-                        isLocked ? 'filter blur-[5px] select-none opacity-60' : ''
-                      }`}
-                    >
-                      <div className="bg-[#131722] p-2 rounded-lg border border-[#2a2e39]">
-                        <div className="text-[10px] text-[#787b86]">ENTRY</div>
-                        <div className="text-xs font-bold text-white" dir="ltr">
-                          {signal.entryPrice.toLocaleString()}
-                        </div>
-                      </div>
-                      <div className="bg-[#131722] p-2 rounded-lg border border-[#2a2e39]">
-                        <div className="text-[10px] text-[#f23645]">SL</div>
-                        <div className="text-xs font-bold text-[#f23645]" dir="ltr">
-                          {signal.sl.toLocaleString()}
-                        </div>
-                      </div>
-                      <div className="bg-[#131722] p-2 rounded-lg border border-[#2a2e39]">
-                        <div className="text-[10px] text-[#089981]">TP1</div>
-                        <div className="text-xs font-bold text-[#089981]" dir="ltr">
-                          {signal.tp1.toLocaleString()}
-                        </div>
-                      </div>
-                      <div className="bg-[#131722] p-2 rounded-lg border border-[#2a2e39]">
-                        <div className="text-[10px] text-[#089981]">TP2</div>
-                        <div className="text-xs font-bold text-[#089981]" dir="ltr">
-                          {signal.tp2.toLocaleString()}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* FROSTED GLASS LOCK OVERLAY FOR BLURRED BOT / VIP SIGNALS */}
-                    {isLocked && (
-                      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/40 backdrop-blur-[2px] rounded-lg p-2 text-center">
-                        <div className="flex items-center gap-1.5 text-xs font-bold text-amber-400 mb-1">
-                          <Lock className="w-3.5 h-3.5" />
-                          <span>
-                            {signal.channel === 'bot'
-                              ? isAr ? 'إشارة روبوت آلية حصرية' : 'Exclusive Bot Signal'
-                              : isAr ? 'توصية خاصة بـ VIP' : 'VIP Setup'}
+                        {alertItem.chat_id && (
+                          <span className="text-[10px] text-[#787b86] font-mono bg-[#1e222d] px-2 py-0.5 rounded border border-[#2a2e39]">
+                            {alertItem.chat_id}
                           </span>
-                        </div>
-                        <p className="text-[10px] text-[#d1d4dc] max-w-[240px] mb-2 leading-tight">
-                          {isAr
-                            ? 'أدخل رمز تفعيل أو اشترك في VIP لإظهار أسعار الدخول والأهداف'
-                            : 'Enter unlock code or upgrade to reveal numerical levels'}
-                        </p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-[#787b86] font-mono">{timeStr}</span>
                         <button
-                          onClick={() => {
-                            soundManager.playClick();
-                            if (signal.channel === 'bot') {
-                              setUnlockModalOpen(true);
-                            } else if (onOpenPromoModal) {
-                              onOpenPromoModal();
-                            }
-                          }}
-                          className="px-3 py-1 rounded bg-white text-[#131722] text-[11px] font-bold hover:bg-[#d1d4dc] transition-all cursor-pointer shadow-sm"
+                          onClick={() => handleCopyLevels(alertItem.text, alertItem.id)}
+                          className={`p-1 rounded text-[11px] transition-all cursor-pointer ${
+                            copiedId === alertItem.id
+                              ? 'bg-[#089981] text-black font-bold'
+                              : 'bg-[#1e222d] hover:bg-[#2a2e39] text-[#787b86] hover:text-white'
+                          }`}
+                          title={isAr ? 'نسخ النص' : 'Copy message'}
                         >
-                          {isAr ? 'إلغاء الحجب الآن 🔓' : 'Unlock Levels 🔓'}
+                          <Copy className="w-3.5 h-3.5" />
                         </button>
                       </div>
-                    )}
+                    </div>
+
+                    {/* Text Message Content - Telegram Chat Style */}
+                    <div className="text-xs text-[#d1d4dc] leading-relaxed whitespace-pre-wrap font-mono bg-[#1a1e29] p-3 rounded-xl border border-[#2a2e39]/80 text-start dir-ltr">
+                      {alertItem.text}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      ) : (
+        /* STANDARD SIGNALS CARDS GRID FOR PUBLIC FREE & VIP CHANNELS */
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {channelSignals.length === 0 ? (
+            <div className="col-span-full p-8 text-center bg-[#1e222d] border border-[#2a2e39] rounded-xl text-[#787b86]">
+              <Radio className="w-8 h-8 mx-auto mb-2 text-[#787b86] opacity-60" />
+              <p className="text-sm font-semibold">{isAr ? 'لا توجد صفقات معلقة في هذه القناة حالياً' : 'No active trades in this channel right now'}</p>
+              <p className="text-xs text-[#787b86] mt-1">{isAr ? 'سيتم بث الإشارات لحظة استيفاء شروط السيولة' : 'New setups will broadcast upon liquidity confirmation'}</p>
+            </div>
+          ) : (
+            channelSignals.map((signal) => {
+              const isBotLocked = signal.channel === 'bot' && !hasFullAccess;
+              const isVipLocked = signal.channel === 'vip' && !hasFullAccess;
+              const isLocked = isBotLocked || isVipLocked;
+
+              return (
+                <div
+                  key={signal.id}
+                  className="bg-[#1e222d] border border-[#2a2e39] hover:border-[#363a45] rounded-xl p-4 flex flex-col justify-between shadow-lg relative overflow-hidden transition-all group"
+                >
+                  <div>
+                    {/* Card Header: Symbol, Side, Badge, Timestamp */}
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`px-2.5 py-0.5 rounded text-xs font-mono font-bold ${
+                            signal.action === 'BUY'
+                              ? 'bg-[#089981]/15 text-[#089981] border border-[#089981]/30'
+                              : 'bg-[#f23645]/15 text-[#f23645] border border-[#f23645]/30'
+                          }`}
+                        >
+                          {signal.action}
+                        </span>
+                        <span className="text-base font-mono font-bold text-white tracking-wide">
+                          {signal.symbol}
+                        </span>
+                        <span className="text-[11px] text-[#787b86] font-mono">{signal.timeframe}</span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 text-xs font-mono">
+                        {signal.status === 'TP2_HIT' ? (
+                          <span className="px-2 py-0.5 rounded bg-[#089981]/15 text-[#089981] font-bold border border-[#089981]/30 flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" />
+                            <span>TP2 HIT (+{signal.pips} Pips)</span>
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded bg-[#131722] text-[#089981] font-bold border border-[#2a2e39] flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#089981] animate-ping" />
+                            <span>LIVE</span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Strategy and Channel badge */}
+                    <div className="flex items-center justify-between text-xs text-[#787b86] pb-2 mb-3 border-b border-[#2a2e39]">
+                      <span className="truncate">{signal.strategy}</span>
+                      <span className="font-mono text-[11px] shrink-0 text-[#089981]">
+                        {signal.timeAgo}
+                      </span>
+                    </div>
+
+                    {/* NUMERICAL MATRIX (BLURRED TEASER IF LOCKED, CRYSTAL CLEAR IF UNLOCKED) */}
+                    <div className="relative mb-3">
+                      <div
+                        className={`grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2 font-mono text-center transition-all ${
+                          isLocked ? 'filter blur-[5px] select-none opacity-60' : ''
+                        }`}
+                      >
+                        <div className="bg-[#131722] p-2 rounded-lg border border-[#2a2e39]">
+                          <div className="text-[10px] text-[#787b86]">ENTRY</div>
+                          <div className="text-xs font-bold text-white" dir="ltr">
+                            {signal.entryPrice.toLocaleString()}
+                          </div>
+                        </div>
+                        <div className="bg-[#131722] p-2 rounded-lg border border-[#2a2e39]">
+                          <div className="text-[10px] text-[#f23645]">SL</div>
+                          <div className="text-xs font-bold text-[#f23645]" dir="ltr">
+                            {signal.sl.toLocaleString()}
+                          </div>
+                        </div>
+                        <div className="bg-[#131722] p-2 rounded-lg border border-[#2a2e39]">
+                          <div className="text-[10px] text-[#089981]">TP1</div>
+                          <div className="text-xs font-bold text-[#089981]" dir="ltr">
+                            {signal.tp1.toLocaleString()}
+                          </div>
+                        </div>
+                        <div className="bg-[#131722] p-2 rounded-lg border border-[#2a2e39]">
+                          <div className="text-[10px] text-[#089981]">TP2</div>
+                          <div className="text-xs font-bold text-[#089981]" dir="ltr">
+                            {signal.tp2.toLocaleString()}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* FROSTED GLASS LOCK OVERLAY FOR BLURRED BOT / VIP SIGNALS */}
+                      {isLocked && (
+                        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/40 backdrop-blur-[2px] rounded-lg p-2 text-center">
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-amber-400 mb-1">
+                            <Lock className="w-3.5 h-3.5" />
+                            <span>
+                              {signal.channel === 'bot'
+                                ? isAr ? 'إشارة روبوت آلية حصرية' : 'Exclusive Bot Signal'
+                                : isAr ? 'توصية خاصة بـ VIP' : 'VIP Setup'}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-[#d1d4dc] max-w-[240px] mb-2 leading-tight">
+                            {isAr
+                              ? 'أدخل رمز تفعيل أو اشترك في VIP لإظهار أسعار الدخول والأهداف'
+                              : 'Enter unlock code or upgrade to reveal numerical levels'}
+                          </p>
+                          <button
+                            onClick={() => {
+                              soundManager.playClick();
+                              if (signal.channel === 'bot') {
+                                setUnlockModalOpen(true);
+                              } else if (onOpenPromoModal) {
+                                onOpenPromoModal();
+                              }
+                            }}
+                            className="px-3 py-1 rounded bg-white text-[#131722] text-[11px] font-bold hover:bg-[#d1d4dc] transition-all cursor-pointer shadow-sm"
+                          >
+                            {isAr ? 'إلغاء الحجب الآن 🔓' : 'Unlock Levels 🔓'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Trade Instructions / Notes */}
+                    <p className="text-xs text-[#787b86] leading-relaxed mb-3">
+                      {isLocked
+                        ? isAr
+                          ? 'إشارة خوارزمية مؤكدة بنسبة ثقة 94%. المستويات الدقيقة مشفرة لحسابات VIP والمصرح لهم.'
+                          : 'Algorithmic confirmation active (94% confidence). Exact levels encrypted for VIP access.'
+                        : isAr
+                        ? signal.instructionsAr
+                        : signal.instructionsEn}
+                    </p>
                   </div>
 
-                  {/* Trade Instructions / Notes */}
-                  <p className="text-xs text-[#787b86] leading-relaxed mb-3">
-                    {isLocked
-                      ? isAr
-                        ? 'إشارة خوارزمية مؤكدة بنسبة ثقة 94%. المستويات الدقيقة مشفرة لحسابات VIP والمصرح لهم.'
-                        : 'Algorithmic confirmation active (94% confidence). Exact levels encrypted for VIP access.'
-                      : isAr
-                      ? signal.instructionsAr
-                      : signal.instructionsEn}
-                  </p>
-                </div>
-
-                {/* Card Actions: Copy Levels / View Chart */}
-                <div className="pt-2 border-t border-[#2a2e39] flex items-center justify-between gap-2">
-                  <button
-                    onClick={() => onSelectSymbol(signal.symbol as MarketSymbol)}
-                    className="py-1.5 px-3 rounded bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-xs font-medium text-white transition-colors cursor-pointer flex items-center gap-1"
-                  >
-                    <span>{isAr ? 'عرض الشارت' : 'Chart'}</span>
-                  </button>
-
-                  {!isLocked ? (
+                  {/* Card Actions: Copy Levels / View Chart */}
+                  <div className="pt-2 border-t border-[#2a2e39] flex items-center justify-between gap-2">
                     <button
-                      onClick={() =>
-                        handleCopyLevels(
-                          `${signal.symbol} ${signal.action} @ ${signal.entryPrice} | TP1: ${signal.tp1} | TP2: ${signal.tp2} | SL: ${signal.sl}`,
-                          signal.id
-                        )
-                      }
-                      className={`py-1.5 px-3 rounded text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
-                        copiedId === signal.id
-                          ? 'bg-[#089981] text-[#131722]'
-                          : 'bg-white text-[#131722] hover:bg-[#d1d4dc]'
-                      }`}
+                      onClick={() => onSelectSymbol(signal.symbol as MarketSymbol)}
+                      className="py-1.5 px-3 rounded bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-xs font-medium text-white transition-colors cursor-pointer flex items-center gap-1"
                     >
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>{copiedId === signal.id ? (isAr ? '✓ تم النسخ' : 'Copied!') : (isAr ? 'نسخ المستويات' : 'Copy')}</span>
+                      <span>{isAr ? 'عرض الشارت' : 'Chart'}</span>
                     </button>
-                  ) : (
-                    <button
-                      onClick={() => {
-                        soundManager.playClick();
-                        setUnlockModalOpen(true);
-                      }}
-                      className="py-1.5 px-3 rounded bg-[#2a2e39] hover:bg-[#363a45] text-amber-400 text-xs font-semibold flex items-center gap-1 cursor-pointer"
-                    >
-                      <Lock className="w-3.5 h-3.5" />
-                      <span>{isAr ? 'فك التشفير' : 'Unlock'}</span>
-                    </button>
-                  )}
+
+                    {!isLocked ? (
+                      <button
+                        onClick={() =>
+                          handleCopyLevels(
+                            `${signal.symbol} ${signal.action} @ ${signal.entryPrice} | TP1: ${signal.tp1} | TP2: ${signal.tp2} | SL: ${signal.sl}`,
+                            signal.id
+                          )
+                        }
+                        className={`py-1.5 px-3 rounded text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                          copiedId === signal.id
+                            ? 'bg-[#089981] text-[#131722]'
+                            : 'bg-white text-[#131722] hover:bg-[#d1d4dc]'
+                        }`}
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>{copiedId === signal.id ? (isAr ? '✓ تم النسخ' : 'Copied!') : (isAr ? 'نسخ المستويات' : 'Copy')}</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          soundManager.playClick();
+                          setUnlockModalOpen(true);
+                        }}
+                        className="py-1.5 px-3 rounded bg-[#2a2e39] hover:bg-[#363a45] text-amber-400 text-xs font-semibold flex items-center gap-1 cursor-pointer"
+                      >
+                        <Lock className="w-3.5 h-3.5" />
+                        <span>{isAr ? 'فك التشفير' : 'Unlock'}</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })
-        )}
-      </div>
+              );
+            })
+          )}
+        </div>
+      )}
 
       {/* 4. UNLOCK BOT SIGNALS MODAL FOR FREE USERS */}
       {unlockModalOpen && (

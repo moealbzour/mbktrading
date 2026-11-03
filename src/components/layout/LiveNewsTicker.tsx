@@ -16,15 +16,69 @@ import {
   Filter,
   Volume2
 } from 'lucide-react';
-import { io } from 'socket.io-client';
 import { soundManager } from '../../utils/audio';
 import { RSSNewsItem, NewsImpact } from '../../types/trading';
 
 interface Props {
   lang?: 'ar' | 'en';
+  isFullPage?: boolean;
 }
 
-export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar' }) => {
+// Subcomponent for Official TradingView Economic Calendar Events Widget
+const TradingViewEconomicEventsWidget: React.FC<{
+  lang?: 'ar' | 'en';
+}> = ({ lang = 'ar' }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    container.innerHTML = '';
+
+    const widgetContainer = document.createElement('div');
+    widgetContainer.className = 'tradingview-widget-container__widget';
+    widgetContainer.style.height = '100%';
+    widgetContainer.style.width = '100%';
+
+    const script = document.createElement('script');
+    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-events.js';
+    script.type = 'text/javascript';
+    script.async = true;
+    script.innerHTML = JSON.stringify({
+      colorTheme: 'dark',
+      isTransparent: true,
+      width: '100%',
+      height: '100%',
+      locale: lang === 'ar' ? 'ar' : 'en',
+      importanceFilter: '0', // 0 = High Importance Events only (CPI, NFP, Fed Rates, etc.)
+      currencyFilter: 'USD,EUR,GBP,JPY,CAD,AUD,CHF'
+    });
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'tradingview-widget-container';
+    wrapper.style.height = '100%';
+    wrapper.style.width = '100%';
+    wrapper.appendChild(widgetContainer);
+    wrapper.appendChild(script);
+
+    container.appendChild(wrapper);
+
+    return () => {
+      if (container) {
+        container.innerHTML = '';
+      }
+    };
+  }, [lang]);
+
+  return (
+    <div
+      ref={containerRef}
+      className="w-full h-full min-h-[500px] rounded-xl overflow-hidden bg-[#131722] border border-[#2a2e39] relative shadow-lg"
+    />
+  );
+};
+
+export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = false }) => {
   const [news, setNews] = useState<RSSNewsItem[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -74,16 +128,9 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar' }) => {
   useEffect(() => {
     fetchNews();
 
-    // Socket.io real-time listener for SQLite news changes
-    const socket = io();
-    socket.on('news_updated', () => {
-      fetchNews();
-    });
-
-    const interval = setInterval(fetchNews, 30000); // 30s auto polling fallback
+    const interval = setInterval(fetchNews, 180000); // 3 minutes auto polling
     return () => {
       clearInterval(interval);
-      socket.disconnect();
     };
   }, []);
 
@@ -292,26 +339,26 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar' }) => {
         </div>
       </div>
 
-      {/* 4. EXPANDED REAL ARABIC RSS HEADLINES DRAWER WITH IMPACT FILTERING */}
-      {isExpanded && (
-        <div className="border-t border-[#2a2e39] bg-[#131722] p-3 sm:p-4 max-h-80 overflow-y-auto animate-fade-in shadow-2xl">
+      {/* 4. EXPANDED REAL ARABIC RSS HEADLINES & TRADINGVIEW ECONOMIC CALENDAR SPLIT VIEW */}
+      {(isExpanded || isFullPage) && (
+        <div className="border-t border-[#2a2e39] bg-[#131722] p-3 sm:p-5 animate-fade-in shadow-2xl rounded-b-2xl">
           {/* Header & Filter Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 mb-3 border-b border-[#2a2e39] text-xs">
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-4 border-b border-[#2a2e39] text-xs">
             <div className="flex items-center gap-2">
-              <span className="font-bold text-[#d1d4dc] flex items-center gap-1.5">
-                <Newspaper className="w-4 h-4 text-[#089981]" />
-                {isAr ? 'بث الأخبار الاقتصادية والعملات بالعربية' : 'Live Arabic Financial News Wire'}
+              <span className="font-bold text-white text-sm flex items-center gap-1.5">
+                <Newspaper className="w-4.5 h-4.5 text-[#089981]" />
+                {isAr ? 'مركز الأخبار والأحداث الاقتصادية اللحظية' : 'Financial News & Macro Events Hub'}
               </span>
-              <span className="text-[11px] text-[#787b86] font-mono">
-                {lastRefreshed && `${isAr ? 'آخر فحص:' : 'Updated:'} ${lastRefreshed}`}
+              <span className="text-[11px] text-[#787b86] font-mono border-s border-[#2a2e39] ps-2">
+                {lastRefreshed && `${isAr ? 'آخر تحديث:' : 'Updated:'} ${lastRefreshed}`}
               </span>
             </div>
 
             {/* Impact Filter Buttons */}
-            <div className="flex items-center gap-1 bg-[#1e222d] p-0.5 rounded border border-[#2a2e39] text-[11px]">
+            <div className="flex items-center gap-1 bg-[#1e222d] p-1 rounded-lg border border-[#2a2e39] text-xs">
               <span className="px-1.5 text-[#787b86] font-semibold flex items-center gap-1">
                 <Filter className="w-3 h-3 text-[#2962ff]" />
-                <span>{isAr ? 'التأثير:' : 'Impact:'}</span>
+                <span>{isAr ? 'تأثير الخبر:' : 'Filter Impact:'}</span>
               </span>
 
               <button
@@ -319,8 +366,8 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar' }) => {
                   soundManager.playClick();
                   setFilterImpact('ALL');
                 }}
-                className={`px-2 py-0.5 rounded cursor-pointer transition-colors ${
-                  filterImpact === 'ALL' ? 'bg-[#2962ff] text-white font-bold' : 'text-[#787b86] hover:text-white'
+                className={`px-2.5 py-1 rounded cursor-pointer font-bold transition-colors ${
+                  filterImpact === 'ALL' ? 'bg-[#2962ff] text-white' : 'text-[#787b86] hover:text-white'
                 }`}
               >
                 {isAr ? 'الكل' : 'All'}
@@ -331,14 +378,14 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar' }) => {
                   soundManager.playClick();
                   setFilterImpact('HIGH');
                 }}
-                className={`px-2 py-0.5 rounded cursor-pointer transition-colors flex items-center gap-1 ${
+                className={`px-2.5 py-1 rounded cursor-pointer font-bold transition-colors flex items-center gap-1 ${
                   filterImpact === 'HIGH'
-                    ? 'bg-[#f23645] text-white font-bold'
+                    ? 'bg-[#f23645] text-white'
                     : 'text-[#f23645] hover:bg-[#f23645]/10'
                 }`}
               >
-                <Flame className="w-2.5 h-2.5" />
-                <span>{isAr ? 'قوي جداً' : 'High'}</span>
+                <Flame className="w-3 h-3" />
+                <span>{isAr ? 'عالي التأثير' : 'High'}</span>
               </button>
 
               <button
@@ -346,89 +393,124 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar' }) => {
                   soundManager.playClick();
                   setFilterImpact('MEDIUM');
                 }}
-                className={`px-2 py-0.5 rounded cursor-pointer transition-colors flex items-center gap-1 ${
+                className={`px-2.5 py-1 rounded cursor-pointer font-bold transition-colors flex items-center gap-1 ${
                   filterImpact === 'MEDIUM'
-                    ? 'bg-[#ff9800] text-black font-bold'
+                    ? 'bg-[#ff9800] text-black'
                     : 'text-[#ff9800] hover:bg-[#ff9800]/10'
                 }`}
               >
-                <Zap className="w-2.5 h-2.5" />
+                <Zap className="w-3 h-3" />
                 <span>{isAr ? 'متوسط' : 'Med'}</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  soundManager.playClick();
-                  setFilterImpact('LOW');
-                }}
-                className={`px-2 py-0.5 rounded cursor-pointer transition-colors flex items-center gap-1 ${
-                  filterImpact === 'LOW'
-                    ? 'bg-[#089981] text-white font-bold'
-                    : 'text-[#089981] hover:bg-[#089981]/10'
-                }`}
-              >
-                <span>{isAr ? 'منخفض' : 'Low'}</span>
               </button>
             </div>
           </div>
 
-          {/* List of Arabic News with Impact Indicators */}
-          <div className="space-y-2">
-            {drawerItems.length === 0 ? (
-              <div className="text-center py-6 text-[#787b86] text-xs font-mono">
-                {isAr ? 'لا توجد أخبار بهذا المستوى من التأثير حالياً.' : 'No news found matching this impact filter.'}
-              </div>
-            ) : (
-              drawerItems.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-start justify-between gap-3 p-2.5 rounded-lg bg-[#1e222d]/60 hover:bg-[#1e222d] border border-[#2a2e39]/60 hover:border-[#363a45] transition-all"
-                >
-                  <div className="space-y-1.5 min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      {/* Impact size badge */}
-                      {renderImpactBadge(item.impact, item.impactLabelAr, item.impactLabelEn)}
-
-                      {/* Source */}
-                      <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-[#131722] text-[#2962ff] border border-[#2a2e39]">
-                        {item.source}
-                      </span>
-
-                      {/* Category */}
-                      <span className="text-[11px] text-[#787b86] font-mono">
-                        {item.category}
-                      </span>
-
-                      {/* Time */}
-                      <span className="text-[11px] text-[#787b86] font-mono">
-                        • {isAr ? item.timeAgoAr || item.timeAgo : item.timeAgo}
-                      </span>
-                    </div>
-
-                    {/* Headline */}
-                    <a
-                      href={item.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs sm:text-sm font-medium text-white hover:text-[#2962ff] transition-colors line-clamp-2 block"
-                    >
-                      {item.titleAr || item.title}
-                    </a>
+          {/* MAIN SPLIT CONTAINER: NEWS FEED (LEFT 2 COLUMNS) | TRADINGVIEW ECONOMIC EVENTS CALENDAR (RIGHT 1 COLUMN) */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* COLUMN 1: INDEPENDENTLY SCROLLABLE LIVE NEWS FEED */}
+            <div className="lg:col-span-2 bg-[#1e222d] border border-[#2a2e39] rounded-2xl p-3 sm:p-4 flex flex-col shadow-xl">
+              <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-[#2a2e39]">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-[#2962ff]/15 border border-[#2962ff]/30 text-[#2962ff]">
+                    <Newspaper className="w-4 h-4" />
                   </div>
-
-                  {/* Read article button */}
-                  <a
-                    href={item.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-1.5 text-[#787b86] hover:text-white rounded hover:bg-[#2a2e39] shrink-0 border border-transparent hover:border-[#363a45] transition-colors"
-                    title={isAr ? 'قراءة الخبر من المصدر المعتمد' : 'Read original article'}
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
+                  <div>
+                    <h3 className="text-xs font-bold text-white">
+                      {isAr ? 'بث العناوين والتحليلات الاقتصادية' : 'Live Headlines & Market Analysis'}
+                    </h3>
+                    <p className="text-[10px] text-[#787b86]">
+                      {isAr ? 'مستجدات الكريبتو، الأسهم، والبنوك المركزية من المصادر الرسمية' : 'Cryptocurrency, equities, & central bank updates'}
+                    </p>
+                  </div>
                 </div>
-              ))
-            )}
+
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#089981]/20 text-[#089981] border border-[#089981]/30">
+                  {drawerItems.length} {isAr ? 'مقالات' : 'Items'}
+                </span>
+              </div>
+
+              {/* INDEPENDENT SCROLL AREA WITH overflow-y-auto */}
+              <div className="space-y-2.5 max-h-[580px] overflow-y-auto pr-1.5 scrollbar-thin scrollbar-thumb-[#2a2e39]">
+                {drawerItems.length === 0 ? (
+                  <div className="text-center py-12 text-[#787b86] text-xs font-mono">
+                    {isAr ? 'لا توجد أخبار بهذا المستوى من التأثير حالياً.' : 'No news found matching this impact filter.'}
+                  </div>
+                ) : (
+                  drawerItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-start justify-between gap-3 p-3 rounded-xl bg-[#131722] hover:bg-[#131722]/80 border border-[#2a2e39] hover:border-[#089981]/50 transition-all shadow-sm group"
+                    >
+                      <div className="space-y-1.5 min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          {renderImpactBadge(item.impact, item.impactLabelAr, item.impactLabelEn)}
+
+                          <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-[#1e222d] text-[#2962ff] border border-[#2a2e39]">
+                            {item.source}
+                          </span>
+
+                          <span className="px-1.5 py-0.2 rounded text-[10px] font-mono text-[#089981] bg-[#089981]/10 border border-[#089981]/20">
+                            {item.category}
+                          </span>
+
+                          <span className="text-[10px] text-[#787b86] font-mono">
+                            • {isAr ? item.timeAgoAr || item.timeAgo : item.timeAgo}
+                          </span>
+                        </div>
+
+                        <a
+                          href={item.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs sm:text-sm font-bold text-white group-hover:text-[#2962ff] transition-colors line-clamp-2 leading-snug block"
+                        >
+                          {item.titleAr || item.title}
+                        </a>
+                      </div>
+
+                      <a
+                        href={item.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-2 text-[#787b86] hover:text-white rounded-lg hover:bg-[#2a2e39] shrink-0 border border-transparent hover:border-[#363a45] transition-colors"
+                        title={isAr ? 'قراءة الخبر من المصدر' : 'Read original article'}
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </a>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* COLUMN 2: TRADINGVIEW HIGH-IMPACT ECONOMIC EVENTS CALENDAR WIDGET */}
+            <div className="lg:col-span-1 bg-[#1e222d] border border-[#2a2e39] rounded-2xl p-3 sm:p-4 flex flex-col shadow-xl">
+              <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-[#2a2e39]">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-[#f23645]/15 border border-[#f23645]/30 text-[#f23645]">
+                    <Flame className="w-4 h-4 animate-pulse" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-white">
+                      {isAr ? 'الأحداث الاقتصادية عالية التأثير' : 'High-Impact Economic Events'}
+                    </h3>
+                    <p className="text-[10px] text-[#787b86]">
+                      {isAr ? 'مؤشرات CPI، NFP، وقرارات الفائدة الفيدرالية' : 'CPI, NFP, & Fed Rate decisions'}
+                    </p>
+                  </div>
+                </div>
+
+                <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-[#f23645]/20 text-[#f23645] border border-[#f23645]/30 flex items-center gap-1 animate-pulse">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#f23645]" />
+                  <span>HIGH IMPORTANCE</span>
+                </span>
+              </div>
+
+              {/* TRADINGVIEW EMBEDDED EVENTS WIDGET */}
+              <div className="flex-1 min-h-[550px] w-full">
+                <TradingViewEconomicEventsWidget lang={lang} />
+              </div>
+            </div>
           </div>
         </div>
       )}

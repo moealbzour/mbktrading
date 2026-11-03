@@ -1,18 +1,34 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, doc, getDocFromServer } from "firebase/firestore";
+import config from "../firebase-applet-config.json";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCgNCyANwJ9CJmTJX0HKH-ssGHlfktF0L8",
-  authDomain: "mbktrading-8dc98.firebaseapp.com",
-  projectId: "mbktrading-8dc98",
-  storageBucket: "mbktrading-8dc98.firebasestorage.app",
-  messagingSenderId: "517824449905",
-  appId: "1:517824449905:web:b23974879c5ef0b78f7ad0",
-  measurementId: "G-1SENWMMH31"
+  apiKey: config.apiKey,
+  authDomain: config.authDomain,
+  projectId: config.projectId,
+  storageBucket: config.storageBucket,
+  messagingSenderId: config.messagingSenderId,
+  appId: config.appId,
+  measurementId: config.measurementId || ""
 };
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
-export const db = getFirestore(app);
+
+export const db = config.firestoreDatabaseId && config.firestoreDatabaseId !== '(default)'
+  ? getFirestore(app, config.firestoreDatabaseId)
+  : getFirestore(app);
+
+// Connection check to validate Firestore on boot
+export async function testConnection() {
+  try {
+    await getDocFromServer(doc(db, 'signals', 'connection-check'));
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('the client is offline')) {
+      console.error("Please check your Firebase configuration.");
+    }
+  }
+}
+testConnection().catch(() => {});

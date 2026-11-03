@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { EconomicNewsItem } from '../types/trading';
 import { Calendar, AlertTriangle, Clock, Globe } from 'lucide-react';
-import { io } from 'socket.io-client';
 
 interface Props {
   events?: EconomicNewsItem[];
@@ -44,15 +43,6 @@ export const EconomicCalendarPanel: React.FC<Props> = ({ events: propEvents }) =
     } else {
       setEvents(propEvents);
     }
-
-    const socket = io();
-    socket.on('calendar_updated', () => {
-      fetchCalendar();
-    });
-
-    return () => {
-      socket.disconnect();
-    };
   }, [propEvents]);
   return (
     <div className="bg-[#111827] border border-slate-800 rounded-xl overflow-hidden shadow-2xl">

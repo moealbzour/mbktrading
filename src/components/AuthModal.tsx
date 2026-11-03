@@ -62,7 +62,8 @@ export const AuthModal: React.FC<Props> = ({
     try {
       let user: UserProfile;
       if (tab === 'signup') {
-        user = await signUpWithEmail(email, password, fullName, promoCode);
+        const res = await signUpWithEmail(email, password, fullName, promoCode);
+        user = res.userProfile;
       } else {
         user = await signInWithEmail(email, password, promoCode);
       }
@@ -93,10 +94,10 @@ export const AuthModal: React.FC<Props> = ({
     setIsLoading(true);
 
     try {
-      const user = await signInWithGoogle(promoCode);
+      const { userProfile } = await signInWithGoogle(promoCode);
       soundManager.playProfitChime();
 
-      if (user.role === 'VIP') {
+      if (userProfile.role === 'VIP') {
         confetti({
           particleCount: 80,
           spread: 70,
@@ -104,7 +105,7 @@ export const AuthModal: React.FC<Props> = ({
         });
       }
 
-      onLoginSuccess(user);
+      onLoginSuccess(userProfile);
       onClose();
     } catch (err: any) {
       console.warn('Google Auth notice:', err?.code || err?.message);
