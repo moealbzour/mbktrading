@@ -141,6 +141,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
 }) => {
   const [activeView, setActiveView] = useState<WorkspaceView>('signals');
   const [activeMainView, setActiveMainView] = useState<'chart' | 'heatmap'>('chart');
+
   // Permanent sidebar: always visible, can be shrinked to chosen topic (trades or chat) to save space
   const [isSidebarShrinked, setIsSidebarShrinked] = useState<boolean>(() => {
     return localStorage.getItem('mbk_tv_sidebar_shrinked') === 'true';

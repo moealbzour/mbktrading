@@ -16,64 +16,7 @@ import {
 import { BacktestLog } from '../../types/trading';
 import { soundManager } from '../../utils/audio';
 
-const INITIAL_BACKTESTS: BacktestLog[] = [
-  {
-    id: 'bt-1',
-    symbol: 'US100',
-    playbookTitle: 'London Open Liquidity Sweep',
-    timeframe: '5M',
-    direction: 'LONG',
-    entryPrice: 20420.0,
-    slPrice: 20380.0,
-    tpPrice: 20540.0,
-    outcome: 'WIN',
-    rMultiple: 3.0,
-    notes: 'سحب سيولة قاع آسيا مع تشكيل MSS واضح وإعادة اختبار FVG.',
-    date: '2026-10-12'
-  },
-  {
-    id: 'bt-2',
-    symbol: 'US100',
-    playbookTitle: 'ICT Silver Bullet (10-11 AM)',
-    timeframe: '1M',
-    direction: 'LONG',
-    entryPrice: 20510.0,
-    slPrice: 20485.0,
-    tpPrice: 20585.0,
-    outcome: 'WIN',
-    rMultiple: 3.0,
-    notes: 'استهداف سيولة القمة السابقة بدقة خلال نافذة 10:00 صباحاً.',
-    date: '2026-10-11'
-  },
-  {
-    id: 'bt-3',
-    symbol: 'XAUUSD',
-    playbookTitle: 'Institutional Order Block Retest',
-    timeframe: '15M',
-    direction: 'SHORT',
-    entryPrice: 2685.0,
-    slPrice: 2692.0,
-    tpPrice: 2664.0,
-    outcome: 'WIN',
-    rMultiple: 3.0,
-    notes: 'ملامسة البلوك البيعي مع ظهور ذيل رفض قوي وتأكيد هبوطي.',
-    date: '2026-10-10'
-  },
-  {
-    id: 'bt-4',
-    symbol: 'EURUSD',
-    playbookTitle: 'London Open Liquidity Sweep',
-    timeframe: '15M',
-    direction: 'LONG',
-    entryPrice: 1.0910,
-    slPrice: 1.0890,
-    tpPrice: 1.0900,
-    outcome: 'LOSS',
-    rMultiple: -1.0,
-    notes: 'استمرار الزخم البيعي دون احترام منطقة الفجوة السعرية.',
-    date: '2026-10-09'
-  }
-];
+const INITIAL_BACKTESTS: BacktestLog[] = [];
 
 export const BacktestLab: React.FC = () => {
   const [logs, setLogs] = useState<BacktestLog[]>(() => {

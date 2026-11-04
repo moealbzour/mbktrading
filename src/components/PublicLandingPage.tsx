@@ -28,6 +28,7 @@ import {
 import { HeaderTicker } from './layout/HeaderTicker';
 import { ArticleReaderModal, ArticleData } from './ArticleReaderModal';
 import { soundManager } from '../utils/audio';
+import { useSignalsContext } from '../context/SignalsContext';
 
 interface Props {
   tickers: MarketTicker[];
@@ -196,6 +197,8 @@ export const PublicLandingPage: React.FC<Props> = ({
   lang: controlledLang,
   onToggleLang
 }) => {
+  const { signals: liveSignals, trades: liveTrades } = useSignalsContext();
+
   // Language state (support controlled or internal)
   const [internalLang, setInternalLang] = useState<'ar' | 'en'>('ar');
   const lang = controlledLang || internalLang;
@@ -722,7 +725,9 @@ export const PublicLandingPage: React.FC<Props> = ({
                   <div className="lg:col-span-8 bg-[#131722] border border-[#2a2e39] rounded-lg p-4 h-64 flex flex-col justify-between relative overflow-hidden">
                     <div className="flex items-center justify-between text-[11px] font-mono border-b border-[#2a2e39] pb-2">
                       <span className="text-[#089981] font-bold">
-                        {heroSymbol === 'US100' ? 'BUY US100 @ 20,442.00' : 'BUY XAUUSD @ 2,668.50'}
+                        {liveSignals.length > 0
+                          ? `${liveSignals[0].action} ${liveSignals[0].symbol} @ ${liveSignals[0].entryPrice}`
+                          : (isAr ? 'لا توجد إشارات مباشرة حالياً' : 'No live alerts yet')}
                       </span>
                       <span dir="ltr" className="text-[#089981] font-bold inline-block font-mono">
                         {heroSymbol === 'US100' ? '+123.4 Pips' : '+164 Pips'}
@@ -839,55 +844,50 @@ export const PublicLandingPage: React.FC<Props> = ({
                 </div>
 
                 <div className="space-y-2.5">
-                  <div className="bg-[#131722] border border-[#2a2e39] rounded-lg p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
-                    <div className="flex items-center gap-2.5">
-                      <span className="px-2.5 py-1 rounded bg-[#089981]/20 text-[#089981] border border-[#089981]/40 font-bold">
-                        BUY
-                      </span>
-                      <span className="font-bold text-white text-base">US100</span>
-                      <span dir="ltr" className="text-[#787b86] inline-block font-mono">@ 20,440.00</span>
+                  {liveSignals.length > 0 ? (
+                    liveSignals.slice(0, 3).map((sig) => (
+                      <div
+                        key={sig.id}
+                        className="bg-[#131722] border border-[#2a2e39] rounded-lg p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs font-mono"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span
+                            className={`px-2.5 py-1 rounded font-bold ${
+                              sig.action === 'BUY'
+                                ? 'bg-[#089981]/20 text-[#089981] border border-[#089981]/40'
+                                : 'bg-[#f23645]/20 text-[#f23645] border border-[#f23645]/40'
+                            }`}
+                          >
+                            {sig.action}
+                          </span>
+                          <span className="font-bold text-white text-base">{sig.symbol}</span>
+                          <span dir="ltr" className="text-[#787b86] inline-block font-mono">@ {sig.entryPrice}</span>
+                        </div>
+
+                        <div className="flex items-center gap-3 text-xs">
+                          <span>TP1: {sig.tp1}</span>
+                          <span>TP2: {sig.tp2}</span>
+                          <span className="text-[#f23645]">SL: {sig.sl}</span>
+                          <span dir="ltr" className="text-[#089981] font-bold inline-block font-mono">+{sig.pips} Pips 🎯</span>
+                        </div>
+
+                        <button
+                          onClick={() => handleCopyLevels(`${sig.action} ${sig.symbol} @ ${sig.entryPrice} | TP1: ${sig.tp1} | TP2: ${sig.tp2} | SL: ${sig.sl}`)}
+                          className="px-3 py-1.5 rounded bg-white text-[#131722] hover:bg-[#d1d4dc] font-bold text-xs transition-colors cursor-pointer flex items-center gap-1.5"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>{isAr ? 'نسخ مستويات الصفقة' : 'Copy Levels'}</span>
+                        </button>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-8 text-center bg-[#131722] border border-[#2a2e39] rounded-lg text-[#787b86]">
+                      <p className="text-sm font-semibold">{isAr ? 'لا توجد إشارات مباشرة حالياً' : 'No live alerts yet'}</p>
+                      <p className="text-xs text-[#787b86] mt-1">
+                        {isAr ? 'سيتم بث التوصيات فور صدورها من المشرف أو البوت الآلي' : 'Live signals will broadcast here as soon as posted'}
+                      </p>
                     </div>
-
-                    <div className="flex items-center gap-3 text-xs">
-                      <span>TP1: 20,500</span>
-                      <span>TP2: 20,560</span>
-                      <span className="text-[#f23645]">SL: 20,380</span>
-                      <span dir="ltr" className="text-[#089981] font-bold inline-block font-mono">+120 Pips 🎯</span>
-                    </div>
-
-                    <button
-                      onClick={() => handleCopyLevels('BUY US100 @ 20,440 | TP1: 20,500 | TP2: 20,560 | SL: 20,380')}
-                      className="px-3 py-1.5 rounded bg-white text-[#131722] hover:bg-[#d1d4dc] font-bold text-xs transition-colors cursor-pointer flex items-center gap-1.5"
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>{isAr ? 'نسخ مستويات الصفقة' : 'Copy Levels'}</span>
-                    </button>
-                  </div>
-
-                  <div className="bg-[#131722] border border-[#2a2e39] rounded-lg p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
-                    <div className="flex items-center gap-2.5">
-                      <span className="px-2.5 py-1 rounded bg-[#089981]/20 text-[#089981] border border-[#089981]/40 font-bold">
-                        BUY
-                      </span>
-                      <span className="font-bold text-white text-base">XAUUSD (الذهب)</span>
-                      <span dir="ltr" className="text-[#787b86] inline-block font-mono">@ 2,668.50</span>
-                    </div>
-
-                    <div className="flex items-center gap-3 text-xs">
-                      <span>TP1: 2,676.0</span>
-                      <span>TP2: 2,684.9</span>
-                      <span className="text-[#f23645]">SL: 2,658.0</span>
-                      <span dir="ltr" className="text-[#089981] font-bold inline-block font-mono">+164 Pips 🎯</span>
-                    </div>
-
-                    <button
-                      onClick={() => handleCopyLevels('BUY XAUUSD @ 2,668.50 | TP1: 2,676.0 | TP2: 2,684.9 | SL: 2,658.0')}
-                      className="px-3 py-1.5 rounded bg-white text-[#131722] hover:bg-[#d1d4dc] font-bold text-xs transition-colors cursor-pointer flex items-center gap-1.5"
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>{isAr ? 'نسخ مستويات الصفقة' : 'Copy Levels'}</span>
-                    </button>
-                  </div>
+                  )}
                 </div>
               </div>
             )}
@@ -1136,14 +1136,18 @@ export const PublicLandingPage: React.FC<Props> = ({
                 <div className="py-4 text-xs text-[#d1d4dc] space-y-3 font-mono">
                   {activeWorkflowPill === 'ideas' && (
                     <div className="space-y-2">
-                      <div className="p-3 bg-[#1e222d] rounded border border-[#2a2e39] flex justify-between items-center">
-                        <span className="text-[#089981] font-bold">BUY US100 @ 20,440.00</span>
-                        <span dir="ltr" className="inline-block font-mono">TP1: 20,500 (+60) • TP2: 20,560 (+120)</span>
-                      </div>
-                      <div className="p-3 bg-[#1e222d] rounded border border-[#2a2e39] flex justify-between items-center">
-                        <span className="text-[#089981] font-bold">BUY XAUUSD @ 2,668.50</span>
-                        <span dir="ltr" className="inline-block font-mono">TP1: 2,676.0 • TP2: 2,684.9 (+164)</span>
-                      </div>
+                      {liveTrades.length > 0 ? (
+                        liveTrades.slice(0, 2).map((t) => (
+                          <div key={t.id} className="p-3 bg-[#1e222d] rounded border border-[#2a2e39] flex justify-between items-center">
+                            <span className="text-[#089981] font-bold">{t.action} {t.symbol} @ {t.entryPrice}</span>
+                            <span dir="ltr" className="inline-block font-mono">TP1: {t.tp1} • SL: {t.sl}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-4 bg-[#1e222d] rounded border border-[#2a2e39] text-center text-xs text-[#787b86]">
+                          {isAr ? 'لا توجد إشارات مباشرة حالياً' : 'No live alerts yet'}
+                        </div>
+                      )}
                     </div>
                   )}
 

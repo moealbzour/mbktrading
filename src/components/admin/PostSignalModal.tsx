@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { soundManager } from '../../utils/audio';
+import { useSignalsContext } from '../../context/SignalsContext';
 
 interface Props {
   isOpen: boolean;
@@ -39,6 +40,7 @@ export const PostSignalModal: React.FC<Props> = ({
   currentUser,
   onSignalPublished
 }) => {
+  const { setDbError } = useSignalsContext();
   const [symbol, setSymbol] = useState<MarketSymbol>('US100');
   const [action, setAction] = useState<ManualSignalAction>('BUY');
   const [entryPrice, setEntryPrice] = useState<string>('20850.00');
@@ -131,7 +133,11 @@ export const PostSignalModal: React.FC<Props> = ({
     }
 
     setIsSubmitting(true);
-    soundManager.playClick();
+    try {
+      soundManager.playClick();
+    } catch (err) {
+      console.warn('[PostSignalModal] soundManager playClick error:', err);
+    }
 
     try {
       const payload = {
@@ -146,15 +152,28 @@ export const PostSignalModal: React.FC<Props> = ({
         riskReward: `1:${calculatedRR}`,
         pips: projectedPips,
         rationale: rationale.trim(),
+        notesAr: rationale.trim(),
+        instructionsAr: rationale.trim(),
         author: author || currentUser?.name || 'فريق أبحاث MBK',
-        status: 'ACTIVE',
+        status: 'RUNNING',
+        openTime: 'الآن',
+        duration: 'الآن',
         createdAt: serverTimestamp(),
         createdAtFormatted: 'الآن (مباشر)',
         verifiedWebhook: false,
-        channel: 'MANUAL'
+        channel: 'vip',
+        accessLevel: 'vip',
+        isBlurredForFree: true,
+        timestampMs: Date.now()
       };
 
-      await addDoc(collection(db, 'manual_signals'), payload);
+      // Write directly to 'signals' collection so live feeds sync instantly
+      await addDoc(collection(db, 'signals'), payload);
+
+      // Also write to 'manual_signals' for legacy record keeping
+      await addDoc(collection(db, 'manual_signals'), payload).catch((legacyErr) => {
+        console.warn('[PostSignalModal Notice] manual_signals write notice:', legacyErr);
+      });
 
       confetti({
         particleCount: 65,
@@ -173,8 +192,13 @@ export const PostSignalModal: React.FC<Props> = ({
         onClose();
       }, 1600);
     } catch (err: any) {
-      console.error('Failed to post manual signal to Firestore:', err);
-      setErrorMsg('تعذر حفظ التوصية في قاعدة البيانات. تحقق من الاتصال وحاول مجدداً.');
+      console.error('[PostSignalModal ERROR] Failed to post manual signal to Firestore:', err);
+      const msg = err?.message || String(err);
+      if (err && err.message) {
+        console.error('[PostSignalModal ERROR Message]:', err.message);
+      }
+      setDbError(`[Share Manual Trade Error]: ${msg}`);
+      setErrorMsg('تعذر حفظ التوصية في قاعدة البيانات. ' + (err.message || 'تحقق من الاتصال وحاول مجدداً.'));
       setIsSubmitting(false);
     }
   };

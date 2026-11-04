@@ -25,9 +25,13 @@ export const NewSignalModal: React.FC<Props> = ({
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    soundManager.playSignalPing();
+    try {
+      soundManager.playSignalPing();
+    } catch (err) {
+      console.warn('[NewSignalModal] soundManager playSignalPing notice:', err);
+    }
 
     const newSignal: TradeSignal = {
       id: `SIG-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -48,6 +52,35 @@ export const NewSignalModal: React.FC<Props> = ({
       verifiedWebhook: true,
       notesAr
     };
+
+    // Save directly to Firestore signals collection
+    try {
+      const { collection, addDoc } = await import('firebase/firestore');
+      const { db } = await import('../lib/firebase');
+
+      await addDoc(collection(db, 'signals'), {
+        symbol,
+        action: type,
+        entryPrice: parseFloat(entryPrice) || 0,
+        tp1: parseFloat(tp1) || 0,
+        tp2: parseFloat(tp2) || 0,
+        sl: parseFloat(sl) || 0,
+        currentPrice: parseFloat(entryPrice) || 0,
+        status: 'RUNNING',
+        riskReward: '1:2.4',
+        timeframe: 'M5 / M15',
+        confidence: 93,
+        strategy: strategyName,
+        notesAr,
+        instructionsAr: notesAr,
+        channel: 'free',
+        accessLevel: 'free',
+        timestampMs: Date.now()
+      });
+      console.log('[NewSignalModal] Signal saved directly to Firestore signals collection');
+    } catch (err) {
+      console.error('[NewSignalModal ERROR] Failed to save signal to Firestore:', err);
+    }
 
     onAddSignal(newSignal);
     onClose();

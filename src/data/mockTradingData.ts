@@ -92,103 +92,7 @@ export const INITIAL_TICKERS: MarketTicker[] = [
   }
 ];
 
-export const INITIAL_SIGNALS: TradeSignal[] = [
-  {
-    id: 'SIG-8842',
-    symbol: 'US100',
-    type: 'BUY',
-    entryPrice: 20820.00,
-    tp1: 20880.00,
-    tp2: 20950.00,
-    sl: 20760.00,
-    currentPrice: 20872.65,
-    pips: 52.65,
-    status: 'ACTIVE',
-    riskReward: '1:2.2',
-    timeframe: 'M5 / M15',
-    confidence: 94,
-    strategyName: 'MBK Scalp Breakout & Volume Profile',
-    createdAt: 'منذ 18 دقيقة',
-    verifiedWebhook: true,
-    notesAr: 'كسر مستوى المقاومة اللحظية 20815 مع تدفق سيولة شرائية من جلسة نيويورك. الهدف الأول اقترب.'
-  },
-  {
-    id: 'SIG-8841',
-    symbol: 'XAUUSD',
-    type: 'BUY',
-    entryPrice: 2668.00,
-    tp1: 2678.00,
-    tp2: 2688.00,
-    sl: 2658.00,
-    currentPrice: 2684.40,
-    pips: 164.0,
-    status: 'TP1_HIT',
-    riskReward: '1:2.0',
-    timeframe: 'M15',
-    confidence: 91,
-    strategyName: 'MBK Alligator & Fair Value Gap',
-    createdAt: 'منذ ساعتين',
-    verifiedWebhook: true,
-    notesAr: 'ارتداد مثالي من منطقة كتلة الأوامر المؤسسية (Order Block) عند 2668. تم تحقيق الهدف الأول (+100 نقطة) وتأمين الصفقة بنقطة الدخول.'
-  },
-  {
-    id: 'SIG-8840',
-    symbol: 'US100',
-    type: 'SELL',
-    entryPrice: 20740.00,
-    tp1: 20680.00,
-    tp2: 20610.00,
-    sl: 20790.00,
-    currentPrice: 20610.00,
-    pips: 130.0,
-    status: 'TP2_HIT',
-    riskReward: '1:2.6',
-    timeframe: 'M5',
-    confidence: 89,
-    strategyName: 'London Session High Sweep',
-    createdAt: 'اليوم، 11:30 ص',
-    verifiedWebhook: true,
-    notesAr: 'ضرب الهدفين بالكامل! صفقة سريعة حصدت أكثر من 130 نقطة خلال جلسة لندن للمشتركين.'
-  },
-  {
-    id: 'SIG-8839',
-    symbol: 'XAUUSD',
-    type: 'SELL',
-    entryPrice: 2674.50,
-    tp1: 2665.00,
-    tp2: 2655.00,
-    sl: 2682.00,
-    currentPrice: 2665.00,
-    pips: 95.0,
-    status: 'TP1_HIT',
-    riskReward: '1:2.5',
-    timeframe: 'M30',
-    confidence: 86,
-    strategyName: 'Fractal Trend Invalidation',
-    createdAt: 'أمس، 04:15 م',
-    verifiedWebhook: true,
-    notesAr: 'تحقق الهدف الأول بنجاح قبل خطاب الفيدرالي الأمريكي.'
-  },
-  {
-    id: 'SIG-8838',
-    symbol: 'EURUSD',
-    type: 'SELL',
-    entryPrice: 1.0875,
-    tp1: 1.0845,
-    tp2: 1.0815,
-    sl: 1.0895,
-    currentPrice: 1.0842,
-    pips: 33.0,
-    status: 'ACTIVE',
-    riskReward: '1:3.0',
-    timeframe: 'H1',
-    confidence: 88,
-    strategyName: 'USD Strength Rebound',
-    createdAt: 'منذ 4 ساعات',
-    verifiedWebhook: true,
-    notesAr: 'الكسر الفني للمتوسط المتحرك 50 على فريم الساعة. الهدف الأول قيد الاختبار.'
-  }
-];
+export const INITIAL_SIGNALS: TradeSignal[] = [];
 
 export const INITIAL_BOT_STATE: BotState = {
   isRunning: true,
@@ -199,48 +103,17 @@ export const INITIAL_BOT_STATE: BotState = {
   tp2Ratio: 3.0,
   stopLossPoints: 45,
   trailingStopActive: true,
-  todayPnL: 5320.00,
-  winRate: 83.3,
-  totalTradesToday: 8,
-  successfulTrades: 6,
+  todayPnL: 0,
+  winRate: 0,
+  totalTradesToday: 0,
+  successfulTrades: 0,
   connectionStatus: 'CONNECTED',
   mt5Server: 'MBK-Prime-Bridge-NY4.vps.live',
-  accountBalance: 48650.00,
-  equity: 53970.00
+  accountBalance: 50000.00,
+  equity: 50000.00
 };
 
-export const INITIAL_BOT_LOGS: BotLogEntry[] = [
-  {
-    id: 'log-1',
-    timestamp: '21:42:15',
-    level: 'INFO',
-    message: 'فحص اتصال خادم VPS والربط المباشر مع MetaTrader 5 Bridge... الاتصال مستقر بنسبة 99.98% (الاستجابة: 2ms)'
-  },
-  {
-    id: 'log-2',
-    timestamp: '21:30:04',
-    level: 'TRADE',
-    message: 'تنفيذ صفقة شراء تلقائية [US100] عند 20820.00 | حجم اللوت: 2.50 | وقف الخسارة: 20760.00 | الهدف: 20880.00'
-  },
-  {
-    id: 'log-3',
-    timestamp: '21:15:42',
-    level: 'ALERT',
-    message: 'اكتشاف تدفق سيولة زائد على مؤشر ناسداك - تفعيل نظام Trailing Stop الديناميكي لحماية الأرباح'
-  },
-  {
-    id: 'log-4',
-    timestamp: '20:45:10',
-    level: 'SUCCESS',
-    message: 'إغلاق 50% من عقد XAUUSD عند الهدف الأول 2678.00 | ربح محقق: +$1,250.00 | نقل الوقف إلى نقطة الدخول Breakeven'
-  },
-  {
-    id: 'log-5',
-    timestamp: '19:12:33',
-    level: 'SUCCESS',
-    message: 'إغلاق صفقة بيع ناسداك بالكامل عند الهدف الثاني | ربح إجمالي: +$3,420.00'
-  }
-];
+export const INITIAL_BOT_LOGS: BotLogEntry[] = [];
 
 export const MASTER_TRADER_PROFILE: CopyTradingMaster = {
   name: 'فريق أبحاث MBK المؤسسي',

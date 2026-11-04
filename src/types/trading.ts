@@ -226,6 +226,7 @@ export interface DailyTrade {
   isBotSignal?: boolean;
   isBlurredForFree: boolean; // Blurs entire card if running for free users
   accessLevel?: 'free' | 'vip' | 'all';
+  timestampMs?: number;
 }
 
 export interface DailyTradesStats {

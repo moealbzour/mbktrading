@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Radio,
   Lock,
@@ -21,39 +21,14 @@ import {
   EyeOff,
   MessageSquare
 } from 'lucide-react';
-import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
 import { soundManager } from '../../utils/audio';
 import confetti from 'canvas-confetti';
 import { MarketTicker, MarketSymbol } from '../../types/trading';
+import { collection, addDoc } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
+import { useLiveSignals, ChannelSignalItem, BotAlertItem } from '../../hooks/useLiveSignals';
 
-export interface ChannelSignalItem {
-  id: string;
-  channel: 'free' | 'vip' | 'bot';
-  symbol: string;
-  action: 'BUY' | 'SELL';
-  entryPrice: number;
-  tp1: number;
-  tp2: number;
-  sl: number;
-  pips: number;
-  strategy: string;
-  timeframe: string;
-  status: 'ACTIVE' | 'TP1_HIT' | 'TP2_HIT' | 'SL_HIT' | 'CLOSED';
-  instructionsAr: string;
-  instructionsEn: string;
-  timeAgo: string;
-  confidence: number;
-  isBlurredForFree: boolean;
-}
-
-export interface BotAlertItem {
-  id: string;
-  text: string;
-  chat_id?: string | null;
-  timestamp: string;
-  timestampMs?: number;
-}
+export type { ChannelSignalItem, BotAlertItem };
 
 interface Props {
   isVIP: boolean;
@@ -64,6 +39,8 @@ interface Props {
   onOpenPromoModal?: () => void;
   onOpenBrokerModal?: () => void;
   lang?: 'ar' | 'en';
+  activeChannel?: 'free' | 'vip' | 'bot';
+  onChannelChange?: (ch: 'free' | 'vip' | 'bot') => void;
 }
 
 export const SignalsChannelHub: React.FC<Props> = ({
@@ -74,13 +51,21 @@ export const SignalsChannelHub: React.FC<Props> = ({
   onSelectSymbol,
   onOpenPromoModal,
   onOpenBrokerModal,
-  lang = 'ar'
+  lang = 'ar',
+  activeChannel: activeChannelProp,
+  onChannelChange
 }) => {
-  const [activeChannel, setActiveChannel] = useState<'free' | 'vip' | 'bot'>('free');
-  const [signals, setSignals] = useState<ChannelSignalItem[]>([]);
-  const [botAlerts, setBotAlerts] = useState<BotAlertItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [botAlertsLoading, setBotAlertsLoading] = useState(true);
+  const [internalChannel, setInternalChannel] = useState<'free' | 'vip' | 'bot'>('free');
+  const activeChannel = activeChannelProp !== undefined ? activeChannelProp : internalChannel;
+
+  const setActiveChannel = (ch: 'free' | 'vip' | 'bot') => {
+    setInternalChannel(ch);
+    if (onChannelChange) {
+      onChannelChange(ch);
+    }
+  };
+
+  const { signals, botAlerts, loading, botAlertsLoading } = useLiveSignals();
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Unlocking Webhook Bot Signals for Free Users
@@ -108,72 +93,6 @@ export const SignalsChannelHub: React.FC<Props> = ({
 
   const isAr = lang === 'ar';
   const hasFullAccess = isVIP || unlockedViaCode || userRole === 'VIP' || userRole === 'ADMIN';
-
-  // Fetch Signals from backend
-  const fetchSignals = async () => {
-    try {
-      const res = await fetch('/api/signals/channels');
-      if (res.ok) {
-        const data = await res.json();
-        if (data.signals && Array.isArray(data.signals)) {
-          setSignals(data.signals);
-        }
-      }
-    } catch (err) {
-      console.warn('Failed to fetch channel signals:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchSignals();
-    const interval = setInterval(fetchSignals, 15000); // 15s refresh
-    return () => clearInterval(interval);
-  }, []);
-
-  // Listen to Firestore 'bot_alerts' collection in real-time
-  useEffect(() => {
-    let isFirstSnapshot = true;
-    try {
-      const botAlertsRef = collection(db, 'bot_alerts');
-      const q = query(botAlertsRef, orderBy('timestampMs', 'desc'));
-
-      const unsubscribe = onSnapshot(
-        q,
-        (snapshot) => {
-          const items: BotAlertItem[] = [];
-          snapshot.forEach((docSnap) => {
-            const data = docSnap.data();
-            items.push({
-              id: docSnap.id,
-              text: data.text || '',
-              chat_id: data.chat_id || data.chatId || null,
-              timestamp: data.timestamp || new Date().toISOString(),
-              timestampMs: data.timestampMs || Date.now()
-            });
-          });
-
-          if (!isFirstSnapshot && items.length > botAlerts.length) {
-            soundManager.playProfitChime();
-          }
-
-          setBotAlerts(items);
-          isFirstSnapshot = false;
-          setBotAlertsLoading(false);
-        },
-        (err) => {
-          console.warn('Firestore bot_alerts onSnapshot notice:', err);
-          setBotAlertsLoading(false);
-        }
-      );
-
-      return () => unsubscribe();
-    } catch (err) {
-      console.warn('Error connecting to bot_alerts collection:', err);
-      setBotAlertsLoading(false);
-    }
-  }, []);
 
   const handleCopyLevels = (text: string, id: string) => {
     soundManager.playClick();
@@ -215,36 +134,61 @@ export const SignalsChannelHub: React.FC<Props> = ({
     e.preventDefault();
     if (!newSigEntry || !newSigTp1 || !newSigSl) return;
     try {
-      const res = await fetch('/api/signals/channels', {
+      const isVip = newSigChannel === 'vip';
+      const entryNum = Number(newSigEntry);
+      const tp1Num = Number(newSigTp1);
+      const tp2Num = newSigTp2 ? Number(newSigTp2) : tp1Num;
+      const slNum = Number(newSigSl);
+
+      const payload = {
+        channel: newSigChannel,
+        symbol: newSigSymbol,
+        action: newSigAction,
+        entryPrice: entryNum,
+        tp1: tp1Num,
+        tp2: tp2Num,
+        sl: slNum,
+        strategy: newSigStrategy || 'MBK Strategy',
+        notesAr: newSigNotes || 'إشارة جديدة من المشرف',
+        notesEn: newSigNotes || 'New admin signal',
+        instructionsAr: newSigNotes || 'إشارة جديدة من المشرف',
+        instructionsEn: newSigNotes || 'New admin signal',
+        status: 'RUNNING',
+        openTime: 'الآن',
+        duration: 'الآن',
+        timeframe: '15m',
+        pips: 0,
+        confidence: 90,
+        accessLevel: isVip ? 'vip' : 'free',
+        source: isVip ? 'VIP_MANUAL' : 'FREE_PUBLIC',
+        isBlurredForFree: isVip,
+        timestampMs: Date.now(),
+        createdAt: new Date().toISOString()
+      };
+
+      // Direct write to Firestore signals collection so all connected clients get it instantly
+      await addDoc(collection(db, 'signals'), payload);
+
+      // Best effort backend POST sync
+      fetch('/api/signals/channels', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          channel: newSigChannel,
-          symbol: newSigSymbol,
-          action: newSigAction,
-          entryPrice: newSigEntry,
-          tp1: newSigTp1,
-          tp2: newSigTp2,
-          sl: newSigSl,
-          strategy: newSigStrategy,
-          instructionsAr: newSigNotes,
-          instructionsEn: newSigNotes
-        })
-      });
-      if (res.ok) {
-        soundManager.playProfitChime();
-        confetti({ particleCount: 80, spread: 70 });
-        setAdminPublishOpen(false);
-        fetchSignals();
-        // Reset form
-        setNewSigEntry('');
-        setNewSigTp1('');
-        setNewSigTp2('');
-        setNewSigSl('');
-        setNewSigNotes('');
-      }
-    } catch (err) {
-      console.warn('Publish signal error:', err);
+        body: JSON.stringify(payload)
+      }).catch((err) => console.warn('[SignalsChannelHub] Backend API sync notice:', err));
+
+      soundManager.playProfitChime();
+      confetti({ particleCount: 80, spread: 70 });
+      setAdminPublishOpen(false);
+
+      // Reset form
+      setNewSigEntry('');
+      setNewSigTp1('');
+      setNewSigTp2('');
+      setNewSigSl('');
+      setNewSigNotes('');
+    } catch (err: any) {
+      console.error('[SignalsChannelHub ERROR] Failed to publish signal to Firestore:', err);
+      alert(`[Publish Signal Error]: ${err?.message || String(err)}`);
     }
   };
 
@@ -480,7 +424,7 @@ export const SignalsChannelHub: React.FC<Props> = ({
           {channelSignals.length === 0 ? (
             <div className="col-span-full p-8 text-center bg-[#1e222d] border border-[#2a2e39] rounded-xl text-[#787b86]">
               <Radio className="w-8 h-8 mx-auto mb-2 text-[#787b86] opacity-60" />
-              <p className="text-sm font-semibold">{isAr ? 'لا توجد صفقات معلقة في هذه القناة حالياً' : 'No active trades in this channel right now'}</p>
+              <p className="text-sm font-semibold">{isAr ? 'لا توجد إشارات مباشرة حالياً' : 'No live alerts yet'}</p>
               <p className="text-xs text-[#787b86] mt-1">{isAr ? 'سيتم بث الإشارات لحظة استيفاء شروط السيولة' : 'New setups will broadcast upon liquidity confirmation'}</p>
             </div>
           ) : (

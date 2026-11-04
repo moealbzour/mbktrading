@@ -59,7 +59,7 @@ export default function App() {
 
   // Market & Trading State
   const [tickers, setTickers] = useState<MarketTicker[]>(INITIAL_TICKERS);
-  const [signals, setSignals] = useState<TradeSignal[]>(INITIAL_SIGNALS);
+  const [signals, setSignals] = useState<TradeSignal[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(INITIAL_CHAT_MESSAGES);
   const [selectedSymbol, setSelectedSymbol] = useState<MarketSymbol>('US100');
   const [onlineTraders, setOnlineTraders] = useState(284);

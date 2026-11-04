@@ -170,18 +170,21 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/gemini/chat', {
+      const endpoint = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        ? '/api/ai-chat'
+        : 'https://ais-pre-wncejxgfjzqoofgs6snjvu-6705890240.us-east5.run.app/api/ai-chat';
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [...messages, userMessage].map((m) => ({
+          prompt: query,
+          activeSymbol: selectedSymbol,
+          currentPrice: currentLivePrice,
+          history: [...messages, userMessage].map((m) => ({
             role: m.role,
             text: m.text
-          })),
-          useSearch,
-          query,
-          activeSymbol: selectedSymbol,
-          currentPrice: currentLivePrice
+          }))
         })
       });
 

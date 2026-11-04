@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { collection, addDoc } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
 import {
   Send,
   Sparkles,
@@ -29,6 +31,7 @@ import {
 import confetti from 'canvas-confetti';
 import { soundManager } from '../../utils/audio';
 import { MarketSymbol, DailyTrade } from '../../types/trading';
+import { useSignalsContext } from '../../context/SignalsContext';
 
 interface Props {
   currentUserRole?: string;
@@ -43,6 +46,7 @@ export const PublishingCenter: React.FC<Props> = ({
   lang = 'ar',
   onClose
 }) => {
+  const { setDbError } = useSignalsContext();
   const isAr = lang === 'ar';
   const roleUpper = (currentUserRole || '').toUpperCase();
   const isAuthorized = roleUpper === 'ADMIN' || roleUpper === 'ANALYSER';
@@ -134,7 +138,7 @@ export const PublishingCenter: React.FC<Props> = ({
     ? Math.round(diffPips * 10000)
     : Math.round(diffPips);
 
-  // Submit Signal Handler: POST to /api/signals first, then emit Socket.io after 200 OK
+  // Submit Signal Handler: Direct write to Firestore + POST to /api/signals
   const handlePublishSignal = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isAuthorized) {
@@ -148,9 +152,14 @@ export const PublishingCenter: React.FC<Props> = ({
     }
 
     setIsPublishingSignal(true);
-    soundManager.playClick();
+    try {
+      soundManager.playClick();
+    } catch (err) {
+      console.warn('[PublishingCenter] soundManager playClick error:', err);
+    }
 
     try {
+      const isVip = accessLevel === 'vip';
       const payload = {
         symbol,
         action,
@@ -168,25 +177,55 @@ export const PublishingCenter: React.FC<Props> = ({
         confidence,
         notesAr,
         notesEn,
+        instructionsAr: notesAr,
+        instructionsEn: notesEn,
         author: currentUserName || (roleUpper === 'ADMIN' ? 'MBK Chief Admin' : 'MBK Senior Analyser'),
-        authorRole: roleUpper
+        authorRole: roleUpper,
+        status: 'RUNNING',
+        openTime: 'الآن',
+        duration: 'الآن',
+        channel: isVip ? 'vip' : 'free',
+        isBlurredForFree: isVip,
+        timestampMs: Date.now()
       };
 
-      // 1. Send POST request to backend API to save permanently into SQLite database
-      const res = await fetch('/api/signals', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || `Server responded with status ${res.status}`);
+      // 1. Write directly to Firestore 'signals' collection via Client SDK so all listeners update instantly
+      try {
+        await addDoc(collection(db, 'signals'), payload);
+        console.log('[PublishingCenter] Signal saved directly to Firestore signals collection');
+      } catch (fsErr: any) {
+        console.error('[PublishingCenter ERROR] Firestore direct signal write failed:', fsErr);
+        const msg = fsErr?.message || String(fsErr);
+        setDbError(`[Publish Signal Error]: ${msg}`);
+        if (fsErr && fsErr.message) {
+          console.error('[PublishingCenter ERROR Message]:', fsErr.message);
+        }
       }
 
-      soundManager.playProfitChime();
+      // 2. Also send POST request to backend API to save permanently into store
+      try {
+        const res = await fetch('/api/signals', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          console.error('[PublishingCenter ERROR] Backend /api/signals responded with status:', res.status, errorData);
+        }
+      } catch (apiErr: any) {
+        console.error('[PublishingCenter ERROR] Fetch /api/signals failed:', apiErr);
+      }
+
+      try {
+        soundManager.playProfitChime();
+      } catch (err) {
+        console.warn('[PublishingCenter] playProfitChime notice:', err);
+      }
+
       confetti({
         particleCount: 50,
         spread: 60,
@@ -203,7 +242,10 @@ export const PublishingCenter: React.FC<Props> = ({
       // Refresh published list
       fetchPublishedSignals();
     } catch (err: any) {
-      console.error('Error publishing signal:', err);
+      console.error('[PublishingCenter ERROR] Error publishing signal:', err);
+      if (err && err.message) {
+        console.error('[PublishingCenter ERROR Message]:', err.message);
+      }
       showFeedback('error', err.message || (isAr ? 'فشل حفظ ونشر الصفقة' : 'Failed to publish trade'));
     } finally {
       setIsPublishingSignal(false);

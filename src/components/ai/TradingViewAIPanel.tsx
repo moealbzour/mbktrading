@@ -92,7 +92,11 @@ export const TradingViewAIPanel: React.FC<Props> = ({
     setLoading(true);
 
     try {
-      const res = await fetch('/api/ai-chat', {
+      const aiEndpoint = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        ? '/api/ai-chat'
+        : 'https://ais-pre-wncejxgfjzqoofgs6snjvu-6705890240.us-east5.run.app/api/ai-chat';
+
+      const res = await fetch(aiEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

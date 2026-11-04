@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Lock,
   Bot,
@@ -14,12 +14,13 @@ import {
   Zap,
   CheckCircle2,
   XCircle,
-  Layers
+  Layers,
+  AlertTriangle,
+  X
 } from 'lucide-react';
 import { DailyTrade } from '../../types/trading';
 import { soundManager } from '../../utils/audio';
-import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
+import { useSignalsContext } from '../../context/SignalsContext';
 
 interface Props {
   isVIP: boolean;
@@ -27,6 +28,10 @@ interface Props {
   onOpenPromoModal?: () => void;
   lang?: 'ar' | 'en';
   isCompact?: boolean;
+  activeSignals?: DailyTrade[];
+  trades?: DailyTrade[];
+  loading?: boolean;
+  activeChannel?: 'free' | 'vip' | 'bot';
 }
 
 export const DailyTradesPanel: React.FC<Props> = ({
@@ -34,11 +39,28 @@ export const DailyTradesPanel: React.FC<Props> = ({
   userRole,
   onOpenPromoModal,
   lang = 'ar',
-  isCompact = false
+  isCompact = false,
+  activeSignals,
+  trades: tradesProp,
+  loading: loadingProp,
+  activeChannel = 'free'
 }) => {
   const isAr = lang === 'ar';
-  const [trades, setTrades] = useState<DailyTrade[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { trades: contextTrades, loading: contextLoading, dbError, setDbError } = useSignalsContext();
+
+  const rawTrades = (tradesProp && tradesProp.length > 0) ? tradesProp : contextTrades;
+  const loading = loadingProp !== undefined ? loadingProp : contextLoading;
+
+  // Sort chronologically (newest first) and slice to top 20 for global live feed
+  const sortedTrades = [...rawTrades].sort((a, b) => {
+    const timeA = a.timestampMs || 0;
+    const timeB = b.timestampMs || 0;
+    if (timeB !== timeA) return timeB - timeA;
+    return 0;
+  });
+
+  const liveFeed = sortedTrades.slice(0, 20);
+
   const [refreshing, setRefreshing] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -58,47 +80,6 @@ export const DailyTradesPanel: React.FC<Props> = ({
   const [codeError, setCodeError] = useState<string | null>(null);
 
   const hasFullAccess = isVIP || unlockedViaCode || userRole === 'VIP' || userRole === 'ADMIN' || userRole === 'ANALYSER';
-
-  useEffect(() => {
-    // Real-time Firestore onSnapshot listener for instant live updates
-    setLoading(true);
-    let isFirstSnapshot = true;
-    const signalsRef = collection(db, 'signals');
-    const q = query(signalsRef, orderBy('timestampMs', 'desc'));
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const liveTrades: DailyTrade[] = [];
-        snapshot.forEach((docSnap) => {
-          const data = docSnap.data();
-          liveTrades.push({
-            id: docSnap.id,
-            ...data
-          } as DailyTrade);
-        });
-
-        if (liveTrades.length > 0) {
-          if (!isFirstSnapshot && liveTrades.length > trades.length) {
-            soundManager.playProfitChime();
-          }
-          setTrades(liveTrades);
-        }
-        isFirstSnapshot = false;
-        setLoading(false);
-        setRefreshing(false);
-      },
-      (error) => {
-        console.warn('Firestore onSnapshot listener fallback:', error);
-        setLoading(false);
-        setRefreshing(false);
-      }
-    );
-
-    return () => {
-      unsubscribe();
-    };
-  }, []);
 
   const handleCopyLevels = (trade: DailyTrade) => {
     soundManager.playClick();
@@ -127,7 +108,7 @@ export const DailyTradesPanel: React.FC<Props> = ({
   };
 
   // Filter trades stream (supports all signals: running, tp hit, sl hit, bot webhooks, etc.)
-  const displayedTrades = trades.filter((t) => {
+  const displayedTrades = liveFeed.filter((t) => {
     if (sourceFilter !== 'ALL' && t.source !== sourceFilter) return false;
     if (statusFilter === 'RUNNING' && t.status !== 'RUNNING') return false;
     if (statusFilter === 'CLOSED' && t.status === 'RUNNING') return false;
@@ -159,6 +140,28 @@ export const DailyTradesPanel: React.FC<Props> = ({
           <RefreshCw className={`w-3 h-3 ${refreshing ? 'animate-spin text-[#089981]' : ''}`} />
         </button>
       </div>
+
+      {/* RAW FIRESTORE DB ERROR ALERT BANNER */}
+      {dbError && (
+        <div className="p-2.5 rounded-xl bg-rose-500/20 border-2 border-rose-500 text-rose-200 text-xs space-y-1 font-mono shrink-0 animate-pulse">
+          <div className="flex items-center justify-between font-bold text-rose-300 text-[11px]">
+            <div className="flex items-center gap-1.5">
+              <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+              <span>[FIRESTORE ERROR]</span>
+            </div>
+            <button
+              onClick={() => setDbError(null)}
+              className="p-0.5 rounded hover:bg-rose-500/30 text-rose-300 hover:text-white cursor-pointer"
+              title="Dismiss"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <p className="text-[10px] leading-relaxed break-words bg-black/50 p-2 rounded border border-rose-500/40 text-rose-100 font-mono select-all select-text">
+            {dbError}
+          </p>
+        </div>
+      )}
 
       {/* 2. MINIMAL ICON-ONLY FILTER PILLS */}
       <div className="flex items-center justify-between gap-1 overflow-x-auto pb-0.5 scrollbar-none text-[10px]">
@@ -256,7 +259,7 @@ export const DailyTradesPanel: React.FC<Props> = ({
       ) : displayedTrades.length === 0 ? (
         <div className="py-6 text-center text-[#787b86] text-xs bg-[#131722] rounded-lg border border-[#2a2e39] p-3">
           <Activity className="w-5 h-5 mx-auto opacity-30 mb-1" />
-          <p>{isAr ? 'لا توجد إشارات مطابقة' : 'No signals found'}</p>
+          <p>{isAr ? 'لا توجد إشارات مباشرة حالياً' : 'No live alerts yet'}</p>
         </div>
       ) : (
         <div className="space-y-1.5">
