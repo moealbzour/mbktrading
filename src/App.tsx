@@ -21,6 +21,7 @@ import { Register } from './pages/Register';
 import { PromoCodeModal } from './components/PromoCodeModal';
 import { EmailVerificationGuard } from './components/EmailVerificationGuard';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
+import { NotificationPermissionPrompt } from './components/common/NotificationPermissionPrompt';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
@@ -298,6 +299,11 @@ export default function App() {
 
       {/* Mobile Web App PWA Add to Home Screen Prompt */}
       <PWAInstallPrompt lang={lang} />
+
+      {/* Re-prompt every visit if user hasn't allowed notifications yet */}
+      {currentUser && !currentUser.isBanned && currentUser.isEmailVerified !== false && (
+        <NotificationPermissionPrompt lang={lang} />
+      )}
     </div>
   );
 }

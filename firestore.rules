@@ -169,10 +169,12 @@ service cloud.firestore {
 
     function isSafeOwnerProfileUpdate(userId) {
       let affected = incoming().diff(existing()).affectedKeys();
+      let displayNameChanged = affected.hasAny(['displayName']) && incoming().displayName != existing().get('displayName', '');
       return isOwner(userId)
         && !isBanned()
         && affected.hasOnly([
           'displayName',
+          'lastNameChangeAt',
           'phone',
           'country',
           'dob',
@@ -185,9 +187,30 @@ service cloud.firestore {
           'updatedAt',
           'lastActiveAt'
         ])
+        && (
+          (!displayNameChanged && !affected.hasAny(['lastNameChangeAt']))
+          || (
+            displayNameChanged
+            && affected.hasAll(['displayName', 'lastNameChangeAt'])
+            && incoming().displayName is string
+            && incoming().displayName.size() >= 2
+            && incoming().displayName.size() <= 100
+            && incoming().lastNameChangeAt == request.time
+            && (
+              !('lastNameChangeAt' in existing())
+              || existing().lastNameChangeAt == null
+              || (existing().lastNameChangeAt is timestamp && existing().lastNameChangeAt + duration.value(7, 'd') <= request.time)
+            )
+          )
+        )
         && (!('displayName' in incoming()) || (incoming().displayName is string && incoming().displayName.size() <= 100))
         && (!('phone' in incoming()) || (incoming().phone is string && incoming().phone.size() <= 40))
-        && (!('country' in incoming()) || (incoming().country is string && incoming().country.size() <= 80));
+        && (!('country' in incoming()) || (incoming().country is string && incoming().country.size() <= 80))
+        && (!('dob' in incoming()) || (incoming().dob is string && incoming().dob.size() <= 32))
+        && (!('experienceLevel' in incoming()) || (incoming().experienceLevel is string && incoming().experienceLevel.size() <= 40))
+        && (!('favoritePairs' in incoming()) || (incoming().favoritePairs is string && incoming().favoritePairs.size() <= 200))
+        && (!('telegramUsername' in incoming()) || (incoming().telegramUsername is string && incoming().telegramUsername.size() <= 80))
+        && (!('assetClasses' in incoming()) || (incoming().assetClasses is list && incoming().assetClasses.size() <= 10));
     }
 
     function isAtomicUserUpgradeUpdate(userId) {
@@ -273,6 +296,11 @@ service cloud.firestore {
       allow delete: if isValidId(keyId) && isAdmin();
     }
 
+    function isChatRoomClosed() {
+      return exists(/databases/$(database)/documents/settings/chat_room)
+        && get(/databases/$(database)/documents/settings/chat_room).data.get('isClosed', false) == true;
+    }
+
     // ---------------------------------------------------------------
     // 3. PRIVATE VIP GROUP CHAT (VIP/Elite/vipChat Trial + Admin only, 500-char max)
     // ---------------------------------------------------------------
@@ -284,6 +312,7 @@ service cloud.firestore {
         && !isBanned()
         && !isMutedFromChat()
         && hasGrantedFeature('vipChat')
+        && (!isChatRoomClosed() || isModeratorOrAdmin())
         && incoming().uid == request.auth.uid
         && incoming().displayName is string
         && incoming().displayName.size() >= 1
@@ -301,7 +330,10 @@ service cloud.firestore {
             && !isBanned()
             && incoming().diff(existing()).affectedKeys().hasOnly(['reactions', 'likes']))
       );
-      allow delete: if isValidId(messageId) && isModeratorOrAdmin();
+      allow delete: if isValidId(messageId) && (
+        isModeratorOrAdmin()
+        || (isSignedIn() && !isBanned() && existing().uid == request.auth.uid)
+      );
     }
 
     match /chat_messages/{messageId} {
@@ -317,6 +349,116 @@ service cloud.firestore {
         && incoming().content.size() >= 1
         && incoming().content.size() <= 500;
       allow update, delete: if isValidId(messageId) && isModeratorOrAdmin();
+    }
+
+    // ---------------------------------------------------------------
+    // 3b. DIRECT MESSAGES & USER DM PRIVACY DIRECTORY
+    // ---------------------------------------------------------------
+    function isValidChatProfile(data, userId) {
+      return data.uid == userId
+        && data.displayName is string
+        && data.displayName.size() >= 1
+        && data.displayName.size() <= 100
+        && data.allowDirectMessages is bool
+        && (!('blockedUids' in data) || (data.blockedUids is list && data.blockedUids.size() <= 200))
+        && (!('avatar' in data) || (data.avatar is string && data.avatar.size() <= 1000))
+        && (!('role' in data) || (data.role is string && data.role.size() <= 40));
+    }
+
+    function canReceiveDirectMessage(senderUid, recipientUid) {
+      let profilePath = /databases/$(database)/documents/chat_profiles/$(recipientUid);
+      return !exists(profilePath)
+        || (
+          get(profilePath).data.get('allowDirectMessages', true) == true
+          && !(senderUid in get(profilePath).data.get('blockedUids', []))
+        );
+    }
+
+    match /chat_profiles/{userId} {
+      allow get: if isValidId(userId) && isSignedIn() && !isBanned();
+      allow list: if isSignedIn() && !isBanned();
+      allow create, update: if isValidId(userId)
+        && isOwner(userId)
+        && !isBanned()
+        && isValidChatProfile(incoming(), userId);
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+
+    match /dm_conversations/{convoId} {
+      allow get: if isValidId(convoId)
+        && isSignedIn()
+        && !isBanned()
+        && (
+          (resource == null && convoId.matches('^.*' + request.auth.uid + '.*$'))
+          || (resource != null && request.auth.uid in resource.data.participants)
+        );
+      allow list: if isSignedIn() && !isBanned() && request.auth.uid in resource.data.participants;
+      allow create: if isValidId(convoId)
+        && isSignedIn()
+        && !isBanned()
+        && incoming().id == convoId
+        && incoming().participants is list
+        && incoming().participants.size() == 2
+        && incoming().participants[0] != incoming().participants[1]
+        && request.auth.uid in incoming().participants
+        && incoming().lastSenderUid == request.auth.uid
+        && incoming().lastMessage is string
+        && incoming().lastMessage.size() <= 500
+        && incoming().lastMessageAtMs is number
+        && (
+          incoming().participants[0] == request.auth.uid
+            ? canReceiveDirectMessage(request.auth.uid, incoming().participants[1])
+            : canReceiveDirectMessage(request.auth.uid, incoming().participants[0])
+        );
+      allow update: if isValidId(convoId)
+        && isSignedIn()
+        && !isBanned()
+        && request.auth.uid in existing().participants
+        && incoming().participants == existing().participants
+        && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['unreadBy', 'updatedAt'])
+          || (
+            incoming().lastSenderUid == request.auth.uid
+            && incoming().lastMessage is string
+            && incoming().lastMessage.size() <= 500
+            && (
+              existing().participants[0] == request.auth.uid
+                ? canReceiveDirectMessage(request.auth.uid, existing().participants[1])
+                : canReceiveDirectMessage(request.auth.uid, existing().participants[0])
+            )
+          )
+        );
+      allow delete: if isValidId(convoId) && isAdmin();
+
+      match /messages/{msgId} {
+        allow get: if isValidId(convoId)
+          && isValidId(msgId)
+          && isSignedIn()
+          && !isBanned()
+          && request.auth.uid in get(/databases/$(database)/documents/dm_conversations/$(convoId)).data.participants;
+        allow list: if isValidId(convoId)
+          && isSignedIn()
+          && !isBanned()
+          && request.auth.uid in get(/databases/$(database)/documents/dm_conversations/$(convoId)).data.participants;
+        allow create: if isValidId(convoId)
+          && isValidId(msgId)
+          && isSignedIn()
+          && !isBanned()
+          && incoming().senderUid == request.auth.uid
+          && incoming().recipientUid is string
+          && incoming().recipientUid != request.auth.uid
+          && request.auth.uid in get(/databases/$(database)/documents/dm_conversations/$(convoId)).data.participants
+          && incoming().recipientUid in get(/databases/$(database)/documents/dm_conversations/$(convoId)).data.participants
+          && canReceiveDirectMessage(request.auth.uid, incoming().recipientUid)
+          && incoming().text is string
+          && incoming().text.size() >= 1
+          && incoming().text.size() <= 1000
+          && incoming().timestampMs is number;
+        allow delete: if isValidId(convoId) && isValidId(msgId) && (
+          isModeratorOrAdmin()
+          || (isSignedIn() && !isBanned() && existing().senderUid == request.auth.uid)
+        );
+      }
     }
 
     // ---------------------------------------------------------------
@@ -439,12 +581,28 @@ service cloud.firestore {
         && (!('updatedBy' in data) || (data.updatedBy is string && data.updatedBy.size() <= 200));
     }
 
+    function isValidChatRoomSettings(data) {
+      return data.keys().hasAll(['isClosed'])
+        && data.keys().hasOnly(['isClosed', 'closedReason', 'closedBy', 'closedAt', 'resetAtMs', 'updatedAt'])
+        && data.isClosed is bool
+        && (!('closedReason' in data) || data.closedReason == null || (data.closedReason is string && data.closedReason.size() <= 300))
+        && (!('closedBy' in data) || data.closedBy == null || (data.closedBy is string && data.closedBy.size() <= 200))
+        && (!('closedAt' in data) || data.closedAt == null || (data.closedAt is string && data.closedAt.size() <= 64))
+        && (!('resetAtMs' in data) || data.resetAtMs == null || (data.resetAtMs is number && data.resetAtMs >= 0))
+        && (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64));
+    }
+
     match /settings/{settingId} {
-      allow get: if isValidId(settingId) && (settingId == 'platform' || isAdmin());
+      allow get: if isValidId(settingId) && (
+        settingId == 'platform'
+        || (settingId == 'chat_room' && isSignedIn())
+        || isAdmin()
+      );
       allow list: if isAdmin();
-      allow create, update: if isValidId(settingId)
-        && isAdmin()
-        && isValidPlatformSettings(incoming());
+      allow create, update: if isValidId(settingId) && (
+        (settingId == 'chat_room' && isModeratorOrAdmin() && isValidChatRoomSettings(incoming()))
+        || (settingId != 'chat_room' && isAdmin() && isValidPlatformSettings(incoming()))
+      );
       allow delete: if isValidId(settingId) && isAdmin();
     }
   }

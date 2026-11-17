@@ -12,8 +12,11 @@ createRoot(document.getElementById('root')!).render(
   </ThemeProvider>
 );
 
-// Register Service Worker for PWA Add to Home Screen support
-if ('serviceWorker' in navigator && (import.meta.env.PROD || window.location.protocol === 'https:')) {
+// Register Service Worker for PWA Add to Home Screen & Mobile Notification support
+if (
+  'serviceWorker' in navigator &&
+  (import.meta.env.PROD || window.location.protocol === 'https:' || window.location.hostname === 'localhost')
+) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch((err) => {
       console.log('SW registration skipped:', err);

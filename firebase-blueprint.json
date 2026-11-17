@@ -22,12 +22,14 @@
         "experienceLevel": { "type": "string" },
         "assetClasses": { "type": "array", "items": { "type": "string" } },
         "favoritePairs": { "type": "string" },
+        "telegramUsername": { "type": "string" },
         "totalPaid": { "type": "number" },
         "isBanned": { "type": "boolean" },
         "isMutedFromChat": { "type": "boolean" },
         "subscription_status": { "type": "string" },
         "subscription_end_date": { "type": "string" },
         "emailVerified": { "type": "boolean" },
+        "lastNameChangeAt": { "type": "string" },
         "createdAt": { "type": "string" },
         "updatedAt": { "type": "string" },
         "lastActiveAt": { "type": "string" }
@@ -179,6 +181,67 @@
         "updatedBy": { "type": "string", "maxLength": 200 }
       },
       "required": ["whatsappNumber", "telegramUrl"]
+    },
+    "ChatRoomSettings": {
+      "title": "ChatRoomSettings",
+      "description": "Live VIP chat room lock and reset state controlled by administrators",
+      "type": "object",
+      "properties": {
+        "isClosed": { "type": "boolean" },
+        "closedReason": { "type": "string", "maxLength": 300 },
+        "closedBy": { "type": "string", "maxLength": 200 },
+        "closedAt": { "type": "string", "maxLength": 64 },
+        "resetAtMs": { "type": "number" },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["isClosed"]
+    },
+    "ChatProfile": {
+      "title": "ChatProfile",
+      "description": "Public chat directory profile with DM opt-in/opt-out preference and blocked user list (no PII)",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "displayName": { "type": "string", "maxLength": 100 },
+        "avatar": { "type": "string", "maxLength": 1000 },
+        "role": { "type": "string", "maxLength": 40 },
+        "allowDirectMessages": { "type": "boolean" },
+        "blockedUids": { "type": "array", "items": { "type": "string" } },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["uid", "displayName", "allowDirectMessages"]
+    },
+    "DmConversation": {
+      "title": "DmConversation",
+      "description": "Two-participant direct message conversation summary and unread counters",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "participants": { "type": "array", "items": { "type": "string" } },
+        "participantNames": { "type": "object" },
+        "participantAvatars": { "type": "object" },
+        "participantRoles": { "type": "object" },
+        "lastMessage": { "type": "string", "maxLength": 500 },
+        "lastSenderUid": { "type": "string", "maxLength": 128 },
+        "lastMessageAtMs": { "type": "number" },
+        "unreadBy": { "type": "object" },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "participants", "lastMessageAtMs"]
+    },
+    "DmMessage": {
+      "title": "DmMessage",
+      "description": "Individual direct message between two platform users",
+      "type": "object",
+      "properties": {
+        "senderUid": { "type": "string", "maxLength": 128 },
+        "recipientUid": { "type": "string", "maxLength": 128 },
+        "senderName": { "type": "string", "maxLength": 100 },
+        "text": { "type": "string", "maxLength": 1000 },
+        "timestampMs": { "type": "number" },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["senderUid", "recipientUid", "senderName", "text", "timestampMs"]
     }
   },
   "firestore": {
@@ -193,6 +256,18 @@
     "/public_chat/{messageId}": {
       "schema": "ChatMessage",
       "description": "VIP-gated private live trading chat messages"
+    },
+    "/chat_profiles/{userId}": {
+      "schema": "ChatProfile",
+      "description": "Non-PII chat directory and direct-message privacy/block settings"
+    },
+    "/dm_conversations/{convoId}": {
+      "schema": "DmConversation",
+      "description": "User-to-user direct message threads"
+    },
+    "/dm_conversations/{convoId}/messages/{messageId}": {
+      "schema": "DmMessage",
+      "description": "Messages inside a user-to-user direct conversation"
     },
     "/chat_messages/{messageId}": {
       "schema": "VipChatMessage",
@@ -225,6 +300,10 @@
     "/settings/{settingId}": {
       "schema": "PlatformSettings",
       "description": "Dynamic platform settings such as support WhatsApp and Telegram links"
+    },
+    "/settings/chat_room": {
+      "schema": "ChatRoomSettings",
+      "description": "Temporary chat lock & reset state managed by admin/moderators"
     }
   }
 }

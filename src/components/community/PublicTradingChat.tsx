@@ -21,21 +21,26 @@ import {
   ChevronDown,
   Trash2,
   Lock,
+  Unlock,
+  RotateCcw,
   KeyRound,
   Ban,
-  VolumeX
+  VolumeX,
+  Mail
 } from 'lucide-react';
 import {
   collection,
   query,
   orderBy,
-  limit,
   onSnapshot,
   addDoc,
   doc,
   getDoc,
+  getDocs,
+  setDoc,
   updateDoc,
   deleteDoc,
+  writeBatch,
   serverTimestamp
 } from 'firebase/firestore';
 import { db, auth } from '../../lib/firebase';
@@ -65,6 +70,15 @@ export interface ChatMessageItem {
   symbolTag?: string;
   replyTo?: ChatReplyTo;
   isPinned?: boolean;
+  timestampMs?: number;
+}
+
+interface ChatRoomSettingsState {
+  isClosed: boolean;
+  closedReason?: string | null;
+  closedBy?: string | null;
+  closedAt?: string | null;
+  resetAtMs?: number | null;
 }
 
 interface Props {
@@ -78,10 +92,21 @@ interface Props {
   isCompact?: boolean;
   onOpenPromoModal?: () => void;
   onOpenPlansModal?: () => void;
+  onStartDirectMessage?: (target: { uid: string; displayName: string; avatar?: string; role: string }) => void;
 }
 
 const MAX_CHAT_CHARS = 500;
-const CHAT_HISTORY_LIMIT = 50;
+const SPAM_MAX_ALLOWED_REPEAT = 2; // Repeating the same message more than 2 times triggers auto-delete
+const SPAM_WINDOW_MS = 30 * 60 * 1000;
+
+function normalizeChatTextForSpam(text?: string): string {
+  return (text || '').toLowerCase().trim().replace(/\s+/g, ' ');
+}
+
+function isStaffMessageRole(role?: string): boolean {
+  const r = (role || '').toUpperCase();
+  return r === 'ADMIN' || r === 'MODERATOR';
+}
 
 const EMOJI_LIST = ['🔥', '❤️', '🚀', '🎯', '👍', '📉'];
 
@@ -95,7 +120,8 @@ export const PublicTradingChat: React.FC<Props> = ({
   lang = 'ar',
   isCompact = false,
   onOpenPromoModal,
-  onOpenPlansModal
+  onOpenPlansModal,
+  onStartDirectMessage
 }) => {
   const isAr = lang === 'ar';
 
@@ -120,14 +146,19 @@ export const PublicTradingChat: React.FC<Props> = ({
         : isVIP || ['VIP', 'ELITE', 'ANALYST', 'ANALYSER'].includes(roleUpper))
   );
 
-  // Image attachment state (Admin/Moderator only)
+  // Image attachment & room moderation state (Admin/Moderator only)
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [imageCaption, setImageCaption] = useState<string>('');
   const [pendingBanTarget, setPendingBanTarget] = useState<{ uid: string; name: string } | null>(null);
+  const [chatRoomSettings, setChatRoomSettings] = useState<ChatRoomSettingsState>({ isClosed: false });
+  const [togglingChatLock, setTogglingChatLock] = useState(false);
+  const [pendingResetConfirm, setPendingResetConfirm] = useState(false);
+  const [resettingChat, setResettingChat] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const popupTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [isTypePopupOpen, setIsTypePopupOpen] = useState<boolean>(false);
   const isInitialSnapshotRef = useRef<boolean>(true);
+  const autoDeletedSpamIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (isTypePopupOpen) {
@@ -163,7 +194,39 @@ export const PublicTradingChat: React.FC<Props> = ({
     }
   };
 
-  // 1. Live Firestore Stream Listener gated strictly to authenticated VIP/Trial & Admin users (latest 50 messages)
+  // 1a. Live Chat Room Settings Listener (temporary lock state + reset timestamp)
+  useEffect(() => {
+    if (!canAccessChat || !auth.currentUser) {
+      setChatRoomSettings({ isClosed: false });
+      return;
+    }
+
+    const roomRef = doc(db, 'settings', 'chat_room');
+    const unsubRoom = onSnapshot(
+      roomRef,
+      (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          setChatRoomSettings({
+            isClosed: Boolean(data.isClosed),
+            closedReason: data.closedReason || null,
+            closedBy: data.closedBy || null,
+            closedAt: data.closedAt || null,
+            resetAtMs: typeof data.resetAtMs === 'number' ? data.resetAtMs : null
+          });
+        } else {
+          setChatRoomSettings({ isClosed: false });
+        }
+      },
+      (err) => {
+        console.warn('Chat room settings listener notice:', err?.message || err);
+      }
+    );
+
+    return () => unsubRoom();
+  }, [canAccessChat]);
+
+  // 1b. Live Firestore Stream Listener (open / unlimited messages, chronological order)
   useEffect(() => {
     if (!canAccessChat || !auth.currentUser) {
       setMessages([]);
@@ -178,8 +241,7 @@ export const PublicTradingChat: React.FC<Props> = ({
 
     const chatQuery = query(
       collection(db, 'public_chat'),
-      orderBy('timestampMs', 'desc'),
-      limit(CHAT_HISTORY_LIMIT)
+      orderBy('timestampMs', 'asc')
     );
 
     const unsubscribe = onSnapshot(
@@ -203,11 +265,11 @@ export const PublicTradingChat: React.FC<Props> = ({
         }
         isInitialSnapshotRef.current = false;
 
-        // Reverse descending docs so chronological oldest->newest renders cleanly bottom-anchored
-        const list: ChatMessageItem[] = [...snapshot.docs].reverse().map((docSnap) => {
+        const list: ChatMessageItem[] = snapshot.docs.map((docSnap) => {
           const d = docSnap.data();
           const roleNormalized = (d.role || 'VIP').toString().toUpperCase();
           const avatarUrl = d.photoURL || d.avatar || '';
+          const tsMs = typeof d.timestampMs === 'number' ? d.timestampMs : Date.now();
 
           return {
             id: docSnap.id,
@@ -223,9 +285,10 @@ export const PublicTradingChat: React.FC<Props> = ({
             isPinned: Boolean(d.isPinned),
             likes: Number(d.likes || 0),
             reactions: d.reactions || {},
+            timestampMs: tsMs,
             time: d.createdAt?.toDate
               ? d.createdAt.toDate().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
-              : new Date(d.timestampMs || Date.now()).toLocaleTimeString('ar-SA', {
+              : new Date(tsMs).toLocaleTimeString('ar-SA', {
                   hour: '2-digit',
                   minute: '2-digit'
                 })
@@ -245,6 +308,64 @@ export const PublicTradingChat: React.FC<Props> = ({
 
     return () => unsubscribe();
   }, [canAccessChat]);
+
+  // 1c. Anti-Spam Auto-Delete Sweep (> 2 identical/repeated messages by non-staff user)
+  useEffect(() => {
+    if (!canAccessChat || messages.length === 0) return;
+
+    const myUid = auth.currentUser?.uid;
+    const recentByUserNorm = new Map<string, number[]>();
+    let lastUid = '';
+    let lastNorm = '';
+    let consecutiveStreak = 0;
+
+    const spamIdsToDelete: string[] = [];
+
+    for (const msg of messages) {
+      if (!msg.uid || isStaffMessageRole(msg.role)) continue;
+      const norm = normalizeChatTextForSpam(msg.text);
+      if (!norm) continue;
+
+      const msgTs = typeof msg.timestampMs === 'number' ? msg.timestampMs : 0;
+      const key = `${msg.uid}::${norm}`;
+      const prevTimes = (recentByUserNorm.get(key) || []).filter(
+        (ts) => msgTs === 0 || ts === 0 || msgTs - ts <= SPAM_WINDOW_MS
+      );
+
+      if (msg.uid === lastUid && norm === lastNorm) {
+        consecutiveStreak += 1;
+      } else {
+        lastUid = msg.uid;
+        lastNorm = norm;
+        consecutiveStreak = 1;
+      }
+
+      const nextTimes = [...prevTimes, msgTs];
+      recentByUserNorm.set(key, nextTimes);
+
+      if (
+        (nextTimes.length > SPAM_MAX_ALLOWED_REPEAT || consecutiveStreak > SPAM_MAX_ALLOWED_REPEAT) &&
+        (isCurrentAdmin || msg.uid === myUid) &&
+        !autoDeletedSpamIdsRef.current.has(msg.id)
+      ) {
+        spamIdsToDelete.push(msg.id);
+      }
+    }
+
+    if (spamIdsToDelete.length > 0) {
+      spamIdsToDelete.forEach((id) => autoDeletedSpamIdsRef.current.add(id));
+      Promise.all(spamIdsToDelete.map((id) => deleteDoc(doc(db, 'public_chat', id)).catch(() => {})))
+        .then(() => {
+          showToastNotice(
+            'error',
+            isAr
+              ? 'تم حذف رسالة سبام مكررة (>2 مرات) تلقائياً.'
+              : 'Duplicate spam message (>2 times) was auto-deleted.'
+          );
+        })
+        .catch(() => {});
+    }
+  }, [messages, canAccessChat, isCurrentAdmin, isAr]);
 
   // Auto-scroll logic
   useEffect(() => {
@@ -321,10 +442,18 @@ export const PublicTradingChat: React.FC<Props> = ({
     resetFileInput();
   };
 
-  // 2. Write to Firestore 'public_chat' collection with strict 500-char limit & auth check
+  // 2. Write to Firestore 'public_chat' collection with anti-spam (>2 repeats) & temporary lock enforcement
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canAccessChat || isMutedFromChat) return;
+
+    if (chatRoomSettings.isClosed && !isCurrentAdmin) {
+      showToastNotice(
+        'error',
+        isAr ? 'تم إغلاق غرفة الدردشة مؤقتاً من قبل الإدارة.' : 'Chat room is temporarily closed by administration.'
+      );
+      return;
+    }
 
     const currentUser = auth.currentUser;
     if (!currentUser) {
@@ -342,6 +471,36 @@ export const PublicTradingChat: React.FC<Props> = ({
     }
 
     if ((!textToSend && !selectedImage) || isSending) return;
+
+    // Anti-Spam Gate: Prevent & auto-discard if repeated more than 2 times (> 2x)
+    if (!isCurrentAdmin && textToSend) {
+      const normIncoming = normalizeChatTextForSpam(textToSend);
+      const nowMs = Date.now();
+      const recentMatches = messages.filter(
+        (m) =>
+          m.uid === currentUser.uid &&
+          normalizeChatTextForSpam(m.text) === normIncoming &&
+          (!m.timestampMs || nowMs - m.timestampMs <= SPAM_WINDOW_MS)
+      );
+      const myMsgs = messages.filter((m) => m.uid === currentUser.uid);
+      const trailingSame =
+        myMsgs.length >= SPAM_MAX_ALLOWED_REPEAT &&
+        myMsgs
+          .slice(-SPAM_MAX_ALLOWED_REPEAT)
+          .every((m) => normalizeChatTextForSpam(m.text) === normIncoming);
+
+      if (recentMatches.length >= SPAM_MAX_ALLOWED_REPEAT || trailingSame) {
+        setInputText('');
+        setIsTypePopupOpen(false);
+        showToastNotice(
+          'error',
+          isAr
+            ? 'تم حذف الرسالة تلقائياً: يُمنع تكرار نفس الرسالة أكثر من مرتين (Anti-Spam).'
+            : 'Message auto-deleted: repeating the same message more than 2 times is not allowed.'
+        );
+        return;
+      }
+    }
 
     try {
       setIsSending(true);
@@ -446,6 +605,80 @@ export const PublicTradingChat: React.FC<Props> = ({
     } catch (err: any) {
       console.error('Delete message error:', err);
       showToastNotice('error', err?.message || 'Delete failed');
+    }
+  };
+
+  const handleToggleChatLock = async () => {
+    if (!isCurrentAdmin || togglingChatLock) return;
+    soundManager.playClick();
+    setTogglingChatLock(true);
+    const nextClosed = !chatRoomSettings.isClosed;
+    try {
+      await setDoc(doc(db, 'settings', 'chat_room'), {
+        isClosed: nextClosed,
+        closedReason: null,
+        closedBy: nextClosed ? auth.currentUser?.email || currentUserName : null,
+        closedAt: nextClosed ? new Date().toISOString() : null,
+        resetAtMs: chatRoomSettings.resetAtMs ?? null,
+        updatedAt: new Date().toISOString()
+      });
+      soundManager.playSuccess();
+      showToastNotice(
+        'success',
+        nextClosed
+          ? isAr
+            ? 'تم إغلاق غرفة الدردشة مؤقتاً للأعضاء'
+            : 'Chat room temporarily closed for members'
+          : isAr
+          ? 'تم إعادة فتح غرفة الدردشة بنجاح'
+          : 'Chat room reopened for members'
+      );
+    } catch (err: any) {
+      console.error('Toggle chat lock error:', err);
+      showToastNotice('error', err?.message || (isAr ? 'تعذر تحديث حالة إغلاق الغرفة' : 'Failed to toggle chat lock'));
+    } finally {
+      setTogglingChatLock(false);
+    }
+  };
+
+  const handleResetChatMessages = async () => {
+    if (!isCurrentAdmin || resettingChat) return;
+    setResettingChat(true);
+    soundManager.playClick();
+    try {
+      const snap = await getDocs(collection(db, 'public_chat'));
+      const docs = snap.docs;
+      const CHUNK_SIZE = 450;
+      for (let i = 0; i < docs.length; i += CHUNK_SIZE) {
+        const batch = writeBatch(db);
+        docs.slice(i, i + CHUNK_SIZE).forEach((d) => batch.delete(d.ref));
+        await batch.commit();
+      }
+
+      await setDoc(doc(db, 'settings', 'chat_room'), {
+        isClosed: chatRoomSettings.isClosed,
+        closedReason: chatRoomSettings.closedReason ?? null,
+        closedBy: chatRoomSettings.closedBy ?? null,
+        closedAt: chatRoomSettings.closedAt ?? null,
+        resetAtMs: Date.now(),
+        updatedAt: new Date().toISOString()
+      });
+
+      autoDeletedSpamIdsRef.current.clear();
+      setPinnedMessage(null);
+      setPendingResetConfirm(false);
+      soundManager.playSuccess();
+      showToastNotice(
+        'success',
+        isAr
+          ? `تم تصفير الشات وحذف ${docs.length} رسالة بنجاح`
+          : `Chat reset complete (${docs.length} messages cleared)`
+      );
+    } catch (err: any) {
+      console.error('Reset chat messages error:', err);
+      showToastNotice('error', err?.message || (isAr ? 'تعذر تصفير رسائل الشات' : 'Failed to reset chat messages'));
+    } finally {
+      setResettingChat(false);
     }
   };
 
@@ -629,37 +862,92 @@ export const PublicTradingChat: React.FC<Props> = ({
               </h2>
 
               {!isCompact && (
-                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-[#089981]/20 text-[#089981] border border-[#089981]/40 flex items-center gap-1 shrink-0">
-                  <span className="relative flex h-1.5 w-1.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#089981] opacity-75" />
-                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#089981]" />
+                chatRoomSettings.isClosed ? (
+                  <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-rose-500/20 text-rose-400 border border-rose-500/40 flex items-center gap-1 shrink-0">
+                    <Lock className="w-2.5 h-2.5" />
+                    <span>{isAr ? 'مغلق مؤقتاً' : 'LOCKED'}</span>
                   </span>
-                  <span>VIP LIVE</span>
-                </span>
+                ) : (
+                  <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-[#089981]/20 text-[#089981] border border-[#089981]/40 flex items-center gap-1 shrink-0">
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#089981] opacity-75" />
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#089981]" />
+                    </span>
+                    <span>VIP LIVE</span>
+                  </span>
+                )
               )}
             </div>
 
             <p className="text-[10px] text-[#787b86] flex items-center gap-1.5 truncate mt-0.5">
               <span className="font-mono text-[#089981] font-bold">
-                {isAr ? `آخر ${CHAT_HISTORY_LIMIT} رسالة` : `Latest ${CHAT_HISTORY_LIMIT} msgs`}
+                {isAr ? `${messages.length} رسالة (سجل مفتوح)` : `${messages.length} msgs (Open)`}
               </span>
               <span className="text-[#434651]">•</span>
-              <span className="text-[#089981] font-bold">
-                {isAr ? 'متصل (Live)' : 'Connected'}
+              <span className={chatRoomSettings.isClosed ? 'text-rose-400 font-bold' : 'text-[#089981] font-bold'}>
+                {chatRoomSettings.isClosed
+                  ? isAr
+                    ? 'مغلق مؤقتاً'
+                    : 'Temp Closed'
+                  : isAr
+                  ? 'متصل (Live)'
+                  : 'Connected'}
               </span>
             </p>
           </div>
         </div>
 
-        {/* Right Tools: Verified Admin Indicator + Quick Asset Filters */}
+        {/* Right Tools: Admin Controls (Close/Open + Reset) + Quick Asset Filters */}
         <div className="flex items-center gap-1 shrink-0">
           {isCurrentAdmin && (
-            <span className="px-1.5 py-1 rounded-lg text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/50 flex items-center gap-1 shrink-0">
-              <Crown className="w-3 h-3 text-amber-400" />
-              <span className={isCompact ? 'text-[9px]' : 'hidden sm:inline'}>
-                {isAr ? 'إشراف' : 'MOD'}
-              </span>
-            </span>
+            <>
+              <button
+                type="button"
+                disabled={togglingChatLock}
+                onClick={handleToggleChatLock}
+                title={
+                  chatRoomSettings.isClosed
+                    ? isAr
+                      ? 'إعادة فتح الدردشة للأعضاء'
+                      : 'Reopen Chat'
+                    : isAr
+                    ? 'إغلاق الدردشة مؤقتاً'
+                    : 'Temporarily Close Chat'
+                }
+                className={`px-2 py-1 rounded-lg text-[10px] font-bold border flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-50 shrink-0 ${
+                  chatRoomSettings.isClosed
+                    ? 'bg-[#089981]/20 hover:bg-[#089981]/30 text-[#089981] border-[#089981]/50'
+                    : 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border-amber-500/40'
+                }`}
+              >
+                {chatRoomSettings.isClosed ? <Unlock className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
+                {!isCompact && (
+                  <span className="hidden sm:inline">
+                    {chatRoomSettings.isClosed
+                      ? isAr
+                        ? 'فتح الشات'
+                        : 'Open'
+                      : isAr
+                      ? 'إغلاق مؤقت'
+                      : 'Lock'}
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                disabled={resettingChat}
+                onClick={() => {
+                  soundManager.playClick();
+                  setPendingResetConfirm(true);
+                }}
+                title={isAr ? 'تصفير وحذف جميع رسائل الشات' : 'Reset / Clear All Messages'}
+                className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#f23645]/15 hover:bg-[#f23645]/25 text-[#f23645] border border-[#f23645]/40 flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+              >
+                <RotateCcw className="w-3 h-3" />
+                {!isCompact && <span className="hidden sm:inline">{isAr ? 'تصفير' : 'Reset'}</span>}
+              </button>
+            </>
           )}
 
           {!isCompact && (
@@ -794,6 +1082,24 @@ export const PublicTradingChat: React.FC<Props> = ({
                   >
                     <Reply className="w-3.5 h-3.5" />
                   </button>
+
+                  {!isMe && msg.uid && onStartDirectMessage && (
+                    <button
+                      onClick={() => {
+                        soundManager.playClick();
+                        onStartDirectMessage({
+                          uid: msg.uid!,
+                          displayName: msg.user,
+                          avatar: msg.avatar,
+                          role: msg.role
+                        });
+                      }}
+                      className="p-1 hover:bg-[#089981]/20 rounded-full text-[#787b86] hover:text-[#089981] transition-colors cursor-pointer"
+                      title={isAr ? `رسالة خاصة إلى ${msg.user}` : `Direct message ${msg.user}`}
+                    >
+                      <Mail className="w-3.5 h-3.5" />
+                    </button>
+                  )}
 
                   {isCurrentAdmin && (
                     <>
@@ -1011,6 +1317,25 @@ export const PublicTradingChat: React.FC<Props> = ({
                     </div>
 
                     <div className="flex items-center gap-1.5 text-[#787b86]">
+                      {!isMe && msg.uid && onStartDirectMessage && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            soundManager.playClick();
+                            onStartDirectMessage({
+                              uid: msg.uid!,
+                              displayName: msg.user,
+                              avatar: msg.avatar,
+                              role: msg.role
+                            });
+                          }}
+                          className="px-1.5 py-0.5 rounded-md bg-[#131722]/70 hover:bg-[#089981]/20 border border-[#2a2e39] hover:border-[#089981]/50 text-[#9db2c6] hover:text-[#089981] text-[9px] font-bold inline-flex items-center gap-1 cursor-pointer transition-colors"
+                          title={isAr ? `مراسلة ${msg.user} على الخاص` : `DM ${msg.user}`}
+                        >
+                          <Mail className="w-2.5 h-2.5" />
+                          <span>{isAr ? 'خاص' : 'DM'}</span>
+                        </button>
+                      )}
                       {isCurrentAdmin && (
                         <button
                           onClick={() => handleDeleteMessage(msg.id)}
@@ -1113,11 +1438,41 @@ export const PublicTradingChat: React.FC<Props> = ({
               : 'Your account is muted from chat by administration.'}
           </span>
         </div>
+      ) : chatRoomSettings.isClosed && !isCurrentAdmin ? (
+        <div className="p-3 border-t border-amber-500/40 bg-amber-500/10 text-amber-300 text-xs font-bold text-center flex items-center justify-center gap-2 shrink-0">
+          <Lock className="w-4 h-4 shrink-0" />
+          <span>
+            {isAr
+              ? 'تم إغلاق غرفة الدردشة مؤقتاً من قبل الإدارة. يمكنك متابعة القراءة حتى إعادة فتحها.'
+              : 'Chat group is temporarily closed by admin. You can read messages until reopened.'}
+          </span>
+        </div>
       ) : (
-        <form
-          onSubmit={handleSendMessage}
-          className="p-2 sm:p-2.5 border-t border-[#2a2e39] bg-[#1a1e28] flex items-center gap-1.5 shrink-0 sticky bottom-0 z-30 shadow-[0_-4px_16px_rgba(0,0,0,0.35)]"
-        >
+        <>
+          {chatRoomSettings.isClosed && isCurrentAdmin && (
+            <div className="px-3 py-1.5 border-t border-amber-500/40 bg-amber-500/15 text-amber-300 text-[11px] font-bold flex items-center justify-between gap-2 shrink-0">
+              <span className="flex items-center gap-1.5 truncate">
+                <Lock className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">
+                  {isAr
+                    ? 'الغرفة مغلقة مؤقتاً للأعضاء (الإدارة فقط يمكنها النشر)'
+                    : 'Chat temporarily closed for members (Admin posting active)'}
+                </span>
+              </span>
+              <button
+                type="button"
+                disabled={togglingChatLock}
+                onClick={handleToggleChatLock}
+                className="px-2 py-0.5 rounded-lg bg-[#089981] hover:bg-[#07846f] text-white text-[10px] font-bold shrink-0 cursor-pointer"
+              >
+                {isAr ? 'فتح الشات' : 'Reopen'}
+              </button>
+            </div>
+          )}
+          <form
+            onSubmit={handleSendMessage}
+            className="p-2 sm:p-2.5 border-t border-[#2a2e39] bg-[#1a1e28] flex items-center gap-1.5 shrink-0 sticky bottom-0 z-30 shadow-[0_-4px_16px_rgba(0,0,0,0.35)]"
+          >
           {isCurrentAdmin && (
             <button
               type="button"
@@ -1181,6 +1536,7 @@ export const PublicTradingChat: React.FC<Props> = ({
             {!isCompact && <span className="hidden sm:inline">{isAr ? 'إرسال' : 'Send'}</span>}
           </button>
         </form>
+        </>
       )}
 
       {/* 6. POP-UP TYPING MODAL */}
@@ -1389,6 +1745,59 @@ export const PublicTradingChat: React.FC<Props> = ({
                 className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold cursor-pointer"
               >
                 {isAr ? 'تأكيد الحظر' : 'Confirm Ban'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* RESET CHAT CONFIRMATION DIALOG (Admin Only) */}
+      {pendingResetConfirm && isCurrentAdmin && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => !resettingChat && setPendingResetConfirm(false)}
+        >
+          <div
+            className="bg-[#1e222d] border border-[#f23645]/40 rounded-2xl p-5 max-w-sm w-full shadow-2xl space-y-4"
+            onClick={(e) => e.stopPropagation()}
+            dir={isAr ? 'rtl' : 'ltr'}
+          >
+            <div className="flex items-center gap-2.5 text-[#f23645]">
+              <RotateCcw className="w-5 h-5 shrink-0" />
+              <h3 className="text-sm font-bold text-white">
+                {isAr ? 'تأكيد تصفير رسائل الشات' : 'Confirm Chat Reset'}
+              </h3>
+            </div>
+            <p className="text-xs text-[#d1d4dc] leading-relaxed">
+              {isAr
+                ? `هل أنت متأكد من حذف جميع الرسائل (${messages.length} رسالة) وتصفير سجل الدردشة بالكامل؟ لا يمكن التراجع عن هذه الخطوة.`
+                : `Are you sure you want to permanently clear all ${messages.length} chat messages? This action cannot be undone.`}
+            </p>
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <button
+                type="button"
+                disabled={resettingChat}
+                onClick={() => setPendingResetConfirm(false)}
+                className="px-3.5 py-2 rounded-xl border border-[#2a2e39] text-xs font-semibold text-[#787b86] hover:text-white cursor-pointer disabled:opacity-50"
+              >
+                {isAr ? 'إلغاء' : 'Cancel'}
+              </button>
+              <button
+                type="button"
+                disabled={resettingChat}
+                onClick={handleResetChatMessages}
+                className="px-4 py-2 rounded-xl bg-[#f23645] hover:bg-rose-500 text-white text-xs font-bold cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+              >
+                <RotateCcw className={`w-3.5 h-3.5 ${resettingChat ? 'animate-spin' : ''}`} />
+                <span>
+                  {resettingChat
+                    ? isAr
+                      ? 'جاري التصفير...'
+                      : 'Resetting...'
+                    : isAr
+                    ? 'تأكيد التصفير'
+                    : 'Reset All'}
+                </span>
               </button>
             </div>
           </div>

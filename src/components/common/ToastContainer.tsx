@@ -24,6 +24,7 @@ export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onDismis
       {toasts.map((toast) => {
         const isBuy = toast.action === 'BUY';
         const isBot = toast.type === 'bot';
+        const isInfoOrSuccess = toast.type === 'info' || toast.type === 'success';
 
         return (
           <div
@@ -32,6 +33,8 @@ export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onDismis
             style={{
               borderColor: isBot
                 ? 'rgba(234, 179, 8, 0.4)'
+                : isInfoOrSuccess
+                ? 'rgba(6, 182, 212, 0.45)'
                 : isBuy
                 ? 'rgba(16, 185, 129, 0.4)'
                 : 'rgba(244, 63, 94, 0.4)'
@@ -42,6 +45,8 @@ export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onDismis
               className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
                 isBot
                   ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                  : isInfoOrSuccess
+                  ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
                   : isBuy
                   ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                   : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
@@ -49,6 +54,8 @@ export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onDismis
             >
               {isBot ? (
                 <ShieldAlert className="w-5 h-5 animate-pulse" />
+              ) : isInfoOrSuccess ? (
+                <Bell className="w-5 h-5 animate-pulse" />
               ) : isBuy ? (
                 <TrendingUp className="w-5 h-5" />
               ) : (

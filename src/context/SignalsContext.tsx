@@ -6,6 +6,12 @@ import { soundManager } from '../utils/audio';
 import { DailyTrade, TradeSource, DailyTradeStatus, UserProfile } from '../types/trading';
 import { ToastContainer, ToastItem } from '../components/common/ToastContainer';
 import { hasFeatureAccess } from '../utils/entitlements';
+import {
+  AppNotificationPermission,
+  dispatchMobileAppNotification,
+  getNotificationPermissionState,
+  requestAppNotificationPermission
+} from '../utils/mobileNotifications';
 
 export interface ChannelSignalItem {
   id: string;
@@ -53,10 +59,12 @@ export interface SignalsContextValue {
   botAlertsLoading: boolean;
   toasts: ToastItem[];
   dbError: string | null;
+  unreadDmCount: number;
+  notificationPermission: AppNotificationPermission;
   setDbError: (err: string | null) => void;
   addToast: (toast: Omit<ToastItem, 'id'>) => void;
   removeToast: (id: string) => void;
-  requestNotificationPermission: () => Promise<NotificationPermission | undefined>;
+  requestNotificationPermission: () => Promise<AppNotificationPermission>;
 }
 
 const SignalsContext = createContext<SignalsContextValue>({
@@ -67,10 +75,12 @@ const SignalsContext = createContext<SignalsContextValue>({
   botAlertsLoading: true,
   toasts: [],
   dbError: null,
+  unreadDmCount: 0,
+  notificationPermission: 'default',
   setDbError: () => {},
   addToast: () => {},
   removeToast: () => {},
-  requestNotificationPermission: async () => undefined
+  requestNotificationPermission: async () => 'default'
 });
 
 const SUPER_ADMIN_EMAIL = 'moe.albzour@gmail.com';
@@ -104,8 +114,14 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [dbError, setDbError] = useState<string | null>(null);
   const [authResolved, setAuthResolved] = useState<boolean>(false);
+  const [currentUserUid, setCurrentUserUid] = useState<string | null>(null);
   const [canReadVipSignals, setCanReadVipSignals] = useState<boolean>(false);
   const [canReadBotAlerts, setCanReadBotAlerts] = useState<boolean>(false);
+  const [canReadVipChat, setCanReadVipChat] = useState<boolean>(false);
+  const [unreadDmCount, setUnreadDmCount] = useState<number>(0);
+  const [notificationPermission, setNotificationPermission] = useState<AppNotificationPermission>(() =>
+    getNotificationPermissionState()
+  );
 
   const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -128,19 +144,10 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     [removeToast]
   );
 
-  const requestNotificationPermission = useCallback(async () => {
-    try {
-      if (typeof window !== 'undefined' && 'Notification' in window) {
-        if (Notification.permission === 'default') {
-          const perm = await Notification.requestPermission();
-          return perm;
-        }
-        return Notification.permission;
-      }
-    } catch (err) {
-      console.warn('[SignalsContext] Error requesting notification permission:', err);
-    }
-    return undefined;
+  const requestNotificationPermission = useCallback(async (): Promise<AppNotificationPermission> => {
+    const perm = await requestAppNotificationPermission();
+    setNotificationPermission(perm);
+    return perm;
   }, []);
 
   const triggerAudioAlert = useCallback(() => {
@@ -151,22 +158,38 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, []);
 
-  const sendBrowserNotification = useCallback((title: string, body: string) => {
-    try {
-      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-        new Notification(title, {
-          body,
-          icon: '/favicon.ico'
-        });
-      }
-    } catch (err) {
-      console.warn('[SignalsContext] Failed to dispatch browser notification:', err);
-    }
+  const sendBrowserNotification = useCallback((title: string, body: string, tag?: string) => {
+    dispatchMobileAppNotification({ title, body, tag }).catch(() => {});
   }, []);
 
   useEffect(() => {
-    requestNotificationPermission().catch(() => {});
-  }, [requestNotificationPermission]);
+    const syncPermission = () => {
+      setNotificationPermission(getNotificationPermissionState());
+    };
+    syncPermission();
+
+    window.addEventListener('focus', syncPermission);
+    document.addEventListener('visibilitychange', syncPermission);
+
+    let permStatus: PermissionStatus | null = null;
+    if (typeof navigator !== 'undefined' && navigator.permissions?.query) {
+      navigator.permissions
+        .query({ name: 'notifications' as PermissionName })
+        .then((status) => {
+          permStatus = status;
+          status.onchange = syncPermission;
+        })
+        .catch(() => {});
+    }
+
+    return () => {
+      window.removeEventListener('focus', syncPermission);
+      document.removeEventListener('visibilitychange', syncPermission);
+      if (permStatus) {
+        permStatus.onchange = null;
+      }
+    };
+  }, []);
 
   // Track authenticated user VIP/Elite/Feature-Trial/Admin status in real time
   useEffect(() => {
@@ -179,11 +202,16 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
 
       if (!firebaseUser) {
+        setCurrentUserUid(null);
         setCanReadVipSignals(false);
         setCanReadBotAlerts(false);
+        setCanReadVipChat(false);
+        setUnreadDmCount(0);
         setAuthResolved(true);
         return;
       }
+
+      setCurrentUserUid(firebaseUser.uid);
 
       const isSuperAdmin =
         firebaseUser.email?.toLowerCase() === SUPER_ADMIN_EMAIL && firebaseUser.emailVerified;
@@ -191,6 +219,7 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (isSuperAdmin) {
         setCanReadVipSignals(true);
         setCanReadBotAlerts(true);
+        setCanReadVipChat(true);
         setAuthResolved(true);
         return;
       }
@@ -202,12 +231,14 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
           const profile = mapRawUserToProfile(snap.data());
           setCanReadVipSignals(hasFeatureAccess(profile, 'vipSignals'));
           setCanReadBotAlerts(hasFeatureAccess(profile, 'botSignals'));
+          setCanReadVipChat(hasFeatureAccess(profile, 'vipChat'));
           setAuthResolved(true);
         },
         (err) => {
           console.warn('[SignalsContext] User role listener notice:', err?.message || err);
           setCanReadVipSignals(false);
           setCanReadBotAlerts(false);
+          setCanReadVipChat(false);
           setAuthResolved(true);
         }
       );
@@ -472,6 +503,107 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     };
   }, [authResolved, canReadVipSignals, canReadBotAlerts, addToast, sendBrowserNotification, triggerAudioAlert]);
 
+  // Global Direct Message & VIP Group Chat Live Notifications (Sound + Toast + Mobile PWA OS Notification)
+  useEffect(() => {
+    if (!authResolved || !currentUserUid) return;
+
+    let isFirstDmSnapshot = true;
+    const lastSeenConvoMsgMs = new Map<string, number>();
+
+    const dmQuery = query(
+      collection(db, 'dm_conversations'),
+      where('participants', 'array-contains', currentUserUid)
+    );
+
+    const unsubDm = onSnapshot(
+      dmQuery,
+      (snap) => {
+        let totalUnread = 0;
+
+        snap.docs.forEach((docSnap) => {
+          const d = docSnap.data();
+          const unreadMap = d.unreadBy || {};
+          totalUnread += Number(unreadMap[currentUserUid] || 0);
+
+          const msgMs = Number(d.lastMessageAtMs || 0);
+          const prevMs = lastSeenConvoMsgMs.get(docSnap.id) || 0;
+          lastSeenConvoMsgMs.set(docSnap.id, msgMs);
+
+          if (
+            !isFirstDmSnapshot &&
+            msgMs > prevMs &&
+            d.lastSenderUid &&
+            d.lastSenderUid !== currentUserUid &&
+            d.lastMessage
+          ) {
+            const senderName = d.participantNames?.[d.lastSenderUid] || 'متداول MBK';
+            const preview = String(d.lastMessage).slice(0, 120);
+
+            triggerAudioAlert();
+            addToast({
+              title: `رسالة خاصة من ${senderName} 💬`,
+              message: preview,
+              type: 'info',
+              timestamp: 'الآن'
+            });
+            sendBrowserNotification(`رسالة خاصة • ${senderName}`, preview, `dm-${docSnap.id}`);
+          }
+        });
+
+        setUnreadDmCount(totalUnread);
+        isFirstDmSnapshot = false;
+      },
+      (err) => {
+        console.warn('[SignalsContext] DM listener notice:', err?.message || err);
+      }
+    );
+
+    let unsubChat: (() => void) | null = null;
+    if (canReadVipChat) {
+      let isFirstChatSnapshot = true;
+      const latestChatQuery = query(
+        collection(db, 'public_chat'),
+        orderBy('timestampMs', 'desc'),
+        limit(1)
+      );
+
+      unsubChat = onSnapshot(
+        latestChatQuery,
+        (snap) => {
+          if (!isFirstChatSnapshot) {
+            snap.docChanges().forEach((change) => {
+              if (change.type !== 'added') return;
+              const d = change.doc.data();
+              const isRecent = d.timestampMs ? d.timestampMs > Date.now() - 2 * 60 * 1000 : true;
+              if (d.uid && d.uid !== currentUserUid && isRecent) {
+                const senderName = d.displayName || 'VIP Trader';
+                const msgBody = (d.text || '[صورة شارت]').toString().slice(0, 120);
+
+                triggerAudioAlert();
+                addToast({
+                  title: `شات VIP • ${senderName} 💬`,
+                  message: msgBody,
+                  type: 'info',
+                  timestamp: 'الآن'
+                });
+                sendBrowserNotification(`غرفة VIP • ${senderName}`, msgBody, `vip-chat-${change.doc.id}`);
+              }
+            });
+          }
+          isFirstChatSnapshot = false;
+        },
+        (err) => {
+          console.warn('[SignalsContext] Global VIP chat notification notice:', err?.message || err);
+        }
+      );
+    }
+
+    return () => {
+      unsubDm();
+      if (unsubChat) unsubChat();
+    };
+  }, [authResolved, currentUserUid, canReadVipChat, addToast, sendBrowserNotification, triggerAudioAlert]);
+
   // Merge raw bot_alerts into trades array, capped at latest 30 signals
   const mergedTrades: DailyTrade[] = [...rawTrades];
   const existingTradeIds = new Set(rawTrades.map((t) => t.id));
@@ -554,6 +686,8 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         botAlertsLoading,
         toasts,
         dbError,
+        unreadDmCount,
+        notificationPermission,
         setDbError,
         addToast,
         removeToast,

@@ -4,6 +4,9 @@ import {
   signInWithPopup,
   signOut,
   updateProfile,
+  updatePassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
   onAuthStateChanged,
   sendEmailVerification,
   sendPasswordResetEmail,
@@ -70,6 +73,8 @@ export function getFirebaseAuthErrorMessage(error: any): string {
       return 'تعذر الاتصال بالخادم. يرجى التحقق من اتصال الإنترنت.';
     case 'auth/too-many-requests':
       return 'تم حظر المحاولات مؤقتاً. يرجى الانتظار قليلاً والتحقق مجدداً.';
+    case 'auth/requires-recent-login':
+      return 'تتطلب هذه العملية التحقق من كلمة المرور الحالية أو إعادة تسجيل الدخول مؤخراً.';
     case 'permission-denied':
       return 'تعذر حفظ بيانات الحساب في قاعدة البيانات (صلاحيات Firestore).';
     case 'unavailable':
@@ -123,6 +128,18 @@ function buildPlanName(normalizedRole: string, tier: 'free' | 'vip' | 'elite'): 
   if (tier === 'elite' || normalizedRole === 'ELITE') return 'باقة Elite المؤسسية ($500/mo)';
   if (tier === 'vip' || normalizedRole === 'VIP') return 'باقة VIP ($100/mo)';
   return 'الباقة المجانية (Free)';
+}
+
+function normalizeTimestampToIso(value: any): string | null {
+  if (!value) return null;
+  if (typeof value === 'string') return value;
+  if (typeof value?.toDate === 'function') {
+    return value.toDate().toISOString();
+  }
+  if (typeof value?.seconds === 'number') {
+    return new Date(value.seconds * 1000).toISOString();
+  }
+  return null;
 }
 
 function mapUserDocToProfile(firebaseUser: FirebaseUser, data: Record<string, any> = {}): UserProfile {
@@ -188,7 +205,7 @@ function mapUserDocToProfile(firebaseUser: FirebaseUser, data: Record<string, an
     uid: firebaseUser.uid,
     id: firebaseUser.uid,
     email: firebaseUser.email || data.email || '',
-    name: firebaseUser.displayName || data.displayName || firebaseUser.email?.split('@')[0] || 'متداول MBK',
+    name: data.displayName || firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'متداول MBK',
     role: normalizedRole,
     tier: effectiveTier,
     planName: buildPlanName(normalizedRole, effectiveTier),
@@ -208,6 +225,7 @@ function mapUserDocToProfile(firebaseUser: FirebaseUser, data: Record<string, an
     experienceLevel: data.experienceLevel || '',
     assetClasses: Array.isArray(data.assetClasses) ? data.assetClasses : [],
     favoritePairs: data.favoritePairs || '',
+    telegramUsername: data.telegramUsername || '',
     totalPaid: Number(data.totalPaid || 0),
     isBanned: Boolean(data.isBanned),
     isMutedFromChat: Boolean(data.isMutedFromChat),
@@ -215,6 +233,7 @@ function mapUserDocToProfile(firebaseUser: FirebaseUser, data: Record<string, an
     subscriptionEndDate: subEndDate,
     activationKey: data.activationKey || null,
     promoCode: data.activationKey || undefined,
+    lastNameChangeAt: normalizeTimestampToIso(data.lastNameChangeAt),
     lastActiveAt: new Date().toISOString()
   };
 }
@@ -535,6 +554,146 @@ export async function saveGoogleUserOnboardingProfile(
     isEmailVerified: true,
     needsOnboarding: false
   };
+}
+
+export const NAME_CHANGE_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
+
+export interface ProfileUpdateInput {
+  displayName: string;
+  phone: string;
+  country: string;
+  dob: string;
+  experienceLevel: string;
+  assetClasses: string[];
+  favoritePairs: string;
+  telegramUsername: string;
+}
+
+export function getNameChangeAvailability(lastNameChangeAt?: string | null): {
+  canChange: boolean;
+  nextAvailableDate: Date | null;
+  remainingDays: number;
+  remainingHours: number;
+} {
+  if (!lastNameChangeAt) {
+    return { canChange: true, nextAvailableDate: null, remainingDays: 0, remainingHours: 0 };
+  }
+  const lastMs = new Date(lastNameChangeAt).getTime();
+  if (Number.isNaN(lastMs)) {
+    return { canChange: true, nextAvailableDate: null, remainingDays: 0, remainingHours: 0 };
+  }
+  const nextMs = lastMs + NAME_CHANGE_COOLDOWN_MS;
+  const diffMs = nextMs - Date.now();
+  if (diffMs <= 0) {
+    return { canChange: true, nextAvailableDate: null, remainingDays: 0, remainingHours: 0 };
+  }
+  return {
+    canChange: false,
+    nextAvailableDate: new Date(nextMs),
+    remainingDays: Math.ceil(diffMs / (24 * 60 * 60 * 1000)),
+    remainingHours: Math.ceil(diffMs / (60 * 60 * 1000))
+  };
+}
+
+/**
+ * Updates the signed-in user's own profile information (excluding immutable email & roles).
+ * Enforces a strict 7-day cooldown on displayName changes (matching Firestore Rules).
+ */
+export async function updateOwnUserProfile(
+  uid: string,
+  input: ProfileUpdateInput
+): Promise<{ nameChanged: boolean }> {
+  const currentUser = auth.currentUser;
+  if (!currentUser || currentUser.uid !== uid) {
+    throw new Error('يجب تسجيل الدخول بحسابك لتحديث الملف الشخصي.');
+  }
+
+  const userDocRef = doc(db, 'users', uid);
+  const snap = await getDoc(userDocRef);
+  const existingData = snap.exists() ? snap.data() : {};
+
+  const cleanName = input.displayName.trim().slice(0, 100);
+  const existingName = (existingData.displayName || currentUser.displayName || '').toString().trim();
+  const nameChanged = cleanName.length > 0 && cleanName !== existingName;
+
+  if (nameChanged) {
+    if (cleanName.length < 2) {
+      throw new Error('الاسم يجب أن يتكون من حرفين على الأقل.');
+    }
+    const lastChangeIso = normalizeTimestampToIso(existingData.lastNameChangeAt);
+    const availability = getNameChangeAvailability(lastChangeIso);
+    if (!availability.canChange) {
+      throw new Error(
+        `يمكن تغيير الاسم مرة واحدة كل 7 أيام. المتاح مجدداً بعد ${availability.remainingDays} يوم.`
+      );
+    }
+  }
+
+  const cleanAssets = Array.isArray(input.assetClasses)
+    ? input.assetClasses.filter((item) => typeof item === 'string' && item.trim()).slice(0, 10)
+    : [];
+
+  const payload: Record<string, any> = {
+    phone: input.phone.trim().slice(0, 40),
+    country: input.country.trim().slice(0, 80),
+    dob: input.dob.trim().slice(0, 32),
+    experienceLevel: input.experienceLevel.trim().slice(0, 40),
+    assetClasses: cleanAssets,
+    favoritePairs: input.favoritePairs.trim().slice(0, 200),
+    telegramUsername: input.telegramUsername.trim().slice(0, 80),
+    updatedAt: serverTimestamp()
+  };
+
+  if (nameChanged) {
+    payload.displayName = cleanName;
+    payload.lastNameChangeAt = serverTimestamp();
+  }
+
+  await updateDoc(userDocRef, payload);
+
+  if (nameChanged) {
+    try {
+      await updateProfile(currentUser, { displayName: cleanName });
+    } catch (err) {
+      console.warn('[Firebase Auth] displayName metadata sync notice:', err);
+    }
+  }
+
+  return { nameChanged };
+}
+
+/**
+ * Re-authenticates an email/password user with their current password and updates to a new password.
+ */
+export async function changeUserPassword(
+  currentPassword: string,
+  newPassword: string
+): Promise<void> {
+  const user = auth.currentUser;
+  if (!user || !user.email) {
+    throw new Error('يجب تسجيل الدخول بحسابك أولاً لتغيير كلمة المرور.');
+  }
+
+  const hasPasswordProvider = user.providerData.some((p) => p.providerId === 'password');
+  if (!hasPasswordProvider) {
+    throw new Error(
+      'هذا الحساب مسجل عبر Google ولا يملك كلمة مرور محلية. يمكنك استخدام خيار إرسال رابط تعيين كلمة المرور إلى بريدك الإلكتروني.'
+    );
+  }
+
+  if (!currentPassword) {
+    throw new Error('يرجى إدخال كلمة المرور الحالية.');
+  }
+  if (!newPassword || newPassword.length < 6) {
+    throw new Error('كلمة المرور الجديدة يجب أن تتكون من 6 أحرف أو أرقام على الأقل.');
+  }
+  if (currentPassword === newPassword) {
+    throw new Error('كلمة المرور الجديدة يجب أن تختلف عن كلمة المرور الحالية.');
+  }
+
+  const credential = EmailAuthProvider.credential(user.email, currentPassword);
+  await reauthenticateWithCredential(user, credential);
+  await updatePassword(user, newPassword);
 }
 
 /**

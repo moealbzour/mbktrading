@@ -28,49 +28,68 @@ export const PWAInstallPrompt: React.FC<Props> = ({ lang = 'ar' }) => {
       (window.navigator as any).standalone === true;
     setIsStandalone(isStandaloneMode);
 
-    if (isStandaloneMode) return;
-
-    // 2. Check dismissal memory
-    const dismissed = localStorage.getItem('mbk_pwa_dismissed');
-    if (dismissed && Date.now() - parseInt(dismissed, 10) < 24 * 60 * 60 * 1000) {
-      return;
-    }
-
-    // 3. Detect iOS device
+    // 2. Detect iOS device
     const userAgent = window.navigator.userAgent.toLowerCase();
     const isIOSDevice = /iphone|ipad|ipod/.test(userAgent) && !(window as any).MSStream;
     setIsIOS(isIOSDevice);
 
-    // 4. Listen for Chromium/Android install prompt
+    if (isStandaloneMode) return;
+
+    // 3. Listen for Chromium/Android install prompt
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-      setIsOpen(true);
+      const promptEvent = e as BeforeInstallPromptEvent;
+      setDeferredPrompt(promptEvent);
+
+      const dismissed = localStorage.getItem('mbk_pwa_dismissed');
+      if (!dismissed || Date.now() - parseInt(dismissed, 10) >= 24 * 60 * 60 * 1000) {
+        setIsOpen(true);
+      }
+    };
+
+    const handleManualInstallTrigger = async () => {
+      if (deferredPrompt) {
+        try {
+          await deferredPrompt.prompt();
+          const choiceResult = await deferredPrompt.userChoice;
+          if (choiceResult.outcome === 'accepted') {
+            setInstalledSuccess(true);
+            setIsOpen(true);
+            setTimeout(() => setIsOpen(false), 3000);
+          }
+          setDeferredPrompt(null);
+          return;
+        } catch {
+          // fall through to guide modal
+        }
+      }
+      setShowIOSModal(true);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('mbk-open-pwa-install', handleManualInstallTrigger);
 
-    // Show prompt after a short delay on mobile for iOS
+    // Show prompt after a short delay on mobile for iOS if not dismissed recently
+    const dismissed = localStorage.getItem('mbk_pwa_dismissed');
+    const recentlyDismissed =
+      dismissed && Date.now() - parseInt(dismissed, 10) < 24 * 60 * 60 * 1000;
+
     const timer = setTimeout(() => {
-      if (isIOSDevice && !isStandaloneMode) {
+      if (isIOSDevice && !isStandaloneMode && !recentlyDismissed) {
         setIsOpen(true);
       }
     }, 4000);
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('mbk-open-pwa-install', handleManualInstallTrigger);
       clearTimeout(timer);
     };
-  }, []);
+  }, [deferredPrompt]);
 
   const handleInstallClick = async () => {
     soundManager.playClick();
-    if (isIOS) {
-      setShowIOSModal(true);
-      return;
-    }
-
-    if (!deferredPrompt) {
+    if (isIOS || !deferredPrompt) {
       setShowIOSModal(true);
       return;
     }
@@ -94,11 +113,12 @@ export const PWAInstallPrompt: React.FC<Props> = ({ lang = 'ar' }) => {
     localStorage.setItem('mbk_pwa_dismissed', Date.now().toString());
   };
 
-  if (isStandalone || !isOpen) return null;
+  if (isStandalone || (!isOpen && !showIOSModal)) return null;
 
   return (
     <>
       {/* Floating Bottom / Top Mobile PWA Install Banner */}
+      {isOpen && (
       <div
         className="fixed bottom-20 md:bottom-4 left-3 right-3 md:left-auto md:right-4 md:max-w-md z-40 bg-[#1e222d]/95 backdrop-blur-md border border-[#089981]/50 rounded-xl p-3 shadow-[0_10px_30px_rgba(0,0,0,0.7)] animate-fade-in text-[#d1d4dc]"
         dir={isAr ? 'rtl' : 'ltr'}
@@ -156,8 +176,9 @@ export const PWAInstallPrompt: React.FC<Props> = ({ lang = 'ar' }) => {
           </div>
         </div>
       </div>
+      )}
 
-      {/* iOS Safari Install Guide Modal */}
+      {/* iOS Safari / Android Chrome Install Guide Modal */}
       {showIOSModal && (
         <div
           className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in"
@@ -176,44 +197,86 @@ export const PWAInstallPrompt: React.FC<Props> = ({ lang = 'ar' }) => {
                 <Smartphone className="w-6 h-6 text-[#089981]" />
               </div>
               <h3 className="text-sm font-bold text-white">
-                {isAr ? 'تثبيت التطبيق على آيفون / آيباد' : 'Install on iPhone / iPad'}
+                {isIOS
+                  ? isAr
+                    ? 'تثبيت التطبيق على آيفون / آيباد'
+                    : 'Install on iPhone / iPad'
+                  : isAr
+                  ? 'إضافة اختصار التطبيق للشاشة الرئيسية'
+                  : 'Add App Shortcut to Home Screen'}
               </h3>
               <p className="text-xs text-[#787b86] mt-0.5">
                 {isAr
-                  ? 'خطوتان بسيطتان لإضافة MBK Trading لشاشتك الرئيسية:'
-                  : 'Two easy steps to add MBK Trading to your home screen:'}
+                  ? 'للحصول على تجربة تطبيق الهاتف وتنبيهات الصفقات والشات:'
+                  : 'For a native mobile app experience and live notifications:'}
               </p>
             </div>
 
-            <div className="space-y-3 mb-5">
-              <div className="flex items-center gap-3 p-3 bg-[#131722] rounded-xl border border-[#2a2e39]">
-                <div className="w-8 h-8 rounded-lg bg-[#2a2e39] flex items-center justify-center text-blue-400 shrink-0">
-                  <Share className="w-4 h-4" />
+            {isIOS ? (
+              <div className="space-y-3 mb-5">
+                <div className="flex items-center gap-3 p-3 bg-[#131722] rounded-xl border border-[#2a2e39]">
+                  <div className="w-8 h-8 rounded-lg bg-[#2a2e39] flex items-center justify-center text-blue-400 shrink-0">
+                    <Share className="w-4 h-4" />
+                  </div>
+                  <div className="text-xs">
+                    <span className="font-bold text-white block">
+                      {isAr ? '1. اضغط على زر المشاركة' : '1. Tap the Share button'}
+                    </span>
+                    <span className="text-[#787b86]">
+                      {isAr ? 'في شريط أدوات متصفح Safari بالأسفل' : 'In the bottom Safari navigation bar'}
+                    </span>
+                  </div>
                 </div>
-                <div className="text-xs">
-                  <span className="font-bold text-white block">
-                    {isAr ? '1. اضغط على زر المشاركة' : '1. Tap the Share button'}
-                  </span>
-                  <span className="text-[#787b86]">
-                    {isAr ? 'في شريط أدوات متصفح Safari بالأسفل' : 'In the bottom Safari navigation bar'}
-                  </span>
-                </div>
-              </div>
 
-              <div className="flex items-center gap-3 p-3 bg-[#131722] rounded-xl border border-[#2a2e39]">
-                <div className="w-8 h-8 rounded-lg bg-[#2a2e39] flex items-center justify-center text-[#089981] shrink-0">
-                  <PlusSquare className="w-4 h-4" />
-                </div>
-                <div className="text-xs">
-                  <span className="font-bold text-white block">
-                    {isAr ? '2. اختر "إضافة إلى الصفحة الرئيسية"' : '2. Select "Add to Home Screen"'}
-                  </span>
-                  <span className="text-[#787b86]">
-                    {isAr ? 'ثم اضغط "إضافة" (Add) في الزاوية العلوية' : 'Then tap "Add" in the top corner'}
-                  </span>
+                <div className="flex items-center gap-3 p-3 bg-[#131722] rounded-xl border border-[#2a2e39]">
+                  <div className="w-8 h-8 rounded-lg bg-[#2a2e39] flex items-center justify-center text-[#089981] shrink-0">
+                    <PlusSquare className="w-4 h-4" />
+                  </div>
+                  <div className="text-xs">
+                    <span className="font-bold text-white block">
+                      {isAr ? '2. اختر "إضافة إلى الصفحة الرئيسية"' : '2. Select "Add to Home Screen"'}
+                    </span>
+                    <span className="text-[#787b86]">
+                      {isAr ? 'ثم اضغط "إضافة" (Add) في الزاوية العلوية' : 'Then tap "Add" in the top corner'}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-3 mb-5">
+                <div className="flex items-center gap-3 p-3 bg-[#131722] rounded-xl border border-[#2a2e39]">
+                  <div className="w-8 h-8 rounded-lg bg-[#2a2e39] flex items-center justify-center text-[#089981] shrink-0">
+                    <Download className="w-4 h-4" />
+                  </div>
+                  <div className="text-xs">
+                    <span className="font-bold text-white block">
+                      {isAr ? '1. افتح قائمة المتصفح (⋮)' : '1. Open Browser Menu (⋮)'}
+                    </span>
+                    <span className="text-[#787b86]">
+                      {isAr
+                        ? 'في Chrome أو Edge أعلى الشاشة'
+                        : 'In Chrome or Edge top browser toolbar'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 p-3 bg-[#131722] rounded-xl border border-[#2a2e39]">
+                  <div className="w-8 h-8 rounded-lg bg-[#2a2e39] flex items-center justify-center text-blue-400 shrink-0">
+                    <PlusSquare className="w-4 h-4" />
+                  </div>
+                  <div className="text-xs">
+                    <span className="font-bold text-white block">
+                      {isAr ? '2. اختر "تثبيت التطبيق" أو "إضافة للشاشة الرئيسية"' : '2. Tap "Install App" or "Add to Home Screen"'}
+                    </span>
+                    <span className="text-[#787b86]">
+                      {isAr
+                        ? 'سيظهر اختصار MBK Trading كأي تطبيق موبايل'
+                        : 'MBK Trading will appear on your home screen like a native app'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <button
               onClick={() => setShowIOSModal(false)}

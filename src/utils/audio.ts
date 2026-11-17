@@ -6,6 +6,7 @@
 class SoundSystem {
   private ctx: AudioContext | null = null;
   private isMuted: boolean = false;
+  private lastSignalPingAtMs: number = 0;
 
   private initContext() {
     if (!this.ctx && typeof window !== 'undefined') {
@@ -27,9 +28,12 @@ class SoundSystem {
     return this.isMuted;
   }
 
-  // Chime when a new Signal is broadcasted (TradingView webhook ping)
+  // Chime when a new Signal, Trade, or Chat/DM arrives
   public playSignalPing() {
     if (this.isMuted) return;
+    const nowMs = Date.now();
+    if (nowMs - this.lastSignalPingAtMs < 400) return;
+    this.lastSignalPingAtMs = nowMs;
     try {
       this.initContext();
       if (!this.ctx) return;

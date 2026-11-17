@@ -41,11 +41,22 @@ import {
   Lock,
   Wallet,
   Calendar,
-  GraduationCap
+  GraduationCap,
+  Mail,
+  Bell,
+  BellOff,
+  Download
 } from 'lucide-react';
 import { soundManager } from '../../utils/audio';
 import { getEffectiveTier, ELITE_LOCK_BADGE_TEXT } from '../../utils/entitlements';
 import { UserProfile, MarketSymbol, MarketTicker } from '../../types/trading';
+import { useSignalsContext } from '../../context/SignalsContext';
+import { syncOwnChatProfile } from '../../services/directMessageService';
+import {
+  dispatchMobileAppNotification,
+  isAppNotificationsEnabled,
+  setAppNotificationsEnabled
+} from '../../utils/mobileNotifications';
 
 // Modules
 import { HeaderTicker } from './HeaderTicker';
@@ -53,6 +64,7 @@ import { LiveNewsTicker } from './LiveNewsTicker';
 import { MarketInsightsWidget } from './MarketInsightsWidget';
 import { SignalsChannelHub } from '../signals/SignalsChannelHub';
 import { PublicTradingChat } from '../community/PublicTradingChat';
+import { DirectMessagesPanel, DmTargetUser } from '../community/DirectMessagesPanel';
 import { TradingViewAIPanel } from '../ai/TradingViewAIPanel';
 import { TradingViewChart } from '../TradingViewChart';
 import { TradingViewLiteChart } from '../TradingViewLiteChart';
@@ -78,6 +90,7 @@ import { PaymentModal } from '../modals/PaymentModal';
 export type WorkspaceView =
   | 'signals'
   | 'chat'
+  | 'dm'
   | 'news'
   | 'ai'
   | 'chart'
@@ -161,6 +174,116 @@ export const TradingViewWorkspace: React.FC<Props> = ({
 }) => {
   const [activeView, setActiveView] = useState<WorkspaceView>('signals');
   const [activeMainView, setActiveMainView] = useState<'chart' | 'heatmap'>('chart');
+  const [dmTargetUser, setDmTargetUser] = useState<DmTargetUser | null>(null);
+
+  const {
+    unreadDmCount,
+    notificationPermission,
+    requestNotificationPermission,
+    addToast
+  } = useSignalsContext();
+  const [notificationsEnabled, setNotificationsEnabled] = useState<boolean>(() =>
+    isAppNotificationsEnabled()
+  );
+  const isStandaloneApp =
+    typeof window !== 'undefined' &&
+    (window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as any).standalone === true);
+
+  useEffect(() => {
+    if (user?.uid || user?.id) {
+      syncOwnChatProfile(user).catch(() => {});
+    }
+  }, [user]);
+
+  useEffect(() => {
+    const syncNotifPref = () => {
+      setNotificationsEnabled(isAppNotificationsEnabled());
+    };
+    window.addEventListener('mbk-notif-pref-changed', syncNotifPref);
+    window.addEventListener('focus', syncNotifPref);
+    return () => {
+      window.removeEventListener('mbk-notif-pref-changed', syncNotifPref);
+      window.removeEventListener('focus', syncNotifPref);
+    };
+  }, []);
+
+  const handleOpenDmWithUser = (target: DmTargetUser) => {
+    setDmTargetUser(target);
+    setActiveMainView('chart');
+    setActiveView('dm');
+  };
+
+  const handleToggleHeaderNotifications = async () => {
+    soundManager.playClick();
+    if (notificationPermission !== 'granted') {
+      const perm = await requestNotificationPermission();
+      if (perm === 'granted') {
+        setAppNotificationsEnabled(true);
+        setNotificationsEnabled(true);
+        soundManager.playSignalPing();
+        dispatchMobileAppNotification({
+          title: lang === 'ar' ? 'تم تفعيل إشعارات MBK Trading' : 'MBK Trading Notifications Active',
+          body:
+            lang === 'ar'
+              ? 'ستصلك إشعارات الصفقات الجديدة والرسائل الخاصة والشات مباشرة مع تنبيه صوتي.'
+              : 'Live trade signals, DMs & VIP chat alerts are now active.',
+          tag: 'mbk-alerts-enabled'
+        }).catch(() => {});
+        addToast({
+          title: lang === 'ar' ? 'إشعارات المنصة مفعّلة 🔔' : 'Notifications Enabled 🔔',
+          message:
+            lang === 'ar'
+              ? 'ستظهر التنبيهات كإشعارات هاتف/تطبيق عند وصول صفقة أو رسالة جديدة.'
+              : 'You will receive app notifications & chimes for trades, chats & DMs.',
+          type: 'success'
+        });
+      } else if (perm === 'denied') {
+        addToast({
+          title: lang === 'ar' ? 'الإشعارات محظورة في المتصفح' : 'Notifications Blocked',
+          message:
+            lang === 'ar'
+              ? 'يرجى السماح بالإشعارات من أيقونة القفل بجانب رابط الموقع ثم إعادة المحاولة.'
+              : 'Please allow notifications from browser site settings to receive alerts.',
+          type: 'info'
+        });
+      } else {
+        addToast({
+          title: lang === 'ar' ? 'أضف التطبيق للشاشة الرئيسية' : 'Add to Home Screen',
+          message:
+            lang === 'ar'
+              ? 'على أجهزة iPhone يجب إضافة الاختصار للشاشة الرئيسية لتفعيل إشعارات الويب.'
+              : 'On iOS, install the app shortcut to Home Screen first to enable notifications.',
+          type: 'info'
+        });
+      }
+      return;
+    }
+
+    const next = !notificationsEnabled;
+    setAppNotificationsEnabled(next);
+    setNotificationsEnabled(next);
+    if (next) {
+      soundManager.playSignalPing();
+      addToast({
+        title: lang === 'ar' ? 'تم تشغيل الإشعارات' : 'Notifications Turned On',
+        message:
+          lang === 'ar'
+            ? 'سيصلك إشعار فوري عند وصول توصية أو رسالة جديدة.'
+            : 'Alerts resumed for signals, DMs & chat.',
+        type: 'success'
+      });
+    } else {
+      addToast({
+        title: lang === 'ar' ? 'تم إيقاف الإشعارات مؤقتاً' : 'Notifications Paused',
+        message:
+          lang === 'ar'
+            ? 'تم كتم إشعارات المتصفح المنبثقة حتى تعيد تفعيلها.'
+            : 'Browser popup alerts paused.',
+        type: 'info'
+      });
+    }
+  };
 
   // Permanent sidebar: always visible, can be shrinked to chosen topic (trades or chat) to save space
   const [isSidebarShrinked, setIsSidebarShrinked] = useState<boolean>(() => {
@@ -546,6 +669,15 @@ export const TradingViewWorkspace: React.FC<Props> = ({
       icon: MessageSquare
     },
     {
+      id: 'dm' as WorkspaceView | 'heatmap',
+      labelAr: 'الرسائل الخاصة (DM)',
+      labelEn: 'Direct Messages (DM)',
+      shortAr: 'الخاص',
+      shortEn: 'DMs',
+      icon: Mail,
+      badge: unreadDmCount
+    },
+    {
       id: 'ai' as WorkspaceView | 'heatmap',
       labelAr: 'المساعد الذكي (Standard AI)',
       labelEn: 'Standard AI Assistant',
@@ -794,6 +926,51 @@ export const TradingViewWorkspace: React.FC<Props> = ({
             <Crown className="w-3 h-3" />
             <span className="hidden sm:inline">{isAr ? 'الباقات' : 'Plans'}</span>
           </button>
+
+          {/* Notification Bell Toggle */}
+          <button
+            type="button"
+            onClick={handleToggleHeaderNotifications}
+            className={`p-1 sm:p-1.5 rounded-lg border transition-colors cursor-pointer shrink-0 relative ${
+              notificationPermission === 'granted' && notificationsEnabled
+                ? 'bg-[#089981]/15 border-[#089981]/40 text-[#089981] hover:bg-[#089981]/25'
+                : 'bg-[#131722] hover:bg-[#2a2e39] border-[#2a2e39] text-amber-400 hover:text-white'
+            }`}
+            title={
+              notificationPermission === 'granted' && notificationsEnabled
+                ? isAr
+                  ? 'الإشعارات الفورية مفعلة (اضغط للإيقاف المؤقت)'
+                  : 'App Notifications ON (Click to pause)'
+                : isAr
+                ? 'تفعيل إشعارات الصفقات والشات والرسائل الخاصة'
+                : 'Enable Mobile/Browser Notifications'
+            }
+          >
+            {notificationPermission === 'granted' && notificationsEnabled ? (
+              <Bell className="w-3.5 h-3.5" />
+            ) : (
+              <BellOff className="w-3.5 h-3.5" />
+            )}
+            {notificationPermission !== 'granted' && (
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 absolute top-1 end-1 animate-ping" />
+            )}
+          </button>
+
+          {/* Install Mobile Home Screen Shortcut (hidden when already installed) */}
+          {!isStandaloneApp && (
+            <button
+              type="button"
+              onClick={() => {
+                soundManager.playClick();
+                window.dispatchEvent(new CustomEvent('mbk-open-pwa-install'));
+              }}
+              className="p-1 sm:px-2 sm:py-1 rounded-lg bg-[#131722] hover:bg-[#2a2e39] border border-[#089981]/40 text-[#089981] hover:text-white text-[10px] sm:text-xs font-bold transition-colors cursor-pointer flex items-center gap-1 shrink-0"
+              title={isAr ? 'إضافة اختصار للشاشة الرئيسية (تطبيق موبايل)' : 'Add Shortcut to Home Screen'}
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span className="hidden xl:inline">{isAr ? 'تثبيت التطبيق' : 'Install App'}</span>
+            </button>
+          )}
 
           {/* Sound Mute */}
           <button
@@ -1066,6 +1243,12 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                 >
                   <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
 
+                  {'badge' in item && Number(item.badge) > 0 && (
+                    <span className="absolute -top-1 -end-1 min-w-[16px] h-4 px-1 rounded-full bg-[#f23645] text-white text-[9px] font-mono font-bold flex items-center justify-center shadow">
+                      {Number(item.badge) > 99 ? '99+' : item.badge}
+                    </span>
+                  )}
+
                   {/* Active Indicator Line */}
                   {isActive && (
                     <div className="absolute start-0 top-1/2 -translate-y-1/2 w-1 h-4 sm:h-5 rounded-e-full bg-[#089981]" />
@@ -1315,6 +1498,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                       isMutedFromChat={user.isMutedFromChat}
                       onOpenPromoModal={onOpenPromoModal}
                       onOpenPlansModal={() => setPlansModalOpen(true)}
+                      onStartDirectMessage={handleOpenDmWithUser}
                       lang={lang}
                       isCompact={true}
                     />
@@ -1347,6 +1531,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                   isMutedFromChat={user.isMutedFromChat}
                   onOpenPromoModal={onOpenPromoModal}
                   onOpenPlansModal={() => setPlansModalOpen(true)}
+                  onStartDirectMessage={handleOpenDmWithUser}
                   lang={lang}
                   isCompact={false}
                 />
@@ -1368,6 +1553,16 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                     onOpenPromoModal={onOpenPromoModal}
                     onOpenPlansModal={() => setPlansModalOpen(true)}
                     lang={lang}
+                  />
+                )}
+
+                {/* DIRECT MESSAGES VIEW (1-to-1 DM + Privacy & Blocking) */}
+                {activeView === 'dm' && (
+                  <DirectMessagesPanel
+                    user={user}
+                    lang={lang}
+                    initialTargetUser={dmTargetUser}
+                    onClearInitialTarget={() => setDmTargetUser(null)}
                   />
                 )}
 
@@ -1703,6 +1898,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                       isMutedFromChat={user.isMutedFromChat}
                       onOpenPromoModal={onOpenPromoModal}
                       onOpenPlansModal={() => setPlansModalOpen(true)}
+                      onStartDirectMessage={handleOpenDmWithUser}
                       lang={lang}
                       isCompact={false}
                     />
@@ -1947,6 +2143,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                       isMutedFromChat={user.isMutedFromChat}
                       onOpenPromoModal={onOpenPromoModal}
                       onOpenPlansModal={() => setPlansModalOpen(true)}
+                      onStartDirectMessage={handleOpenDmWithUser}
                       lang={lang}
                       isCompact={false}
                     />

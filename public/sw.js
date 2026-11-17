@@ -1,5 +1,5 @@
-const CACHE_NAME = 'mbk-trading-v1';
-const PRECACHE_URLS = ['/', '/index.html', '/favicon.svg', '/manifest.json'];
+const CACHE_NAME = 'mbk-trading-v2';
+const PRECACHE_URLS = ['/', '/index.html', '/favicon.svg', '/manifest.json', '/icon-192.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -30,7 +30,6 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // Cache valid responses for static assets
         if (response.status === 200) {
           const responseClone = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
@@ -40,5 +39,24 @@ self.addEventListener('fetch', (event) => {
         return response;
       })
       .catch(() => caches.match(event.request).then((cached) => cached || caches.match('/')))
+  );
+});
+
+// Handle OS/Mobile PWA notification clicks: focus open window or launch app
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = (event.notification.data && event.notification.data.url) || '/';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if ('focus' in client) {
+          return client.focus();
+        }
+      }
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(targetUrl);
+      }
+    })
   );
 });

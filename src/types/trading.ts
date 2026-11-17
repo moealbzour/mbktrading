@@ -35,6 +35,41 @@ export interface UserProfile {
   eliteExpiryDate?: string | null;
   grantedFeatures?: Record<string, string>;
   activationKey?: string | null;
+  lastNameChangeAt?: string | null;
+  allowDirectMessages?: boolean;
+}
+
+export interface ChatProfile {
+  uid: string;
+  displayName: string;
+  avatar?: string;
+  role: string;
+  allowDirectMessages: boolean;
+  blockedUids: string[];
+  updatedAt?: string;
+}
+
+export interface DmConversation {
+  id: string;
+  participants: string[];
+  participantNames: Record<string, string>;
+  participantAvatars: Record<string, string>;
+  participantRoles: Record<string, string>;
+  lastMessage: string;
+  lastSenderUid: string;
+  lastMessageAtMs: number;
+  unreadBy: Record<string, number>;
+  updatedAt?: string;
+}
+
+export interface DmMessage {
+  id: string;
+  senderUid: string;
+  recipientUid: string;
+  senderName: string;
+  text: string;
+  timestampMs: number;
+  createdAt?: string;
 }
 
 export interface TraderProfile {
