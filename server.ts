@@ -14,7 +14,7 @@ import {
 } from 'firebase-admin/app';
 import { getFirestore as getAdminFirestore, type Firestore as AdminFirestore } from 'firebase-admin/firestore';
 import { store } from './server/store.js';
-import { getSignalsFromFirestore } from './server/firebaseDb.js';
+import { getSignalsFromFirestore, saveBotAlertToFirestore } from './server/firebaseDb.js';
 
 dotenv.config();
 
@@ -126,14 +126,27 @@ app.get(['/api/tradingview/ideas', '/api/ideas', '/api/ideas/:symbol'], async (r
 // ==========================================
 // 3. TRADINGVIEW WEBHOOK ALERTS RECEIVER (Open by design for Pine Script alerts)
 // ==========================================
+app.get(['/api/webhooks/tradingview', '/api/webhook/tradingview'], (_req, res) => {
+  res.status(200).json({
+    ok: true,
+    endpoint: '/api/webhooks/tradingview',
+    method: 'POST',
+    message: 'MBK TradingView Webhook Receiver is active. Send POST JSON or plain text alerts to this URL.'
+  });
+});
+
 app.post(['/api/webhooks/tradingview', '/api/webhook/tradingview'], async (req, res) => {
   try {
-    let payload = req.body;
+    let payload: any = req.body;
     if (typeof payload === 'string') {
+      const trimmedBody = payload.trim();
+      if (!trimmedBody) {
+        return res.status(400).json({ error: 'Alert text content is required in payload' });
+      }
       try {
-        payload = JSON.parse(payload);
+        payload = JSON.parse(trimmedBody);
       } catch {
-        payload = { text: payload };
+        payload = { text: trimmedBody };
       }
     }
 
@@ -141,15 +154,46 @@ app.post(['/api/webhooks/tradingview', '/api/webhook/tradingview'], async (req, 
       return res.status(400).json({ error: 'Valid JSON or text payload required from TradingView alert' });
     }
 
-    const text = String(payload.text || payload.textMsg || payload.msg || payload.message || '').trim();
-    const chatId = String(payload.chat_id || payload.chatId || '').trim();
+    let text = String(
+      payload.text ||
+        payload.textMsg ||
+        payload.msg ||
+        payload.message ||
+        payload.alert ||
+        payload.content ||
+        payload.body ||
+        ''
+    ).trim();
+
+    if (!text) {
+      const sym = payload.symbol || payload.ticker || payload.pair || '';
+      const act = payload.action || payload.side || payload.signal || payload.direction || '';
+      const price = payload.price || payload.close || payload.entry || payload.entryPrice || '';
+      const tf = payload.timeframe || payload.interval || '';
+      const parts = [act, sym, price ? `@ ${price}` : '', tf ? `(${tf})` : ''].filter(Boolean);
+      if (parts.length > 0) {
+        text = parts.join(' ').trim();
+      } else {
+        const serialized = JSON.stringify(payload);
+        if (serialized && serialized !== '{}' && serialized !== '[]') {
+          text = serialized;
+        }
+      }
+    }
+
+    const chatId = String(payload.chat_id || payload.chatId || '').trim().slice(0, 100);
 
     if (!text) {
       return res.status(400).json({ error: 'Alert text content is required in payload' });
     }
 
-    const alertId = `alert-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
     const nowMs = Date.now();
+    const randomSuffix = Math.random()
+      .toString(36)
+      .slice(2, 8)
+      .replace(/[^a-z0-9]/g, '0')
+      .padEnd(4, '0');
+    const alertId = `alert-${nowMs}-${randomSuffix}`;
     const timestamp = new Date(nowMs).toISOString();
 
     const alertDoc = {
@@ -160,12 +204,7 @@ app.post(['/api/webhooks/tradingview', '/api/webhook/tradingview'], async (req, 
       timestampMs: nowMs
     };
 
-    if (!adminDb) {
-      return res.status(503).json({ error: 'Firebase Admin SDK is unavailable to store webhook alert' });
-    }
-
-    await adminDb.collection('bot_alerts').doc(alertId).set(alertDoc);
-    console.log(`[Firebase Admin SDK] Alert saved to bot_alerts collection: ${alertId}`);
+    await saveBotAlertToFirestore(alertDoc);
 
     let telegramForwarded = false;
     let telegramNotice: string | null = null;

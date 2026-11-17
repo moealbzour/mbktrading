@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   MarketSymbol,
   MarketTicker,
@@ -44,6 +44,16 @@ export default function App() {
   });
 
   const [promoModalOpen, setPromoModalOpen] = useState(false);
+  const [pendingGoogleOnboarding, setPendingGoogleOnboarding] = useState<{
+    uid: string;
+    email: string;
+    displayName: string;
+  } | null>(null);
+  const pendingGoogleOnboardingRef = useRef<{
+    uid: string;
+    email: string;
+    displayName: string;
+  } | null>(null);
 
   // Market & Trading State
   const [tickers] = useState<MarketTicker[]>(INITIAL_TICKERS);
@@ -62,7 +72,15 @@ export default function App() {
     const unsubscribe = subscribeToAuth((user) => {
       if (user) {
         setCurrentUser(user);
-        setPageView((prev) => (prev === 'splash' || prev === 'login' ? 'dashboard' : prev));
+        setPageView((prev) => {
+          if (pendingGoogleOnboardingRef.current || prev === 'register') {
+            return prev;
+          }
+          if (prev === 'splash' || prev === 'login') {
+            return 'dashboard';
+          }
+          return prev;
+        });
         try {
           localStorage.setItem('mbk_user', JSON.stringify(user));
         } catch {
@@ -70,6 +88,8 @@ export default function App() {
         }
       } else {
         setCurrentUser(null);
+        pendingGoogleOnboardingRef.current = null;
+        setPendingGoogleOnboarding(null);
         setPageView((prev) => (prev === 'dashboard' ? 'login' : prev));
         try {
           localStorage.removeItem('mbk_user');
@@ -83,6 +103,8 @@ export default function App() {
   }, []);
 
   const handleLoginSuccess = (user: UserProfile) => {
+    pendingGoogleOnboardingRef.current = null;
+    setPendingGoogleOnboarding(null);
     setCurrentUser(user);
     setPageView('dashboard');
     try {
@@ -184,14 +206,28 @@ export default function App() {
       {pageView === 'login' ? (
         <Login
           onLoginSuccess={handleLoginSuccess}
-          onNavigateRegister={() => setPageView('register')}
+          onNavigateRegister={() => {
+            pendingGoogleOnboardingRef.current = null;
+            setPendingGoogleOnboarding(null);
+            setPageView('register');
+          }}
+          onGoogleNewUser={(googleUser) => {
+            pendingGoogleOnboardingRef.current = googleUser;
+            setPendingGoogleOnboarding(googleUser);
+            setPageView('register');
+          }}
           lang={lang}
           onToggleLang={() => setLang((prev) => (prev === 'ar' ? 'en' : 'ar'))}
         />
       ) : pageView === 'register' ? (
         <Register
           onRegisterSuccess={handleLoginSuccess}
-          onNavigateLogin={() => setPageView('login')}
+          onNavigateLogin={() => {
+            pendingGoogleOnboardingRef.current = null;
+            setPendingGoogleOnboarding(null);
+            setPageView('login');
+          }}
+          initialGoogleUser={pendingGoogleOnboarding}
           lang={lang}
           onToggleLang={() => setLang((prev) => (prev === 'ar' ? 'en' : 'ar'))}
         />

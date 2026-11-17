@@ -1,13 +1,19 @@
 import React, { useState } from 'react';
-import { Globe, UserPlus, Lock, Mail, ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { Globe, UserPlus, Lock, Mail, ArrowRight, AlertCircle, Eye, EyeOff, CheckCircle2, Copy, ArrowLeft } from 'lucide-react';
 import { UserProfile } from '../types/trading';
 import { soundManager } from '../utils/audio';
-import { loginWithFirebase, signInWithGooglePopup, getFirebaseAuthErrorMessage } from '../services/firebaseAuthService';
+import {
+  loginWithFirebase,
+  signInWithGooglePopup,
+  sendFirebasePasswordReset,
+  getFirebaseAuthErrorMessage
+} from '../services/firebaseAuthService';
 import { PublicTiersShowcase } from '../components/auth/PublicTiersShowcase';
 
 interface LoginProps {
   onLoginSuccess: (user: UserProfile) => void;
   onNavigateRegister: () => void;
+  onGoogleNewUser?: (user: { uid: string; email: string; displayName: string }) => void;
   onNavigateHome?: () => void;
   lang?: 'ar' | 'en';
   onToggleLang?: () => void;
@@ -16,6 +22,7 @@ interface LoginProps {
 export const Login: React.FC<LoginProps> = ({
   onLoginSuccess,
   onNavigateRegister,
+  onGoogleNewUser,
   lang = 'ar',
   onToggleLang
 }) => {
@@ -26,6 +33,12 @@ export const Login: React.FC<LoginProps> = ({
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [unauthorizedHost, setUnauthorizedHost] = useState<string | null>(null);
+
+  const [resetMode, setResetMode] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetSuccess, setResetSuccess] = useState<string | null>(null);
+  const [copiedDomain, setCopiedDomain] = useState(false);
 
   const [emailFocused, setEmailFocused] = useState(false);
   const [passFocused, setPassFocused] = useState(false);
@@ -60,18 +73,60 @@ export const Login: React.FC<LoginProps> = ({
 
   const handleGoogleLogin = async () => {
     setError(null);
+    setUnauthorizedHost(null);
     setLoading(true);
     soundManager.playClick();
     try {
-      const { userProfile, isNewUser } = await signInWithGooglePopup();
+      const { userProfile, isNewUser, uid } = await signInWithGooglePopup();
       soundManager.playProfitChime();
       if (isNewUser) {
-        onNavigateRegister();
+        if (onGoogleNewUser) {
+          onGoogleNewUser({
+            uid,
+            email: userProfile.email || '',
+            displayName: userProfile.name || ''
+          });
+        } else {
+          onNavigateRegister();
+        }
       } else {
         onLoginSuccess(userProfile);
       }
     } catch (err: any) {
       console.warn('Google auth login notice:', err);
+      setError(getFirebaseAuthErrorMessage(err));
+      if (err?.code === 'auth/unauthorized-domain' && typeof window !== 'undefined') {
+        setUnauthorizedHost(window.location.hostname);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordResetSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setResetSuccess(null);
+    setUnauthorizedHost(null);
+
+    const targetEmail = (resetEmail || emailInput).trim();
+    if (!targetEmail || !targetEmail.includes('@')) {
+      setError(isAr ? 'يرجى إدخال بريد إلكتروني صحيح لإرسال رابط الاستعادة.' : 'Please enter a valid email address.');
+      return;
+    }
+
+    setLoading(true);
+    soundManager.playClick();
+    try {
+      await sendFirebasePasswordReset(targetEmail);
+      soundManager.playProfitChime();
+      setResetSuccess(
+        isAr
+          ? `تم إرسال رابط إعادة تعيين كلمة المرور إلى ${targetEmail}. يرجى فحص البريد الوارد أو الرسائل غير المرغوب فيها (Spam).`
+          : `Password reset link dispatched to ${targetEmail}. Please check your inbox and spam folder.`
+      );
+    } catch (err: any) {
+      console.warn('Password reset notice:', err);
       setError(getFirebaseAuthErrorMessage(err));
     } finally {
       setLoading(false);
@@ -177,89 +232,189 @@ export const Login: React.FC<LoginProps> = ({
 
               {/* Inline Styled Validation / Error Alert */}
               {error && (
-                <div className="mb-5 p-3.5 rounded-xl bg-[#f23645]/10 border border-[#f23645]/30 text-[#f23645] text-xs font-medium flex items-center gap-2.5 animate-in fade-in slide-in-from-top-1">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span className="leading-tight">{error}</span>
+                <div className="mb-5 p-3.5 rounded-xl bg-[#f23645]/10 border border-[#f23645]/30 text-[#f23645] text-xs font-medium space-y-2 animate-in fade-in slide-in-from-top-1">
+                  <div className="flex items-center gap-2.5">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span className="leading-tight">{error}</span>
+                  </div>
+                  {unauthorizedHost && (
+                    <div className="p-2.5 rounded-lg bg-[#131722] border border-[#2a2e39] text-[#d1d4dc] text-[11px] space-y-1.5">
+                      <p className="text-[#8a93a6]">
+                        {isAr
+                          ? 'أضف هذا النطاق في Firebase Console ← Authentication ← Settings ← Authorized domains:'
+                          : 'Add this domain in Firebase Console → Authentication → Settings → Authorized domains:'}
+                      </p>
+                      <div className="flex items-center justify-between gap-2 bg-[#1e222d] px-2.5 py-1.5 rounded border border-[#2a2e39] font-mono text-white">
+                        <span className="truncate select-all">{unauthorizedHost}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard?.writeText(unauthorizedHost);
+                            setCopiedDomain(true);
+                            setTimeout(() => setCopiedDomain(false), 2000);
+                          }}
+                          className="text-[10px] px-2 py-0.5 rounded bg-[#089981]/20 text-[#089981] hover:bg-[#089981]/30 font-bold shrink-0 cursor-pointer flex items-center gap-1"
+                        >
+                          <Copy className="w-3 h-3" />
+                          <span>{copiedDomain ? (isAr ? 'تم النسخ' : 'Copied') : isAr ? 'نسخ' : 'Copy'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* Form with Sleek Floating Labels & Focus Transitions */}
-              <form onSubmit={handleSubmit} className="space-y-4">
-                
-                {/* Email Input */}
-                <div className="space-y-1">
-                  <label className="block text-xs font-semibold text-[#d1d4dc]">
-                    {isAr ? 'البريد الإلكتروني' : 'Email Address'}
-                  </label>
-                  <div className={`relative transition-all duration-200 rounded-xl ${
-                    emailFocused ? 'ring-2 ring-[#089981]/40 border-[#089981]' : 'border-[#2a2e39]'
-                  }`}>
-                    <Mail className={`w-4 h-4 absolute start-3.5 top-1/2 -translate-y-1/2 transition-colors ${
-                      emailFocused ? 'text-[#089981]' : 'text-[#787b86]'
-                    }`} />
-                    <input
-                      type="text"
-                      value={emailInput}
-                      onFocus={() => setEmailFocused(true)}
-                      onBlur={() => setEmailFocused(false)}
-                      onChange={(e) => setEmailInput(e.target.value)}
-                      placeholder="trader@domain.com"
-                      className="w-full ps-10 pe-4 py-3 bg-[#131722] border border-inherit rounded-xl text-xs text-white placeholder-[#787b86] focus:outline-hidden font-mono"
-                      required
-                    />
-                  </div>
+              {resetSuccess && (
+                <div className="mb-5 p-3.5 rounded-xl bg-[#089981]/15 border border-[#089981]/40 text-[#089981] text-xs font-medium flex items-start gap-2.5 animate-in fade-in">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span className="leading-relaxed">{resetSuccess}</span>
                 </div>
+              )}
 
-                {/* Password Input */}
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
+              {resetMode ? (
+                <form onSubmit={handlePasswordResetSubmit} className="space-y-4">
+                  <div className="p-3 rounded-xl bg-[#131722] border border-[#2a2e39] text-xs text-[#8a93a6] leading-relaxed">
+                    {isAr
+                      ? 'أدخل بريدك الإلكتروني المسجل وسنرسل لك رابطاً آمناً لإعادة تعيين كلمة المرور.'
+                      : 'Enter your registered email address and we will send a secure password reset link.'}
+                  </div>
+
+                  <div className="space-y-1">
                     <label className="block text-xs font-semibold text-[#d1d4dc]">
-                      {isAr ? 'كلمة المرور' : 'Password'}
+                      {isAr ? 'البريد الإلكتروني للاستعادة' : 'Account Email'}
                     </label>
+                    <div className="relative rounded-xl border border-[#2a2e39] focus-within:ring-2 focus-within:ring-[#089981]/40 focus-within:border-[#089981]">
+                      <Mail className="w-4 h-4 absolute start-3.5 top-1/2 -translate-y-1/2 text-[#787b86]" />
+                      <input
+                        type="email"
+                        value={resetEmail}
+                        onChange={(e) => setResetEmail(e.target.value)}
+                        placeholder="trader@domain.com"
+                        className="w-full ps-10 pe-4 py-3 bg-[#131722] border-0 rounded-xl text-xs text-white placeholder-[#787b86] focus:outline-hidden font-mono"
+                        required
+                      />
+                    </div>
                   </div>
-                  <div className={`relative transition-all duration-200 rounded-xl ${
-                    passFocused ? 'ring-2 ring-[#089981]/40 border-[#089981]' : 'border-[#2a2e39]'
-                  }`}>
-                    <Lock className={`w-4 h-4 absolute start-3.5 top-1/2 -translate-y-1/2 transition-colors ${
-                      passFocused ? 'text-[#089981]' : 'text-[#787b86]'
-                    }`} />
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onFocus={() => setPassFocused(true)}
-                      onBlur={() => setPassFocused(false)}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full ps-10 pe-10 py-3 bg-[#131722] border border-inherit rounded-xl text-xs text-white placeholder-[#787b86] focus:outline-hidden font-mono"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute end-3.5 top-1/2 -translate-y-1/2 text-[#787b86] hover:text-white transition-colors cursor-pointer"
-                      title={showPassword ? 'Hide password' : 'Show password'}
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
 
-                {/* Primary Submit Button */}
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#089981] to-[#067a67] hover:from-[#09a98e] hover:to-[#088a75] text-white font-bold text-xs shadow-lg shadow-[#089981]/25 transition-all cursor-pointer flex items-center justify-center gap-2 mt-2 disabled:opacity-50 active:scale-[0.99]"
-                >
-                  {loading ? (
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    <>
-                      <span>{isAr ? 'تسجيل الدخول' : 'Sign In to Workspace'}</span>
-                      <ArrowRight className={`w-4 h-4 ${isAr ? 'rotate-180' : ''}`} />
-                    </>
-                  )}
-                </button>
-              </form>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#089981] to-[#067a67] hover:from-[#09a98e] hover:to-[#088a75] text-white font-bold text-xs shadow-lg shadow-[#089981]/25 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {loading ? (
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <span>{isAr ? 'إرسال رابط إعادة التعيين' : 'Send Password Reset Email'}</span>
+                        <ArrowRight className={`w-4 h-4 ${isAr ? 'rotate-180' : ''}`} />
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResetMode(false);
+                      setError(null);
+                      setResetSuccess(null);
+                    }}
+                    className="w-full py-2.5 px-4 rounded-xl bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-[#d1d4dc] text-xs font-semibold transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <ArrowLeft className={`w-3.5 h-3.5 ${isAr ? 'rotate-180' : ''}`} />
+                    <span>{isAr ? 'العودة لتسجيل الدخول' : 'Back to Sign In'}</span>
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  {/* Email Input */}
+                  <div className="space-y-1">
+                    <label className="block text-xs font-semibold text-[#d1d4dc]">
+                      {isAr ? 'البريد الإلكتروني' : 'Email Address'}
+                    </label>
+                    <div className={`relative transition-all duration-200 rounded-xl ${
+                      emailFocused ? 'ring-2 ring-[#089981]/40 border-[#089981]' : 'border-[#2a2e39]'
+                    }`}>
+                      <Mail className={`w-4 h-4 absolute start-3.5 top-1/2 -translate-y-1/2 transition-colors ${
+                        emailFocused ? 'text-[#089981]' : 'text-[#787b86]'
+                      }`} />
+                      <input
+                        type="text"
+                        value={emailInput}
+                        onFocus={() => setEmailFocused(true)}
+                        onBlur={() => setEmailFocused(false)}
+                        onChange={(e) => setEmailInput(e.target.value)}
+                        placeholder="trader@domain.com"
+                        className="w-full ps-10 pe-4 py-3 bg-[#131722] border border-inherit rounded-xl text-xs text-white placeholder-[#787b86] focus:outline-hidden font-mono"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Password Input */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-semibold text-[#d1d4dc]">
+                        {isAr ? 'كلمة المرور' : 'Password'}
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          soundManager.playClick();
+                          setError(null);
+                          setResetSuccess(null);
+                          setUnauthorizedHost(null);
+                          setResetEmail(emailInput.includes('@') ? emailInput : '');
+                          setResetMode(true);
+                        }}
+                        className="text-[11px] font-semibold text-[#089981] hover:underline cursor-pointer"
+                      >
+                        {isAr ? 'نسيت كلمة المرور؟' : 'Forgot Password?'}
+                      </button>
+                    </div>
+                    <div className={`relative transition-all duration-200 rounded-xl ${
+                      passFocused ? 'ring-2 ring-[#089981]/40 border-[#089981]' : 'border-[#2a2e39]'
+                    }`}>
+                      <Lock className={`w-4 h-4 absolute start-3.5 top-1/2 -translate-y-1/2 transition-colors ${
+                        passFocused ? 'text-[#089981]' : 'text-[#787b86]'
+                      }`} />
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                        onFocus={() => setPassFocused(true)}
+                        onBlur={() => setPassFocused(false)}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full ps-10 pe-10 py-3 bg-[#131722] border border-inherit rounded-xl text-xs text-white placeholder-[#787b86] focus:outline-hidden font-mono"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute end-3.5 top-1/2 -translate-y-1/2 text-[#787b86] hover:text-white transition-colors cursor-pointer"
+                        title={showPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Primary Submit Button */}
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#089981] to-[#067a67] hover:from-[#09a98e] hover:to-[#088a75] text-white font-bold text-xs shadow-lg shadow-[#089981]/25 transition-all cursor-pointer flex items-center justify-center gap-2 mt-2 disabled:opacity-50 active:scale-[0.99]"
+                  >
+                    {loading ? (
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <span>{isAr ? 'تسجيل الدخول' : 'Sign In to Workspace'}</span>
+                        <ArrowRight className={`w-4 h-4 ${isAr ? 'rotate-180' : ''}`} />
+                      </>
+                    )}
+                  </button>
+                </form>
+              )}
 
               {/* Polished Google OAuth Login Option */}
               <div className="mt-5 pt-4 border-t border-[#2a2e39]">
@@ -283,6 +438,7 @@ export const Login: React.FC<LoginProps> = ({
               <div className="mt-6 text-center text-xs text-[#787b86]">
                 <span>{isAr ? 'ليس لديك حساب بعد؟ ' : "Don't have an account yet? "}</span>
                 <button
+                  type="button"
                   onClick={onNavigateRegister}
                   className="text-[#089981] hover:text-[#09a98e] hover:underline font-bold cursor-pointer transition-colors"
                 >

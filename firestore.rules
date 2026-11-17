@@ -347,10 +347,31 @@ service cloud.firestore {
       allow update, delete: if isValidId(signalId) && (isAdmin() || isAnalyser());
     }
 
+    function isValidBotAlertCreate(alertId, data) {
+      return alertId.matches('^alert-[0-9]+-[a-z0-9]+$')
+        && data.keys().hasAll(['id', 'text', 'timestamp', 'timestampMs'])
+        && data.keys().hasOnly(['id', 'text', 'chat_id', 'timestamp', 'timestampMs'])
+        && data.id == alertId
+        && data.text is string
+        && data.text.size() >= 1
+        && data.text.size() <= 2000
+        && (!('chat_id' in data) || data.chat_id == null || (data.chat_id is string && data.chat_id.size() <= 100))
+        && data.timestamp is string
+        && data.timestamp.size() >= 1
+        && data.timestamp.size() <= 64
+        && data.timestampMs is int
+        && data.timestampMs > 0;
+    }
+
     match /bot_alerts/{alertId} {
       allow get: if isValidId(alertId) && (hasGrantedFeature('botSignals') || isAnalyser());
       allow list: if hasGrantedFeature('botSignals') || isAnalyser();
-      allow create, update, delete: if isValidId(alertId) && (isAdmin() || isAnalyser());
+      allow create: if isValidId(alertId) && (
+        isAdmin()
+        || isAnalyser()
+        || isValidBotAlertCreate(alertId, incoming())
+      );
+      allow update, delete: if isValidId(alertId) && (isAdmin() || isAnalyser());
     }
 
     match /engine_alerts/{alertId} {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   User,
   Mail,
@@ -13,7 +13,8 @@ import {
   Award,
   TrendingUp,
   MailCheck,
-  Check
+  Check,
+  Copy
 } from 'lucide-react';
 import { UserProfile } from '../types/trading';
 import { PublicTiersShowcase } from '../components/auth/PublicTiersShowcase';
@@ -22,7 +23,6 @@ import {
   registerWithFirebase,
   signInWithGooglePopup,
   saveGoogleUserOnboardingProfile,
-  resendCurrentEmailVerification,
   getFirebaseAuthErrorMessage,
   UserOnboardingData
 } from '../services/firebaseAuthService';
@@ -30,6 +30,7 @@ import {
 interface RegisterProps {
   onRegisterSuccess: (user: UserProfile) => void;
   onNavigateLogin: () => void;
+  initialGoogleUser?: { uid: string; email: string; displayName: string } | null;
   onNavigateHome?: () => void;
   lang?: 'ar' | 'en';
   onToggleLang?: () => void;
@@ -55,17 +56,18 @@ const COUNTRIES_LIST = [
 export const Register: React.FC<RegisterProps> = ({
   onRegisterSuccess,
   onNavigateLogin,
+  initialGoogleUser = null,
   lang = 'ar',
   onToggleLang
 }) => {
   const isAr = lang === 'ar';
 
   // Step Control (1: Account Credentials & Identity, 2: Trader Profile & Preferences, 3: Email Verification Screen)
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(initialGoogleUser ? 2 : 1);
 
   // Form State
-  const [displayName, setDisplayName] = useState('');
-  const [email, setEmail] = useState('');
+  const [displayName, setDisplayName] = useState(initialGoogleUser?.displayName || '');
+  const [email, setEmail] = useState(initialGoogleUser?.email || '');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -81,6 +83,8 @@ export const Register: React.FC<RegisterProps> = ({
   // Focus & State Handlers
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [unauthorizedHost, setUnauthorizedHost] = useState<string | null>(null);
+  const [copiedDomain, setCopiedDomain] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState('');
 
   // Asset class options
@@ -124,7 +128,16 @@ export const Register: React.FC<RegisterProps> = ({
   };
 
   // Google OAuth User State
-  const [googleUid, setGoogleUid] = useState<string | null>(null);
+  const [googleUid, setGoogleUid] = useState<string | null>(initialGoogleUser?.uid || null);
+
+  useEffect(() => {
+    if (initialGoogleUser?.uid) {
+      setGoogleUid(initialGoogleUser.uid);
+      if (initialGoogleUser.email) setEmail(initialGoogleUser.email);
+      if (initialGoogleUser.displayName) setDisplayName(initialGoogleUser.displayName);
+      setStep(2);
+    }
+  }, [initialGoogleUser]);
 
   // Final Registration Submission & Email Verification Trigger
   const handleFinalSubmit = async (e: React.FormEvent) => {
@@ -171,6 +184,7 @@ export const Register: React.FC<RegisterProps> = ({
   // Google OAuth Quick Registration with Two-Step Onboarding Check
   const handleGoogleRegister = async () => {
     setError(null);
+    setUnauthorizedHost(null);
     setLoading(true);
     soundManager.playClick();
     try {
@@ -188,6 +202,9 @@ export const Register: React.FC<RegisterProps> = ({
     } catch (err: any) {
       console.warn('Google auth register error:', err);
       setError(getFirebaseAuthErrorMessage(err));
+      if (err?.code === 'auth/unauthorized-domain' && typeof window !== 'undefined') {
+        setUnauthorizedHost(window.location.hostname);
+      }
     } finally {
       setLoading(false);
     }
@@ -306,9 +323,35 @@ export const Register: React.FC<RegisterProps> = ({
 
               {/* Error Notification */}
               {error && (
-                <div className="mb-4 p-3.5 rounded-xl bg-[#f23645]/10 border border-[#f23645]/30 text-[#f23645] text-xs font-medium flex items-center gap-2.5 animate-in fade-in">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span className="leading-tight">{error}</span>
+                <div className="mb-4 p-3.5 rounded-xl bg-[#f23645]/10 border border-[#f23645]/30 text-[#f23645] text-xs font-medium space-y-2 animate-in fade-in">
+                  <div className="flex items-center gap-2.5">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span className="leading-tight">{error}</span>
+                  </div>
+                  {unauthorizedHost && (
+                    <div className="p-2.5 rounded-lg bg-[#131722] border border-[#2a2e39] text-[#d1d4dc] text-[11px] space-y-1.5">
+                      <p className="text-[#8a93a6]">
+                        {isAr
+                          ? 'أضف هذا النطاق في Firebase Console ← Authentication ← Settings ← Authorized domains:'
+                          : 'Add this domain in Firebase Console → Authentication → Settings → Authorized domains:'}
+                      </p>
+                      <div className="flex items-center justify-between gap-2 bg-[#1e222d] px-2.5 py-1.5 rounded border border-[#2a2e39] font-mono text-white">
+                        <span className="truncate select-all">{unauthorizedHost}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard?.writeText(unauthorizedHost);
+                            setCopiedDomain(true);
+                            setTimeout(() => setCopiedDomain(false), 2000);
+                          }}
+                          className="text-[10px] px-2 py-0.5 rounded bg-[#089981]/20 text-[#089981] hover:bg-[#089981]/30 font-bold shrink-0 cursor-pointer flex items-center gap-1"
+                        >
+                          <Copy className="w-3 h-3" />
+                          <span>{copiedDomain ? (isAr ? 'تم النسخ' : 'Copied') : isAr ? 'نسخ' : 'Copy'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -437,6 +480,7 @@ export const Register: React.FC<RegisterProps> = ({
                   <div className="mt-4 text-center text-xs text-[#787b86]">
                     <span>{isAr ? 'لديك حساب بالفعل؟ ' : 'Already registered? '}</span>
                     <button
+                      type="button"
                       onClick={onNavigateLogin}
                       className="text-[#089981] hover:underline font-bold cursor-pointer"
                     >
@@ -602,12 +646,48 @@ export const Register: React.FC<RegisterProps> = ({
                         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                       ) : (
                         <>
-                          <span>{isAr ? 'إتمام التسجيل وإرسال كود التفعيل' : 'Complete Account Registration'}</span>
+                          <span>
+                            {googleUid
+                              ? isAr
+                                ? 'إتمام التسجيل والدخول للمنصة'
+                                : 'Complete Registration & Enter'
+                              : isAr
+                              ? 'إتمام التسجيل وإرسال كود التفعيل'
+                              : 'Complete Account Registration'}
+                          </span>
                           <ArrowRight className={`w-4 h-4 ${isAr ? 'rotate-180' : ''}`} />
                         </>
                       )}
                     </button>
                   </div>
+
+                  {googleUid && (
+                    <button
+                      type="button"
+                      disabled={loading}
+                      onClick={async () => {
+                        setError(null);
+                        setLoading(true);
+                        try {
+                          const updatedUser = await saveGoogleUserOnboardingProfile(googleUid, {
+                            country,
+                            experienceLevel,
+                            assetClasses: selectedAssetClasses,
+                            favoritePairs: favoritePairs.trim()
+                          });
+                          soundManager.playProfitChime();
+                          onRegisterSuccess(updatedUser);
+                        } catch (err: any) {
+                          setError(getFirebaseAuthErrorMessage(err));
+                        } finally {
+                          setLoading(false);
+                        }
+                      }}
+                      className="w-full py-2 text-[11px] font-semibold text-[#8a93a6] hover:text-white transition-colors cursor-pointer"
+                    >
+                      {isAr ? 'تخطي والدخول مباشرة إلى المنصة ←' : 'Skip & Enter Workspace Now →'}
+                    </button>
+                  )}
                 </form>
               )}
 

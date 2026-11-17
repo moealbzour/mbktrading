@@ -260,6 +260,31 @@ export async function updateSignalStatusInFirestore(
   return true;
 }
 
+export interface BotAlertRecord {
+  id: string;
+  text: string;
+  chat_id: string | null;
+  timestamp: string;
+  timestampMs: number;
+}
+
+export async function saveBotAlertToFirestore(alert: BotAlertRecord): Promise<BotAlertRecord> {
+  if (adminDb) {
+    try {
+      await adminDb.collection('bot_alerts').doc(alert.id).set(alert);
+      console.log(`[Firebase Admin SDK] Bot alert saved: ${alert.id}`);
+      return alert;
+    } catch (err: any) {
+      console.warn('[Firebase Admin SDK] Bot alert write fallback to Client SDK:', err.message);
+    }
+  }
+
+  const docRef = doc(clientDb, 'bot_alerts', alert.id);
+  await setDoc(docRef, alert);
+  console.log(`[Firebase Client SDK] Bot alert saved: ${alert.id}`);
+  return alert;
+}
+
 // Seed initial signals into Firestore if collection has < 3 signals (DISABLED: No auto-seeding)
 export async function seedInitialSignalsIfEmpty(): Promise<void> {
   console.log('[Firestore] Auto-seeding disabled. No initial mock signals will be pushed.');

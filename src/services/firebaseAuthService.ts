@@ -6,6 +6,7 @@ import {
   updateProfile,
   onAuthStateChanged,
   sendEmailVerification,
+  sendPasswordResetEmail,
   User as FirebaseUser
 } from 'firebase/auth';
 import {
@@ -22,11 +23,23 @@ import { redeemActivationKey } from '../utils/activationKeyService';
 
 const SUPER_ADMIN_EMAIL = 'moe.albzour@gmail.com';
 
+const pendingRegistrationUids = new Set<string>();
+let inFlightGoogleSignIn: Promise<UserCredentialResult> | null = null;
+
+interface UserCredentialResult {
+  userProfile: UserProfile;
+  isNewUser: boolean;
+  uid: string;
+}
+
 /**
- * Arabic Firebase Auth Error Message Translation
+ * Arabic/English Firebase Auth & Firestore Error Message Translation
  */
 export function getFirebaseAuthErrorMessage(error: any): string {
   const code = error?.code || '';
+  const rawMessage = String(error?.message || '');
+  const currentHost = typeof window !== 'undefined' ? window.location.hostname : '';
+
   switch (code) {
     case 'auth/email-already-in-use':
       return 'البريد الإلكتروني مسجل مسبقاً. يرجى استخدام صفحة تسجيل الدخول.';
@@ -41,14 +54,31 @@ export function getFirebaseAuthErrorMessage(error: any): string {
       return 'اسم المستخدم أو كلمة المرور غير صحيحة. يرجى التحقق من البيانات.';
     case 'auth/popup-closed-by-user':
       return 'تم إغلاق نافذة الدخول عبر Google قبل إتمام العملية.';
+    case 'auth/cancelled-popup-request':
+      return 'تم إلغاء الطلب السابق. يرجى الضغط مرة واحدة فقط على زر Google.';
     case 'auth/popup-blocked':
-      return 'المتصفح قام بحظر نافذة الدخول عبر Google. يرجى السماح بالنوافذ المنبثقة.';
+      return 'المتصفح قام بحظر نافذة الدخول عبر Google. يرجى السماح بالنوافذ المنبثقة (Pop-ups) لهذا الموقع ثم المحاولة مجدداً.';
+    case 'auth/unauthorized-domain':
+      return `النطاق الحالي (${currentHost || 'preview domain'}) غير مضاف في قائمة Authorized Domains داخل إعدادات Firebase Authentication.`;
+    case 'auth/operation-not-allowed':
+      return 'مزود تسجيل الدخول عبر Google غير مفعّل في لوحة تحكم Firebase Authentication.';
+    case 'auth/account-exists-with-different-credential':
+      return 'هذا البريد الإلكتروني مسجل مسبقاً بكلمة مرور. يرجى تسجيل الدخول بالبريد وكلمة المرور.';
+    case 'auth/user-disabled':
+      return 'تم تعطيل هذا الحساب في نظام المصادقة. يرجى التواصل مع الدعم.';
     case 'auth/network-request-failed':
       return 'تعذر الاتصال بالخادم. يرجى التحقق من اتصال الإنترنت.';
     case 'auth/too-many-requests':
       return 'تم حظر المحاولات مؤقتاً. يرجى الانتظار قليلاً والتحقق مجدداً.';
+    case 'permission-denied':
+      return 'تعذر حفظ بيانات الحساب في قاعدة البيانات (صلاحيات Firestore).';
+    case 'unavailable':
+      return 'خدمة قاعدة البيانات غير متاحة مؤقتاً. يرجى المحاولة مرة أخرى.';
     default:
-      return error?.message || 'حدث خطأ أثناء إجراء العملية.';
+      if (rawMessage.toLowerCase().includes('missing or insufficient permissions')) {
+        return 'تعذر حفظ بيانات الحساب في قاعدة البيانات (صلاحيات Firestore).';
+      }
+      return code ? `[${code}] ${rawMessage || 'حدث خطأ أثناء إجراء العملية.'}` : rawMessage || 'حدث خطأ أثناء إجراء العملية.';
   }
 }
 
@@ -209,8 +239,13 @@ export async function fetchOrCreateUserRegistry(
     };
   }
 
+  const safeEmail = (user.email || '').slice(0, 200);
+  const safeDisplayName = (user.displayName || safeEmail.split('@')[0] || 'Trader').slice(0, 100);
+  const safePhone = (extraData?.phone || '').slice(0, 40);
+  const safeCountry = (extraData?.country || '').slice(0, 80);
+
   const newRegistryDoc = {
-    email: user.email || '',
+    email: safeEmail,
     role: 'free',
     tier: 'free',
     isVip: false,
@@ -224,12 +259,12 @@ export async function fetchOrCreateUserRegistry(
     isBanned: false,
     isMutedFromChat: false,
     totalPaid: 0,
-    displayName: user.displayName || user.email?.split('@')[0] || '',
-    phone: extraData?.phone || '',
-    country: extraData?.country || '',
+    displayName: safeDisplayName,
+    phone: safePhone,
+    country: safeCountry,
     dob: extraData?.dob || '',
-    experienceLevel: extraData?.experienceLevel || 'Beginner',
-    assetClasses: extraData?.assetClasses || [],
+    experienceLevel: extraData?.experienceLevel || '',
+    assetClasses: Array.isArray(extraData?.assetClasses) ? extraData.assetClasses : [],
     favoritePairs: extraData?.favoritePairs || '',
     emailVerified: Boolean(
       user.emailVerified || user.providerData.some((p) => p.providerId === 'google.com')
@@ -242,7 +277,7 @@ export async function fetchOrCreateUserRegistry(
 
   return {
     uid: user.uid,
-    email: user.email || '',
+    email: safeEmail,
     role: 'free'
   };
 }
@@ -347,62 +382,79 @@ export async function loginWithFirebase(
 }
 
 /**
- * Google Sign In Popup with Two-Step Onboarding Check
+ * Google Sign In Popup with Two-Step Onboarding Check (serialized to prevent duplicate popups & races)
  */
 export async function signInWithGooglePopup(promoCode?: string): Promise<{
   userProfile: UserProfile;
   isNewUser: boolean;
   uid: string;
 }> {
-  const userCredential = await signInWithPopup(auth, googleProvider);
-  const user = userCredential.user;
-
-  const userDocRef = doc(db, 'users', user.uid);
-  const docSnap = await getDoc(userDocRef);
-
-  let isNewUser = false;
-  if (!docSnap.exists()) {
-    isNewUser = true;
-  } else {
-    const data = docSnap.data();
-    if (!data.experienceLevel && !data.phone && !data.country) {
-      isNewUser = true;
-    }
+  if (inFlightGoogleSignIn) {
+    return inFlightGoogleSignIn;
   }
 
-  await fetchOrCreateUserRegistry(user, 'free');
+  inFlightGoogleSignIn = (async () => {
+    const userCredential = await signInWithPopup(auth, googleProvider);
+    const user = userCredential.user;
+    pendingRegistrationUids.add(user.uid);
 
-  if (promoCode && promoCode.trim()) {
-    await redeemActivationKey(promoCode, user.uid, user.email || '');
-  }
-
-  const latestSnap = await getDoc(userDocRef);
-  const data = latestSnap.exists() ? latestSnap.data() : {};
-
-  if (
-    user.emailVerified &&
-    user.email?.toLowerCase() === SUPER_ADMIN_EMAIL &&
-    data.role !== 'admin'
-  ) {
     try {
-      await updateDoc(userDocRef, { role: 'admin', updatedAt: serverTimestamp() });
-      data.role = 'admin';
-    } catch {
-      // ignore
+      const userDocRef = doc(db, 'users', user.uid);
+      const docSnap = await getDoc(userDocRef);
+
+      let isNewUser = false;
+      if (!docSnap.exists()) {
+        isNewUser = true;
+      } else {
+        const data = docSnap.data();
+        if (!data.experienceLevel && !data.phone && !data.country) {
+          isNewUser = true;
+        }
+      }
+
+      await fetchOrCreateUserRegistry(user, 'free');
+
+      if (promoCode && promoCode.trim()) {
+        await redeemActivationKey(promoCode, user.uid, user.email || '');
+      }
+
+      const latestSnap = await getDoc(userDocRef);
+      const data = latestSnap.exists() ? latestSnap.data() : {};
+
+      if (
+        (user.emailVerified || user.providerData.some((p) => p.providerId === 'google.com')) &&
+        user.email?.toLowerCase() === SUPER_ADMIN_EMAIL &&
+        data.role !== 'admin'
+      ) {
+        try {
+          await updateDoc(userDocRef, { role: 'admin', updatedAt: serverTimestamp() });
+          data.role = 'admin';
+        } catch {
+          // ignore
+        }
+      }
+
+      const userProfile = {
+        ...mapUserDocToProfile(user, data),
+        isEmailVerified: true,
+        needsOnboarding: isNewUser
+      };
+
+      return {
+        userProfile,
+        isNewUser,
+        uid: user.uid
+      };
+    } finally {
+      pendingRegistrationUids.delete(user.uid);
     }
+  })();
+
+  try {
+    return await inFlightGoogleSignIn;
+  } finally {
+    inFlightGoogleSignIn = null;
   }
-
-  const userProfile = {
-    ...mapUserDocToProfile(user, data),
-    isEmailVerified: true,
-    needsOnboarding: isNewUser
-  };
-
-  return {
-    userProfile,
-    isNewUser,
-    uid: user.uid
-  };
 }
 
 /**
@@ -417,16 +469,25 @@ export async function saveGoogleUserOnboardingProfile(
   const userDocRef = doc(db, 'users', uid);
   const docSnap = await getDoc(userDocRef);
 
+  const safeDisplayName = (currentUser?.displayName || currentUser?.email?.split('@')[0] || 'Trader').slice(0, 100);
+  const safePhone = (extraData.phone || '').slice(0, 40);
+  const safeCountry = (extraData.country || '').slice(0, 80);
+
   if (!docSnap.exists() && currentUser) {
-    await fetchOrCreateUserRegistry(currentUser, 'free', extraData);
+    await fetchOrCreateUserRegistry(currentUser, 'free', {
+      ...extraData,
+      phone: safePhone,
+      country: safeCountry,
+      experienceLevel: extraData.experienceLevel || 'Beginner'
+    });
   } else {
     await updateDoc(userDocRef, {
-      displayName: currentUser?.displayName || '',
-      phone: extraData.phone || '',
-      country: extraData.country || '',
+      displayName: safeDisplayName,
+      phone: safePhone,
+      country: safeCountry,
       dob: extraData.dob || '',
       experienceLevel: extraData.experienceLevel || 'Beginner',
-      assetClasses: extraData.assetClasses || [],
+      assetClasses: Array.isArray(extraData.assetClasses) ? extraData.assetClasses : [],
       favoritePairs: extraData.favoritePairs || '',
       emailVerified: true,
       updatedAt: serverTimestamp()
@@ -477,6 +538,17 @@ export async function saveGoogleUserOnboardingProfile(
 }
 
 /**
+ * Sends a Firebase Password Reset email to the specified address
+ */
+export async function sendFirebasePasswordReset(email: string): Promise<void> {
+  const cleanEmail = email.trim();
+  if (!cleanEmail || !cleanEmail.includes('@')) {
+    throw { code: 'auth/invalid-email' };
+  }
+  await sendPasswordResetEmail(auth, cleanEmail);
+}
+
+/**
  * Resends Verification Email to currently logged-in user
  */
 export async function resendCurrentEmailVerification(): Promise<boolean> {
@@ -513,26 +585,28 @@ export function subscribeToAuth(onUserChange: (user: UserProfile | null) => void
 
     const userDocRef = doc(db, 'users', firebaseUser.uid);
 
-    try {
-      const initialSnap = await getDoc(userDocRef);
-      if (!initialSnap.exists()) {
-        await fetchOrCreateUserRegistry(firebaseUser);
-      }
-
-      if (
-        firebaseUser.emailVerified &&
-        firebaseUser.email?.toLowerCase() === SUPER_ADMIN_EMAIL &&
-        initialSnap.exists() &&
-        initialSnap.data()?.role !== 'admin'
-      ) {
-        try {
-          await updateDoc(userDocRef, { role: 'admin', updatedAt: serverTimestamp() });
-        } catch {
-          // ignore
+    if (!pendingRegistrationUids.has(firebaseUser.uid)) {
+      try {
+        const initialSnap = await getDoc(userDocRef);
+        if (!initialSnap.exists()) {
+          await fetchOrCreateUserRegistry(firebaseUser);
         }
+
+        if (
+          firebaseUser.emailVerified &&
+          firebaseUser.email?.toLowerCase() === SUPER_ADMIN_EMAIL &&
+          initialSnap.exists() &&
+          initialSnap.data()?.role !== 'admin'
+        ) {
+          try {
+            await updateDoc(userDocRef, { role: 'admin', updatedAt: serverTimestamp() });
+          } catch {
+            // ignore
+          }
+        }
+      } catch (err) {
+        console.warn('Error ensuring user profile doc:', err);
       }
-    } catch (err) {
-      console.warn('Error ensuring user profile doc:', err);
     }
 
     unsubDoc = onSnapshot(

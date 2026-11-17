@@ -82,16 +82,16 @@
     },
     "BotAlert": {
       "title": "BotAlert",
-      "description": "TradingView webhook bot alert pushed via server Admin SDK",
+      "description": "TradingView webhook bot alert ingested via server webhook receiver",
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "text": { "type": "string" },
-        "chat_id": { "type": "string" },
-        "timestamp": { "type": "string" },
+        "id": { "type": "string", "maxLength": 64, "pattern": "^alert-[0-9]+-[a-z0-9]+$" },
+        "text": { "type": "string", "maxLength": 2000 },
+        "chat_id": { "type": "string", "maxLength": 100 },
+        "timestamp": { "type": "string", "maxLength": 64 },
         "timestampMs": { "type": "number" }
       },
-      "required": ["text", "timestampMs"]
+      "required": ["id", "text", "timestamp", "timestampMs"]
     },
     "ChatMessage": {
       "title": "ChatMessage",
