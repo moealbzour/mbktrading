@@ -1,49 +1,53 @@
-import React, { useState, useEffect } from 'react';
-import { EconomicNewsItem } from '../types/trading';
-import { Calendar, AlertTriangle, Clock, Globe } from 'lucide-react';
+import React, { useEffect, useRef } from 'react';
+import { Calendar } from 'lucide-react';
 
 interface Props {
-  events?: EconomicNewsItem[];
+  lang?: 'ar' | 'en';
 }
 
-export const EconomicCalendarPanel: React.FC<Props> = ({ events: propEvents }) => {
-  const [events, setEvents] = useState<EconomicNewsItem[]>(propEvents || []);
-
-  const fetchCalendar = async () => {
-    try {
-      const res = await fetch('/api/calendar');
-      if (res.ok) {
-        const data = await res.json();
-        if (data.events && Array.isArray(data.events)) {
-          const mapped: EconomicNewsItem[] = data.events.map((ev: any) => ({
-            id: ev.id,
-            timeAr: `${ev.time} (${ev.date || 'اليوم'})`,
-            timeEn: `${ev.time} (${ev.date || 'Today'})`,
-            currency: ev.currency,
-            countryAr: ev.country,
-            countryEn: ev.country,
-            titleAr: ev.eventAr || ev.event,
-            titleEn: ev.event,
-            impact: ev.impact,
-            forecast: ev.forecast || '—',
-            previous: ev.previous || '—',
-            actual: ev.actual || '—'
-          }));
-          setEvents(mapped);
-        }
-      }
-    } catch (err) {
-      console.warn('Error fetching calendar from SQLite:', err);
-    }
-  };
+export const EconomicCalendarPanel: React.FC<Props> = ({ lang = 'ar' }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!propEvents || propEvents.length === 0) {
-      fetchCalendar();
-    } else {
-      setEvents(propEvents);
-    }
-  }, [propEvents]);
+    const container = containerRef.current;
+    if (!container) return;
+    container.innerHTML = '';
+
+    const widgetContainer = document.createElement('div');
+    widgetContainer.className = 'tradingview-widget-container__widget';
+    widgetContainer.style.height = '100%';
+    widgetContainer.style.width = '100%';
+
+    const script = document.createElement('script');
+    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-events.js';
+    script.type = 'text/javascript';
+    script.async = true;
+    script.innerHTML = JSON.stringify({
+      colorTheme: 'dark',
+      isTransparent: true,
+      width: '100%',
+      height: '100%',
+      locale: lang === 'ar' ? 'ar' : 'en',
+      importanceFilter: '-1,0,1',
+      currencyFilter: 'USD,EUR,GBP,JPY,CAD,AUD,CHF'
+    });
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'tradingview-widget-container';
+    wrapper.style.height = '100%';
+    wrapper.style.width = '100%';
+    wrapper.appendChild(widgetContainer);
+    wrapper.appendChild(script);
+
+    container.appendChild(wrapper);
+
+    return () => {
+      if (container) {
+        container.innerHTML = '';
+      }
+    };
+  }, [lang]);
+
   return (
     <div className="bg-[#111827] border border-slate-800 rounded-xl overflow-hidden shadow-2xl">
       <div className="p-4 bg-[#0f172a] border-b border-slate-800 flex items-center justify-between gap-3">
@@ -53,69 +57,23 @@ export const EconomicCalendarPanel: React.FC<Props> = ({ events: propEvents }) =
           </div>
           <div>
             <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
-              <span>التقويم الاقتصادي عالي التأثير (Economic Calendar)</span>
-              <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
-                High Impact USD/EUR
+              <span>التقويم الاقتصادي اللحظي (Live Economic Calendar)</span>
+              <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                TradingView Live Feed
               </span>
             </h2>
             <p className="text-xs text-slate-400">
-              مواعيد صدور بيانات التضخم CPI، الوظائف NFP، وقرارات الفائدة الفيدرالية
+              مواعيد صدور بيانات التضخم CPI، الوظائف NFP، وقرارات الفائدة الفيدرالية مباشرة
             </p>
           </div>
         </div>
       </div>
 
-      <div className="p-5">
-        <div className="overflow-x-auto">
-          <table className="w-full text-right text-xs">
-            <thead>
-              <tr className="border-b border-slate-800 text-slate-400 font-medium">
-                <th className="pb-3 pr-2">الحدث الاقتصادي</th>
-                <th className="pb-3 px-3">العملة / الدولة</th>
-                <th className="pb-3 px-3">التوقيت</th>
-                <th className="pb-3 px-3">الأهمية والخطورة</th>
-                <th className="pb-3 px-3">التقديري</th>
-                <th className="pb-3 px-3">السابق</th>
-                <th className="pb-3 pl-2">الفعلي</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60 font-mono">
-              {events.map((ev) => (
-                <tr key={ev.id} className="hover:bg-slate-900/50 transition-colors">
-                  <td className="py-3 pr-2 font-sans font-bold text-slate-200">
-                    {ev.titleAr}
-                  </td>
-                  <td className="py-3 px-3 text-cyan-400 font-bold">
-                    {ev.currency}
-                  </td>
-                  <td className="py-3 px-3 text-slate-400 font-sans">
-                    {ev.timeAr}
-                  </td>
-                  <td className="py-3 px-3 font-sans">
-                    {ev.impact === 'HIGH' ? (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
-                        عالي التأثير 🔥
-                      </span>
-                    ) : (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                        متوسط التأثير
-                      </span>
-                    )}
-                  </td>
-                  <td className="py-3 px-3 text-slate-300">
-                    {ev.forecast}
-                  </td>
-                  <td className="py-3 px-3 text-slate-400">
-                    {ev.previous}
-                  </td>
-                  <td className="py-3 pl-2 text-emerald-400 font-bold">
-                    {ev.actual || 'قيد الانتظار'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      <div className="p-4">
+        <div
+          ref={containerRef}
+          className="w-full h-[640px] rounded-xl overflow-hidden bg-[#131722] border border-[#2a2e39]"
+        />
       </div>
     </div>
   );

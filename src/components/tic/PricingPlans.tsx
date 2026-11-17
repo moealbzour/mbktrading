@@ -1,176 +1,307 @@
 import React from 'react';
 import {
-  Sparkles,
   Check,
+  Crown,
+  Gem,
+  Lock,
   ShieldCheck,
-  Zap,
-  Ticket,
-  Bot,
-  Layers,
-  ArrowRight
+  Ticket
 } from 'lucide-react';
+import { UserProfile } from '../../types/trading';
+import {
+  ELITE_LOCK_BADGE_TEXT,
+  ELITE_UNRELEASED_FEATURES,
+  getEffectiveTier
+} from '../../utils/entitlements';
 import { soundManager } from '../../utils/audio';
 
-interface Props {
+interface PricingPlansProps {
+  user?: UserProfile | null;
+  onSelectPlan?: (plan: 'vip' | 'elite') => void;
   onOpenPromoModal: () => void;
-  onOpenBrokerModal: () => void;
+  onOpenBrokerModal?: () => void;
   isVIP?: boolean;
+  lang?: 'ar' | 'en';
 }
 
-export const PricingPlans: React.FC<Props> = ({ onOpenPromoModal, onOpenBrokerModal, isVIP }) => {
-  const plans = [
-    {
-      id: 'starter',
-      name: 'Starter Desk',
-      nameAr: 'الحساب المجاني (Starter)',
-      price: '$0',
-      period: 'مدى الحياة',
-      badge: 'متاح للجميع',
-      badgeColor: 'bg-slate-800 text-slate-300 border-slate-700',
-      description: 'مثالي للمبتدئين لتتبع جلسات الأسواق والأجندة والمحفظة التجريبية',
-      features: [
-        'غرفة الأسواق وجلسات التداول (MBK Desk)',
-        'الأجندة الاقتصادية عالية التأثير مع العد التنازلي',
-        'محفظة التداول الافتراضية ($100,000 Paper Trading)',
-        'سجل الصفقات اليدوي الأساسي',
-        'مخطط الرسوم البيانية اللحظية (TradingView)',
-        'غرفة النقاش العامة'
-      ],
-      ctaText: 'حسابك الحالي',
-      ctaDisabled: true
-    },
-    {
-      id: 'pro',
-      name: 'Pro Trader',
-      nameAr: 'باقة المحترفين (Pro Trader)',
-      price: '$29',
-      period: '/ شهرياً (أو مجاناً برمز VIP)',
-      badge: 'الأكثر شعبية ⭐',
-      badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
-      description: 'مزامنة حسابات الوسطاء، مختبر الباك تيست، ومستشار الذكاء الاصطناعي',
-      features: [
-        'جميع مزايا باقة Starter Desk',
-        'المزامنة التلقائية مع MT4 / MT5 / Bybit / Binance',
-        'مختبر الباك تيست والمحاكاة الإحصائية (Backtest Lab)',
-        'مستشار الذكاء الاصطناعي المؤسسي (AI Advisor)',
-        'تصدير واستيراد بيانات CSV غير محدود',
-        'إشارات التداول المؤسسية اللحظية (SMC Signals)',
-        'دعم فني سريع عبر التلغرام'
-      ],
-      isPopular: true,
-      ctaText: isVIP ? 'مفعلة في حسابك 👑' : 'تفعيل بالرمز الترويجي / الوسيط',
-      ctaHighlight: true
-    },
-    {
-      id: 'elite',
-      name: 'Elite AI',
-      nameAr: 'باقة النخبة (Elite AI)',
-      price: '$59',
-      period: '/ شهرياً (أو عبر شراكة الوسيط)',
-      badge: 'الذكاء الاصطناعي الكامل 🤖',
-      badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
-      description: 'المدرب السلوكي الشامل، تحليل عادات التداول، ومكتبة Playbooks غير المحدودة',
-      features: [
-        'جميع مزايا باقة Pro Trader',
-        'مراجعة الصفقات بالذكاء الاصطناعي (30/60/90-Day AI Trade Review)',
-        'تقرير المدرب السلوكي الأسبوعي (Weekly AI Coach)',
-        'رؤية الشارت المؤسسية (AI Chart Vision)',
-        'مكتبة نماذج التداول الكاملة وتخصيص Playbooks غير محدود',
-        'غرفة تحليلات VIP الحية المتصلة بقاعدة البيانات',
-        'أولوية الربط في البوت الآلي ونسخ الصفقات'
-      ],
-      ctaText: isVIP ? 'مفعلة لك بالكامل 👑' : 'ترقية إلى Elite AI الآن'
-    }
-  ];
+export const PricingPlans: React.FC<PricingPlansProps> = ({
+  user,
+  onSelectPlan,
+  onOpenPromoModal,
+  isVIP,
+  lang = 'ar'
+}) => {
+  const isAr = lang === 'ar';
+  const effectiveTier = user ? getEffectiveTier(user) : isVIP ? 'vip' : 'free';
+
+  const freeFeatures = isAr
+    ? [
+        'إشارات البوت المجانية (Free Bot Trader)',
+        'توصيات يدوية محدودة ومختارة يومياً',
+        'حاسبة المخاطرة واللوت الاحترافية',
+        'محفظة التداول الافتراضية ($100K Paper Trading)',
+        'الأجندة الاقتصادية اللحظية (Economic Calendar)',
+        'أكاديمية MBK الأساسية للتداول (Academy)'
+      ]
+    : [
+        'Free Bot Trader alerts & summary',
+        'Limited daily manual trading signals',
+        'Risk & position-size calculators',
+        'Paper Trading simulator ($100K virtual equity)',
+        'Real-time Economic Calendar & news wire',
+        'MBK Trading Foundation Academy'
+      ];
+
+  const vipFeatures = isAr
+    ? [
+        'جميع مزايا الباقة المجانية (Free Tier)',
+        'بث إشارات البوت اللحظي بالكامل بدون قيود',
+        'جميع التوصيات اليدوية الكاملة (نقاط الدخول والأهداف)',
+        'دخول غرفة شات VIP الخاصة (Private VIP Group Chat)',
+        'المساعد الذكي القياسي للمحادثة النصية (Standard AI)'
+      ]
+    : [
+        'All Free Tier tools included',
+        'Full real-time Bot Signals webhook stream',
+        'Full manual trading signals (Entries, TP1/TP2, SL)',
+        'Private VIP Group Chat access',
+        'Standard AI Assistant conversational text support'
+      ];
 
   return (
-    <div className="space-y-6">
-      {/* HEADER */}
-      <div className="rounded-2xl border border-slate-800 p-6 bg-gradient-to-br from-slate-900/95 via-[#0e1628] to-slate-900/95 shadow-2xl text-center max-w-3xl mx-auto space-y-3">
-        <span className="px-3 py-1 rounded-full text-xs font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 font-mono">
-          MBK TRADING PRICING & TIERS
-        </span>
-        <h2 className="text-xl sm:text-2xl font-black text-slate-100">
-          خطط الاشتراك ومستويات العضوية المؤسسية
+    <div dir={isAr ? 'rtl' : 'ltr'} className="space-y-6">
+      {/* Header */}
+      <div className="rounded-2xl border border-[#2a2e39] p-5 sm:p-6 bg-[#1e222d] text-center max-w-3xl mx-auto space-y-2">
+        <div className="text-xs font-bold text-[#089981]">
+          {isAr ? 'باقات العضوية والوصول المؤسسي' : 'MBK Trading Membership Tiers'}
+        </div>
+        <h2 className="text-xl sm:text-2xl font-extrabold text-white">
+          {isAr ? 'اختر خطة التداول المناسبة لك' : 'Choose Your Trading Plan'}
         </h2>
-        <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-          اختر الباقة المناسبة لاحتياجاتك، أو احصل على تفعيل مجاني فوري عبر إدخال الرمز الترويجي (Promo Code) أو عبر شراكة الوسيط المعتمد.
+        <p className="text-xs sm:text-sm text-[#8a93a6] leading-relaxed">
+          {isAr
+            ? 'ابدأ مجاناً بالأدوات الأساسية، أو قم بالترقية إلى VIP و Elite، أو فعّل رمزاً ترويجياً أو تجربة مجانية لميزة محددة.'
+            : 'Start free with core desk tools, upgrade to VIP or Elite, or redeem an activation / trial key.'}
         </p>
       </div>
 
-      {/* 3 PLANS CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {plans.map((plan) => (
-          <div
-            key={plan.id}
-            className={`rounded-2xl p-6 border flex flex-col justify-between transition-all relative ${
-              plan.isPopular
-                ? 'bg-[#101828] border-cyan-500 shadow-2xl shadow-cyan-500/10 ring-1 ring-cyan-500/40'
-                : 'bg-[#0f1422] border-slate-800 shadow-xl'
-            }`}
-          >
-            {plan.isPopular && (
-              <div className="absolute -top-3 right-6 bg-gradient-to-r from-cyan-500 to-sky-600 text-slate-950 font-black text-[10px] px-3 py-0.5 rounded-full shadow-md">
-                الخيار الأفضل للمتداولين
-              </div>
-            )}
-
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${plan.badgeColor}`}>
-                  {plan.badge}
+      {/* 3-Tier Cards Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-stretch">
+        {/* 1. FREE TIER ($0) */}
+        <div className="rounded-2xl p-5 sm:p-6 border border-[#2a2e39] bg-[#1e222d] flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <span className="text-xs font-bold text-[#8a93a6]">
+                {isAr ? 'للبداية والتدريب' : 'Essential Access'}
+              </span>
+              {effectiveTier === 'free' && (
+                <span className="text-[11px] font-bold text-[#089981] whitespace-nowrap">
+                  {isAr ? 'باقتك الحالية' : 'Current Plan'}
                 </span>
-                <span className="font-mono text-xs text-slate-400">{plan.name}</span>
-              </div>
-
-              <h3 className="text-base font-black text-slate-100 mb-1">{plan.nameAr}</h3>
-              <p className="text-xs text-slate-400 leading-relaxed mb-4">{plan.description}</p>
-
-              <div className="mb-6 flex items-baseline gap-1.5 border-b border-slate-800/80 pb-4">
-                <span className="text-3xl font-black font-mono text-slate-100">{plan.price}</span>
-                <span className="text-xs text-slate-400 font-mono">{plan.period}</span>
-              </div>
-
-              {/* FEATURES LIST */}
-              <ul className="space-y-2.5 text-xs text-slate-300 mb-6">
-                {plan.features.map((feat, idx) => (
-                  <li key={idx} className="flex items-start gap-2">
-                    <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                    <span className="leading-relaxed">{feat}</span>
-                  </li>
-                ))}
-              </ul>
+              )}
             </div>
 
-            <div>
-              <button
-                disabled={plan.ctaDisabled && !isVIP}
-                onClick={() => {
-                  soundManager.playClick();
-                  if (plan.id === 'starter') return;
-                  onOpenPromoModal();
-                }}
-                className={`w-full py-3 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md ${
-                  plan.isPopular
-                    ? 'bg-gradient-to-r from-cyan-600 to-sky-600 hover:from-cyan-500 hover:to-sky-500 text-white shadow-cyan-600/25'
-                    : plan.id === 'elite'
-                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 shadow-amber-500/25'
-                    : 'bg-slate-800 text-slate-400 border border-slate-700'
-                }`}
-              >
-                <Ticket className="w-4 h-4" />
-                <span>{plan.ctaText}</span>
-              </button>
+            <h3 className="text-lg font-extrabold text-white mb-1">
+              {isAr ? 'الباقة المجانية (Free Tier)' : 'Free Tier'}
+            </h3>
+            <p className="text-xs text-[#787b86] mb-4">
+              {isAr
+                ? 'أدوات التداول الأساسية وبوت الإشارات المجاني'
+                : 'Core market tools, Academy, and limited signals'}
+            </p>
 
-              <button
-                onClick={onOpenBrokerModal}
-                className="w-full text-center text-[11px] text-slate-400 hover:text-cyan-400 mt-2.5 transition-colors cursor-pointer"
-              >
-                تفعيل مجاني عبر حساب وسيط معتمد ➔
-              </button>
+            <div className="mb-5 pb-4 border-b border-[#2a2e39] flex items-baseline gap-1.5 font-mono tabular-nums">
+              <span className="text-3xl font-black text-white">$0</span>
+              <span className="text-xs text-[#787b86]">
+                {isAr ? '/ مجاناً دائماً' : '/ forever free'}
+              </span>
+            </div>
+
+            <ul className="space-y-2.5 text-xs text-[#d1d4dc] mb-6">
+              {freeFeatures.map((feat, idx) => (
+                <li key={idx} className="flex items-start gap-2">
+                  <Check className="w-4 h-4 text-[#089981] shrink-0 mt-0.5" />
+                  <span className="leading-relaxed">{feat}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <button
+            type="button"
+            disabled
+            className="w-full py-3 px-4 rounded-xl bg-[#131722] border border-[#2a2e39] text-[#8a93a6] font-bold text-xs cursor-default whitespace-nowrap"
+          >
+            {effectiveTier === 'free'
+              ? isAr
+                ? 'مفعل حالياً ($0)'
+                : 'Active Plan ($0)'
+              : isAr
+              ? 'مشمول في حسابك'
+              : 'Included in Account'}
+          </button>
+        </div>
+
+        {/* 2. VIP TIER ($100/mo) */}
+        <div className="rounded-2xl p-5 sm:p-6 border-2 border-[#089981] bg-[#1e222d] flex flex-col justify-between shadow-xl">
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <span className="text-xs font-bold text-[#089981] flex items-center gap-1.5">
+                <Crown className="w-4 h-4" />
+                <span>{isAr ? 'الباقة الاحترافية' : 'Most Popular'}</span>
+              </span>
+              {effectiveTier === 'vip' && (
+                <span className="text-[11px] font-bold text-amber-400 whitespace-nowrap">
+                  {isAr ? 'مفعل حالياً' : 'Active'}
+                </span>
+              )}
+            </div>
+
+            <h3 className="text-lg font-extrabold text-white mb-1">
+              {isAr ? 'باقة VIP المباشرة (VIP Tier)' : 'VIP Tier'}
+            </h3>
+            <p className="text-xs text-[#8a93a6] mb-4">
+              {isAr
+                ? 'إشارات البوت والمحللين الكاملة + غرفة VIP + المساعد الذكي'
+                : 'Full real-time signals, Private VIP Chat & Standard AI'}
+            </p>
+
+            <div className="mb-5 pb-4 border-b border-[#2a2e39] flex items-baseline gap-1.5 font-mono tabular-nums">
+              <span className="text-3xl font-black text-white">$100</span>
+              <span className="text-xs text-[#8a93a6]">{isAr ? '/ شهرياً' : '/ month'}</span>
+            </div>
+
+            <ul className="space-y-2.5 text-xs text-[#d1d4dc] mb-6">
+              {vipFeatures.map((feat, idx) => (
+                <li key={idx} className="flex items-start gap-2">
+                  <Check className="w-4 h-4 text-[#089981] shrink-0 mt-0.5" />
+                  <span className="leading-relaxed">{feat}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => {
+                soundManager.playClick();
+                if (onSelectPlan) {
+                  onSelectPlan('vip');
+                } else {
+                  onOpenPromoModal();
+                }
+              }}
+              className="w-full py-3 px-4 rounded-xl bg-[#089981] hover:bg-[#07846f] text-white font-bold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap"
+            >
+              <Crown className="w-4 h-4 shrink-0" />
+              <span>
+                {effectiveTier === 'vip'
+                  ? isAr
+                    ? 'تجديد / ترقية اشتراك VIP'
+                    : 'Renew VIP Subscription'
+                  : isAr
+                  ? 'اشترك في VIP ($100/mo)'
+                  : 'Subscribe to VIP ($100/mo)'}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                soundManager.playClick();
+                onOpenPromoModal();
+              }}
+              className="w-full py-2 px-3 rounded-xl bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-[#d1d4dc] text-[11px] font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
+            >
+              <Ticket className="w-3.5 h-3.5 text-amber-400" />
+              <span>{isAr ? 'لديك مفتاح تفعيل أو رمز تجريبي؟' : 'Redeem Activation / Trial Key'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 3. ELITE TIER ($500/mo) */}
+        <div className="rounded-2xl p-5 sm:p-6 border border-amber-500/50 bg-[#1e222d] flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                <Gem className="w-4 h-4" />
+                <span>{isAr ? 'النخبة المؤسسية' : 'Institutional Elite'}</span>
+              </span>
+              {effectiveTier === 'elite' && (
+                <span className="text-[11px] font-bold text-amber-400 whitespace-nowrap">
+                  {isAr ? 'مفعل حالياً' : 'Active'}
+                </span>
+              )}
+            </div>
+
+            <h3 className="text-lg font-extrabold text-white mb-1">
+              {isAr ? 'باقة Elite المتكاملة (Elite Tier)' : 'Elite Tier'}
+            </h3>
+            <p className="text-xs text-[#8a93a6] mb-4">
+              {isAr
+                ? 'جميع مزايا VIP + الأدوات المؤسسية المتقدمة القادمة'
+                : 'All VIP features + exclusive unreleased Elite modules'}
+            </p>
+
+            <div className="mb-5 pb-4 border-b border-[#2a2e39] flex items-baseline gap-1.5 font-mono tabular-nums">
+              <span className="text-3xl font-black text-amber-400">$500</span>
+              <span className="text-xs text-[#8a93a6]">{isAr ? '/ شهرياً' : '/ month'}</span>
+            </div>
+
+            <div className="space-y-2.5 text-xs mb-6">
+              <div className="flex items-start gap-2 text-[#d1d4dc]">
+                <Check className="w-4 h-4 text-[#089981] shrink-0 mt-0.5" />
+                <span className="font-bold">
+                  {isAr ? 'كل ما هو مشمول في باقة VIP ($100)' : 'Everything included in VIP Tier'}
+                </span>
+              </div>
+
+              <div className="pt-2 border-t border-[#2a2e39]/70 space-y-2">
+                {ELITE_UNRELEASED_FEATURES.map((mod) => (
+                  <div
+                    key={mod.key}
+                    className="p-2.5 rounded-xl bg-[#131722] border border-[#2a2e39] flex flex-col gap-1"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-bold text-white flex items-center gap-1.5 text-[11px]">
+                        <Lock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        <span>🔒 {isAr ? mod.titleAr : mod.titleEn}</span>
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold text-amber-300">
+                      {ELITE_LOCK_BADGE_TEXT}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-        ))}
+
+          <button
+            type="button"
+            onClick={() => {
+              soundManager.playClick();
+              if (onSelectPlan) {
+                onSelectPlan('elite');
+              } else {
+                onOpenPromoModal();
+              }
+            }}
+            className="w-full py-3 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-[#131722] font-extrabold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap"
+          >
+            <ShieldCheck className="w-4 h-4 shrink-0" />
+            <span>
+              {effectiveTier === 'elite'
+                ? isAr
+                  ? 'إدارة باقة Elite ($500/mo)'
+                  : 'Manage Elite Plan'
+                : isAr
+                ? 'اشترك في Elite ($500/mo)'
+                : 'Subscribe to Elite ($500/mo)'}
+            </span>
+          </button>
+        </div>
       </div>
     </div>
   );

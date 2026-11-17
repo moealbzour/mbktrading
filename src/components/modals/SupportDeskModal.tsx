@@ -1,17 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Headphones,
   X,
   Send,
   MessageCircle,
   HelpCircle,
-  Clock,
   ShieldCheck,
-  CheckCircle2,
   ExternalLink,
   Crown
 } from 'lucide-react';
 import { soundManager } from '../../utils/audio';
+import {
+  DEFAULT_PLATFORM_SETTINGS,
+  PlatformContactSettings,
+  buildWhatsAppUrl,
+  formatTelegramHandle,
+  normalizeTelegramUrl,
+  subscribeToPlatformSettings
+} from '../../services/platformSettingsService';
 
 interface Props {
   isOpen: boolean;
@@ -28,34 +34,33 @@ export const SupportDeskModal: React.FC<Props> = ({
   isVIP = false,
   userName = ''
 }) => {
-  const [activeTab, setActiveTab] = useState<'channels' | 'ticket' | 'faq'>('channels');
-  const [ticketCategory, setTicketCategory] = useState<'VIP' | 'SIGNALS' | 'TECHNICAL' | 'DEPOSIT'>('VIP');
-  const [ticketSubject, setTicketSubject] = useState('');
-  const [ticketMessage, setTicketMessage] = useState('');
-  const [ticketSubmitted, setTicketSubmitted] = useState(false);
+  const [activeTab, setActiveTab] = useState<'channels' | 'faq'>('channels');
+  const [platformSettings, setPlatformSettings] = useState<PlatformContactSettings>(DEFAULT_PLATFORM_SETTINGS);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const unsub = subscribeToPlatformSettings((nextSettings) => {
+      setPlatformSettings(nextSettings);
+    });
+    return () => unsub();
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   const isAr = lang === 'ar';
-
-  const handleTicketSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!ticketMessage.trim()) return;
-    soundManager.playProfitChime();
-    setTicketSubmitted(true);
-    setTimeout(() => {
-      setTicketSubmitted(false);
-      setTicketSubject('');
-      setTicketMessage('');
-      setActiveTab('channels');
-    }, 3000);
-  };
+  const whatsappMessage = isAr
+    ? `مرحباً فريق MBK DESK${userName ? ` (${userName})` : ''}، أرغب في الاستفسار عن الاشتراك والدعم.`
+    : `Hello MBK DESK team${userName ? ` (${userName})` : ''}, I would like to inquire about subscriptions and support.`;
+  const whatsappUrl = buildWhatsAppUrl(platformSettings.whatsappNumber, whatsappMessage);
+  const telegramUrl = normalizeTelegramUrl(platformSettings.telegramUrl);
+  const telegramHandle = formatTelegramHandle(platformSettings.telegramUrl);
+  const supportEmail = platformSettings.supportEmail || DEFAULT_PLATFORM_SETTINGS.supportEmail;
 
   const faqs = isAr
     ? [
         {
-          q: 'كيف يتم ترقية الحساب إلى باقة VIP مجاناً؟',
-          a: 'يمكنك الترقية فوراً إما عبر فتح حساب لدى الوسيط الشريك المعتمد أو استخدام كود ترويجي فعال (كود: MBK2026 أو MBK-VIP-FREE).'
+          q: 'كيف يتم ترقية الحساب إلى باقة VIP؟',
+          a: 'يمكنك الترقية فوراً عبر إدخال مفتاح التفعيل الخاص بك (Activation Key) أو التواصل مع فريق الدعم عبر الواتساب أو التيليجرام لتفعيل اشتراكك.'
         },
         {
           q: 'كم يستغرق فريق الدعم الفني للرد على الاستفسارات؟',
@@ -72,8 +77,8 @@ export const SupportDeskModal: React.FC<Props> = ({
       ]
     : [
         {
-          q: 'How can I upgrade to VIP for free?',
-          a: 'You can upgrade immediately by opening an account with our partner broker or applying a promo code (e.g. MBK2026 or MBK-VIP-FREE).'
+          q: 'How can I upgrade to VIP?',
+          a: 'You can upgrade immediately by redeeming a single-use VIP Activation Key or contacting our concierge support desk via WhatsApp or Telegram.'
         },
         {
           q: 'How fast is the support team response?',
@@ -115,8 +120,8 @@ export const SupportDeskModal: React.FC<Props> = ({
               </div>
               <p className="text-xs text-[#787b86]">
                 {isAr
-                  ? 'فريق متخصص لمساعدتك في التوصيات، الحسابات، والاستفسارات الفنية'
-                  : 'Direct assistance for setups, broker integration & account support'}
+                  ? 'فريق متخصص لمساعدتك في التوصيات، الاشتراكات، والاستفسارات الفنية'
+                  : 'Direct assistance for signals, subscriptions & account support'}
               </p>
             </div>
           </div>
@@ -141,18 +146,6 @@ export const SupportDeskModal: React.FC<Props> = ({
           >
             <MessageCircle className="w-3.5 h-3.5 text-[#089981]" />
             <span>{isAr ? 'قنوات التواصل المباشرة' : 'Direct Channels'}</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('ticket')}
-            className={`flex-1 py-1.5 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-              activeTab === 'ticket'
-                ? 'bg-white text-[#131722] shadow-sm font-bold'
-                : 'text-[#787b86] hover:text-white'
-            }`}
-          >
-            <Send className="w-3.5 h-3.5 text-blue-400" />
-            <span>{isAr ? 'فتح تذكرة دعم' : 'Open Ticket'}</span>
           </button>
 
           <button
@@ -189,157 +182,107 @@ export const SupportDeskModal: React.FC<Props> = ({
               <span className="w-2.5 h-2.5 rounded-full bg-[#089981] animate-ping" />
             </div>
 
-            {/* WhatsApp Support */}
-            <a
-              href="https://wa.me/971500000000?text=%D9%85%D8%B1%D8%AD%D8%A8%D8%A7%D9%8B%20%D9%81%D8%B1%D9%8A%D9%82%20MBK%20DESK%D8%8C%20%D8%A3%D8%B1%D8%BA%D8%A8%20%D9%81%D9%8A%20%D8%A7%D9%84%D8%A7%D8%B3%D8%AA%D9%81%D8%B3%D8%A7%D8%B1%20%D8%B9%D9%86"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-3.5 rounded-xl bg-[#131722] hover:bg-[#25D366]/15 border border-[#2a2e39] hover:border-[#25D366]/50 transition-all flex items-center justify-between group cursor-pointer"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#25D366]/20 text-[#25D366] flex items-center justify-center font-bold">
-                  <MessageCircle className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="text-sm font-bold text-white group-hover:text-[#25D366] transition-colors flex items-center gap-1.5">
-                    <span>{isAr ? 'الدعم الفوري عبر واتساب (WhatsApp)' : 'Instant WhatsApp Concierge'}</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
+            {/* Dynamic WhatsApp Support */}
+            {whatsappUrl ? (
+              <a
+                href={whatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-3.5 rounded-xl bg-[#131722] hover:bg-[#25D366]/15 border border-[#2a2e39] hover:border-[#25D366]/50 transition-all flex items-center justify-between group cursor-pointer"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#25D366]/20 text-[#25D366] flex items-center justify-center font-bold">
+                    <MessageCircle className="w-5 h-5" />
                   </div>
-                  <div className="text-xs text-[#787b86]">
-                    {isAr ? 'محادثة مباشرة مع مستشار الدعم الفني وحل المشكلات فوراً' : 'Chat directly with senior trading desk desk'}
+                  <div>
+                    <div className="text-sm font-bold text-white group-hover:text-[#25D366] transition-colors flex items-center gap-1.5">
+                      <span>{isAr ? 'الدعم الفوري عبر واتساب (WhatsApp)' : 'Instant WhatsApp Concierge'}</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="text-xs text-[#787b86] font-mono" dir="ltr">
+                      {platformSettings.whatsappNumber}
+                    </div>
                   </div>
                 </div>
-              </div>
-              <span className="text-xs font-bold text-[#25D366] px-2.5 py-1 rounded bg-[#25D366]/10 border border-[#25D366]/20">
-                {isAr ? 'تواصل الآن' : 'Connect'}
-              </span>
-            </a>
-
-            {/* Telegram Official Channel & Support */}
-            <a
-              href="https://t.me/mbk_desk_official"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-3.5 rounded-xl bg-[#131722] hover:bg-[#229ED9]/15 border border-[#2a2e39] hover:border-[#229ED9]/50 transition-all flex items-center justify-between group cursor-pointer"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#229ED9]/20 text-[#229ED9] flex items-center justify-center font-bold">
-                  <Send className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="text-sm font-bold text-white group-hover:text-[#229ED9] transition-colors flex items-center gap-1.5">
-                    <span>{isAr ? 'قناة وتيليجرام الدعم الرسمي (Telegram)' : 'Official Telegram Support'}</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
+                <span className="text-xs font-bold text-[#25D366] px-2.5 py-1 rounded bg-[#25D366]/10 border border-[#25D366]/20 shrink-0">
+                  {isAr ? 'تواصل الآن' : 'Connect'}
+                </span>
+              </a>
+            ) : (
+              <div className="p-3.5 rounded-xl bg-[#131722] border border-[#2a2e39] opacity-75 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#25D366]/10 text-[#25D366]/70 flex items-center justify-center font-bold">
+                    <MessageCircle className="w-5 h-5" />
                   </div>
-                  <div className="text-xs text-[#787b86]">
-                    {isAr ? '@MBK_Desk_Support • إشعارات فورية وتحديثات لحظية' : '@MBK_Desk_Support • Instant news and support'}
+                  <div>
+                    <div className="text-sm font-bold text-white">
+                      {isAr ? 'الدعم الفوري عبر واتساب (WhatsApp)' : 'WhatsApp Support'}
+                    </div>
+                    <div className="text-xs text-[#787b86]">
+                      {isAr ? 'جاري تحديث رقم الواتساب من الإدارة — استخدم البريد الإلكتروني أدناه' : 'WhatsApp number pending Admin configuration — use email below'}
+                    </div>
                   </div>
                 </div>
               </div>
-              <span className="text-xs font-bold text-[#229ED9] px-2.5 py-1 rounded bg-[#229ED9]/10 border border-[#229ED9]/20">
-                {isAr ? 'انضمام' : 'Join'}
-              </span>
-            </a>
+            )}
 
-            {/* Email Support */}
+            {/* Dynamic Telegram Official Channel & Support */}
+            {telegramUrl ? (
+              <a
+                href={telegramUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-3.5 rounded-xl bg-[#131722] hover:bg-[#229ED9]/15 border border-[#2a2e39] hover:border-[#229ED9]/50 transition-all flex items-center justify-between group cursor-pointer"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#229ED9]/20 text-[#229ED9] flex items-center justify-center font-bold">
+                    <Send className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-bold text-white group-hover:text-[#229ED9] transition-colors flex items-center gap-1.5">
+                      <span>{isAr ? 'قناة وتيليجرام الدعم الرسمي (Telegram)' : 'Official Telegram Support'}</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="text-xs text-[#787b86]">
+                      {telegramHandle ? `${telegramHandle} • ` : ''}
+                      {isAr ? 'إشعارات فورية ودعم مباشر' : 'Instant updates and direct support'}
+                    </div>
+                  </div>
+                </div>
+                <span className="text-xs font-bold text-[#229ED9] px-2.5 py-1 rounded bg-[#229ED9]/10 border border-[#229ED9]/20 shrink-0">
+                  {isAr ? 'انضمام' : 'Join'}
+                </span>
+              </a>
+            ) : (
+              <div className="p-3.5 rounded-xl bg-[#131722] border border-[#2a2e39] opacity-75 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#229ED9]/10 text-[#229ED9]/70 flex items-center justify-center font-bold">
+                    <Send className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-bold text-white">
+                      {isAr ? 'قناة وتيليجرام الدعم الرسمي (Telegram)' : 'Official Telegram Support'}
+                    </div>
+                    <div className="text-xs text-[#787b86]">
+                      {isAr ? 'جاري تحديث رابط التيليجرام من الإدارة' : 'Telegram link pending Admin configuration'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Dynamic Email Support */}
             <div className="p-3 rounded-xl bg-[#131722] border border-[#2a2e39] flex items-center justify-between text-xs">
               <div>
                 <span className="text-[#787b86]">{isAr ? 'البريد الإلكتروني المباشر:' : 'Email Desk:'} </span>
-                <span className="text-white font-mono font-bold">support@mbktrading.live</span>
+                <span className="text-white font-mono font-bold">{supportEmail}</span>
               </div>
               <span className="text-[#089981] font-mono text-[11px]">24/7 Available</span>
             </div>
           </div>
         )}
 
-        {/* Tab 2: Open Ticket */}
-        {activeTab === 'ticket' && (
-          <div className="flex-1 min-h-0 overflow-y-auto">
-            {ticketSubmitted ? (
-              <div className="p-6 text-center space-y-2">
-                <CheckCircle2 className="w-12 h-12 text-[#089981] mx-auto animate-bounce" />
-                <h4 className="text-base font-bold text-white">
-                  {isAr ? 'تم إرسال تذكرتك بنجاح!' : 'Ticket Submitted Successfully!'}
-                </h4>
-                <p className="text-xs text-[#787b86]">
-                  {isAr
-                    ? 'سيقوم مستشار الدعم الفني بالرد على بريدك الإلكتروني خلال دقائق معدودة.'
-                    : 'A desk manager will reply to your registered account within minutes.'}
-                </p>
-              </div>
-            ) : (
-              <form onSubmit={handleTicketSubmit} className="space-y-3">
-                {/* Category Selection */}
-                <div>
-                  <label className="block text-xs font-semibold text-[#787b86] mb-1.5">
-                    {isAr ? 'نوع الاستفسار / المشكلة' : 'Inquiry Category'}
-                  </label>
-                  <div className="grid grid-cols-2 gap-1.5 text-xs font-mono">
-                    {[
-                      { id: 'VIP', labelAr: '👑 تفعيل VIP / اشتراك', labelEn: '👑 VIP Activation' },
-                      { id: 'SIGNALS', labelAr: '📊 التوصيات والشارتات', labelEn: '📊 Signals & Setups' },
-                      { id: 'TECHNICAL', labelAr: '⚙️ مساعدة تقنية', labelEn: '⚙️ Technical Help' },
-                      { id: 'DEPOSIT', labelAr: '🎁 بونص الشريك والوسيط', labelEn: '🎁 Partner Deposit' }
-                    ].map((cat) => (
-                      <button
-                        type="button"
-                        key={cat.id}
-                        onClick={() => setTicketCategory(cat.id as any)}
-                        className={`p-2 rounded-lg text-[11px] font-bold border transition-all cursor-pointer text-start ${
-                          ticketCategory === cat.id
-                            ? 'bg-[#089981]/20 border-[#089981] text-[#089981]'
-                            : 'bg-[#131722] border-[#2a2e39] text-[#787b86] hover:text-white'
-                        }`}
-                      >
-                        {isAr ? cat.labelAr : cat.labelEn}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Subject */}
-                <div>
-                  <label className="block text-xs font-semibold text-[#787b86] mb-1">
-                    {isAr ? 'عنوان الموضوع' : 'Subject'}
-                  </label>
-                  <input
-                    type="text"
-                    value={ticketSubject}
-                    onChange={(e) => setTicketSubject(e.target.value)}
-                    placeholder={isAr ? 'مثال: استفسار حول نقطة الدخول في الذهب...' : 'E.g. Inquiring about Gold setup...'}
-                    className="w-full bg-[#131722] border border-[#2a2e39] rounded-xl px-3 py-2 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#089981]"
-                  />
-                </div>
-
-                {/* Message */}
-                <div>
-                  <label className="block text-xs font-semibold text-[#787b86] mb-1">
-                    {isAr ? 'تفاصيل الرسالة' : 'Message Details'}
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={ticketMessage}
-                    onChange={(e) => setTicketMessage(e.target.value)}
-                    placeholder={isAr ? 'اكتب ما تود الاستفسار عنه بالتفصيل...' : 'Please describe your request...'}
-                    className="w-full bg-[#131722] border border-[#2a2e39] rounded-xl px-3 py-2 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#089981] resize-none"
-                    required
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={!ticketMessage.trim()}
-                  className="w-full py-2.5 rounded-xl bg-[#089981] hover:bg-[#07806c] disabled:opacity-40 text-white font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-2 shadow-md"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>{isAr ? 'إرسال التذكرة إلى الدعم' : 'Submit Ticket'}</span>
-                </button>
-              </form>
-            )}
-          </div>
-        )}
-
-        {/* Tab 3: FAQs */}
+        {/* Tab 2: FAQs */}
         {activeTab === 'faq' && (
           <div className="space-y-2.5 overflow-y-auto flex-1 min-h-0 pr-0.5">
             {faqs.map((faq, idx) => (

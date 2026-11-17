@@ -7,21 +7,16 @@ import {
   AlertCircle,
   Eye,
   EyeOff,
-  ShieldCheck,
-  CheckCircle2,
-  ChevronLeft,
-  Sparkles,
   Phone,
   Globe,
   Calendar,
   Award,
-  Layers,
   TrendingUp,
   MailCheck,
-  Check,
-  RefreshCw
+  Check
 } from 'lucide-react';
 import { UserProfile } from '../types/trading';
+import { PublicTiersShowcase } from '../components/auth/PublicTiersShowcase';
 import { soundManager } from '../utils/audio';
 import {
   registerWithFirebase,
@@ -35,8 +30,9 @@ import {
 interface RegisterProps {
   onRegisterSuccess: (user: UserProfile) => void;
   onNavigateLogin: () => void;
-  onNavigateHome: () => void;
+  onNavigateHome?: () => void;
   lang?: 'ar' | 'en';
+  onToggleLang?: () => void;
 }
 
 const COUNTRIES_LIST = [
@@ -59,8 +55,8 @@ const COUNTRIES_LIST = [
 export const Register: React.FC<RegisterProps> = ({
   onRegisterSuccess,
   onNavigateLogin,
-  onNavigateHome,
-  lang = 'ar'
+  lang = 'ar',
+  onToggleLang
 }) => {
   const isAr = lang === 'ar';
 
@@ -148,13 +144,11 @@ export const Register: React.FC<RegisterProps> = ({
 
     try {
       if (googleUid) {
-        // Two-Step Google Auth Onboarding Completion
         const updatedUser = await saveGoogleUserOnboardingProfile(googleUid, onboardingData);
         soundManager.playProfitChime();
         onRegisterSuccess(updatedUser);
       } else {
-        // Standard Email Registration with Verification Trigger
-        const { verificationSent } = await registerWithFirebase(
+        await registerWithFirebase(
           email.trim(),
           password.trim(),
           displayName.trim(),
@@ -184,7 +178,6 @@ export const Register: React.FC<RegisterProps> = ({
       soundManager.playProfitChime();
 
       if (isNewUser) {
-        // Route Google user to Step 2 to complete their Trader Profile & Preferences
         setGoogleUid(uid);
         if (userProfile.email) setEmail(userProfile.email);
         if (userProfile.name) setDisplayName(userProfile.name);
@@ -203,113 +196,88 @@ export const Register: React.FC<RegisterProps> = ({
   return (
     <div
       dir={isAr ? 'rtl' : 'ltr'}
-      className="min-h-screen h-[100dvh] w-full bg-[#131722] text-[#d1d4dc] flex flex-col justify-between font-sans relative overflow-x-hidden select-none antialiased"
+      className="min-h-screen w-full bg-[#131722] text-[#d1d4dc] flex flex-col justify-between font-sans relative overflow-x-hidden select-none antialiased"
     >
-      {/* Background Glows & Architectural Grid */}
+      {/* Subtle Background Grid */}
       <div className="absolute inset-0 bg-[radial-gradient(#1e222d_1px,transparent_1px)] [background-size:24px_24px] opacity-30 pointer-events-none" />
-      <div className="absolute -top-40 end-1/4 w-[500px] h-[500px] bg-[#089981]/15 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute -bottom-40 start-1/4 w-[500px] h-[500px] bg-cyan-600/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute -top-40 end-1/4 w-[500px] h-[500px] bg-[#089981]/10 rounded-full blur-[120px] pointer-events-none" />
 
-      {/* Top Header Navigation */}
-      <header className="w-full max-w-7xl mx-auto px-4 sm:px-8 py-4 flex items-center justify-between relative z-20 shrink-0">
-        <div onClick={onNavigateHome} className="flex items-center gap-3 cursor-pointer group">
-          <div className="w-10 h-10 rounded-xl bg-[#1e222d] border border-[#2a2e39] text-white font-mono font-black text-lg flex items-center justify-center shadow-lg group-hover:border-[#089981] transition-all">
-            MBK
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-base font-extrabold text-white tracking-wider">
-                MBK TRADING DESK
-              </span>
-              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-[#089981]/20 text-[#089981] border border-[#089981]/40">
-                PRO ONBOARDING
-              </span>
-            </div>
-            <span className="text-[10px] text-[#787b86] block font-mono">
-              INSTITUTIONAL TRADER NETWORK
-            </span>
-          </div>
+      {/* 3-Zone Top Header Navigation */}
+      <header className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between gap-8 relative z-20 shrink-0 border-b border-[#2a2e39]/60">
+        <span className="text-base font-extrabold text-white tracking-tight whitespace-nowrap shrink-0">
+          MBK Trading
+        </span>
+
+        <nav className="hidden md:flex items-center gap-6 text-xs font-medium text-[#8a93a6]">
+          <a href="#tiers-showcase" className="hover:text-white transition-colors whitespace-nowrap shrink-0">
+            {isAr ? 'الباقات والأسعار' : 'Plans & Pricing'}
+          </a>
+          <a href="#auth-panel-card" className="hover:text-white transition-colors whitespace-nowrap shrink-0">
+            {isAr ? 'إنشاء حساب' : 'Create Account'}
+          </a>
+        </nav>
+
+        <div className="flex items-center gap-2.5 shrink-0">
+          {onToggleLang && (
+            <button
+              type="button"
+              onClick={onToggleLang}
+              className="px-3 py-2 rounded-xl bg-[#1e222d] hover:bg-[#2a2e39] border border-[#2a2e39] text-xs font-semibold text-[#d1d4dc] hover:text-white transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
+            >
+              <Globe className="w-3.5 h-3.5 text-[#089981]" />
+              <span>{isAr ? 'EN' : 'AR'}</span>
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onNavigateLogin}
+            className="px-4 py-2 rounded-xl bg-[#1e222d] hover:bg-[#2a2e39] border border-[#2a2e39] text-xs font-bold text-white transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
+          >
+            <span>{isAr ? 'تسجيل الدخول' : 'Sign In'}</span>
+          </button>
         </div>
-
-        <button
-          onClick={onNavigateHome}
-          className="px-3.5 py-2 rounded-xl bg-[#1e222d] hover:bg-[#2a2e39] border border-[#2a2e39] text-xs font-bold text-[#d1d4dc] hover:text-white transition-all flex items-center gap-2 cursor-pointer shadow-sm"
-        >
-          <span>{isAr ? 'العودة للرئيسية' : 'Back to Home'}</span>
-          <ChevronLeft className={`w-4 h-4 ${isAr ? '' : 'rotate-180'}`} />
-        </button>
       </header>
 
-      {/* Main Container */}
-      <main className="w-full max-w-6xl mx-auto px-4 py-4 sm:py-6 flex-1 flex items-center justify-center relative z-20">
-        <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          
-          {/* Left Column (Institutional Value Showcase) */}
-          <div className="hidden lg:flex lg:col-span-5 flex-col space-y-6 pe-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#089981]/10 border border-[#089981]/30 text-[#089981] text-xs font-bold w-fit">
-              <ShieldCheck className="w-4 h-4" />
-              <span>{isAr ? 'بيئة تداول معتمدة ومحمية' : 'Secure VIP Trading Ecosystem'}</span>
-            </div>
+      {/* Main Front Page Container: 3-Tier Showcase + Registration Panel */}
+      <main className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 flex-1 relative z-20">
+        <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+          {/* Left / Main Column: Always-Visible 3-Tier Plans (Free $0, VIP $100, Elite $500) */}
+          <section id="tiers-showcase" className="lg:col-span-8 order-2 lg:order-1">
+            <PublicTiersShowcase
+              lang={lang}
+              onFocusAuth={() => {
+                document.getElementById('auth-panel-card')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+            />
+          </section>
 
-            <h1 className="text-3xl xl:text-4xl font-extrabold text-white leading-tight">
-              {isAr ? (
-                <>
-                  منظومة التحليل المؤسسي  
-                  <span className="block text-transparent bg-clip-text bg-gradient-to-r from-[#089981] via-[#00f2fe] to-cyan-400">
-                    وإشارات التداول الذكية
-                  </span>
-                </>
-              ) : (
-                <>
-                  Institutional Analytics &  
-                  <span className="block text-transparent bg-clip-text bg-gradient-to-r from-[#089981] via-[#00f2fe] to-cyan-400">
-                    Smart Signals Network
-                  </span>
-                </>
+          {/* Right Column: Registration Panel */}
+          <section id="auth-panel-card" className="lg:col-span-4 order-1 lg:order-2 lg:sticky lg:top-6 w-full">
+            <div className="bg-[#1e222d] border border-[#2a2e39] rounded-2xl p-5 sm:p-6 shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 start-0 w-full h-1 bg-gradient-to-r from-[#089981] via-[#00f2fe] to-blue-600" />
+
+              {/* Instant Mode Switcher (Register vs Sign In) */}
+              {step !== 3 && (
+                <div className="grid grid-cols-2 gap-1 p-1 bg-[#131722] border border-[#2a2e39] rounded-xl mb-5">
+                  <button
+                    type="button"
+                    className="py-2 px-3 rounded-lg text-xs font-bold bg-[#089981] text-white cursor-default whitespace-nowrap"
+                  >
+                    {isAr ? 'إنشاء حساب جديد' : 'Create Account'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onNavigateLogin}
+                    className="py-2 px-3 rounded-lg text-xs font-bold text-[#8a93a6] hover:text-white transition-colors cursor-pointer whitespace-nowrap"
+                  >
+                    {isAr ? 'تسجيل الدخول' : 'Sign In'}
+                  </button>
+                </div>
               )}
-            </h1>
-
-            <div className="space-y-4 pt-2">
-              <div className="flex items-start gap-3">
-                <div className="w-7 h-7 rounded-xl bg-[#089981]/20 border border-[#089981]/40 text-[#089981] flex items-center justify-center shrink-0 mt-0.5">
-                  <CheckCircle2 className="w-4 h-4" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-white">{isAr ? 'تحليلات عالية الدقة' : 'Institutional-Grade Analytics'}</h4>
-                  <p className="text-[11px] text-[#787b86] leading-relaxed">{isAr ? 'استفد من خوارزميات التدفق النقدي ومؤشرات الشارت المتقدمة' : 'Access institutional liquidity metrics & TradingView Advanced Charts'}</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <div className="w-7 h-7 rounded-xl bg-[#089981]/20 border border-[#089981]/40 text-[#089981] flex items-center justify-center shrink-0 mt-0.5">
-                  <CheckCircle2 className="w-4 h-4" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-white">{isAr ? 'تنبيهات البوت الآلية' : 'Automated Pine Script Webhooks'}</h4>
-                  <p className="text-[11px] text-[#787b86] leading-relaxed">{isAr ? 'ربط مباشر مع استراتيجيات TradingView وبث لحظي عبر Telegram' : 'Direct execution pipeline streaming strategy signals to your desktop'}</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <div className="w-7 h-7 rounded-xl bg-[#089981]/20 border border-[#089981]/40 text-[#089981] flex items-center justify-center shrink-0 mt-0.5">
-                  <CheckCircle2 className="w-4 h-4" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-white">{isAr ? 'توصيات الخبراء المباشرة' : 'Live Official Analyst Signals'}</h4>
-                  <p className="text-[11px] text-[#787b86] leading-relaxed">{isAr ? 'قنوات توصيات حصرية لمشتركي VIP مع تحديد دقيق لنقاط الأهداف ووقف الخسارة' : 'Verified signal channels with entry targets and stop loss metrics'}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column: Dynamic Multi-Step Form Card */}
-          <div className="col-span-1 lg:col-span-7 max-w-lg w-full mx-auto">
-            <div className="bg-[#1e222d] border border-[#2a2e39] rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden backdrop-blur-xl">
-              <div className="absolute top-0 start-0 w-full h-1.5 bg-gradient-to-r from-[#089981] via-[#00f2fe] to-blue-600" />
 
               {/* Progress Indicator Steps (Only shown for Step 1 & 2) */}
               {step !== 3 && (
-                <div className="flex items-center justify-between mb-6 pb-4 border-b border-[#2a2e39]">
+                <div className="flex items-center justify-between mb-5 pb-3 border-b border-[#2a2e39]">
                   <div className="flex items-center gap-2">
                     <div className={`w-7 h-7 rounded-full flex items-center justify-center font-mono font-bold text-xs ${
                       step === 1 ? 'bg-[#089981] text-white shadow-md shadow-[#089981]/30' : 'bg-[#089981]/20 text-[#089981]'
@@ -709,12 +677,12 @@ export const Register: React.FC<RegisterProps> = ({
                 </div>
               )}
             </div>
-          </div>
+          </section>
         </div>
       </main>
 
       {/* Institutional Footer */}
-      <footer className="w-full max-w-7xl mx-auto px-4 py-3 text-center text-[11px] text-[#787b86] font-mono relative z-20 shrink-0">
+      <footer className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-4 text-center text-[11px] text-[#787b86] border-t border-[#2a2e39]/60 relative z-20 shrink-0">
         MBK Trading Desk Platform © 2026 • Encrypted Institutional Onboarding & Verified Access
       </footer>
     </div>

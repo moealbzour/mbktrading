@@ -35,24 +35,12 @@ export const PaperTrading: React.FC<Props> = ({ tickers, selectedSymbol, onSelec
   const [positions, setPositions] = useState<PaperPosition[]>(() => {
     try {
       const saved = localStorage.getItem('mbk_tic_paper_positions');
-      return saved ? JSON.parse(saved) : [
-        {
-          id: 'pos-1',
-          symbol: 'US100',
-          type: 'BUY',
-          entryPrice: 20460.0,
-          currentPrice: 20580.0,
-          lotSize: 2.0,
-          stopLoss: 20390.0,
-          takeProfit: 20750.0,
-          openTime: 'اليوم 14:10',
-          floatingPnL: 2400
-        }
-      ];
+      return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
     }
   });
+  const [confirmReset, setConfirmReset] = useState(false);
 
   const [closedHistory, setClosedHistory] = useState<{
     id: string;
@@ -143,12 +131,17 @@ export const PaperTrading: React.FC<Props> = ({ tickers, selectedSymbol, onSelec
   };
 
   const handleResetPortfolio = () => {
-    if (confirm('هل أنت متأكد من إعادة تعيين المحفظة الافتراضية إلى 100,000 دولار؟')) {
-      saveBalance(100000);
-      savePositions([]);
-      setClosedHistory([]);
+    if (!confirmReset) {
+      setConfirmReset(true);
       soundManager.playClick();
+      setTimeout(() => setConfirmReset(false), 4000);
+      return;
     }
+    saveBalance(100000);
+    savePositions([]);
+    setClosedHistory([]);
+    setConfirmReset(false);
+    soundManager.playClick();
   };
 
   // Compute live floating PnL
@@ -190,11 +183,15 @@ export const PaperTrading: React.FC<Props> = ({ tickers, selectedSymbol, onSelec
 
           <button
             onClick={handleResetPortfolio}
-            className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
+            className={`px-3.5 py-1.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer self-start sm:self-auto ${
+              confirmReset
+                ? 'bg-rose-600 hover:bg-rose-500 text-white border-rose-500'
+                : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-800'
+            }`}
             title="إعادة التعيين إلى 100,000 دولار"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span>إعادة ضبط المحفظة</span>
+            <span>{confirmReset ? 'اضغط للتأكيد ($100K)' : 'إعادة ضبط المحفظة'}</span>
           </button>
         </div>
 
@@ -413,6 +410,31 @@ export const PaperTrading: React.FC<Props> = ({ tickers, selectedSymbol, onSelec
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {closedHistory.length > 0 && (
+            <div className="pt-4 border-t border-slate-800 space-y-2">
+              <h4 className="text-xs font-bold text-slate-300">سجل الصفقات المغلقة في هذه الجلسة ({closedHistory.length})</h4>
+              <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                {closedHistory.map((item) => (
+                  <div
+                    key={item.id}
+                    className="px-3 py-2 rounded-lg bg-slate-900/40 border border-slate-800/70 flex items-center justify-between text-[11px] font-mono"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className={item.type === 'BUY' ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>
+                        {item.type}
+                      </span>
+                      <span className="text-white font-bold">{item.symbol}</span>
+                      <span className="text-slate-500">({item.lots} Lot)</span>
+                    </div>
+                    <span className={item.pnl >= 0 ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>
+                      {item.pnl >= 0 ? `+$${item.pnl}` : `-$${Math.abs(item.pnl)}`}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>

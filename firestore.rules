@@ -1,24 +1,430 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /users/{userId} {
-      allow read: if request.auth != null;
-      allow create, update, delete: if request.auth != null;
-    }
-    match /public_chat/{messageId} {
-      allow read, write: if true;
-    }
-    match /signals/{signalId} {
-      allow read, write: if true;
-    }
-    match /market_ideas/{ideaId} {
-      allow read, write: if true;
-    }
-    match /bot_alerts/{alertId} {
-      allow read, write: if true;
-    }
+    // ===============================================================
+    // MBK TRADING - STRICT PRODUCTION FIRESTORE SECURITY RULES
+    // ===============================================================
+
+    // Catch-all default deny
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if false;
+    }
+
+    // Core Authentication & Identity Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function userDocExists() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isSuperAdminToken() {
+      return isSignedIn()
+        && request.auth.token.email == 'moe.albzour@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isSuperAdminToken()
+        || (userDocExists() && userDoc().role in ['admin', 'ADMIN'] && userDoc().get('isBanned', false) != true);
+    }
+
+    function isModeratorOrAdmin() {
+      return isAdmin()
+        || (userDocExists() && userDoc().role in ['moderator', 'MODERATOR'] && userDoc().get('isBanned', false) != true);
+    }
+
+    function isStaff() {
+      return isModeratorOrAdmin()
+        || (userDocExists() && userDoc().role in ['sales', 'SALES', 'analyser', 'ANALYSER', 'analyst', 'ANALYST'] && userDoc().get('isBanned', false) != true);
+    }
+
+    function isAnalyser() {
+      return isAdmin()
+        || (userDocExists() && userDoc().role in ['analyser', 'ANALYSER', 'analyst', 'ANALYST'] && userDoc().get('isBanned', false) != true);
+    }
+
+    function isBanned() {
+      return !isSuperAdminToken() && userDocExists() && userDoc().get('isBanned', false) == true;
+    }
+
+    function isMutedFromChat() {
+      return !isModeratorOrAdmin() && userDocExists() && userDoc().get('isMutedFromChat', false) == true;
+    }
+
+    function isActiveVIP() {
+      return isStaff()
+        || (userDocExists()
+            && userDoc().get('isBanned', false) != true
+            && (
+              userDoc().role in ['vip', 'VIP', 'elite', 'ELITE']
+              || userDoc().get('tier', 'free') in ['vip', 'elite']
+              || userDoc().get('isVip', false) == true
+              || userDoc().get('vipAccess', false) == true
+              || userDoc().get('isElite', false) == true
+              || userDoc().get('subscription_status', 'none') == 'active'
+            ));
+    }
+
+    function hasGrantedFeature(featureKey) {
+      return isActiveVIP()
+        || (userDocExists()
+            && userDoc().get('isBanned', false) != true
+            && userDoc().get('grantedFeatures', {}) is map
+            && featureKey in userDoc().get('grantedFeatures', {})
+            && userDoc().get('grantedFeatures', {})[featureKey] is string);
+    }
+
+    // Atomic Single-Use Key Redemption Verification (VIP, Elite, or Feature Trial)
+    function isValidKeyTransaction(keyId) {
+      return keyId is string
+        && isValidId(keyId)
+        && get(/databases/$(database)/documents/activation_keys/$(keyId)).data.status == 'active'
+        && getAfter(/databases/$(database)/documents/activation_keys/$(keyId)).data.status == 'used'
+        && getAfter(/databases/$(database)/documents/activation_keys/$(keyId)).data.usedByUserId == request.auth.uid;
+    }
+
+    function isValidVipKeyRedemption(userId) {
+      let keyId = incoming().activationKey;
+      let keyData = get(/databases/$(database)/documents/activation_keys/$(keyId)).data;
+      return isOwner(userId)
+        && !isBanned()
+        && isValidKeyTransaction(keyId)
+        && keyData.get('grantTier', 'vip') == 'vip'
+        && incoming().role == 'vip'
+        && incoming().isVip == true
+        && incoming().vipAccess == true
+        && incoming().subscription_status == 'active';
+    }
+
+    function isValidEliteKeyRedemption(userId) {
+      let keyId = incoming().activationKey;
+      let keyData = get(/databases/$(database)/documents/activation_keys/$(keyId)).data;
+      return isOwner(userId)
+        && !isBanned()
+        && isValidKeyTransaction(keyId)
+        && keyData.get('grantTier', 'vip') == 'elite'
+        && incoming().role == 'vip'
+        && incoming().tier == 'elite'
+        && incoming().isVip == true
+        && incoming().vipAccess == true
+        && incoming().isElite == true
+        && incoming().subscription_status == 'active';
+    }
+
+    function isValidCustomTrialKeyRedemption(userId) {
+      let keyId = incoming().activationKey;
+      let keyData = get(/databases/$(database)/documents/activation_keys/$(keyId)).data;
+      return isOwner(userId)
+        && !isBanned()
+        && isValidKeyTransaction(keyId)
+        && keyData.get('grantTier', 'vip') == 'custom'
+        && incoming().grantedFeatures is map
+        && incoming().grantedFeatures.diff(existing().get('grantedFeatures', {})).affectedKeys().hasOnly(keyData.get('grantFeatures', []));
+    }
+
+    function isValidUserCreate(userId) {
+      let data = incoming();
+      let safeDefaultUser = data.role == 'free'
+        && data.get('tier', 'free') == 'free'
+        && data.get('isVip', false) == false
+        && data.get('vipAccess', false) == false
+        && data.get('isElite', false) == false
+        && data.get('grantedFeatures', {}) == {}
+        && data.get('isBanned', false) == false
+        && data.get('isMutedFromChat', false) == false
+        && data.get('totalPaid', 0) == 0;
+      return isOwner(userId)
+        && (safeDefaultUser || isValidVipKeyRedemption(userId) || isValidEliteKeyRedemption(userId))
+        && data.get('email', '') is string
+        && data.get('email', '').size() <= 200
+        && data.get('displayName', '') is string
+        && data.get('displayName', '').size() <= 100
+        && data.get('phone', '') is string
+        && data.get('phone', '').size() <= 40
+        && data.get('country', '') is string
+        && data.get('country', '').size() <= 80;
+    }
+
+    function isSafeOwnerProfileUpdate(userId) {
+      let affected = incoming().diff(existing()).affectedKeys();
+      return isOwner(userId)
+        && !isBanned()
+        && affected.hasOnly([
+          'displayName',
+          'phone',
+          'country',
+          'dob',
+          'experienceLevel',
+          'assetClasses',
+          'favoritePairs',
+          'avatar',
+          'emailVerified',
+          'telegramUsername',
+          'updatedAt',
+          'lastActiveAt'
+        ])
+        && (!('displayName' in incoming()) || (incoming().displayName is string && incoming().displayName.size() <= 100))
+        && (!('phone' in incoming()) || (incoming().phone is string && incoming().phone.size() <= 40))
+        && (!('country' in incoming()) || (incoming().country is string && incoming().country.size() <= 80));
+    }
+
+    function isAtomicUserUpgradeUpdate(userId) {
+      let affected = incoming().diff(existing()).affectedKeys();
+      return (
+        isValidVipKeyRedemption(userId)
+        && affected.hasOnly([
+          'role',
+          'tier',
+          'isVip',
+          'vipAccess',
+          'vipExpiryDate',
+          'subscription_status',
+          'subscription_end_date',
+          'activationKey',
+          'updatedAt'
+        ])
+      ) || (
+        isValidEliteKeyRedemption(userId)
+        && affected.hasOnly([
+          'role',
+          'tier',
+          'isVip',
+          'vipAccess',
+          'isElite',
+          'vipExpiryDate',
+          'eliteExpiryDate',
+          'subscription_status',
+          'subscription_end_date',
+          'activationKey',
+          'updatedAt'
+        ])
+      ) || (
+        isValidCustomTrialKeyRedemption(userId)
+        && affected.hasOnly([
+          'grantedFeatures',
+          'activationKey',
+          'updatedAt'
+        ])
+      );
+    }
+
+    // ---------------------------------------------------------------
+    // 1. USERS COLLECTION (Strict Ownership + Protected Privileges)
+    // ---------------------------------------------------------------
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isStaff());
+      allow list: if isStaff();
+      allow create: if isValidId(userId) && isValidUserCreate(userId);
+      allow update: if isValidId(userId) && (
+        isAdmin()
+        || isAtomicUserUpgradeUpdate(userId)
+        || isSafeOwnerProfileUpdate(userId)
+        || (isSuperAdminToken() && isOwner(userId) && incoming().diff(existing()).affectedKeys().hasOnly(['role', 'updatedAt']))
+        || (isModeratorOrAdmin()
+            && incoming().diff(existing()).affectedKeys().hasOnly(['isBanned', 'isMutedFromChat', 'updatedAt']))
+      );
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+
+    // ---------------------------------------------------------------
+    // 2. ACTIVATION KEYS (Admin CRUD, Authenticated Single-Use Transaction)
+    // ---------------------------------------------------------------
+    match /activation_keys/{keyId} {
+      allow get: if isValidId(keyId) && isSignedIn();
+      allow list: if isAdmin() || isStaff();
+      allow create: if isValidId(keyId)
+        && isAdmin()
+        && incoming().code == keyId
+        && incoming().status == 'active'
+        && incoming().durationInDays is number
+        && incoming().durationInDays > 0;
+      allow update: if isValidId(keyId) && (
+        isAdmin()
+        || (isSignedIn()
+            && !isBanned()
+            && existing().status == 'active'
+            && incoming().status == 'used'
+            && incoming().usedByUserId == request.auth.uid
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'usedByUserId', 'usedByUserEmail', 'usedAt'])
+            && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.activationKey == keyId)
+      );
+      allow delete: if isValidId(keyId) && isAdmin();
+    }
+
+    // ---------------------------------------------------------------
+    // 3. PRIVATE VIP GROUP CHAT (VIP/Elite/vipChat Trial + Admin only, 500-char max)
+    // ---------------------------------------------------------------
+    match /public_chat/{messageId} {
+      allow get: if isValidId(messageId) && hasGrantedFeature('vipChat');
+      allow list: if hasGrantedFeature('vipChat');
+      allow create: if isValidId(messageId)
+        && isSignedIn()
+        && !isBanned()
+        && !isMutedFromChat()
+        && hasGrantedFeature('vipChat')
+        && incoming().uid == request.auth.uid
+        && incoming().displayName is string
+        && incoming().displayName.size() >= 1
+        && incoming().displayName.size() <= 100
+        && incoming().text is string
+        && incoming().text.size() <= 500
+        && (incoming().text.size() >= 1 || (isModeratorOrAdmin() && incoming().imageUrl is string))
+        && (incoming().get('imageUrl', null) == null
+            || (isModeratorOrAdmin() && incoming().imageUrl is string && incoming().imageUrl.size() <= 1048000))
+        && incoming().get('isPinned', false) == false
+        && incoming().get('likes', 0) == 0;
+      allow update: if isValidId(messageId) && (
+        isModeratorOrAdmin()
+        || (hasGrantedFeature('vipChat')
+            && !isBanned()
+            && incoming().diff(existing()).affectedKeys().hasOnly(['reactions', 'likes']))
+      );
+      allow delete: if isValidId(messageId) && isModeratorOrAdmin();
+    }
+
+    match /chat_messages/{messageId} {
+      allow get: if isValidId(messageId) && hasGrantedFeature('vipChat');
+      allow list: if hasGrantedFeature('vipChat');
+      allow create: if isValidId(messageId)
+        && isSignedIn()
+        && !isBanned()
+        && !isMutedFromChat()
+        && hasGrantedFeature('vipChat')
+        && incoming().uid == request.auth.uid
+        && incoming().content is string
+        && incoming().content.size() >= 1
+        && incoming().content.size() <= 500;
+      allow update, delete: if isValidId(messageId) && isModeratorOrAdmin();
+    }
+
+    // ---------------------------------------------------------------
+    // 4. SIGNALS & BOT ALERTS (Admin/Analyser Writes, Tiered & Trial Reads)
+    // ---------------------------------------------------------------
+    match /signals/{signalId} {
+      allow get: if isValidId(signalId) && (
+        signalId == 'connection-check'
+        || resource == null
+        || resource.data.get('accessLevel', 'free') in ['free', 'all']
+        || resource.data.get('access_level', 'free') in ['free', 'all']
+        || hasGrantedFeature('vipSignals')
+        || isAnalyser()
+      );
+      allow list: if resource.data.get('accessLevel', 'free') in ['free', 'all']
+        || resource.data.get('access_level', 'free') in ['free', 'all']
+        || hasGrantedFeature('vipSignals')
+        || isAnalyser();
+      allow create: if isValidId(signalId)
+        && (isAdmin() || isAnalyser())
+        && incoming().symbol is string
+        && incoming().symbol.size() >= 2
+        && incoming().symbol.size() <= 30
+        && incoming().action is string
+        && incoming().entryPrice is number
+        && incoming().tp1 is number
+        && incoming().sl is number;
+      allow update, delete: if isValidId(signalId) && (isAdmin() || isAnalyser());
+    }
+
+    match /bot_alerts/{alertId} {
+      allow get: if isValidId(alertId) && (hasGrantedFeature('botSignals') || isAnalyser());
+      allow list: if hasGrantedFeature('botSignals') || isAnalyser();
+      allow create, update, delete: if isValidId(alertId) && (isAdmin() || isAnalyser());
+    }
+
+    match /engine_alerts/{alertId} {
+      allow get: if isValidId(alertId) && (hasGrantedFeature('botSignals') || isAnalyser());
+      allow list: if hasGrantedFeature('botSignals') || isAnalyser();
+      allow create, update, delete: if isValidId(alertId) && (isAdmin() || isAnalyser());
+    }
+
+    match /manual_signals/{signalId} {
+      allow get: if isValidId(signalId) && (hasGrantedFeature('vipSignals') || isAnalyser());
+      allow list: if hasGrantedFeature('vipSignals') || isAnalyser();
+      allow create, update, delete: if isValidId(signalId) && (isAdmin() || isAnalyser());
+    }
+
+    // ---------------------------------------------------------------
+    // 5. MARKET IDEAS & WAITLIST
+    // ---------------------------------------------------------------
+    match /market_ideas/{ideaId} {
+      allow get: if isValidId(ideaId);
+      allow list: if true;
+      allow create: if isValidId(ideaId)
+        && isSignedIn()
+        && !isBanned()
+        && isActiveVIP()
+        && incoming().authorId == request.auth.uid
+        && incoming().title is string
+        && incoming().title.size() >= 1
+        && incoming().title.size() <= 200
+        && incoming().content is string
+        && incoming().content.size() >= 1
+        && incoming().content.size() <= 5000;
+      allow update: if isValidId(ideaId) && (
+        isAdmin()
+        || isAnalyser()
+        || (isSignedIn()
+            && !isBanned()
+            && incoming().diff(existing()).affectedKeys().hasOnly(['likedBy', 'likesCount', 'comments', 'commentsCount']))
+      );
+      allow delete: if isValidId(ideaId) && (isAdmin() || (isSignedIn() && existing().authorId == request.auth.uid));
+    }
+
+    match /waitlist/{docId} {
+      allow create: if isValidId(docId)
+        && incoming().serviceType is string
+        && incoming().serviceType.size() >= 1
+        && incoming().serviceType.size() <= 100
+        && incoming().telegramContact is string
+        && incoming().telegramContact.size() >= 2
+        && incoming().telegramContact.size() <= 200;
+      allow read, update, delete: if isValidId(docId) && isStaff();
+    }
+
+    // ---------------------------------------------------------------
+    // 6. PLATFORM SETTINGS (Public get for contact links, Admin writes)
+    // ---------------------------------------------------------------
+    function isValidPlatformSettings(data) {
+      return data.keys().hasAll(['whatsappNumber', 'telegramUrl'])
+        && data.keys().hasOnly(['whatsappNumber', 'telegramUrl', 'supportEmail', 'updatedAt', 'updatedBy'])
+        && data.whatsappNumber is string
+        && data.whatsappNumber.size() <= 40
+        && data.telegramUrl is string
+        && data.telegramUrl.size() <= 300
+        && (!('supportEmail' in data) || (data.supportEmail is string && data.supportEmail.size() <= 200))
+        && (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64))
+        && (!('updatedBy' in data) || (data.updatedBy is string && data.updatedBy.size() <= 200));
+    }
+
+    match /settings/{settingId} {
+      allow get: if isValidId(settingId) && (settingId == 'platform' || isAdmin());
+      allow list: if isAdmin();
+      allow create, update: if isValidId(settingId)
+        && isAdmin()
+        && isValidPlatformSettings(incoming());
+      allow delete: if isValidId(settingId) && isAdmin();
     }
   }
 }

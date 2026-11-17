@@ -34,12 +34,17 @@ import {
   Headphones,
   Calculator,
   Clock,
-  Gift,
   Layers,
   User,
-  Smartphone
+  Smartphone,
+  Gem,
+  Lock,
+  Wallet,
+  Calendar,
+  GraduationCap
 } from 'lucide-react';
 import { soundManager } from '../../utils/audio';
+import { getEffectiveTier, ELITE_LOCK_BADGE_TEXT } from '../../utils/entitlements';
 import { UserProfile, MarketSymbol, MarketTicker } from '../../types/trading';
 
 // Modules
@@ -51,19 +56,36 @@ import { PublicTradingChat } from '../community/PublicTradingChat';
 import { TradingViewAIPanel } from '../ai/TradingViewAIPanel';
 import { TradingViewChart } from '../TradingViewChart';
 import { TradingViewLiteChart } from '../TradingViewLiteChart';
-import { TradingViewMiniChart } from '../TradingViewMiniChart';
 import { DailyTradesPanel } from '../signals/DailyTradesPanel';
 import { AdminDashboard } from '../admin/AdminDashboard';
-import { AdminManagementPanel } from '../admin/AdminManagementPanel';
 import { MarketHeatmap } from '../insights/MarketHeatmap';
+import { PaperTrading } from '../tic/PaperTrading';
+import { EconomicCalendarPanel } from '../EconomicCalendarPanel';
+import { TradingAcademyPanel } from '../tic/TradingAcademyPanel';
+import { CopyTradingPanel } from '../CopyTradingPanel';
+import { AutoBotPanel } from '../AutoBotPanel';
+import { IndicatorsStorePanel } from '../IndicatorsStorePanel';
+import { EliteLockedModule } from '../common/EliteLockedModule';
 
 // Utility Modals
 import { SupportDeskModal } from '../modals/SupportDeskModal';
 import { RiskCalculatorModal } from '../modals/RiskCalculatorModal';
 import { MarketSessionsModal } from '../modals/MarketSessionsModal';
 import { UserProfileModal } from '../modals/UserProfileModal';
+import { SubscriptionPlansModal } from '../modals/SubscriptionPlansModal';
+import { PaymentModal } from '../modals/PaymentModal';
 
-export type WorkspaceView = 'signals' | 'chat' | 'news' | 'ai' | 'chart' | 'admin';
+export type WorkspaceView =
+  | 'signals'
+  | 'chat'
+  | 'news'
+  | 'ai'
+  | 'chart'
+  | 'paper'
+  | 'calendar'
+  | 'academy'
+  | 'elite'
+  | 'admin';
 export type ChatDockPosition = 'left' | 'right' | 'bottom' | 'hide';
 
 interface ChatDockControlsProps {
@@ -119,7 +141,6 @@ interface Props {
   onToggleMute: () => void;
   onLogout: () => void;
   onBackToHome?: () => void;
-  onOpenBrokerModal: () => void;
   onOpenPromoModal: () => void;
   lang?: 'ar' | 'en';
   onToggleLang?: () => void;
@@ -134,7 +155,6 @@ export const TradingViewWorkspace: React.FC<Props> = ({
   onToggleMute,
   onLogout,
   onBackToHome,
-  onOpenBrokerModal,
   onOpenPromoModal,
   lang = 'ar',
   onToggleLang
@@ -210,11 +230,15 @@ export const TradingViewWorkspace: React.FC<Props> = ({
     }, 4000);
   };
 
-  // Trader Utility Modals State (Contact Support, Risk Calculator, Market Sessions, User Profile)
+  // Trader Utility Modals State (Support, Risk Calculator, Sessions, Profile, Plans, Payment)
   const [supportModalOpen, setSupportModalOpen] = useState(false);
   const [calculatorModalOpen, setCalculatorModalOpen] = useState(false);
   const [sessionsModalOpen, setSessionsModalOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [plansModalOpen, setPlansModalOpen] = useState(false);
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [selectedCheckoutPlan, setSelectedCheckoutPlan] = useState<'vip' | 'elite'>('vip');
+  const [activeEliteTab, setActiveEliteTab] = useState<'superAi' | 'copyTrading' | 'autoBotTrader' | 'tradingCourse' | 'indicatorsStore'>('superAi');
 
   // Collapsible Widgets State (Price Ticker & News Banner)
   const [showPriceTicker, setShowPriceTicker] = useState<boolean>(() => {
@@ -481,7 +505,9 @@ export const TradingViewWorkspace: React.FC<Props> = ({
   };
 
   const isAr = lang === 'ar';
-  const isVIP = user.role === 'VIP' || user.role === 'ADMIN';
+  const effectiveTier = getEffectiveTier(user);
+  const isEliteMember = effectiveTier === 'elite';
+  const isVIP = effectiveTier === 'vip' || effectiveTier === 'elite';
 
   // Find active ticker
   const activeTicker = tickers.find((t) => t.symbol === selectedSymbol) || tickers[0];
@@ -489,12 +515,11 @@ export const TradingViewWorkspace: React.FC<Props> = ({
   const navItems = [
     {
       id: 'signals' as WorkspaceView | 'heatmap',
-      labelAr: 'قنوات التوصيات',
-      labelEn: 'Signals Hub',
+      labelAr: 'قنوات التوصيات والبوت',
+      labelEn: 'Signals & Bot Hub',
       shortAr: 'الإشارات',
       shortEn: 'Signals',
-      icon: Radio,
-      badge: 'LIVE'
+      icon: Radio
     },
     {
       id: 'chart' as WorkspaceView | 'heatmap',
@@ -510,26 +535,55 @@ export const TradingViewWorkspace: React.FC<Props> = ({
       labelEn: 'Market Heatmap',
       shortAr: 'الخريطة',
       shortEn: 'Heatmap',
-      icon: Flame,
-      badge: 'HOT'
+      icon: Flame
     },
     {
       id: 'chat' as WorkspaceView | 'heatmap',
-      labelAr: 'نقاش المتداولين',
-      labelEn: 'Community Chat',
-      shortAr: 'النقاش',
+      labelAr: 'غرفة شات VIP',
+      labelEn: 'VIP Group Chat',
+      shortAr: 'الشات',
       shortEn: 'Chat',
-      icon: MessageSquare,
-      badge: 'NEW'
+      icon: MessageSquare
     },
     {
       id: 'ai' as WorkspaceView | 'heatmap',
-      labelAr: 'المستشار الذكي',
-      labelEn: 'AI Analyst',
+      labelAr: 'المساعد الذكي (Standard AI)',
+      labelEn: 'Standard AI Assistant',
       shortAr: 'الذكاء',
       shortEn: 'AI',
-      icon: Bot,
-      badge: isVIP ? 'VIP' : 'AI'
+      icon: Bot
+    },
+    {
+      id: 'paper' as WorkspaceView | 'heatmap',
+      labelAr: 'التداول التجريبي (Paper Trading)',
+      labelEn: 'Paper Trading Simulator',
+      shortAr: 'تجريبي',
+      shortEn: 'Paper',
+      icon: Wallet
+    },
+    {
+      id: 'calendar' as WorkspaceView | 'heatmap',
+      labelAr: 'التقويم الاقتصادي',
+      labelEn: 'Economic Calendar',
+      shortAr: 'التقويم',
+      shortEn: 'Calendar',
+      icon: Calendar
+    },
+    {
+      id: 'academy' as WorkspaceView | 'heatmap',
+      labelAr: 'الأكاديمية التعليمية',
+      labelEn: 'Trading Academy',
+      shortAr: 'الأكاديمية',
+      shortEn: 'Academy',
+      icon: GraduationCap
+    },
+    {
+      id: 'elite' as WorkspaceView | 'heatmap',
+      labelAr: `باقة Elite (${ELITE_LOCK_BADGE_TEXT})`,
+      labelEn: `Elite Modules (${ELITE_LOCK_BADGE_TEXT})`,
+      shortAr: 'Elite 🔒',
+      shortEn: 'Elite 🔒',
+      icon: Gem
     },
     {
       id: 'news' as WorkspaceView | 'heatmap',
@@ -539,18 +593,35 @@ export const TradingViewWorkspace: React.FC<Props> = ({
       shortEn: 'News',
       icon: Newspaper
     },
-    // Admin & Analyser Publishing Panel
-    ...((user.role === 'ADMIN' || user.isAdmin || user.email?.toLowerCase() === 'moe.albzour@gmail.com' || user.role === 'ANALYSER' || (typeof window !== 'undefined' && localStorage.getItem('mbk_chat_admin_mode') === 'true'))
-      ? [{
-          id: 'admin' as WorkspaceView | 'heatmap',
-          labelAr: user.role === 'ANALYSER' ? 'مركز النشر والتحليل' : 'إدارة المنصة (Admin)',
-          labelEn: user.role === 'ANALYSER' ? 'Publishing Center' : 'Admin Panel',
-          shortAr: user.role === 'ANALYSER' ? 'النشر' : 'الإدارة',
-          shortEn: user.role === 'ANALYSER' ? 'Publish' : 'Admin',
-          icon: Shield,
-          badge: user.role === 'ANALYSER' ? 'ANALYST' : 'ADMIN'
-        }]
-      : [])
+    // Staff CRM & Admin Dashboard (verified RBAC: ADMIN, MODERATOR, SALES, ANALYSER)
+    ...((() => {
+      const roleUpper = (user.role || '').toUpperCase();
+      const isStaffUser =
+        ['ADMIN', 'MODERATOR', 'SALES', 'ANALYSER', 'ANALYST'].includes(roleUpper) ||
+        Boolean(user.isAdmin) ||
+        user.email?.toLowerCase() === 'moe.albzour@gmail.com';
+      if (!isStaffUser) return [];
+
+      const isAnalyserRole = ['ANALYSER', 'ANALYST'].includes(roleUpper) && !user.isAdmin;
+      const isModOrSales = ['MODERATOR', 'SALES'].includes(roleUpper) && !user.isAdmin;
+
+      return [{
+        id: 'admin' as WorkspaceView | 'heatmap',
+        labelAr: isAnalyserRole
+          ? 'مركز النشر والتحليل'
+          : isModOrSales
+          ? 'لوحة إدارة العملاء (CRM)'
+          : 'إدارة المنصة (Admin)',
+        labelEn: isAnalyserRole
+          ? 'Publishing Center'
+          : isModOrSales
+          ? 'CRM & Staff Panel'
+          : 'Admin Panel',
+        shortAr: isAnalyserRole ? 'النشر' : isModOrSales ? 'CRM' : 'الإدارة',
+        shortEn: isAnalyserRole ? 'Publish' : isModOrSales ? 'CRM' : 'Admin',
+        icon: Shield
+      }];
+    })())
   ];
 
   return (
@@ -695,26 +766,34 @@ export const TradingViewWorkspace: React.FC<Props> = ({
             <span className="font-bold text-white truncate max-w-[55px] xs:max-w-[80px] sm:max-w-[120px] text-[10px] sm:text-xs hidden xxs:inline group-hover:text-amber-400 transition-colors">
               {user.name || user.email.split('@')[0]}
             </span>
-            {isVIP ? (
-              <span className="text-[9px] sm:text-[10px] font-bold text-amber-400 font-mono flex items-center gap-0.5 shrink-0 bg-amber-500/10 px-1 py-0.2 rounded border border-amber-500/30">
+            {isEliteMember ? (
+              <span className="text-[9px] sm:text-[10px] font-bold text-amber-300 font-mono flex items-center gap-0.5 shrink-0 bg-amber-500/15 px-1.5 py-0.5 rounded border border-amber-400/40">
+                <Gem className="w-2.5 h-2.5 text-amber-400" />
+                <span className="hidden xs:inline">ELITE</span>
+              </span>
+            ) : isVIP ? (
+              <span className="text-[9px] sm:text-[10px] font-bold text-amber-400 font-mono flex items-center gap-0.5 shrink-0 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/30">
                 <Crown className="w-2.5 h-2.5 text-amber-400" />
                 <span className="hidden xs:inline">VIP</span>
               </span>
             ) : (
-              <span className="text-[9px] sm:text-[10px] text-[#787b86] font-mono shrink-0 hidden xs:inline bg-[#1e222d] px-1 py-0.2 rounded border border-[#2a2e39]">FREE</span>
+              <span className="text-[9px] sm:text-[10px] text-[#787b86] font-mono shrink-0 hidden xs:inline bg-[#1e222d] px-1.5 py-0.5 rounded border border-[#2a2e39]">
+                FREE
+              </span>
             )}
           </button>
 
-          {!isVIP && (
-            <button
-              onClick={onOpenPromoModal}
-              className="px-1.5 sm:px-2 py-1 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-black text-[10px] sm:text-xs font-bold transition-all shadow-sm flex items-center gap-1 cursor-pointer hover:brightness-110 shrink-0"
-              title={isAr ? 'ترقية VIP' : 'Upgrade VIP'}
-            >
-              <Crown className="w-3 h-3 text-black" />
-              <span className="hidden sm:inline">{isAr ? 'ترقية VIP' : 'Upgrade VIP'}</span>
-            </button>
-          )}
+          <button
+            onClick={() => {
+              soundManager.playClick();
+              setPlansModalOpen(true);
+            }}
+            className="px-1.5 sm:px-2.5 py-1 rounded-lg bg-[#089981] hover:bg-[#07846f] text-white text-[10px] sm:text-xs font-bold transition-all shadow-sm flex items-center gap-1 cursor-pointer shrink-0 whitespace-nowrap"
+            title={isAr ? 'الباقات والاشتراك' : 'Subscription Plans'}
+          >
+            <Crown className="w-3 h-3" />
+            <span className="hidden sm:inline">{isAr ? 'الباقات' : 'Plans'}</span>
+          </button>
 
           {/* Sound Mute */}
           <button
@@ -1048,21 +1127,6 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                 {isAr ? 'جلسات التداول العالمية (لندن/نيويورك)' : 'Market Sessions & Times'}
               </div>
             </button>
-
-            {/* 4. Partner Broker Bonus & Free VIP */}
-            <button
-              onClick={() => {
-                soundManager.playClick();
-                onOpenBrokerModal();
-              }}
-              className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-lg sm:rounded-xl flex items-center justify-center transition-all cursor-pointer relative group text-purple-400 hover:bg-purple-500/15 hover:text-white"
-              title={isAr ? 'الوسيط الشريك وبونص VIP' : 'Partner Broker Bonus & VIP'}
-            >
-              <Gift className="w-4 h-4 sm:w-5 sm:h-5" />
-              <div className="hidden group-hover:block absolute start-12 top-1/2 -translate-y-1/2 px-2.5 py-1 rounded bg-[#0d1017] border border-[#2a2e39] text-xs font-semibold text-white whitespace-nowrap shadow-xl z-50 pointer-events-none">
-                {isAr ? 'الوسيط الشريك وبونص VIP' : 'Partner Broker Bonus'}
-              </div>
-            </button>
           </div>
         </aside>
 
@@ -1231,19 +1295,26 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                 <div className={`flex-1 min-h-0 h-full overflow-hidden ${isBottomFolded ? 'hidden' : 'block'}`}>
                   {sideDrawerView === 'trades' && (
                     <DailyTradesPanel
+                      user={user}
                       isVIP={isVIP}
                       userRole={user.role}
+                      isAdmin={user.role === 'ADMIN' || user.isAdmin || user.role === 'ANALYSER'}
                       onOpenPromoModal={onOpenPromoModal}
+                      onOpenPlansModal={() => setPlansModalOpen(true)}
                       lang={lang}
                       isCompact={true}
                     />
                   )}
                   {sideDrawerView === 'chat' && (
                     <PublicTradingChat
+                      user={user}
                       currentUserName={user.name || user.email.split('@')[0]}
                       isVIP={isVIP}
                       userRole={user.role}
-                      isAdmin={user.role === 'ADMIN' || user.isAdmin}
+                      isAdmin={user.role === 'ADMIN' || user.isAdmin || user.role === 'MODERATOR'}
+                      isMutedFromChat={user.isMutedFromChat}
+                      onOpenPromoModal={onOpenPromoModal}
+                      onOpenPlansModal={() => setPlansModalOpen(true)}
                       lang={lang}
                       isCompact={true}
                     />
@@ -1251,10 +1322,12 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                   {sideDrawerView === 'ai' && (
                     <div className="h-full overflow-y-auto p-2">
                       <TradingViewAIPanel
+                        user={user}
                         isVIP={isVIP}
                         activeSymbol={selectedSymbol}
                         currentPrice={activeTicker?.price || 20850}
                         onOpenPromoModal={onOpenPromoModal}
+                        onOpenPlansModal={() => setPlansModalOpen(true)}
                         lang={lang}
                       />
                     </div>
@@ -1266,10 +1339,14 @@ export const TradingViewWorkspace: React.FC<Props> = ({
             <main className="flex-1 min-h-0 h-full overflow-hidden p-1 sm:p-2.5 flex flex-col bg-[#131722]">
               <div className="flex-1 min-h-0 h-full w-full rounded-xl overflow-hidden border border-[#2a2e39] shadow-2xl flex flex-col bg-[#1e222d]">
                 <PublicTradingChat
+                  user={user}
                   currentUserName={user.name || user.email.split('@')[0]}
                   isVIP={isVIP}
                   userRole={user.role}
-                  isAdmin={user.role === 'ADMIN' || user.isAdmin}
+                  isAdmin={user.role === 'ADMIN' || user.isAdmin || user.role === 'MODERATOR'}
+                  isMutedFromChat={user.isMutedFromChat}
+                  onOpenPromoModal={onOpenPromoModal}
+                  onOpenPlansModal={() => setPlansModalOpen(true)}
                   lang={lang}
                   isCompact={false}
                 />
@@ -1281,13 +1358,15 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                 {/* VIEW 1: SIGNALS CHANNEL HUB (Free + VIP + Webhook Bot) */}
                 {activeView === 'signals' && (
                   <SignalsChannelHub
+                    user={user}
                     isVIP={isVIP}
                     userRole={user.role}
+                    isAdmin={user.role === 'ADMIN' || user.isAdmin || user.role === 'ANALYSER'}
                     tickers={tickers}
                     selectedSymbol={selectedSymbol}
                     onSelectSymbol={onSelectSymbol}
                     onOpenPromoModal={onOpenPromoModal}
-                    onOpenBrokerModal={onOpenBrokerModal}
+                    onOpenPlansModal={() => setPlansModalOpen(true)}
                     lang={lang}
                   />
                 )}
@@ -1315,13 +1394,118 @@ export const TradingViewWorkspace: React.FC<Props> = ({
 
                 {/* VIEW 4: AI MARKET ANALYST FULL VIEW */}
                 {activeView === 'ai' && (
-                  <TradingViewAIPanel
-                    isVIP={isVIP}
-                    activeSymbol={selectedSymbol}
-                    currentPrice={activeTicker?.price || 20850}
-                    onOpenPromoModal={onOpenPromoModal}
-                    lang={lang}
+                  <div className="min-h-[calc(100vh-150px)] rounded-2xl overflow-hidden border border-[#2a2e39]">
+                    <TradingViewAIPanel
+                      user={user}
+                      isVIP={isVIP}
+                      activeSymbol={selectedSymbol}
+                      currentPrice={activeTicker?.price || 20850}
+                      onOpenPromoModal={onOpenPromoModal}
+                      onOpenPlansModal={() => setPlansModalOpen(true)}
+                      lang={lang}
+                    />
+                  </div>
+                )}
+
+                {/* FREE TIER BASIC TOOL: PAPER TRADING */}
+                {activeView === 'paper' && (
+                  <PaperTrading
+                    tickers={tickers}
+                    selectedSymbol={selectedSymbol}
+                    onSelectSymbol={onSelectSymbol}
                   />
+                )}
+
+                {/* FREE TIER BASIC TOOL: ECONOMIC CALENDAR */}
+                {activeView === 'calendar' && <EconomicCalendarPanel />}
+
+                {/* FREE TIER BASIC TOOL: ACADEMY */}
+                {activeView === 'academy' && <TradingAcademyPanel lang={lang} />}
+
+                {/* ELITE LOCKED MODULES HUB */}
+                {activeView === 'elite' && (
+                  <div className="space-y-4">
+                    <div className="p-4 sm:p-5 rounded-2xl bg-[#1e222d] border border-amber-500/30 flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/35 flex items-center justify-center text-amber-400">
+                          <Gem className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h2 className="text-sm sm:text-base font-extrabold text-white flex items-center gap-2">
+                            <span>🔒 {isAr ? 'وحدات باقة Elite المؤسسية ($500/mo)' : 'Elite Tier Modules ($500/mo)'}</span>
+                          </h2>
+                          <p className="text-xs text-[#8a93a6] mt-0.5">{ELITE_LOCK_BADGE_TEXT}</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          soundManager.playClick();
+                          setPlansModalOpen(true);
+                        }}
+                        className="px-4 py-2 rounded-xl bg-[#089981] hover:bg-[#07846f] text-white text-xs font-bold cursor-pointer whitespace-nowrap"
+                      >
+                        {isAr ? 'عرض مقارنة الباقات' : 'Compare Plans'}
+                      </button>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1.5 bg-[#1e222d] p-1.5 rounded-xl border border-[#2a2e39]">
+                      {[
+                        { id: 'superAi' as const, labelAr: '🔒 Super AI', labelEn: '🔒 Super AI' },
+                        { id: 'copyTrading' as const, labelAr: '🔒 Copy Trading', labelEn: '🔒 Copy Trading' },
+                        { id: 'autoBotTrader' as const, labelAr: '🔒 Auto Bot Trader', labelEn: '🔒 Auto Bot Trader' },
+                        { id: 'tradingCourse' as const, labelAr: '🔒 Trading Course', labelEn: '🔒 Trading Course' },
+                        { id: 'indicatorsStore' as const, labelAr: '🔒 Indicators Store', labelEn: '🔒 Indicators Store' }
+                      ].map((tab) => (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          onClick={() => {
+                            soundManager.playClick();
+                            setActiveEliteTab(tab.id);
+                          }}
+                          className={`px-3 py-2 rounded-lg text-xs font-bold transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                            activeEliteTab === tab.id
+                              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                              : 'text-[#8a93a6] hover:text-white'
+                          }`}
+                        >
+                          <Lock className="w-3 h-3 text-amber-400" />
+                          <span>{isAr ? tab.labelAr.replace('🔒 ', '') : tab.labelEn.replace('🔒 ', '')}</span>
+                        </button>
+                      ))}
+                    </div>
+
+                    {activeEliteTab === 'superAi' && (
+                      <EliteLockedModule
+                        titleAr="المساعد الفائق (Super AI)"
+                        titleEn="Super AI"
+                        subtitleAr="المساعد الصوتي المباشر، تحليل الشارت بالرؤية الذكية، وإدارة المحافظ الآلية."
+                        subtitleEn="Live voice assistant, Chart Vision OCR, and autonomous portfolio AI."
+                        lang={lang}
+                        onViewPlans={() => setPlansModalOpen(true)}
+                      />
+                    )}
+                    {activeEliteTab === 'copyTrading' && (
+                      <CopyTradingPanel lang={lang} onViewPlans={() => setPlansModalOpen(true)} />
+                    )}
+                    {activeEliteTab === 'autoBotTrader' && (
+                      <AutoBotPanel lang={lang} onViewPlans={() => setPlansModalOpen(true)} />
+                    )}
+                    {activeEliteTab === 'tradingCourse' && (
+                      <EliteLockedModule
+                        titleAr="الدورة الاحترافية للتداول (Trading Course)"
+                        titleEn="Institutional Trading Course"
+                        subtitleAr="منهج احترافي متكامل بالفيديو لاستراتيجيات السيولة والأسواق المؤسسية."
+                        subtitleEn="Full video masterclass covering liquidity sweeps and institutional execution."
+                        lang={lang}
+                        onViewPlans={() => setPlansModalOpen(true)}
+                      />
+                    )}
+                    {activeEliteTab === 'indicatorsStore' && (
+                      <IndicatorsStorePanel lang={lang} onViewPlans={() => setPlansModalOpen(true)} />
+                    )}
+                  </div>
                 )}
 
                 {/* VIEW 5: EXPANDED NEWS WIRES */}
@@ -1341,7 +1525,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                   </div>
                 )}
 
-                {/* VIEW 6: DEDICATED ADMIN CONTROL CENTER (Backed by SQLite & RBAC) */}
+                {/* VIEW 6: DEDICATED ADMIN CONTROL CENTER (Backed by Firestore & RBAC) */}
                 {activeView === 'admin' && (
                   <div className="min-h-[calc(100vh-140px)] w-full rounded-2xl overflow-hidden border border-[#2a2e39] shadow-2xl">
                     <AdminDashboard
@@ -1500,28 +1684,36 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                 <div className="flex-1 min-h-0 flex flex-col overflow-hidden animate-in fade-in duration-200">
                   {sideDrawerView === 'trades' ? (
                     <DailyTradesPanel
+                      user={user}
                       isVIP={isVIP}
                       userRole={user.role}
+                      isAdmin={user.role === 'ADMIN' || user.isAdmin || user.role === 'ANALYSER'}
                       onOpenPromoModal={onOpenPromoModal}
+                      onOpenPlansModal={() => setPlansModalOpen(true)}
                       lang={lang}
                       isCompact={false}
                     />
                   ) : sideDrawerView === 'chat' ? (
                     <PublicTradingChat
+                      user={user}
                       currentUserName={user.name || user.email.split('@')[0]}
                       isVIP={isVIP}
                       userRole={user.role}
-                      isAdmin={user.role === 'ADMIN' || user.isAdmin}
+                      isAdmin={user.role === 'ADMIN' || user.isAdmin || user.role === 'MODERATOR'}
                       isMutedFromChat={user.isMutedFromChat}
+                      onOpenPromoModal={onOpenPromoModal}
+                      onOpenPlansModal={() => setPlansModalOpen(true)}
                       lang={lang}
                       isCompact={false}
                     />
                   ) : (
                     <TradingViewAIPanel
+                      user={user}
                       isVIP={isVIP}
                       activeSymbol={selectedSymbol}
                       currentPrice={activeTicker?.price || 20850}
                       onOpenPromoModal={onOpenPromoModal}
+                      onOpenPlansModal={() => setPlansModalOpen(true)}
                       lang={lang}
                     />
                   )}
@@ -1736,28 +1928,36 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                 <div className="flex-1 min-h-0 flex flex-col">
                   {sideDrawerView === 'trades' ? (
                     <DailyTradesPanel
+                      user={user}
                       isVIP={isVIP}
                       userRole={user.role}
+                      isAdmin={user.role === 'ADMIN' || user.isAdmin || user.role === 'ANALYSER'}
                       onOpenPromoModal={onOpenPromoModal}
+                      onOpenPlansModal={() => setPlansModalOpen(true)}
                       lang={lang}
                       isCompact={false}
                     />
                   ) : sideDrawerView === 'chat' ? (
                     <PublicTradingChat
+                      user={user}
                       currentUserName={user.name || user.email.split('@')[0]}
                       isVIP={isVIP}
                       userRole={user.role}
-                      isAdmin={user.role === 'ADMIN' || user.isAdmin}
+                      isAdmin={user.role === 'ADMIN' || user.isAdmin || user.role === 'MODERATOR'}
                       isMutedFromChat={user.isMutedFromChat}
+                      onOpenPromoModal={onOpenPromoModal}
+                      onOpenPlansModal={() => setPlansModalOpen(true)}
                       lang={lang}
                       isCompact={false}
                     />
                   ) : (
                     <TradingViewAIPanel
+                      user={user}
                       isVIP={isVIP}
                       activeSymbol={selectedSymbol}
                       currentPrice={activeTicker?.price || 20850}
                       onOpenPromoModal={onOpenPromoModal}
+                      onOpenPlansModal={() => setPlansModalOpen(true)}
                       lang={lang}
                     />
                   )}
@@ -1776,9 +1976,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
       )}
       </div>
 
-
-
-      {/* Trader Utility Modals (Contact Support, Risk Calculator, Market Sessions) */}
+      {/* Trader Utility Modals (Support, Risk Calculator, Sessions, Profile, Plans, Payment) */}
       <SupportDeskModal
         isOpen={supportModalOpen}
         onClose={() => setSupportModalOpen(false)}
@@ -1806,12 +2004,33 @@ export const TradingViewWorkspace: React.FC<Props> = ({
         user={user}
         onLogout={onLogout}
         onOpenPromoModal={onOpenPromoModal}
+        onOpenPlansModal={() => setPlansModalOpen(true)}
         onOpenSupportModal={() => setSupportModalOpen(true)}
         onNavigateAdmin={() => setActiveView('admin')}
         lang={lang}
         onToggleLang={onToggleLang}
         isMuted={isMuted}
         onToggleMute={onToggleMute}
+      />
+
+      <SubscriptionPlansModal
+        isOpen={plansModalOpen}
+        onClose={() => setPlansModalOpen(false)}
+        user={user}
+        onSelectPlan={(plan) => {
+          setSelectedCheckoutPlan(plan);
+          setPaymentModalOpen(true);
+        }}
+        onOpenPromoModal={onOpenPromoModal}
+        lang={lang}
+      />
+
+      <PaymentModal
+        isOpen={paymentModalOpen}
+        onClose={() => setPaymentModalOpen(false)}
+        selectedPlan={selectedCheckoutPlan}
+        onContactSupport={() => setSupportModalOpen(true)}
+        lang={lang}
       />
 
       {/* Temporary Rotate Phone Toast Message when Analysis Mode is activated */}

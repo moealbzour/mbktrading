@@ -1,36 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import { collection, addDoc } from 'firebase/firestore';
+import {
+  collection,
+  addDoc,
+  getDocs,
+  deleteDoc,
+  updateDoc,
+  doc,
+  query,
+  orderBy,
+  limit
+} from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import {
   Send,
-  Sparkles,
   ShieldAlert,
-  ShieldCheck,
   Crown,
   Radio,
-  BarChart3,
   TrendingUp,
   TrendingDown,
-  Target,
-  Shield,
-  Layers,
   Lock,
-  Unlock,
   CheckCircle2,
   AlertTriangle,
   RefreshCw,
   Trash2,
-  FileText,
   Activity,
   Zap,
-  Clock,
-  Eye,
-  Sliders,
   X
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { soundManager } from '../../utils/audio';
-import { MarketSymbol, DailyTrade } from '../../types/trading';
+import { MarketSymbol } from '../../types/trading';
 import { useSignalsContext } from '../../context/SignalsContext';
 
 interface Props {
@@ -49,9 +48,9 @@ export const PublishingCenter: React.FC<Props> = ({
   const { setDbError } = useSignalsContext();
   const isAr = lang === 'ar';
   const roleUpper = (currentUserRole || '').toUpperCase();
-  const isAuthorized = roleUpper === 'ADMIN' || roleUpper === 'ANALYSER';
+  const isAuthorized = roleUpper === 'ADMIN' || roleUpper === 'ANALYSER' || roleUpper === 'ANALYST';
 
-  const [activeTab, setActiveTab] = useState<'signals' | 'analysis' | 'manage'>('signals');
+  const [activeTab, setActiveTab] = useState<'signals' | 'manage'>('signals');
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
 
   const showFeedback = (type: 'success' | 'error' | 'info', message: string) => {
@@ -78,7 +77,7 @@ export const PublishingCenter: React.FC<Props> = ({
   );
   const [isPublishingSignal, setIsPublishingSignal] = useState(false);
 
-  // Auto recalibrate prices when symbol or action changes
+  // Auto recalibrate default template prices when switching symbol or action
   const handleSymbolSelect = (sym: MarketSymbol) => {
     setSymbol(sym);
     if (sym === 'XAUUSD') {
@@ -138,7 +137,33 @@ export const PublishingCenter: React.FC<Props> = ({
     ? Math.round(diffPips * 10000)
     : Math.round(diffPips);
 
-  // Submit Signal Handler: Direct write to Firestore + POST to /api/signals
+  // ================= MANAGE ACTIVE SIGNALS =================
+  const [publishedSignals, setPublishedSignals] = useState<any[]>([]);
+  const [signalsLoading, setSignalsLoading] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  const fetchPublishedSignals = async () => {
+    try {
+      setSignalsLoading(true);
+      const q = query(collection(db, 'signals'), orderBy('timestampMs', 'desc'), limit(50));
+      const snapshot = await getDocs(q);
+      const items = snapshot.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data()
+      }));
+      setPublishedSignals(items);
+    } catch (err) {
+      console.warn('Error fetching Firestore signals:', err);
+    } finally {
+      setSignalsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPublishedSignals();
+  }, []);
+
+  // Single authoritative Firestore write to eliminate duplicate signals
   const handlePublishSignal = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isAuthorized) {
@@ -154,22 +179,41 @@ export const PublishingCenter: React.FC<Props> = ({
     setIsPublishingSignal(true);
     try {
       soundManager.playClick();
-    } catch (err) {
-      console.warn('[PublishingCenter] soundManager playClick error:', err);
+    } catch {
+      // ignore audio warning
     }
 
     try {
       const isVip = accessLevel === 'vip';
+      const nowMs = Date.now();
+      const nameAr = isGold
+        ? 'الذهب أونصة'
+        : symbol === 'US100'
+        ? 'ناسداك 100'
+        : isForex
+        ? 'اليورو دولار'
+        : symbol === 'BTCUSD'
+        ? 'البيتكوين'
+        : symbol;
+
       const payload = {
         symbol,
+        nameAr,
         action,
         orderType: action,
+        type: action,
+        source: isVip ? 'VIP_MANUAL' : 'FREE_PUBLIC',
+        sourceLabelAr: isVip ? 'محلل VIP المعتمد' : 'تحليل عام',
+        sourceLabelEn: isVip ? 'VIP Certified Analyst' : 'Public Research',
         entry: numEntry,
         entryPrice: numEntry,
+        currentPrice: numEntry,
         tp1: numTp1,
-        tp2: numTp2 || numTp1 * 1.01,
+        tp2: numTp2 || Number((numTp1 * 1.01).toFixed(isForex ? 5 : 2)),
         sl: numSl,
         stopLoss: numSl,
+        pips: projectedPips,
+        riskReward: `1:${calculatedRR}`,
         strategy,
         timeframe,
         access_level: accessLevel,
@@ -182,48 +226,23 @@ export const PublishingCenter: React.FC<Props> = ({
         author: currentUserName || (roleUpper === 'ADMIN' ? 'MBK Chief Admin' : 'MBK Senior Analyser'),
         authorRole: roleUpper,
         status: 'RUNNING',
-        openTime: 'الآن',
+        statusLabelAr: 'صفقة جارية الآن ⚡',
+        openTime: new Date(nowMs).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }),
         duration: 'الآن',
         channel: isVip ? 'vip' : 'free',
         isBlurredForFree: isVip,
-        timestampMs: Date.now()
+        isBotSignal: false,
+        createdAt: new Date(nowMs).toISOString(),
+        timestampMs: nowMs
       };
 
-      // 1. Write directly to Firestore 'signals' collection via Client SDK so all listeners update instantly
-      try {
-        await addDoc(collection(db, 'signals'), payload);
-        console.log('[PublishingCenter] Signal saved directly to Firestore signals collection');
-      } catch (fsErr: any) {
-        console.error('[PublishingCenter ERROR] Firestore direct signal write failed:', fsErr);
-        const msg = fsErr?.message || String(fsErr);
-        setDbError(`[Publish Signal Error]: ${msg}`);
-        if (fsErr && fsErr.message) {
-          console.error('[PublishingCenter ERROR Message]:', fsErr.message);
-        }
-      }
-
-      // 2. Also send POST request to backend API to save permanently into store
-      try {
-        const res = await fetch('/api/signals', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(payload)
-        });
-
-        if (!res.ok) {
-          const errorData = await res.json().catch(() => ({}));
-          console.error('[PublishingCenter ERROR] Backend /api/signals responded with status:', res.status, errorData);
-        }
-      } catch (apiErr: any) {
-        console.error('[PublishingCenter ERROR] Fetch /api/signals failed:', apiErr);
-      }
+      await addDoc(collection(db, 'signals'), payload);
+      setDbError(null);
 
       try {
         soundManager.playProfitChime();
-      } catch (err) {
-        console.warn('[PublishingCenter] playProfitChime notice:', err);
+      } catch {
+        // ignore audio warning
       }
 
       confetti({
@@ -235,154 +254,57 @@ export const PublishingCenter: React.FC<Props> = ({
       showFeedback(
         'success',
         isAr
-          ? `تم حفظ الإشارة بنجاح في قاعدة بيانات فايربيس (Firestore) وبثها لجميع المستخدمين (${accessLevel === 'vip' ? 'صفقة VIP حصرية' : 'صفقة عامة'})!`
+          ? `تم نشر الإشارة وحفظها في Firestore (${accessLevel === 'vip' ? 'صفقة VIP حصرية' : 'صفقة عامة'})!`
           : `Signal saved to Firestore and streamed live (${accessLevel.toUpperCase()})!`
       );
 
-      // Refresh published list
       fetchPublishedSignals();
     } catch (err: any) {
-      console.error('[PublishingCenter ERROR] Error publishing signal:', err);
-      if (err && err.message) {
-        console.error('[PublishingCenter ERROR Message]:', err.message);
-      }
-      showFeedback('error', err.message || (isAr ? 'فشل حفظ ونشر الصفقة' : 'Failed to publish trade'));
+      console.error('[PublishingCenter ERROR] Firestore signal write failed:', err);
+      const msg = err?.message || String(err);
+      setDbError(`[Publish Signal Error]: ${msg}`);
+      showFeedback('error', msg || (isAr ? 'فشل حفظ ونشر الصفقة' : 'Failed to publish trade'));
     } finally {
       setIsPublishingSignal(false);
     }
   };
 
-  // ================= ANALYSIS FORM STATE =================
-  const [analysisTitleAr, setAnalysisTitleAr] = useState('');
-  const [analysisTitleEn, setAnalysisTitleEn] = useState('');
-  const [analysisSymbol, setAnalysisSymbol] = useState<string>('US100');
-  const [analysisSentiment, setAnalysisSentiment] = useState<'BULLISH' | 'BEARISH' | 'NEUTRAL'>('BULLISH');
-  const [analysisTargetPrice, setAnalysisTargetPrice] = useState<string>('');
-  const [analysisStopLevel, setAnalysisStopLevel] = useState<string>('');
-  const [analysisContentAr, setAnalysisContentAr] = useState('');
-  const [analysisContentEn, setAnalysisContentEn] = useState('');
-  const [analysisChartUrl, setAnalysisChartUrl] = useState('');
-  const [analysisAccessLevel, setAnalysisAccessLevel] = useState<'free' | 'vip'>('free');
-  const [isPublishingAnalysis, setIsPublishingAnalysis] = useState(false);
-
-  const handlePublishAnalysis = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isAuthorized) {
-      showFeedback('error', isAr ? 'غير مصرح لك بنشر التحليلات' : 'Unauthorized');
-      return;
-    }
-
-    if (!analysisTitleAr && !analysisTitleEn) {
-      showFeedback('error', isAr ? 'عنوان التحليل مطلوب' : 'Title is required');
-      return;
-    }
-    if (!analysisContentAr && !analysisContentEn) {
-      showFeedback('error', isAr ? 'محتوى التحليل مطلوب' : 'Content is required');
-      return;
-    }
-
-    setIsPublishingAnalysis(true);
-    soundManager.playClick();
-
-    try {
-      const payload = {
-        title: analysisTitleEn || analysisTitleAr,
-        titleAr: analysisTitleAr || analysisTitleEn,
-        symbol: analysisSymbol,
-        author: currentUserName || 'MBK Head Analyst',
-        authorRole: roleUpper,
-        content: analysisContentEn || analysisContentAr,
-        contentAr: analysisContentAr || analysisContentEn,
-        sentiment: analysisSentiment,
-        targetPrice: analysisTargetPrice ? parseFloat(analysisTargetPrice) : null,
-        stopLevel: analysisStopLevel ? parseFloat(analysisStopLevel) : null,
-        chartUrl: analysisChartUrl,
-        accessLevel: analysisAccessLevel
-      };
-
-      const res = await fetch('/api/analysis', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || 'Server error');
-      }
-
-      soundManager.playSignalPing();
-      showFeedback('success', isAr ? 'تم نشر التحليل الفني بنجاح وحفظه في قاعدة البيانات!' : 'Analysis published successfully!');
-
-      setAnalysisTitleAr('');
-      setAnalysisTitleEn('');
-      setAnalysisContentAr('');
-      setAnalysisContentEn('');
-      setAnalysisTargetPrice('');
-      setAnalysisStopLevel('');
-    } catch (err: any) {
-      showFeedback('error', err.message || 'Error publishing analysis');
-    } finally {
-      setIsPublishingAnalysis(false);
-    }
-  };
-
-  // ================= MANAGE ACTIVE SIGNALS =================
-  const [publishedSignals, setPublishedSignals] = useState<any[]>([]);
-  const [signalsLoading, setSignalsLoading] = useState(false);
-
-  const fetchPublishedSignals = async () => {
-    try {
-      setSignalsLoading(true);
-      const res = await fetch('/api/signals');
-      if (res.ok) {
-        const data = await res.json();
-        setPublishedSignals(data.signals || data.trades || []);
-      }
-    } catch (err) {
-      console.warn('Error fetching signals:', err);
-    } finally {
-      setSignalsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchPublishedSignals();
-  }, []);
-
   const handleDeleteSignal = async (id: string) => {
-    if (!window.confirm(isAr ? 'هل أنت متأكد من حذف هذه الإشارة من قاعدة البيانات؟' : 'Delete this signal from database?')) return;
     try {
       soundManager.playClick();
-      const res = await fetch(`/api/signals/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        setPublishedSignals(prev => prev.filter(s => s.id !== id));
-        showFeedback('info', isAr ? 'تم حذف الإشارة بنجاح' : 'Signal deleted');
-      }
-    } catch (err) {
-      showFeedback('error', isAr ? 'فشل حذف الإشارة' : 'Failed to delete');
+      await deleteDoc(doc(db, 'signals', id));
+      setPublishedSignals((prev) => prev.filter((s) => s.id !== id));
+      setConfirmDeleteId(null);
+      showFeedback('info', isAr ? 'تم حذف الإشارة من قاعدة البيانات بنجاح' : 'Signal deleted from Firestore');
+    } catch (err: any) {
+      console.error('[PublishingCenter] Delete signal failed:', err);
+      showFeedback('error', err?.message || (isAr ? 'فشل حذف الإشارة' : 'Failed to delete'));
     }
   };
 
   const handleUpdateStatus = async (id: string, newStatus: string, pips?: number) => {
     try {
       soundManager.playClick();
-      const res = await fetch(`/api/signals/${id}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus, pips })
-      });
-      if (res.ok) {
-        setPublishedSignals(prev => prev.map(s => s.id === id ? { ...s, status: newStatus, pips: pips !== undefined ? pips : s.pips } : s));
-        showFeedback('success', isAr ? `تم تحديث حالة الصفقة إلى ${newStatus}` : `Status updated to ${newStatus}`);
+      const updatePayload: Record<string, any> = { status: newStatus };
+      if (pips !== undefined) {
+        updatePayload.pips = pips;
       }
-    } catch (err) {
-      showFeedback('error', isAr ? 'فشل تحديث الحالة' : 'Failed to update status');
+      await updateDoc(doc(db, 'signals', id), updatePayload);
+      setPublishedSignals((prev) =>
+        prev.map((s) => (s.id === id ? { ...s, status: newStatus, pips: pips !== undefined ? pips : s.pips } : s))
+      );
+      showFeedback('success', isAr ? `تم تحديث حالة الصفقة إلى ${newStatus}` : `Status updated to ${newStatus}`);
+    } catch (err: any) {
+      console.error('[PublishingCenter] Status update failed:', err);
+      showFeedback('error', err?.message || (isAr ? 'فشل تحديث الحالة' : 'Failed to update status'));
     }
   };
 
   return (
-    <div className="bg-[#1e222d] border border-[#2a2e39] rounded-2xl overflow-hidden shadow-2xl flex flex-col h-full" dir={isAr ? 'rtl' : 'ltr'}>
+    <div
+      className="bg-[#1e222d] border border-[#2a2e39] rounded-2xl overflow-hidden shadow-2xl flex flex-col h-full"
+      dir={isAr ? 'rtl' : 'ltr'}
+    >
       {/* 1. HEADER BAR */}
       <div className="p-4 bg-[#131722]/80 backdrop-blur-md border-b border-[#2a2e39] flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
@@ -392,20 +314,22 @@ export const PublishingCenter: React.FC<Props> = ({
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-base font-bold text-white">
-                {isAr ? 'مركز النشر والتحليل المباشر' : 'Publishing & Analysis Center'}
+                {isAr ? 'مركز النشر وإدارة الصفقات المباشرة' : 'Signal Publishing Center'}
               </h2>
-              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                roleUpper === 'ADMIN'
-                  ? 'bg-purple-500/20 text-purple-400 border border-purple-500/40'
-                  : 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
-              }`}>
+              <span
+                className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                  roleUpper === 'ADMIN'
+                    ? 'bg-purple-500/20 text-purple-400 border border-purple-500/40'
+                    : 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
+                }`}
+              >
                 {roleUpper === 'ADMIN' ? 'ADMIN' : 'ANALYSER'}
               </span>
             </div>
             <p className="text-xs text-[#787b86]">
               {isAr
-                ? 'نشر إشارات التداول والتقارير وحفظها تلقائياً في SQLite وبثها فوراً'
-                : 'Publish trade signals and analysis directly to SQLite & live sockets'}
+                ? 'نشر وإدارة إشارات التداول مباشرة عبر Firebase Firestore وبثها لحظياً لجميع المتداولين'
+                : 'Publish and manage live trade signals directly through Firebase Firestore'}
             </p>
           </div>
         </div>
@@ -419,28 +343,11 @@ export const PublishingCenter: React.FC<Props> = ({
                 setActiveTab('signals');
               }}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                activeTab === 'signals'
-                  ? 'bg-[#089981] text-white shadow-md'
-                  : 'text-[#787b86] hover:text-white'
+                activeTab === 'signals' ? 'bg-[#089981] text-white shadow-md' : 'text-[#787b86] hover:text-white'
               }`}
             >
               <Zap className="w-3.5 h-3.5" />
-              <span>{isAr ? 'نشر صفقة' : 'Signal Form'}</span>
-            </button>
-
-            <button
-              onClick={() => {
-                soundManager.playClick();
-                setActiveTab('analysis');
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                activeTab === 'analysis'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'text-[#787b86] hover:text-white'
-              }`}
-            >
-              <FileText className="w-3.5 h-3.5" />
-              <span>{isAr ? 'نشر تقرير' : 'Analysis Form'}</span>
+              <span>{isAr ? 'نشر صفقة' : 'Publish Signal'}</span>
             </button>
 
             <button
@@ -450,9 +357,7 @@ export const PublishingCenter: React.FC<Props> = ({
                 fetchPublishedSignals();
               }}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                activeTab === 'manage'
-                  ? 'bg-[#2a2e39] text-white shadow-md'
-                  : 'text-[#787b86] hover:text-white'
+                activeTab === 'manage' ? 'bg-[#2a2e39] text-white shadow-md' : 'text-[#787b86] hover:text-white'
               }`}
             >
               <Activity className="w-3.5 h-3.5" />
@@ -477,13 +382,15 @@ export const PublishingCenter: React.FC<Props> = ({
 
       {/* 2. FEEDBACK NOTIFICATION BANNER */}
       {feedback && (
-        <div className={`px-4 py-2.5 flex items-center justify-between text-xs font-semibold animate-in fade-in ${
-          feedback.type === 'success'
-            ? 'bg-[#089981]/20 text-[#089981] border-b border-[#089981]/30'
-            : feedback.type === 'error'
-            ? 'bg-[#f23645]/20 text-[#f23645] border-b border-[#f23645]/30'
-            : 'bg-blue-500/20 text-blue-400 border-b border-blue-500/30'
-        }`}>
+        <div
+          className={`px-4 py-2.5 flex items-center justify-between text-xs font-semibold animate-in fade-in ${
+            feedback.type === 'success'
+              ? 'bg-[#089981]/20 text-[#089981] border-b border-[#089981]/30'
+              : feedback.type === 'error'
+              ? 'bg-[#f23645]/20 text-[#f23645] border-b border-[#f23645]/30'
+              : 'bg-blue-500/20 text-blue-400 border-b border-blue-500/30'
+          }`}
+        >
           <div className="flex items-center gap-2">
             {feedback.type === 'success' ? <CheckCircle2 className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
             <span>{feedback.message}</span>
@@ -501,7 +408,7 @@ export const PublishingCenter: React.FC<Props> = ({
           <p>
             {isAr
               ? 'تنبيه صلاحيات: حسابك الحالي ليس مخصصاً للنشر. يحق فقط لحسابات المشرفين (ADMIN) والمحللين المعتمدين (ANALYSER) نشر الإشارات وحفظها.'
-              : 'Permission Notice: Only ADMIN and ANALYSER accounts can draft and publish signals to the SQLite database.'}
+              : 'Permission Notice: Only ADMIN and ANALYSER accounts can draft and publish signals to Firestore.'}
           </p>
         </div>
       )}
@@ -513,7 +420,6 @@ export const PublishingCenter: React.FC<Props> = ({
           <form onSubmit={handlePublishSignal} className="max-w-4xl mx-auto space-y-5">
             {/* Asset Symbol & Action Selector */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Asset Symbol selection */}
               <div className="bg-[#131722] p-3.5 rounded-xl border border-[#2a2e39] space-y-2">
                 <label className="text-xs font-bold text-[#d1d4dc] block">
                   {isAr ? 'الأصل المالي المستهدف:' : 'Target Asset Symbol:'}
@@ -536,7 +442,6 @@ export const PublishingCenter: React.FC<Props> = ({
                 </div>
               </div>
 
-              {/* Order Action (BUY / SELL) */}
               <div className="bg-[#131722] p-3.5 rounded-xl border border-[#2a2e39] space-y-2">
                 <label className="text-xs font-bold text-[#d1d4dc] block">
                   {isAr ? 'نوع الأمر والاتجاه:' : 'Order Action:'}
@@ -571,17 +476,23 @@ export const PublishingCenter: React.FC<Props> = ({
               </div>
             </div>
 
-            {/* STRICT VISIBILITY & ACCESS LEVEL TOGGLE (Free vs VIP) */}
+            {/* VISIBILITY & ACCESS LEVEL TOGGLE (Free vs VIP) */}
             <div className="bg-[#131722] p-4 rounded-xl border border-white/10 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Lock className="w-4 h-4 text-amber-400" />
                   <span className="text-xs font-bold text-white">
-                    {isAr ? 'مستوى الوصول والظهور (Strict Visibility Toggle):' : 'Access Level & Visibility:'}
+                    {isAr ? 'مستوى الوصول والظهور:' : 'Access Level & Visibility:'}
                   </span>
                 </div>
                 <span className="text-[11px] font-mono font-bold text-[#787b86]">
-                  {accessLevel === 'vip' ? (isAr ? 'مشوش للمستخدمين العاديين' : 'Blurred for Free Users') : (isAr ? 'مرئي للجميع' : 'Visible to All')}
+                  {accessLevel === 'vip'
+                    ? isAr
+                      ? 'مشوش للمستخدمين المجانيين'
+                      : 'Blurred for Free Users'
+                    : isAr
+                    ? 'مرئي للجميع'
+                    : 'Visible to All'}
                 </span>
               </div>
 
@@ -605,7 +516,9 @@ export const PublishingCenter: React.FC<Props> = ({
                       {accessLevel === 'free' && <CheckCircle2 className="w-3.5 h-3.5" />}
                     </div>
                     <p className="text-[11px] text-[#787b86] mt-0.5">
-                      {isAr ? 'مرئية بالكامل وبدون تشويش لجميع المتداولين والزوار في لوحة الصفقات.' : 'Visible with full levels to all standard and VIP members.'}
+                      {isAr
+                        ? 'مرئية بالكامل وبدون تشويش لجميع المتداولين في لوحة الصفقات.'
+                        : 'Visible with full levels to all standard and VIP members.'}
                     </p>
                   </div>
                 </button>
@@ -629,7 +542,9 @@ export const PublishingCenter: React.FC<Props> = ({
                       {accessLevel === 'vip' && <CheckCircle2 className="w-3.5 h-3.5" />}
                     </div>
                     <p className="text-[11px] text-[#787b86] mt-0.5">
-                      {isAr ? 'مشوشة ومحجوبة تلقائياً للمستخدمين العاديين، ومفتوحة حصراً للمشتركين والمشرفين.' : 'Strictly blurred for standard accounts; requires VIP access.'}
+                      {isAr
+                        ? 'مشوشة ومحجوبة تلقائياً للمستخدمين العاديين، ومفتوحة حصراً للمشتركين والمشرفين.'
+                        : 'Blurred for free accounts; requires active VIP access.'}
                     </p>
                   </div>
                 </button>
@@ -642,17 +557,17 @@ export const PublishingCenter: React.FC<Props> = ({
                 <span className="text-xs font-bold text-[#d1d4dc]">
                   {isAr ? 'المستويات الرقمية للصفقة:' : 'Price Execution Levels:'}
                 </span>
-                {/* R:R badge */}
                 <div className="flex items-center gap-2 font-mono text-xs">
                   <span className="text-[#787b86]">{isAr ? 'العائد/المخاطرة:' : 'R:R:'}</span>
                   <span className="text-[#089981] font-bold">1:{calculatedRR}</span>
                   <span className="text-[#787b86]">|</span>
-                  <span className="text-[#089981] font-bold">+{projectedPips} {isAr ? 'نقطة' : 'pips'}</span>
+                  <span className="text-[#089981] font-bold">
+                    +{projectedPips} {isAr ? 'نقطة' : 'pips'}
+                  </span>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {/* Entry */}
                 <div>
                   <label className="text-[11px] text-[#787b86] block mb-1">
                     {isAr ? 'نقطة الدخول (Entry):' : 'Entry Price:'}
@@ -667,7 +582,6 @@ export const PublishingCenter: React.FC<Props> = ({
                   />
                 </div>
 
-                {/* SL */}
                 <div>
                   <label className="text-[11px] text-[#f23645] block mb-1">
                     {isAr ? 'وقف الخسارة (SL):' : 'Stop Loss (SL):'}
@@ -682,7 +596,6 @@ export const PublishingCenter: React.FC<Props> = ({
                   />
                 </div>
 
-                {/* TP1 */}
                 <div>
                   <label className="text-[11px] text-[#089981] block mb-1">
                     {isAr ? 'الهدف الأول (TP 1):' : 'Take Profit 1:'}
@@ -697,7 +610,6 @@ export const PublishingCenter: React.FC<Props> = ({
                   />
                 </div>
 
-                {/* TP2 */}
                 <div>
                   <label className="text-[11px] text-[#089981] block mb-1">
                     {isAr ? 'الهدف الثاني (TP 2):' : 'Take Profit 2:'}
@@ -790,7 +702,7 @@ export const PublishingCenter: React.FC<Props> = ({
               </div>
             </div>
 
-            {/* Action Buttons: Save to SQLite + Live Socket Broadcast */}
+            {/* Publish Button */}
             <div className="pt-2 flex items-center justify-end gap-3">
               <button
                 type="submit"
@@ -800,15 +712,15 @@ export const PublishingCenter: React.FC<Props> = ({
                 {isPublishingSignal ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>{isAr ? 'جاري الحفظ في SQLite والبث...' : 'Saving to Database & Broadcasting...'}</span>
+                    <span>{isAr ? 'جاري النشر إلى Firestore...' : 'Publishing to Firestore...'}</span>
                   </>
                 ) : (
                   <>
                     <Send className="w-4 h-4" />
                     <span>
                       {isAr
-                        ? `حفظ الإشارة ونشرها فوراً (${accessLevel.toUpperCase()})`
-                        : `Save & Broadcast Signal (${accessLevel.toUpperCase()})`}
+                        ? `نشر الإشارة وبثها فوراً (${accessLevel.toUpperCase()})`
+                        : `Publish Live Signal (${accessLevel.toUpperCase()})`}
                     </span>
                   </>
                 )}
@@ -817,137 +729,12 @@ export const PublishingCenter: React.FC<Props> = ({
           </form>
         )}
 
-        {/* TAB 2: MARKET ANALYSIS FORM */}
-        {activeTab === 'analysis' && (
-          <form onSubmit={handlePublishAnalysis} className="max-w-4xl mx-auto space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-bold text-[#d1d4dc] block mb-1">
-                  {isAr ? 'عنوان التقرير (بالعربية):' : 'Analysis Title (Arabic):'}
-                </label>
-                <input
-                  type="text"
-                  value={analysisTitleAr}
-                  onChange={(e) => setAnalysisTitleAr(e.target.value)}
-                  placeholder="مثال: تحليل سيولة الذهب وتوقعات خطاب الفيدرالي"
-                  required
-                  className="w-full px-3 py-2 rounded-lg bg-[#131722] border border-[#2a2e39] text-white text-xs focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-[#d1d4dc] block mb-1">
-                  {isAr ? 'Title (English):' : 'Title (English):'}
-                </label>
-                <input
-                  type="text"
-                  value={analysisTitleEn}
-                  onChange={(e) => setAnalysisTitleEn(e.target.value)}
-                  placeholder="e.g. Gold Liquidity & Fed Guidance Outlook"
-                  className="w-full px-3 py-2 rounded-lg bg-[#131722] border border-[#2a2e39] text-white text-xs focus:outline-none focus:border-blue-500"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div>
-                <label className="text-xs font-bold text-[#d1d4dc] block mb-1">
-                  {isAr ? 'الأصل المالي:' : 'Symbol:'}
-                </label>
-                <input
-                  type="text"
-                  value={analysisSymbol}
-                  onChange={(e) => setAnalysisSymbol(e.target.value.toUpperCase())}
-                  className="w-full px-3 py-2 rounded-lg bg-[#131722] border border-[#2a2e39] text-white font-mono text-xs font-bold uppercase focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-[#d1d4dc] block mb-1">
-                  {isAr ? 'المعنويات العامة:' : 'Sentiment:'}
-                </label>
-                <select
-                  value={analysisSentiment}
-                  onChange={(e) => setAnalysisSentiment(e.target.value as any)}
-                  className="w-full px-3 py-2 rounded-lg bg-[#131722] border border-[#2a2e39] text-white text-xs focus:outline-none focus:border-blue-500"
-                >
-                  <option value="BULLISH">صاعد (BULLISH)</option>
-                  <option value="BEARISH">هابط (BEARISH)</option>
-                  <option value="NEUTRAL">محايد (NEUTRAL)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-[#d1d4dc] block mb-1">
-                  {isAr ? 'السعر المستهدف (Target):' : 'Target Price:'}
-                </label>
-                <input
-                  type="number"
-                  step="any"
-                  value={analysisTargetPrice}
-                  onChange={(e) => setAnalysisTargetPrice(e.target.value)}
-                  placeholder="2720.0"
-                  className="w-full px-3 py-2 rounded-lg bg-[#131722] border border-[#2a2e39] text-white font-mono text-xs focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-[#d1d4dc] block mb-1">
-                  {isAr ? 'مستوى النفاذ (Access):' : 'Access Level:'}
-                </label>
-                <select
-                  value={analysisAccessLevel}
-                  onChange={(e) => setAnalysisAccessLevel(e.target.value as any)}
-                  className="w-full px-3 py-2 rounded-lg bg-[#131722] border border-[#2a2e39] text-white text-xs focus:outline-none focus:border-blue-500"
-                >
-                  <option value="free">عام ومجاني (Free)</option>
-                  <option value="vip">حصري لـ VIP (VIP Only)</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label className="text-xs font-bold text-[#d1d4dc] block mb-1">
-                {isAr ? 'المحتوى والتحليل الفني المؤسسي التفصيلي:' : 'Detailed Technical Analysis Content:'}
-              </label>
-              <textarea
-                rows={5}
-                value={analysisContentAr}
-                onChange={(e) => setAnalysisContentAr(e.target.value)}
-                required
-                className="w-full p-3 rounded-xl bg-[#131722] border border-[#2a2e39] text-white text-xs focus:outline-none focus:border-blue-500"
-                placeholder="اكتب التقرير التحليلي بالتفصيل شاملاً مناطق السيولة، اتجاه الفائدة، والهيكل الفني..."
-              />
-            </div>
-
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                disabled={isPublishingAnalysis || !isAuthorized}
-                className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-xl flex items-center gap-2 cursor-pointer transition-all disabled:opacity-50"
-              >
-                {isPublishingAnalysis ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>{isAr ? 'جاري الحفظ في SQLite...' : 'Saving to Database...'}</span>
-                  </>
-                ) : (
-                  <>
-                    <FileText className="w-4 h-4" />
-                    <span>{isAr ? 'نشر التقرير وحفظه في SQLite' : 'Publish Report & Save'}</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
-        )}
-
-        {/* TAB 3: MANAGE ACTIVE SIGNALS TABLE */}
+        {/* TAB 2: MANAGE ACTIVE SIGNALS TABLE */}
         {activeTab === 'manage' && (
           <div className="space-y-3">
             <div className="flex items-center justify-between pb-2 border-b border-[#2a2e39]">
               <h3 className="text-xs font-bold text-white flex items-center gap-2">
-                <span>{isAr ? 'الصفقات المخزنة في قاعدة بيانات SQLite' : 'Signals Stored in SQLite Database'}</span>
+                <span>{isAr ? 'الصفقات المسجلة في Firestore' : 'Live Signals in Firestore'}</span>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#089981]/20 text-[#089981] font-mono">
                   {publishedSignals.length}
                 </span>
@@ -964,7 +751,7 @@ export const PublishingCenter: React.FC<Props> = ({
 
             {publishedSignals.length === 0 ? (
               <div className="py-12 text-center text-[#787b86] text-xs">
-                {isAr ? 'لا توجد صفقات منشورة حالياً في قاعدة البيانات.' : 'No published signals found in database.'}
+                {isAr ? 'لا توجد صفقات منشورة حالياً في قاعدة البيانات.' : 'No published signals found in Firestore.'}
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -989,11 +776,13 @@ export const PublishingCenter: React.FC<Props> = ({
                         <tr key={sig.id} className="hover:bg-[#131722]/50 transition-colors">
                           <td className="py-3 px-3">
                             <div className="flex items-center gap-2">
-                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                                isBuy
-                                  ? 'bg-[#089981]/20 text-[#089981] border border-[#089981]/30'
-                                  : 'bg-[#f23645]/20 text-[#f23645] border border-[#f23645]/30'
-                              }`}>
+                              <span
+                                className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                                  isBuy
+                                    ? 'bg-[#089981]/20 text-[#089981] border border-[#089981]/30'
+                                    : 'bg-[#f23645]/20 text-[#f23645] border border-[#f23645]/30'
+                                }`}
+                              >
                                 {sig.action}
                               </span>
                               <span className="font-bold text-white text-xs">{sig.symbol}</span>
@@ -1026,17 +815,19 @@ export const PublishingCenter: React.FC<Props> = ({
 
                           <td className="py-3 px-3">
                             <div className="flex items-center gap-1.5 font-sans">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                sig.status === 'RUNNING'
-                                  ? 'bg-amber-500/20 text-amber-400'
-                                  : sig.status?.includes('TP')
-                                  ? 'bg-[#089981]/20 text-[#089981]'
-                                  : 'bg-[#f23645]/20 text-[#f23645]'
-                              }`}>
+                              <span
+                                className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                  sig.status === 'RUNNING'
+                                    ? 'bg-amber-500/20 text-amber-400'
+                                    : sig.status?.includes('TP')
+                                    ? 'bg-[#089981]/20 text-[#089981]'
+                                    : 'bg-[#f23645]/20 text-[#f23645]'
+                                }`}
+                              >
                                 {sig.status}
                               </span>
                               <span className="text-white font-bold font-mono text-[11px]">
-                                {sig.pips >= 0 ? `+${sig.pips}p` : `${sig.pips}p`}
+                                {Number(sig.pips || 0) >= 0 ? `+${Number(sig.pips || 0)}p` : `${Number(sig.pips || 0)}p`}
                               </span>
                             </div>
                           </td>
@@ -1050,14 +841,14 @@ export const PublishingCenter: React.FC<Props> = ({
                               {sig.status === 'RUNNING' && (
                                 <>
                                   <button
-                                    onClick={() => handleUpdateStatus(sig.id, 'TP_HIT', sig.pips > 0 ? sig.pips : 150)}
+                                    onClick={() => handleUpdateStatus(sig.id, 'TP1_HIT', Number(sig.pips || 0) > 0 ? Number(sig.pips) : 150)}
                                     className="px-2 py-1 rounded bg-[#089981]/20 hover:bg-[#089981]/30 text-[#089981] text-[10px] font-bold transition-all cursor-pointer"
                                     title={isAr ? 'تسجيل تحقيق الهدف' : 'Mark TP Hit'}
                                   >
                                     🎯 TP Hit
                                   </button>
                                   <button
-                                    onClick={() => handleUpdateStatus(sig.id, 'SL_HIT', -Math.abs(sig.pips || 50))}
+                                    onClick={() => handleUpdateStatus(sig.id, 'SL_HIT', -Math.abs(Number(sig.pips || 50)))}
                                     className="px-2 py-1 rounded bg-[#f23645]/20 hover:bg-[#f23645]/30 text-[#f23645] text-[10px] font-bold transition-all cursor-pointer"
                                     title={isAr ? 'تسجيل ضرب الوقف' : 'Mark SL Hit'}
                                   >
@@ -1066,13 +857,30 @@ export const PublishingCenter: React.FC<Props> = ({
                                 </>
                               )}
 
-                              <button
-                                onClick={() => handleDeleteSignal(sig.id)}
-                                className="p-1 rounded bg-red-500/10 hover:bg-red-500/25 text-red-400 transition-colors cursor-pointer"
-                                title={isAr ? 'حذف من قاعدة البيانات' : 'Delete'}
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                              {confirmDeleteId === sig.id ? (
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={() => handleDeleteSignal(sig.id)}
+                                    className="px-2 py-1 rounded bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-bold cursor-pointer"
+                                  >
+                                    {isAr ? 'تأكيد' : 'Confirm'}
+                                  </button>
+                                  <button
+                                    onClick={() => setConfirmDeleteId(null)}
+                                    className="px-2 py-1 rounded bg-[#131722] text-[#787b86] hover:text-white text-[10px] cursor-pointer"
+                                  >
+                                    {isAr ? 'إلغاء' : 'Cancel'}
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => setConfirmDeleteId(sig.id)}
+                                  className="p-1 rounded bg-red-500/10 hover:bg-red-500/25 text-red-400 transition-colors cursor-pointer"
+                                  title={isAr ? 'حذف من Firestore' : 'Delete from Firestore'}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>

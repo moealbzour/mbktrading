@@ -1,27 +1,19 @@
 import React, { useState } from 'react';
-import { Ticket, ShieldCheck, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Ticket, ShieldCheck, CheckCircle2, AlertCircle, KeyRound } from 'lucide-react';
 import { soundManager } from '../utils/audio';
 import confetti from 'canvas-confetti';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../lib/firebase';
 import { UserProfile } from '../types/trading';
+import { redeemActivationKey, KeyRedemptionResult } from '../utils/activationKeyService';
+import { getFeatureLabel } from '../utils/entitlements';
+import { auth } from '../lib/firebase';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  onApplyCode: (code: string) => void;
+  onApplyCode: (code: string, result?: KeyRedemptionResult) => void;
   currentUser?: UserProfile | null;
   lang?: 'ar' | 'en';
 }
-
-const VALID_PROMO_CODES = [
-  'MBK2026',
-  'VIP2026',
-  'TELEGRAMVIP',
-  'IBPARTNER',
-  'MBKVIP',
-  'ALPHA2026'
-];
 
 export const PromoCodeModal: React.FC<Props> = ({
   isOpen,
@@ -34,6 +26,8 @@ export const PromoCodeModal: React.FC<Props> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [expiryInfo, setExpiryInfo] = useState<string | null>(null);
+  const [redeemedResult, setRedeemedResult] = useState<KeyRedemptionResult | null>(null);
 
   if (!isOpen) return null;
 
@@ -44,23 +38,17 @@ export const PromoCodeModal: React.FC<Props> = ({
     const cleanCode = code.trim().toUpperCase();
 
     if (!cleanCode) {
-      setErrorMsg(isAr ? 'يرجى إدخال رمز ترويجي صالح' : 'Please enter a valid promo code');
+      setErrorMsg(isAr ? 'يرجى إدخال مفتاح تفعيل صالح' : 'Please enter a valid activation key');
       return;
     }
 
-    const isValid =
-      VALID_PROMO_CODES.includes(cleanCode) ||
-      cleanCode.startsWith('MBK') ||
-      cleanCode.startsWith('VIP') ||
-      cleanCode.startsWith('IB');
-
-    if (!isValid) {
+    const activeUid = currentUser?.uid || auth.currentUser?.uid;
+    if (!activeUid || !auth.currentUser) {
       setErrorMsg(
         isAr
-          ? 'الرمز غير صالح. الرموز المعتمدة: MBK2026, VIP2026, TELEGRAMVIP, IBPARTNER'
-          : 'Invalid promo code. Approved codes: MBK2026, VIP2026, TELEGRAMVIP, IBPARTNER'
+          ? 'يرجى تسجيل الدخول بحسابك أولاً لتفعيل رمز التفعيل'
+          : 'Please sign in to your account first to redeem an activation key'
       );
-      soundManager.playClick();
       return;
     }
 
@@ -68,35 +56,43 @@ export const PromoCodeModal: React.FC<Props> = ({
     setErrorMsg(null);
 
     try {
-      if (currentUser?.uid) {
-        const userDocRef = doc(db, 'users', currentUser.uid);
-        await updateDoc(userDocRef, {
-          role: 'VIP',
-          promoCode: cleanCode,
-          planName: `عضوية VIP مفعلة (${cleanCode})`,
-          updatedAt: serverTimestamp()
-        });
-      }
+      const res = await redeemActivationKey(cleanCode, activeUid, currentUser?.email || auth.currentUser.email || undefined);
+
+      soundManager.playProfitChime();
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
+
+      const expiryFormatted =
+        res.durationInDays >= 36500
+          ? isAr
+            ? 'مدى الحياة (Lifetime)'
+            : 'Lifetime Access'
+          : new Date(res.expiryDate).toLocaleDateString(isAr ? 'ar-SA' : 'en-US', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            });
+
+      setExpiryInfo(expiryFormatted);
+      setRedeemedResult(res);
+      setSuccess(true);
+
+      setTimeout(() => {
+        onApplyCode(cleanCode, res);
+        setIsSubmitting(false);
+        setSuccess(false);
+        setRedeemedResult(null);
+        setCode('');
+        onClose();
+      }, 1600);
     } catch (err: any) {
-      console.warn('[PromoCodeModal] Firestore update notice:', err?.message || err);
-    }
-
-    soundManager.playProfitChime();
-    confetti({
-      particleCount: 100,
-      spread: 70,
-      origin: { y: 0.6 }
-    });
-
-    setSuccess(true);
-
-    setTimeout(() => {
-      onApplyCode(cleanCode);
+      soundManager.playClick();
+      setErrorMsg(err.message || (isAr ? 'فشل التحقق من مفتاح التفعيل' : 'Failed to verify key'));
       setIsSubmitting(false);
-      setSuccess(false);
-      setCode('');
-      onClose();
-    }, 1100);
+    }
   };
 
   return (
@@ -115,16 +111,16 @@ export const PromoCodeModal: React.FC<Props> = ({
 
         {/* Modal Header */}
         <div className="text-center mb-5">
-          <div className="w-12 h-12 rounded-lg bg-[#2a2e39] text-[#089981] flex items-center justify-center mx-auto mb-3 border border-[#363a45]">
-            <Ticket className="w-6 h-6" />
+          <div className="w-12 h-12 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center mx-auto mb-3 border border-amber-500/30">
+            <KeyRound className="w-6 h-6" />
           </div>
           <h3 className="text-lg font-bold text-white">
-            {isAr ? 'ترقية الحساب وتفعيل عضوية VIP' : 'Upgrade Account & Activate VIP'}
+            {isAr ? 'تفعيل باقة أو رمز تجريبي' : 'Redeem Activation / Trial Key'}
           </h3>
           <p className="text-xs text-[#787b86] mt-1.5 leading-relaxed">
             {isAr
-              ? 'أدخل رمز الترويج لفتح كامل الإشارات الحية وميزات MBK Desk المتقدمة فورياً.'
-              : 'Enter promo code to instantly unlock all live signals and advanced MBK Desk features.'}
+              ? 'أدخل مفتاح التفعيل (VIP / Elite أو كود تجربة ميزة) الممنوح من الإدارة لفتحه فوراً على حسابك.'
+              : 'Enter your single-use activation or trial key issued by an admin to unlock access immediately.'}
           </p>
         </div>
 
@@ -134,37 +130,56 @@ export const PromoCodeModal: React.FC<Props> = ({
               <CheckCircle2 className="w-8 h-8" />
             </div>
             <h4 className="text-sm font-bold text-[#089981]">
-              {isAr ? 'تم تفعيل عضوية VIP بنجاح!' : 'VIP Membership Activated!'}
+              {redeemedResult?.grantTier === 'custom'
+                ? isAr
+                  ? 'تم تفعيل المزايا التجريبية بنجاح!'
+                  : 'Trial Features Activated!'
+                : redeemedResult?.grantTier === 'elite'
+                ? isAr
+                  ? 'تم تفعيل باقة Elite بنجاح!'
+                  : 'Elite Tier Activated!'
+                : isAr
+                ? 'تم تفعيل مفتاح VIP بنجاح!'
+                : 'VIP Activation Key Redeemed!'}
             </h4>
-            <p className="text-xs text-[#787b86]">
-              {isAr
-                ? 'تم تحديث حسابك وفتح كافة الإشارات وأدوات التحليل المتقدمة.'
-                : 'Your account has been updated with full access to live signals and tools.'}
-            </p>
+            {redeemedResult?.grantTier === 'custom' && redeemedResult.grantFeatures.length > 0 && (
+              <div className="text-xs text-[#d1d4dc] bg-[#131722] p-2.5 rounded-lg border border-[#2a2e39] space-y-1">
+                {redeemedResult.grantFeatures.map((feat) => (
+                  <div key={feat} className="font-semibold text-[#089981]">
+                    ✓ {getFeatureLabel(feat, isAr)}
+                  </div>
+                ))}
+              </div>
+            )}
+            {expiryInfo && (
+              <p className="text-xs text-amber-400 font-mono font-bold bg-amber-500/10 p-2 rounded-lg border border-amber-500/30">
+                {isAr ? `الصلاحية: ${expiryInfo}` : `Valid until: ${expiryInfo}`}
+              </p>
+            )}
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4 text-xs">
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-[#d1d4dc] font-semibold">
-                  {isAr ? 'رمز الترويج (Promo Code):' : 'Promo Code:'}
+                  {isAr ? 'مفتاح التفعيل (Activation Key):' : 'Activation Key:'}
                 </label>
                 <span className="text-[10px] text-[#787b86] font-mono">
-                  MBK2026 • VIP2026 • IBPARTNER
+                  e.g. MBK-30D-X9F2A8C1
                 </span>
               </div>
 
               <input
                 type="text"
                 autoFocus
-                placeholder={isAr ? 'مثال: MBK2026' : 'e.g. MBK2026'}
+                placeholder={isAr ? 'أدخل رمز التفعيل الخاص بك' : 'Enter your activation key'}
                 value={code}
                 onChange={(e) => {
                   setCode(e.target.value.toUpperCase());
                   setErrorMsg(null);
                 }}
                 disabled={isSubmitting}
-                className="w-full bg-[#131722] border border-[#363a45] focus:border-white rounded-lg px-4 py-3 text-white placeholder-[#787b86] font-mono text-center uppercase tracking-widest text-base font-bold focus:outline-none"
+                className="w-full bg-[#131722] border border-[#363a45] focus:border-amber-400 rounded-lg px-4 py-3 text-white placeholder-[#787b86] font-mono text-center uppercase tracking-widest text-base font-bold focus:outline-none"
               />
 
               {errorMsg && (
@@ -178,12 +193,12 @@ export const PromoCodeModal: React.FC<Props> = ({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-3 rounded-lg bg-white text-[#131722] hover:bg-[#d1d4dc] font-bold text-sm transition-all cursor-pointer shadow flex items-center justify-center gap-2"
+              className="w-full py-3 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-black font-bold text-sm hover:brightness-110 transition-all cursor-pointer shadow flex items-center justify-center gap-2"
             >
               {isSubmitting ? (
-                <span>{isAr ? 'جارِ التحقق...' : 'Verifying...'}</span>
+                <span>{isAr ? 'جارِ التحقق من المفتاح...' : 'Verifying Key...'}</span>
               ) : (
-                <span>{isAr ? 'تأكيد وتفعيل العضوية ↵' : 'Confirm & Activate VIP ↵'}</span>
+                <span>{isAr ? 'تأكيد المفتاح وتفعيل VIP ↵' : 'Activate VIP Key ↵'}</span>
               )}
             </button>
           </form>

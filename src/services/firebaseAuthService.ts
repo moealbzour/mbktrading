@@ -13,10 +13,14 @@ import {
   getDoc,
   setDoc,
   updateDoc,
+  onSnapshot,
   serverTimestamp
 } from 'firebase/firestore';
 import { auth, googleProvider, db } from '../lib/firebase';
 import { UserProfile } from '../types/trading';
+import { redeemActivationKey } from '../utils/activationKeyService';
+
+const SUPER_ADMIN_EMAIL = 'moe.albzour@gmail.com';
 
 /**
  * Arabic Firebase Auth Error Message Translation
@@ -37,6 +41,8 @@ export function getFirebaseAuthErrorMessage(error: any): string {
       return 'اسم المستخدم أو كلمة المرور غير صحيحة. يرجى التحقق من البيانات.';
     case 'auth/popup-closed-by-user':
       return 'تم إغلاق نافذة الدخول عبر Google قبل إتمام العملية.';
+    case 'auth/popup-blocked':
+      return 'المتصفح قام بحظر نافذة الدخول عبر Google. يرجى السماح بالنوافذ المنبثقة.';
     case 'auth/network-request-failed':
       return 'تعذر الاتصال بالخادم. يرجى التحقق من اتصال الإنترنت.';
     case 'auth/too-many-requests':
@@ -48,7 +54,16 @@ export function getFirebaseAuthErrorMessage(error: any): string {
 
 export interface FirestoreUserData {
   email: string | null;
-  role: 'free' | 'vip' | 'admin' | string;
+  role: 'free' | 'vip' | 'elite' | 'admin' | string;
+  tier?: 'free' | 'vip' | 'elite';
+  isVip?: boolean;
+  vipAccess?: boolean;
+  vipExpiryDate?: string | null;
+  isElite?: boolean;
+  eliteExpiryDate?: string | null;
+  grantedFeatures?: Record<string, string>;
+  subscription_status?: string;
+  subscription_end_date?: string | null;
   createdAt?: any;
   phone?: string;
   country?: string;
@@ -56,6 +71,8 @@ export interface FirestoreUserData {
   experienceLevel?: string;
   assetClasses?: string[];
   favoritePairs?: string;
+  isBanned?: boolean;
+  isMutedFromChat?: boolean;
 }
 
 export interface UserOnboardingData {
@@ -68,12 +85,116 @@ export interface UserOnboardingData {
   promoCode?: string;
 }
 
+function buildPlanName(normalizedRole: string, tier: 'free' | 'vip' | 'elite'): string {
+  if (normalizedRole === 'ADMIN') return 'مدير المنصة (Admin)';
+  if (normalizedRole === 'MODERATOR') return 'مشرف النظام (Moderator)';
+  if (normalizedRole === 'SALES') return 'فريق المبيعات (Sales)';
+  if (normalizedRole === 'ANALYSER' || normalizedRole === 'ANALYST') return 'محلل معتمد (Analyst)';
+  if (tier === 'elite' || normalizedRole === 'ELITE') return 'باقة Elite المؤسسية ($500/mo)';
+  if (tier === 'vip' || normalizedRole === 'VIP') return 'باقة VIP ($100/mo)';
+  return 'الباقة المجانية (Free)';
+}
+
+function mapUserDocToProfile(firebaseUser: FirebaseUser, data: Record<string, any> = {}): UserProfile {
+  const isSuperAdmin =
+    firebaseUser.emailVerified &&
+    firebaseUser.email?.toLowerCase() === SUPER_ADMIN_EMAIL;
+
+  let role = isSuperAdmin
+    ? 'admin'
+    : (data.role || 'free').toString().toLowerCase();
+
+  const rawTier = (data.tier || '').toString().toLowerCase();
+  const eliteEndDate: string | null =
+    data.eliteExpiryDate || data.subscription_end_date || data.subscriptionEndDate || null;
+  const subEndDate: string | null =
+    data.subscription_end_date || data.subscriptionEndDate || data.vipExpiryDate || null;
+
+  const parsedEnd = subEndDate ? new Date(subEndDate).getTime() : 0;
+  const isExpired = Boolean(subEndDate && !Number.isNaN(parsedEnd) && parsedEnd <= Date.now());
+
+  const parsedEliteEnd = eliteEndDate ? new Date(eliteEndDate).getTime() : 0;
+  const isEliteExpired = Boolean(eliteEndDate && !Number.isNaN(parsedEliteEnd) && parsedEliteEnd <= Date.now());
+
+  if ((role === 'vip' || role === 'elite') && isExpired && !isSuperAdmin) {
+    role = 'free';
+  }
+
+  let subStatus: 'active' | 'expired' | 'none' =
+    (data.subscription_status || data.subscriptionStatus || (role === 'vip' || role === 'elite' ? 'active' : 'none')) as any;
+  if (isExpired && !isSuperAdmin) {
+    subStatus = 'expired';
+  }
+
+  const normalizedRole = role.toUpperCase();
+  const isAdmin = normalizedRole === 'ADMIN';
+  const isStaff = ['ADMIN', 'MODERATOR', 'SALES', 'ANALYSER', 'ANALYST'].includes(normalizedRole);
+
+  const isElite =
+    isAdmin ||
+    isStaff ||
+    ((rawTier === 'elite' || normalizedRole === 'ELITE' || Boolean(data.isElite)) && !isEliteExpired);
+
+  const isVip =
+    isAdmin ||
+    isElite ||
+    normalizedRole === 'VIP' ||
+    ((rawTier === 'vip' || Boolean(data.isVip) || Boolean(data.vipAccess)) && !isExpired);
+
+  const effectiveTier: 'free' | 'vip' | 'elite' = isElite ? 'elite' : isVip ? 'vip' : 'free';
+
+  const grantedFeatures: Record<string, string> = {};
+  if (data.grantedFeatures && typeof data.grantedFeatures === 'object') {
+    for (const [k, v] of Object.entries(data.grantedFeatures)) {
+      if (typeof v === 'string') grantedFeatures[k] = v;
+    }
+  }
+
+  const isVerified =
+    firebaseUser.emailVerified ||
+    firebaseUser.providerData.some((p) => p.providerId === 'google.com');
+
+  return {
+    uid: firebaseUser.uid,
+    id: firebaseUser.uid,
+    email: firebaseUser.email || data.email || '',
+    name: firebaseUser.displayName || data.displayName || firebaseUser.email?.split('@')[0] || 'متداول MBK',
+    role: normalizedRole,
+    tier: effectiveTier,
+    planName: buildPlanName(normalizedRole, effectiveTier),
+    avatar: firebaseUser.photoURL || data.avatar || undefined,
+    isAdmin,
+    isStaff,
+    isVip,
+    vipAccess: isVip,
+    vipExpiryDate: subEndDate,
+    isElite,
+    eliteExpiryDate: isElite ? eliteEndDate : null,
+    grantedFeatures,
+    isEmailVerified: isVerified,
+    phone: data.phone || '',
+    country: data.country || '',
+    dob: data.dob || '',
+    experienceLevel: data.experienceLevel || '',
+    assetClasses: Array.isArray(data.assetClasses) ? data.assetClasses : [],
+    favoritePairs: data.favoritePairs || '',
+    totalPaid: Number(data.totalPaid || 0),
+    isBanned: Boolean(data.isBanned),
+    isMutedFromChat: Boolean(data.isMutedFromChat),
+    subscriptionStatus: subStatus,
+    subscriptionEndDate: subEndDate,
+    activationKey: data.activationKey || null,
+    promoCode: data.activationKey || undefined,
+    lastActiveAt: new Date().toISOString()
+  };
+}
+
 /**
  * Fetches or creates the user registry document in Firestore 'users' collection using UID
  */
 export async function fetchOrCreateUserRegistry(
   user: FirebaseUser,
-  defaultRole: string = 'free',
+  _defaultRole: string = 'free',
   extraData?: UserOnboardingData
 ): Promise<{ email: string; role: string; uid: string }> {
   const userDocRef = doc(db, 'users', user.uid);
@@ -88,10 +209,21 @@ export async function fetchOrCreateUserRegistry(
     };
   }
 
-  // Registry payload stored in Firestore users collection
   const newRegistryDoc = {
-    email: user.email,
+    email: user.email || '',
     role: 'free',
+    tier: 'free',
+    isVip: false,
+    vipAccess: false,
+    vipExpiryDate: null,
+    isElite: false,
+    eliteExpiryDate: null,
+    grantedFeatures: {},
+    subscription_status: 'none',
+    subscription_end_date: null,
+    isBanned: false,
+    isMutedFromChat: false,
+    totalPaid: 0,
     displayName: user.displayName || user.email?.split('@')[0] || '',
     phone: extraData?.phone || '',
     country: extraData?.country || '',
@@ -99,8 +231,11 @@ export async function fetchOrCreateUserRegistry(
     experienceLevel: extraData?.experienceLevel || 'Beginner',
     assetClasses: extraData?.assetClasses || [],
     favoritePairs: extraData?.favoritePairs || '',
-    emailVerified: Boolean(user.emailVerified),
-    createdAt: serverTimestamp()
+    emailVerified: Boolean(
+      user.emailVerified || user.providerData.some((p) => p.providerId === 'google.com')
+    ),
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
   };
 
   await setDoc(userDocRef, newRegistryDoc);
@@ -114,7 +249,7 @@ export async function fetchOrCreateUserRegistry(
 
 /**
  * User Registration using createUserWithEmailAndPassword from firebase/auth SDK
- * Sends verification email and saves comprehensive onboarding data to Firestore 'users' collection
+ * Sends verification email and saves onboarding data to Firestore 'users' collection
  */
 export async function registerWithFirebase(
   email: string,
@@ -139,58 +274,33 @@ export async function registerWithFirebase(
     }
   }
 
-  // 1. Send verification email via Firebase Auth SDK
+  // 1. Create Firestore user registry document (single clean write)
+  await fetchOrCreateUserRegistry(user, 'free', extraData);
+
+  // 2. Redeem activation key atomically if supplied
+  if (extraData.promoCode && extraData.promoCode.trim()) {
+    await redeemActivationKey(extraData.promoCode, user.uid, user.email || cleanEmail);
+  }
+
+  // 3. Send verification email via Firebase Auth SDK
   let verificationSent = false;
   try {
     await sendEmailVerification(user);
     verificationSent = true;
-    console.log('[Firebase Auth] Verification email sent to:', cleanEmail);
   } catch (verifyErr) {
     console.warn('[Firebase Auth] Could not send email verification:', verifyErr);
   }
 
-  // 2. Create/update Firestore document in users collection using UID as document ID
-  const registry = await fetchOrCreateUserRegistry(user, 'free', extraData);
-
-  // Update additional onboarding details in Firestore document if provided
-  if (extraData && Object.keys(extraData).length > 0) {
-    const userDocRef = doc(db, 'users', user.uid);
-    await updateDoc(userDocRef, {
-      displayName: displayName || user.displayName || cleanEmail.split('@')[0],
-      phone: extraData.phone || '',
-      country: extraData.country || '',
-      dob: extraData.dob || '',
-      experienceLevel: extraData.experienceLevel || 'Beginner',
-      assetClasses: extraData.assetClasses || [],
-      favoritePairs: extraData.favoritePairs || '',
-      updatedAt: serverTimestamp()
-    });
-  }
-
-  if (extraData.promoCode && extraData.promoCode.trim()) {
-    await applyFirestorePromoCode(user.uid, extraData.promoCode);
-  }
-
   const userDocRef = doc(db, 'users', user.uid);
   const latestSnap = await getDoc(userDocRef);
-  const currentRole = latestSnap.exists() ? latestSnap.data().role : registry.role;
-  const normalizedRole = (currentRole || 'FREE').toUpperCase() as any;
+  const userProfile = mapUserDocToProfile(user, latestSnap.exists() ? latestSnap.data() : {});
 
-  // 3. Immediately sign out user so they are NOT directly logged in before email verification
+  // 4. Immediately sign out user so they verify email before entering dashboard
   try {
     await signOut(auth);
   } catch {
     // ignore
   }
-
-  const userProfile: UserProfile = {
-    uid: user.uid,
-    id: user.uid,
-    email: user.email || cleanEmail,
-    name: user.displayName || displayName || cleanEmail.split('@')[0],
-    role: normalizedRole,
-    planName: normalizedRole === 'ADMIN' ? 'مدير المنصة (Admin)' : normalizedRole === 'VIP' ? 'عضوية VIP' : 'الحساب المجاني (Free)'
-  };
 
   return {
     userProfile,
@@ -210,38 +320,30 @@ export async function loginWithFirebase(
   const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, pass);
   const user = userCredential.user;
 
-  const registry = await fetchOrCreateUserRegistry(user, 'free');
+  await fetchOrCreateUserRegistry(user, 'free');
 
   if (promoCode && promoCode.trim()) {
-    await applyFirestorePromoCode(user.uid, promoCode);
+    await redeemActivationKey(promoCode, user.uid, user.email || cleanEmail);
   }
 
   const userDocRef = doc(db, 'users', user.uid);
   const latestSnap = await getDoc(userDocRef);
-  let currentRole = latestSnap.exists() ? latestSnap.data().role : registry.role;
-  if (cleanEmail.toLowerCase() === 'moe.albzour@gmail.com' || user.email?.toLowerCase() === 'moe.albzour@gmail.com') {
-    currentRole = 'admin';
+  const data = latestSnap.exists() ? latestSnap.data() : {};
+
+  if (
+    user.emailVerified &&
+    user.email?.toLowerCase() === SUPER_ADMIN_EMAIL &&
+    data.role !== 'admin'
+  ) {
     try {
-      await updateDoc(userDocRef, { role: 'admin' });
+      await updateDoc(userDocRef, { role: 'admin', updatedAt: serverTimestamp() });
+      data.role = 'admin';
     } catch {
-      // ignore
+      // ignore if rules handle super-admin via verified token
     }
   }
-  const normalizedRole = (currentRole || 'FREE').toUpperCase() as any;
 
-  const isVerified =
-    user.emailVerified ||
-    user.providerData.some((p) => p.providerId === 'google.com');
-
-  return {
-    uid: user.uid,
-    id: user.uid,
-    email: user.email || cleanEmail,
-    name: user.displayName || cleanEmail.split('@')[0],
-    role: normalizedRole,
-    planName: normalizedRole === 'ADMIN' ? 'مدير المنصة (Admin)' : normalizedRole === 'VIP' ? 'عضوية VIP' : 'الحساب المجاني (Free)',
-    isEmailVerified: isVerified
-  };
+  return mapUserDocToProfile(user, data);
 }
 
 /**
@@ -268,33 +370,31 @@ export async function signInWithGooglePopup(promoCode?: string): Promise<{
     }
   }
 
-  const registry = await fetchOrCreateUserRegistry(user, 'free');
+  await fetchOrCreateUserRegistry(user, 'free');
 
   if (promoCode && promoCode.trim()) {
-    await applyFirestorePromoCode(user.uid, promoCode);
+    await redeemActivationKey(promoCode, user.uid, user.email || '');
   }
 
   const latestSnap = await getDoc(userDocRef);
-  let currentRole = latestSnap.exists() ? latestSnap.data().role : registry.role;
-  if (user.email?.toLowerCase() === 'moe.albzour@gmail.com') {
-    currentRole = 'admin';
+  const data = latestSnap.exists() ? latestSnap.data() : {};
+
+  if (
+    user.emailVerified &&
+    user.email?.toLowerCase() === SUPER_ADMIN_EMAIL &&
+    data.role !== 'admin'
+  ) {
     try {
-      await updateDoc(userDocRef, { role: 'admin' });
+      await updateDoc(userDocRef, { role: 'admin', updatedAt: serverTimestamp() });
+      data.role = 'admin';
     } catch {
       // ignore
     }
   }
-  const normalizedRole = (currentRole || 'FREE').toUpperCase() as any;
 
-  const userProfile: UserProfile = {
-    uid: user.uid,
-    id: user.uid,
-    email: user.email || '',
-    name: user.displayName || user.email?.split('@')[0] || 'متداول MBK',
-    role: normalizedRole,
-    planName: normalizedRole === 'ADMIN' ? 'مدير المنصة (Admin)' : normalizedRole === 'VIP' ? 'عضوية VIP' : 'الحساب المجاني (Free)',
-    avatar: user.photoURL || undefined,
-    isEmailVerified: true, // Google OAuth accounts are pre-verified by Google
+  const userProfile = {
+    ...mapUserDocToProfile(user, data),
+    isEmailVerified: true,
     needsOnboarding: isNewUser
   };
 
@@ -307,45 +407,70 @@ export async function signInWithGooglePopup(promoCode?: string): Promise<{
 
 /**
  * Saves Google User Secondary Onboarding Profile to Firestore users collection
+ * Never modifies privileged role/subscription fields directly.
  */
 export async function saveGoogleUserOnboardingProfile(
   uid: string,
   extraData: UserOnboardingData
 ): Promise<UserProfile> {
+  const currentUser = auth.currentUser;
   const userDocRef = doc(db, 'users', uid);
   const docSnap = await getDoc(userDocRef);
 
-  const existingRole = docSnap.exists() ? docSnap.data().role || 'free' : 'free';
-  const normalizedRole = existingRole.toUpperCase() as any;
-
-  const profilePayload = {
-    email: auth.currentUser?.email || '',
-    displayName: auth.currentUser?.displayName || '',
-    role: existingRole,
-    phone: extraData.phone || '',
-    country: extraData.country || '',
-    dob: extraData.dob || '',
-    experienceLevel: extraData.experienceLevel || 'Beginner',
-    assetClasses: extraData.assetClasses || [],
-    favoritePairs: extraData.favoritePairs || '',
-    emailVerified: true,
-    updatedAt: serverTimestamp()
-  };
-
-  await setDoc(userDocRef, profilePayload, { merge: true });
+  if (!docSnap.exists() && currentUser) {
+    await fetchOrCreateUserRegistry(currentUser, 'free', extraData);
+  } else {
+    await updateDoc(userDocRef, {
+      displayName: currentUser?.displayName || '',
+      phone: extraData.phone || '',
+      country: extraData.country || '',
+      dob: extraData.dob || '',
+      experienceLevel: extraData.experienceLevel || 'Beginner',
+      assetClasses: extraData.assetClasses || [],
+      favoritePairs: extraData.favoritePairs || '',
+      emailVerified: true,
+      updatedAt: serverTimestamp()
+    });
+  }
 
   if (extraData.promoCode && extraData.promoCode.trim()) {
-    await applyFirestorePromoCode(uid, extraData.promoCode);
+    await redeemActivationKey(extraData.promoCode, uid, currentUser?.email || '');
   }
+
+  const freshSnap = await getDoc(userDocRef);
+  const data = freshSnap.exists() ? freshSnap.data() : {};
+
+  if (currentUser) {
+    return {
+      ...mapUserDocToProfile(currentUser, data),
+      isEmailVerified: true,
+      needsOnboarding: false
+    };
+  }
+
+  const existingRole = (data.role || 'free').toString().toUpperCase();
+  const rawTier = (data.tier || '').toString().toLowerCase();
+  const fallbackTier: 'free' | 'vip' | 'elite' =
+    existingRole === 'ADMIN' || rawTier === 'elite' || Boolean(data.isElite)
+      ? 'elite'
+      : existingRole === 'VIP' || rawTier === 'vip' || Boolean(data.isVip) || Boolean(data.vipAccess)
+      ? 'vip'
+      : 'free';
 
   return {
     uid,
     id: uid,
-    email: auth.currentUser?.email || '',
-    name: auth.currentUser?.displayName || 'متداول MBK',
-    role: normalizedRole,
-    planName: normalizedRole === 'ADMIN' ? 'مدير المنصة (Admin)' : normalizedRole === 'VIP' ? 'عضوية VIP' : 'الحساب المجاني (Free)',
-    avatar: auth.currentUser?.photoURL || undefined,
+    email: data.email || '',
+    name: data.displayName || 'متداول MBK',
+    role: existingRole,
+    tier: fallbackTier,
+    isVip: fallbackTier === 'vip' || fallbackTier === 'elite',
+    vipAccess: fallbackTier === 'vip' || fallbackTier === 'elite',
+    isElite: fallbackTier === 'elite',
+    vipExpiryDate: data.vipExpiryDate || null,
+    eliteExpiryDate: data.eliteExpiryDate || null,
+    grantedFeatures: (data.grantedFeatures && typeof data.grantedFeatures === 'object') ? data.grantedFeatures : {},
+    planName: buildPlanName(existingRole, fallbackTier),
     isEmailVerified: true,
     needsOnboarding: false
   };
@@ -370,130 +495,73 @@ export async function signOutUser(): Promise<void> {
 }
 
 /**
- * Subscribe to current Firebase Auth user state and fetch extended details (like role and email verification)
+ * Subscribe to live Firebase Auth user state + real-time Firestore user profile snapshot
  */
 export function subscribeToAuth(onUserChange: (user: UserProfile | null) => void): () => void {
-  return onAuthStateChanged(auth, async (firebaseUser) => {
-    if (firebaseUser) {
-      try {
-        const userDocRef = doc(db, 'users', firebaseUser.uid);
-        const docSnap = await getDoc(userDocRef);
+  let unsubDoc: (() => void) | null = null;
 
-        let data = docSnap.exists() ? docSnap.data() : null;
-        if (!data) {
-          await fetchOrCreateUserRegistry(firebaseUser);
-          const freshSnap = await getDoc(userDocRef);
-          data = freshSnap.data() || {};
-        }
-
-        // Automated Subscription Expiration Check & Admin Restoration
-        let role = (data.role || 'free').toString().toLowerCase();
-        let subEndDate = data.subscription_end_date || data.subscriptionEndDate || null;
-        let subStatus = data.subscription_status || data.subscriptionStatus || (role === 'vip' ? 'active' : 'none');
-
-        if (
-          firebaseUser.email?.toLowerCase() === 'moe.albzour@gmail.com' ||
-          data.email?.toLowerCase() === 'moe.albzour@gmail.com'
-        ) {
-          role = 'admin';
-          if (data.role !== 'admin') {
-            try {
-              await updateDoc(userDocRef, { role: 'admin' });
-              console.log('[Admin Restoration] Restored admin role in Firestore for moe.albzour@gmail.com');
-            } catch (err) {
-              console.warn('[Admin Restoration] Firestore update notice:', err);
-            }
-          }
-        } else if (subEndDate && new Date(subEndDate) < new Date() && role === 'vip') {
-          // Automated Downgrade Engine
-          role = 'free';
-          subStatus = 'expired';
-          try {
-            await updateDoc(userDocRef, {
-              role: 'free',
-              subscription_status: 'expired'
-            });
-            console.log('[Subscription Engine] Downgraded expired VIP user:', firebaseUser.uid);
-          } catch (err) {
-            console.warn('[Subscription Engine] Update notice:', err);
-          }
-        }
-
-        const normalizedRole = role.toUpperCase();
-        const isVerified =
-          firebaseUser.emailVerified ||
-          firebaseUser.providerData.some((p) => p.providerId === 'google.com');
-
-        onUserChange({
-          uid: firebaseUser.uid,
-          id: firebaseUser.uid,
-          email: firebaseUser.email || data.email || '',
-          name: firebaseUser.displayName || data.displayName || firebaseUser.email?.split('@')[0] || 'متداول MBK',
-          role: normalizedRole,
-          planName:
-            normalizedRole === 'ADMIN'
-              ? 'مدير المنصة (Admin)'
-              : normalizedRole === 'MODERATOR'
-              ? 'مشرف النظام (Moderator)'
-              : normalizedRole === 'SALES'
-              ? 'فريق المبيعات (Sales)'
-              : normalizedRole === 'VIP'
-              ? 'عضوية VIP'
-              : 'الحساب المجاني (Free)',
-          avatar: firebaseUser.photoURL || data.avatar || undefined,
-          isEmailVerified: isVerified,
-          phone: data.phone || '',
-          country: data.country || '',
-          dob: data.dob || '',
-          experienceLevel: data.experienceLevel || '',
-          assetClasses: data.assetClasses || [],
-          favoritePairs: data.favoritePairs || '',
-          totalPaid: Number(data.totalPaid || 0),
-          isBanned: Boolean(data.isBanned),
-          isMutedFromChat: Boolean(data.isMutedFromChat),
-          subscriptionStatus: subStatus as any,
-          subscriptionEndDate: subEndDate,
-          lastActiveAt: new Date().toISOString()
-        });
-      } catch (err) {
-        console.warn('Error fetching Firestore user registry:', err);
-        const isVerified =
-          firebaseUser.emailVerified ||
-          firebaseUser.providerData.some((p) => p.providerId === 'google.com');
-
-        onUserChange({
-          uid: firebaseUser.uid,
-          id: firebaseUser.uid,
-          email: firebaseUser.email || '',
-          name: firebaseUser.displayName || 'متداول MBK',
-          role: 'FREE',
-          planName: 'الحساب المجاني (Free)',
-          avatar: firebaseUser.photoURL || undefined,
-          isEmailVerified: isVerified
-        });
-      }
-    } else {
-      onUserChange(null);
+  const unsubAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+    if (unsubDoc) {
+      unsubDoc();
+      unsubDoc = null;
     }
+
+    if (!firebaseUser) {
+      onUserChange(null);
+      return;
+    }
+
+    const userDocRef = doc(db, 'users', firebaseUser.uid);
+
+    try {
+      const initialSnap = await getDoc(userDocRef);
+      if (!initialSnap.exists()) {
+        await fetchOrCreateUserRegistry(firebaseUser);
+      }
+
+      if (
+        firebaseUser.emailVerified &&
+        firebaseUser.email?.toLowerCase() === SUPER_ADMIN_EMAIL &&
+        initialSnap.exists() &&
+        initialSnap.data()?.role !== 'admin'
+      ) {
+        try {
+          await updateDoc(userDocRef, { role: 'admin', updatedAt: serverTimestamp() });
+        } catch {
+          // ignore
+        }
+      }
+    } catch (err) {
+      console.warn('Error ensuring user profile doc:', err);
+    }
+
+    unsubDoc = onSnapshot(
+      userDocRef,
+      (docSnap) => {
+        const data = docSnap.exists() ? docSnap.data() : {};
+        onUserChange(mapUserDocToProfile(firebaseUser, data));
+      },
+      (err) => {
+        console.warn('Error listening to Firestore user registry:', err);
+        onUserChange(mapUserDocToProfile(firebaseUser, {}));
+      }
+    );
   });
+
+  return () => {
+    if (unsubDoc) unsubDoc();
+    unsubAuth();
+  };
 }
 
 /**
- * Applies promo code to upgrade user role in Firestore 'users' collection
+ * Redeems a single-use Firestore activation key atomically for the user.
  */
 export async function applyFirestorePromoCode(userId: string, promoCode: string): Promise<boolean> {
-  const cleanCode = promoCode.trim().toUpperCase();
-  if (cleanCode === 'MBKVIP' || cleanCode === 'VIP2026' || cleanCode === 'PROMO2026') {
-    const userDocRef = doc(db, 'users', userId);
-    await updateDoc(userDocRef, { role: 'vip' });
-    return true;
-  }
-  return false;
+  await redeemActivationKey(promoCode, userId, auth.currentUser?.email || undefined);
+  return true;
 }
 
-// Export backward compatible function aliases
 export const signUpWithEmail = registerWithFirebase;
 export const signInWithEmail = loginWithFirebase;
 export const signInWithGoogle = signInWithGooglePopup;
-
-

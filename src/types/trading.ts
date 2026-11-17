@@ -4,7 +4,8 @@ export interface UserProfile {
   username?: string;
   name: string;
   email: string;
-  role: 'FREE' | 'VIP' | 'ADMIN' | 'STANDARD' | 'ANALYSER' | 'MODERATOR' | 'SALES' | string;
+  role: 'FREE' | 'VIP' | 'ELITE' | 'ADMIN' | 'STANDARD' | 'ANALYSER' | 'MODERATOR' | 'SALES' | string;
+  tier?: 'free' | 'vip' | 'elite';
   promoCode?: string;
   planName: string;
   avatar?: string;
@@ -27,6 +28,13 @@ export interface UserProfile {
   isBanned?: boolean;
   isMutedFromChat?: boolean;
   lastActiveAt?: string;
+  isVip?: boolean;
+  vipAccess?: boolean;
+  vipExpiryDate?: string | null;
+  isElite?: boolean;
+  eliteExpiryDate?: string | null;
+  grantedFeatures?: Record<string, string>;
+  activationKey?: string | null;
 }
 
 export interface TraderProfile {
@@ -226,6 +234,7 @@ export interface DailyTrade {
   isBotSignal?: boolean;
   isBlurredForFree: boolean; // Blurs entire card if running for free users
   accessLevel?: 'free' | 'vip' | 'all';
+  originCollection?: 'signals' | 'bot_alerts';
   timestampMs?: number;
 }
 

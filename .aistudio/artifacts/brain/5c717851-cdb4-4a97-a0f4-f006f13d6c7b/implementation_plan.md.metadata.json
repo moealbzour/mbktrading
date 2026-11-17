@@ -1,6 +1,0 @@
-{
-  "summary": "Comprehensive Technical Architecture and Status Report for MBK Trading Desk applet, covering Firebase setup, Firestore schemas, TradingView Webhook pipeline, Telegram integration, auth flows, and layout workspace.",
-  "updatedAt": "2026-11-03T01:00:44.344242647Z",
-  "requestFeedback": true,
-  "userFacing": true
-}

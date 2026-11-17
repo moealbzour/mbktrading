@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { collection, onSnapshot } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { collection, doc, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import { auth, db } from '../lib/firebase';
 import { soundManager } from '../utils/audio';
-import { DailyTrade, TradeSource, DailyTradeStatus } from '../types/trading';
+import { DailyTrade, TradeSource, DailyTradeStatus, UserProfile } from '../types/trading';
 import { ToastContainer, ToastItem } from '../components/common/ToastContainer';
+import { hasFeatureAccess } from '../utils/entitlements';
 
 export interface ChannelSignalItem {
   id: string;
@@ -31,6 +33,7 @@ export interface ChannelSignalItem {
   accessLevel?: 'free' | 'vip' | 'all';
   author?: string;
   authorRole?: string;
+  originCollection?: 'signals' | 'bot_alerts';
   timestampMs?: number;
 }
 
@@ -70,6 +73,28 @@ const SignalsContext = createContext<SignalsContextValue>({
   requestNotificationPermission: async () => undefined
 });
 
+const SUPER_ADMIN_EMAIL = 'moe.albzour@gmail.com';
+const LIVE_SIGNALS_LIMIT = 30;
+
+function mapRawUserToProfile(userData: Record<string, any> | undefined): Partial<UserProfile> | null {
+  if (!userData) return null;
+  return {
+    role: (userData.role || 'free').toString().toUpperCase(),
+    tier: userData.tier || (userData.isElite ? 'elite' : userData.isVip ? 'vip' : 'free'),
+    isVip: Boolean(userData.isVip),
+    vipAccess: Boolean(userData.vipAccess),
+    isElite: Boolean(userData.isElite),
+    vipExpiryDate: userData.vipExpiryDate || userData.subscription_end_date || null,
+    eliteExpiryDate: userData.eliteExpiryDate || userData.subscription_end_date || null,
+    subscriptionEndDate: userData.subscription_end_date || userData.subscriptionEndDate || userData.vipExpiryDate || null,
+    grantedFeatures:
+      userData.grantedFeatures && typeof userData.grantedFeatures === 'object'
+        ? userData.grantedFeatures
+        : {},
+    isBanned: Boolean(userData.isBanned)
+  };
+}
+
 export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [signals, setSignals] = useState<ChannelSignalItem[]>([]);
   const [rawTrades, setRawTrades] = useState<DailyTrade[]>([]);
@@ -78,13 +103,14 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [botAlertsLoading, setBotAlertsLoading] = useState<boolean>(true);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [dbError, setDbError] = useState<string | null>(null);
+  const [authResolved, setAuthResolved] = useState<boolean>(false);
+  const [canReadVipSignals, setCanReadVipSignals] = useState<boolean>(false);
+  const [canReadBotAlerts, setCanReadBotAlerts] = useState<boolean>(false);
 
-  // Dismiss toast by ID using functional state update
   const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  // Add toast notification using functional state update
   const addToast = useCallback(
     (toastData: Omit<ToastItem, 'id'>) => {
       try {
@@ -102,7 +128,6 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     [removeToast]
   );
 
-  // Request native browser Push Notification permission safely
   const requestNotificationPermission = useCallback(async () => {
     try {
       if (typeof window !== 'undefined' && 'Notification' in window) {
@@ -118,29 +143,14 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return undefined;
   }, []);
 
-  // Strict safe Audio Ping wrapper
   const triggerAudioAlert = useCallback(() => {
     try {
       soundManager.playSignalPing();
     } catch (err) {
       console.warn('[SignalsContext] soundManager ping notice:', err);
     }
-
-    try {
-      const backupAudio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-      backupAudio.volume = 0.5;
-      const playPromise = backupAudio.play();
-      if (playPromise && typeof playPromise.then === 'function') {
-        playPromise.catch((e) => {
-          console.warn('[SignalsContext] Audio playback muted by browser autoplay policy:', e?.message || e);
-        });
-      }
-    } catch (err) {
-      console.warn('[SignalsContext] Backup audio notice:', err);
-    }
   }, []);
 
-  // Native Browser System Push Notification safely wrapped
   const sendBrowserNotification = useCallback((title: string, body: string) => {
     try {
       if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
@@ -154,23 +164,84 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, []);
 
-  // Auto request permission on mount
   useEffect(() => {
     requestNotificationPermission().catch(() => {});
   }, [requestNotificationPermission]);
 
+  // Track authenticated user VIP/Elite/Feature-Trial/Admin status in real time
   useEffect(() => {
+    let unsubscribeUserDoc: (() => void) | null = null;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
+      if (unsubscribeUserDoc) {
+        unsubscribeUserDoc();
+        unsubscribeUserDoc = null;
+      }
+
+      if (!firebaseUser) {
+        setCanReadVipSignals(false);
+        setCanReadBotAlerts(false);
+        setAuthResolved(true);
+        return;
+      }
+
+      const isSuperAdmin =
+        firebaseUser.email?.toLowerCase() === SUPER_ADMIN_EMAIL && firebaseUser.emailVerified;
+
+      if (isSuperAdmin) {
+        setCanReadVipSignals(true);
+        setCanReadBotAlerts(true);
+        setAuthResolved(true);
+        return;
+      }
+
+      const userRef = doc(db, 'users', firebaseUser.uid);
+      unsubscribeUserDoc = onSnapshot(
+        userRef,
+        (snap) => {
+          const profile = mapRawUserToProfile(snap.data());
+          setCanReadVipSignals(hasFeatureAccess(profile, 'vipSignals'));
+          setCanReadBotAlerts(hasFeatureAccess(profile, 'botSignals'));
+          setAuthResolved(true);
+        },
+        (err) => {
+          console.warn('[SignalsContext] User role listener notice:', err?.message || err);
+          setCanReadVipSignals(false);
+          setCanReadBotAlerts(false);
+          setAuthResolved(true);
+        }
+      );
+    });
+
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeUserDoc) unsubscribeUserDoc();
+    };
+  }, []);
+
+  // Live Firestore listeners (capped at latest 30 signals & split Free vs VIP/Bot queries)
+  useEffect(() => {
+    if (!authResolved) return;
+
     let isFirstSignalsSnapshot = true;
     let isFirstBotSnapshot = true;
 
-    // 1. Central Firestore listener for `signals` collection
-    const signalsRef = collection(db, 'signals');
+    setLoading(true);
+    setDbError(null);
+
+    const signalsQuery = canReadVipSignals
+      ? query(collection(db, 'signals'), orderBy('timestampMs', 'desc'), limit(LIVE_SIGNALS_LIMIT))
+      : query(
+          collection(db, 'signals'),
+          where('accessLevel', '==', 'free'),
+          orderBy('timestampMs', 'desc'),
+          limit(LIVE_SIGNALS_LIMIT)
+        );
 
     const unsubscribeSignals = onSnapshot(
-      signalsRef,
+      signalsQuery,
       (snapshot) => {
         try {
-          // Detect additions via docChanges()
           snapshot.docChanges().forEach((change) => {
             if (change.type === 'added') {
               const data = change.doc.data();
@@ -178,8 +249,6 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
               const action = (data.action || 'BUY').toUpperCase() as 'BUY' | 'SELL';
               const entryPrice = Number(data.entryPrice || 0);
               const channel = data.channel || 'vip';
-
-              // Guard against old records on initial load or cold start
               const isRecent = data.timestampMs ? data.timestampMs > Date.now() - 5 * 60 * 1000 : true;
 
               if (!isFirstSignalsSnapshot && isRecent) {
@@ -260,6 +329,7 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
               accessLevel: access as any,
               author: data.author,
               authorRole: data.authorRole,
+              originCollection: 'signals',
               timestampMs
             });
 
@@ -290,17 +360,16 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
               isBotSignal: isBot,
               isBlurredForFree: Boolean(data.isBlurredForFree || isVip),
               accessLevel: access as any,
+              originCollection: 'signals',
               timestampMs
             });
           });
 
-          // Sort in memory by timestampMs descending
           liveSignals.sort((a, b) => (b.timestampMs || 0) - (a.timestampMs || 0));
           liveTrades.sort((a, b) => (b.timestampMs || 0) - (a.timestampMs || 0));
 
-          // Functional state updates to prevent stale closure issues
-          setSignals(() => liveSignals);
-          setRawTrades(() => liveTrades);
+          setSignals(() => liveSignals.slice(0, LIVE_SIGNALS_LIMIT));
+          setRawTrades(() => liveTrades.slice(0, LIVE_SIGNALS_LIMIT));
           isFirstSignalsSnapshot = false;
           setLoading(false);
         } catch (procErr: any) {
@@ -317,77 +386,93 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
     );
 
-    // 2. Central Firestore listener for `bot_alerts` collection
-    const botAlertsRef = collection(db, 'bot_alerts');
+    let unsubscribeBot: (() => void) | null = null;
+    if (canReadBotAlerts) {
+      setBotAlertsLoading(true);
+      const botAlertsQuery = query(
+        collection(db, 'bot_alerts'),
+        orderBy('timestampMs', 'desc'),
+        limit(LIVE_SIGNALS_LIMIT)
+      );
 
-    const unsubscribeBot = onSnapshot(
-      botAlertsRef,
-      (snapshot) => {
-        try {
-          snapshot.docChanges().forEach((change) => {
-            if (change.type === 'added') {
-              const data = change.doc.data();
-              const text = data.text || 'TradingView PinScript Alert';
-              const isRecent = data.timestampMs ? data.timestampMs > Date.now() - 5 * 60 * 1000 : true;
+      unsubscribeBot = onSnapshot(
+        botAlertsQuery,
+        (snapshot) => {
+          try {
+            snapshot.docChanges().forEach((change) => {
+              if (change.type === 'added') {
+                const data = change.doc.data();
+                const text = data.text || 'TradingView PineScript Alert';
+                const isRecent = data.timestampMs ? data.timestampMs > Date.now() - 5 * 60 * 1000 : true;
 
-              if (!isFirstBotSnapshot && isRecent) {
-                triggerAudioAlert();
+                if (!isFirstBotSnapshot && isRecent) {
+                  triggerAudioAlert();
 
-                addToast({
-                  title: 'تنبيه TradingView Webhook 🤖',
-                  message: text,
-                  type: 'bot',
-                  timestamp: 'الآن'
-                });
+                  addToast({
+                    title: 'تنبيه TradingView Webhook 🤖',
+                    message: text,
+                    type: 'bot',
+                    timestamp: 'الآن'
+                  });
 
-                sendBrowserNotification(
-                  'MBK Bot Warning Posted!',
-                  text.length > 100 ? `${text.slice(0, 100)}...` : text
-                );
+                  sendBrowserNotification(
+                    'MBK Bot Alert',
+                    text.length > 100 ? `${text.slice(0, 100)}...` : text
+                  );
+                }
               }
-            }
-          });
-
-          const rawAlerts: BotAlertItem[] = [];
-          snapshot.forEach((docSnap) => {
-            const data = docSnap.data();
-            rawAlerts.push({
-              id: docSnap.id,
-              text: data.text || '',
-              chat_id: data.chat_id || data.chatId || null,
-              timestamp: data.timestamp || new Date().toISOString(),
-              timestampMs: Number(data.timestampMs || Date.now())
             });
-          });
 
-          // Sort in memory by timestampMs descending
-          rawAlerts.sort((a, b) => (b.timestampMs || 0) - (a.timestampMs || 0));
+            const rawAlerts: BotAlertItem[] = [];
+            snapshot.forEach((docSnap) => {
+              const data = docSnap.data();
+              rawAlerts.push({
+                id: docSnap.id,
+                text: data.text || '',
+                chat_id: data.chat_id || data.chatId || null,
+                timestamp: data.timestamp || new Date().toISOString(),
+                timestampMs: Number(data.timestampMs || Date.now())
+              });
+            });
 
-          // Functional state update
-          setBotAlerts(() => rawAlerts);
-          isFirstBotSnapshot = false;
-          setBotAlertsLoading(false);
-        } catch (procErr: any) {
-          console.error('[SignalsContext ERROR] Exception in bot_alerts snapshot handler:', procErr);
-          setDbError((prev) => prev ? `${prev} | [Bot alerts processing error]: ${procErr?.message || String(procErr)}` : `[Bot alerts processing error]: ${procErr?.message || String(procErr)}`);
+            rawAlerts.sort((a, b) => (b.timestampMs || 0) - (a.timestampMs || 0));
+
+            setBotAlerts(() => rawAlerts.slice(0, LIVE_SIGNALS_LIMIT));
+            isFirstBotSnapshot = false;
+            setBotAlertsLoading(false);
+          } catch (procErr: any) {
+            console.error('[SignalsContext ERROR] Exception in bot_alerts snapshot handler:', procErr);
+            setDbError((prev) =>
+              prev
+                ? `${prev} | [Bot alerts processing error]: ${procErr?.message || String(procErr)}`
+                : `[Bot alerts processing error]: ${procErr?.message || String(procErr)}`
+            );
+            setBotAlertsLoading(false);
+          }
+        },
+        (error) => {
+          console.error('[Firestore Bot Alerts onSnapshot Error]:', error);
+          const errMsg = error?.message || String(error);
+          setDbError((prev) =>
+            prev
+              ? `${prev} | [Firestore bot_alerts error]: ${errMsg}`
+              : `[Firestore bot_alerts error]: ${errMsg}`
+          );
           setBotAlertsLoading(false);
         }
-      },
-      (error) => {
-        console.error('[Firestore Bot Alerts onSnapshot Error]:', error);
-        const errMsg = error?.message || String(error);
-        setDbError((prev) => prev ? `${prev} | [Firestore bot_alerts error]: ${errMsg}` : `[Firestore bot_alerts error]: ${errMsg}`);
-        setBotAlertsLoading(false);
-      }
-    );
+      );
+    } else {
+      setBotAlerts([]);
+      setBotAlertsLoading(false);
+    }
 
     return () => {
       unsubscribeSignals();
-      unsubscribeBot();
+      if (unsubscribeBot) unsubscribeBot();
     };
-  }, [addToast, sendBrowserNotification, triggerAudioAlert]);
+  }, [authResolved, canReadVipSignals, canReadBotAlerts, addToast, sendBrowserNotification, triggerAudioAlert]);
 
-  // Merge raw bot_alerts into trades array
+  // Merge raw bot_alerts into trades array, capped at latest 30 signals
   const mergedTrades: DailyTrade[] = [...rawTrades];
   const existingTradeIds = new Set(rawTrades.map((t) => t.id));
 
@@ -410,50 +495,60 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const priceMatch = text.match(/(\d{2,5}\.?\d{0,4})/);
       const entryPrice = priceMatch ? parseFloat(priceMatch[1]) : 0;
 
-      // Only synthesize a trade card if a valid numerical entry price was parsed
-      if (entryPrice > 0) {
-        const tp1 = action === 'BUY' ? Math.round(entryPrice * 1.005 * 100) / 100 : Math.round(entryPrice * 0.995 * 100) / 100;
-        const sl = action === 'BUY' ? Math.round(entryPrice * 0.995 * 100) / 100 : Math.round(entryPrice * 1.005 * 100) / 100;
+      const tp1 =
+        entryPrice > 0
+          ? action === 'BUY'
+            ? Math.round(entryPrice * 1.005 * 100) / 100
+            : Math.round(entryPrice * 0.995 * 100) / 100
+          : 0;
+      const sl =
+        entryPrice > 0
+          ? action === 'BUY'
+            ? Math.round(entryPrice * 0.995 * 100) / 100
+            : Math.round(entryPrice * 1.005 * 100) / 100
+          : 0;
 
-        mergedTrades.push({
-          id: `bot-${alert.id}`,
-          symbol,
-          nameAr: `${symbol} (تنبيه آلي)`,
-          action,
-          source: 'BOT_WEBHOOK',
-          sourceLabelAr: 'تنبيه TradingView Webhook',
-          sourceLabelEn: 'TradingView Webhook',
-          status: 'RUNNING',
-          statusLabelAr: 'صفقة جارية الآن ⚡',
-          openTime: alert.timestamp ? new Date(alert.timestamp).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : 'الآن',
-          duration: 'الآن',
-          pips: 0,
-          entryPrice,
-          currentPrice: entryPrice,
-          tp1,
-          sl,
-          riskReward: '1:2.4',
-          strategy: 'TradingView PineScript Alert',
-          confidence: 90,
-          notesAr: text,
-          textMsg: text,
-          isBotSignal: true,
-          isBlurredForFree: false,
-          accessLevel: 'free',
-          timestampMs: alert.timestampMs || Date.now()
-        });
-      }
+      mergedTrades.push({
+        id: `bot-${alert.id}`,
+        symbol,
+        nameAr: `${symbol} (تنبيه آلي)`,
+        action,
+        source: 'BOT_WEBHOOK',
+        sourceLabelAr: 'تنبيه TradingView Webhook',
+        sourceLabelEn: 'TradingView Webhook',
+        status: 'RUNNING',
+        statusLabelAr: 'صفقة جارية الآن ⚡',
+        openTime: alert.timestamp
+          ? new Date(alert.timestamp).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
+          : 'الآن',
+        duration: 'الآن',
+        pips: 0,
+        entryPrice,
+        currentPrice: entryPrice,
+        tp1,
+        sl,
+        riskReward: entryPrice > 0 ? '1:2.4' : 'N/A',
+        strategy: 'TradingView PineScript Alert',
+        confidence: 90,
+        notesAr: text,
+        textMsg: text,
+        isBotSignal: true,
+        isBlurredForFree: false,
+        accessLevel: 'vip',
+        originCollection: 'bot_alerts',
+        timestampMs: alert.timestampMs || Date.now()
+      });
     }
   });
 
-  // Re-sort merged trades in memory
   mergedTrades.sort((a, b) => (b.timestampMs || 0) - (a.timestampMs || 0));
+  const cappedTrades = mergedTrades.slice(0, LIVE_SIGNALS_LIMIT);
 
   return (
     <SignalsContext.Provider
       value={{
         signals,
-        trades: mergedTrades,
+        trades: cappedTrades,
         botAlerts,
         loading,
         botAlertsLoading,

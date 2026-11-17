@@ -37,22 +37,70 @@ import {
   MessageSquare,
   Award,
   Calendar as CalendarIcon,
-  Sliders
+  Sliders,
+  Key,
+  Copy,
+  Download,
+  Gem,
+  Settings,
+  Save,
+  MessageCircle
 } from 'lucide-react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, onSnapshot, collection, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, onSnapshot, collection, updateDoc, deleteDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../../lib/firebase';
 import { soundManager } from '../../utils/audio';
+import { formatKeyDurationLabel } from '../../utils/activationKeyService';
+import {
+  DEFAULT_PLATFORM_SETTINGS,
+  buildWhatsAppUrl,
+  formatTelegramHandle,
+  normalizeTelegramUrl,
+  savePlatformSettings,
+  subscribeToPlatformSettings
+} from '../../services/platformSettingsService';
+import {
+  FEATURE_CATALOG,
+  FeatureKey,
+  SubscriptionTier,
+  getEffectiveTier,
+  getActiveTrialFeatures,
+  formatExpiryShort,
+  getFeatureLabel
+} from '../../utils/entitlements';
 
 import { SubscriptionCountdown } from '../common/SubscriptionCountdown';
 import { PublishingCenter } from './PublishingCenter';
+
+export interface ActivationKeyRecord {
+  id: string;
+  code: string;
+  durationInDays: number;
+  durationLabel?: string;
+  keyType?: 'vip' | 'elite' | 'trial';
+  grantTier?: 'vip' | 'elite' | 'custom';
+  grantFeatures?: FeatureKey[];
+  status: 'active' | 'used' | 'revoked';
+  createdAt?: string;
+  createdBy?: string;
+  usedByUserId?: string;
+  usedByUserEmail?: string;
+  usedAt?: string;
+}
 
 export interface AdminUserRecord {
   id: string;
   uid: string;
   username: string;
   email: string;
-  role: 'ADMIN' | 'MODERATOR' | 'SALES' | 'VIP' | 'FREE' | string;
+  role: 'ADMIN' | 'MODERATOR' | 'SALES' | 'VIP' | 'ELITE' | 'FREE' | string;
+  tier?: SubscriptionTier;
+  isVip?: boolean;
+  vipAccess?: boolean;
+  isElite?: boolean;
+  vipExpiryDate?: string | null;
+  eliteExpiryDate?: string | null;
+  grantedFeatures?: Partial<Record<FeatureKey, string>>;
   displayName: string;
   avatar?: string;
   phone?: string;
@@ -147,25 +195,85 @@ export const AdminDashboard: React.FC<Props> = ({
     return () => unsubAuth();
   }, []);
 
-  // Staff roles allowed to access dashboard: admin, moderator, sales
+  // Staff roles allowed to access dashboard: admin, moderator, sales, analyser
   const effectiveRole = (firestoreRole || currentRole || '').toString().toLowerCase();
-  const isStaff = ['admin', 'moderator', 'sales'].includes(effectiveRole);
-  const isFullAdmin = effectiveRole === 'admin';
+  const isStaff =
+    ['admin', 'moderator', 'sales', 'analyser', 'analyst'].includes(effectiveRole) ||
+    Boolean(isAdmin);
+  const isFullAdmin = effectiveRole === 'admin' || Boolean(isAdmin);
+  const isAnalyserOnly = ['analyser', 'analyst'].includes(effectiveRole) && !isFullAdmin;
 
-  const [activeTab, setActiveTab] = useState<'users' | 'news' | 'calendar' | 'overview' | 'publishing'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'news' | 'calendar' | 'overview' | 'publishing' | 'keys' | 'settings'>(
+    isAnalyserOnly ? 'publishing' : 'users'
+  );
+
+  useEffect(() => {
+    if (isAnalyserOnly && activeTab === 'users') {
+      setActiveTab('publishing');
+    }
+  }, [isAnalyserOnly, activeTab]);
+
+  // ================= ACTIVATION KEYS & TRIAL GENERATOR STATE =================
+  const [activationKeys, setActivationKeys] = useState<ActivationKeyRecord[]>([]);
+  const [bulkKeyTier, setBulkKeyTier] = useState<'vip' | 'elite'>('vip');
+  const [selectedKeyDays, setSelectedKeyDays] = useState<number>(30);
+  const [bulkKeyQuantity, setBulkKeyQuantity] = useState<number>(200);
+  const [isGeneratingKey, setIsGeneratingKey] = useState<boolean>(false);
+  const [copiedKeyCode, setCopiedKeyCode] = useState<string | null>(null);
+  const [lastGeneratedBatch, setLastGeneratedBatch] = useState<ActivationKeyRecord[]>([]);
+  const [keyStatusFilter, setKeyStatusFilter] = useState<'ALL' | 'active' | 'used' | 'revoked'>('ALL');
+  const [keySearchQuery, setKeySearchQuery] = useState('');
+
+  // Trial Code Generator State
+  const [trialTargetMode, setTrialTargetMode] = useState<'custom' | 'vip' | 'elite'>('custom');
+  const [trialSelectedFeatures, setTrialSelectedFeatures] = useState<FeatureKey[]>(['botSignals', 'vipSignals']);
+  const [trialDurationDays, setTrialDurationDays] = useState<number>(3);
+  const [trialQuantity, setTrialQuantity] = useState<number>(10);
+  const [isGeneratingTrial, setIsGeneratingTrial] = useState<boolean>(false);
+  const [lastGeneratedTrialBatch, setLastGeneratedTrialBatch] = useState<ActivationKeyRecord[]>([]);
 
   // ================= USERS & CRM STATE =================
   const [users, setUsers] = useState<AdminUserRecord[]>([]);
   const [usersLoading, setUsersLoading] = useState(true);
   const [userSearch, setUserSearch] = useState('');
-  const [userFilterTab, setUserFilterTab] = useState<'ALL' | 'EXPIRING_SOON' | 'VIP' | 'BANNED' | 'MUTED' | 'FREE' | 'STAFF'>('ALL');
-  
+  const [userFilterTab, setUserFilterTab] = useState<'ALL' | 'EXPIRING_SOON' | 'VIP' | 'ELITE' | 'FREE' | 'BANNED' | 'MUTED' | 'STAFF'>('ALL');
+
   // CRM Profile Inspector Modal State
   const [inspectUser, setInspectUser] = useState<AdminUserRecord | null>(null);
-  const [paymentAmountInput, setPaymentAmountInput] = useState<string>('299');
+  const [directTierTarget, setDirectTierTarget] = useState<'vip' | 'elite'>('vip');
+  const [directTierMode, setDirectTierMode] = useState<'days' | 'date'>('days');
+  const [directTierDays, setDirectTierDays] = useState<number>(30);
+  const [directTierCustomDate, setDirectTierCustomDate] = useState<string>(() => {
+    const d = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    return d.toISOString().slice(0, 10);
+  });
+  const [isUpdatingTier, setIsUpdatingTier] = useState(false);
+
+  const [featureGrantDays, setFeatureGrantDays] = useState<Record<FeatureKey, number>>({
+    botSignals: 3,
+    vipSignals: 3,
+    vipChat: 3,
+    standardAi: 3
+  });
+  const [featureGrantDates, setFeatureGrantDates] = useState<Record<FeatureKey, string>>({
+    botSignals: '',
+    vipSignals: '',
+    vipChat: '',
+    standardAi: ''
+  });
+  const [busyFeatureKey, setBusyFeatureKey] = useState<FeatureKey | null>(null);
+
+  const [paymentAmountInput, setPaymentAmountInput] = useState<string>('100');
   const [paymentDurationInput, setPaymentDurationInput] = useState<'30' | '90' | '180' | '365' | 'lifetime'>('30');
-  const [paymentNotesInput, setPaymentNotesInput] = useState<string>('');
   const [isLoggingPayment, setIsLoggingPayment] = useState(false);
+
+  // ================= PLATFORM SETTINGS STATE (settings/platform) =================
+  const [settingsWhatsapp, setSettingsWhatsapp] = useState<string>(DEFAULT_PLATFORM_SETTINGS.whatsappNumber);
+  const [settingsTelegram, setSettingsTelegram] = useState<string>(DEFAULT_PLATFORM_SETTINGS.telegramUrl);
+  const [settingsEmail, setSettingsEmail] = useState<string>(DEFAULT_PLATFORM_SETTINGS.supportEmail);
+  const [settingsUpdatedAt, setSettingsUpdatedAt] = useState<string | undefined>(undefined);
+  const [settingsUpdatedBy, setSettingsUpdatedBy] = useState<string | undefined>(undefined);
+  const [isSavingSettings, setIsSavingSettings] = useState<boolean>(false);
 
   // Notifications
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
@@ -173,6 +281,318 @@ export const AdminDashboard: React.FC<Props> = ({
   const showFeedback = (type: 'success' | 'error' | 'info', message: string) => {
     setFeedback({ type, message });
     setTimeout(() => setFeedback(null), 4000);
+  };
+
+  useEffect(() => {
+    if (!isStaff) return;
+    const unsubSettings = subscribeToPlatformSettings((settings) => {
+      setSettingsWhatsapp(settings.whatsappNumber || '');
+      setSettingsTelegram(settings.telegramUrl || '');
+      setSettingsEmail(settings.supportEmail || DEFAULT_PLATFORM_SETTINGS.supportEmail);
+      setSettingsUpdatedAt(settings.updatedAt);
+      setSettingsUpdatedBy(settings.updatedBy);
+    });
+    return () => unsubSettings();
+  }, [isStaff]);
+
+  const handleSavePlatformSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isFullAdmin) {
+      showFeedback('error', isAr ? 'صلاحية تعديل إعدادات المنصة مخصصة للمدير العام فقط.' : 'Only full Admins can update platform settings.');
+      return;
+    }
+    setIsSavingSettings(true);
+    soundManager.playClick();
+    try {
+      const saved = await savePlatformSettings({
+        whatsappNumber: settingsWhatsapp,
+        telegramUrl: settingsTelegram,
+        supportEmail: settingsEmail
+      });
+      setSettingsWhatsapp(saved.whatsappNumber);
+      setSettingsTelegram(saved.telegramUrl);
+      setSettingsEmail(saved.supportEmail);
+      setSettingsUpdatedAt(saved.updatedAt);
+      setSettingsUpdatedBy(saved.updatedBy);
+      soundManager.playProfitChime();
+      showFeedback(
+        'success',
+        isAr ? 'تم حفظ روابط التواصل في إعدادات المنصة بنجاح وتحديثها لجميع المستخدمين!' : 'Platform contact settings saved and synced live!'
+      );
+    } catch (err: any) {
+      showFeedback('error', err?.message || (isAr ? 'فشل حفظ الإعدادات في Firestore' : 'Failed to save platform settings'));
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+
+  // ================= REAL-TIME FIRESTORE ACTIVATION KEYS LISTENER =================
+  useEffect(() => {
+    if (!isStaff) return;
+    try {
+      const unsubKeys = onSnapshot(collection(db, 'activation_keys'), (snapshot) => {
+        const keysList: ActivationKeyRecord[] = [];
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          const days = Number(data.durationInDays || 30);
+          keysList.push({
+            id: docSnap.id,
+            code: data.code || docSnap.id,
+            durationInDays: days,
+            durationLabel: data.durationLabel || formatKeyDurationLabel(days),
+            keyType: data.keyType || (data.grantTier === 'elite' ? 'elite' : data.grantTier === 'custom' ? 'trial' : 'vip'),
+            grantTier: data.grantTier || 'vip',
+            grantFeatures: Array.isArray(data.grantFeatures) ? data.grantFeatures : [],
+            status: data.status || 'active',
+            createdAt: data.createdAt || '',
+            createdBy: data.createdBy || '',
+            usedByUserId: data.usedByUserId || '',
+            usedByUserEmail: data.usedByUserEmail || '',
+            usedAt: data.usedAt || ''
+          });
+        });
+        keysList.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+        setActivationKeys(keysList);
+      }, (err) => {
+        console.warn('activation_keys snapshot warning:', err);
+      });
+      return () => unsubKeys();
+    } catch (err) {
+      console.warn('activation_keys listener error:', err);
+    }
+  }, [isStaff]);
+
+  const generateSecureRandomCode = (tag: string): string => {
+    const charset = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const bytes = new Uint8Array(8);
+    if (typeof window !== 'undefined' && window.crypto?.getRandomValues) {
+      window.crypto.getRandomValues(bytes);
+    } else {
+      for (let i = 0; i < 8; i++) bytes[i] = Math.floor(Math.random() * 256);
+    }
+    let suffix = '';
+    for (let i = 0; i < 8; i++) {
+      suffix += charset[bytes[i] % charset.length];
+    }
+    return `MBK-${tag}-${suffix}`;
+  };
+
+  const handleGenerateKey = async () => {
+    const qty = Math.min(200, Math.max(1, Number(bulkKeyQuantity) || 1));
+    setIsGeneratingKey(true);
+    soundManager.playClick();
+    try {
+      let durTag = '30D';
+      if (selectedKeyDays <= 1) durTag = '24H';
+      else if (selectedKeyDays <= 7) durTag = '7D';
+      else if (selectedKeyDays <= 30) durTag = '30D';
+      else if (selectedKeyDays <= 90) durTag = '90D';
+      else if (selectedKeyDays <= 365) durTag = '1Y';
+      else durTag = 'LIFE';
+
+      const tag = bulkKeyTier === 'elite' ? `ELT${durTag}` : durTag;
+      const durationLabel = formatKeyDurationLabel(selectedKeyDays);
+      const existingSet = new Set(activationKeys.map((k) => k.code));
+      const generatedRecords: ActivationKeyRecord[] = [];
+      const createdAtIso = new Date().toISOString();
+      const createdBy = auth.currentUser?.email || 'admin';
+      const batch = writeBatch(db);
+
+      while (generatedRecords.length < qty) {
+        const code = generateSecureRandomCode(tag);
+        if (existingSet.has(code)) continue;
+        existingSet.add(code);
+
+        const record: ActivationKeyRecord = {
+          id: code,
+          code,
+          durationInDays: selectedKeyDays,
+          durationLabel,
+          keyType: bulkKeyTier,
+          grantTier: bulkKeyTier,
+          grantFeatures: [],
+          status: 'active',
+          createdAt: createdAtIso,
+          createdBy
+        };
+
+        batch.set(doc(db, 'activation_keys', code), {
+          code,
+          durationInDays: selectedKeyDays,
+          durationLabel,
+          keyType: bulkKeyTier,
+          grantTier: bulkKeyTier,
+          grantFeatures: [],
+          status: 'active',
+          createdAt: createdAtIso,
+          createdBy
+        });
+        generatedRecords.push(record);
+      }
+
+      await batch.commit();
+      setLastGeneratedBatch(generatedRecords);
+      soundManager.playProfitChime();
+      showFeedback(
+        'success',
+        isAr
+          ? `تم توليد وحفظ ${generatedRecords.length} مفتاح تفعيل ${bulkKeyTier.toUpperCase()} بنجاح!`
+          : `Successfully generated and saved ${generatedRecords.length} single-use ${bulkKeyTier.toUpperCase()} keys!`
+      );
+    } catch (err: any) {
+      console.error('Bulk key generation failed:', err);
+      showFeedback('error', err.message || 'Failed to generate keys');
+    } finally {
+      setIsGeneratingKey(false);
+    }
+  };
+
+  const handleToggleTrialFeature = (key: FeatureKey) => {
+    setTrialSelectedFeatures((prev) =>
+      prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key]
+    );
+  };
+
+  const handleGenerateTrialKeys = async () => {
+    const days = Math.max(1, Math.min(36500, Number(trialDurationDays) || 3));
+    const qty = Math.min(50, Math.max(1, Number(trialQuantity) || 1));
+
+    if (trialTargetMode === 'custom' && trialSelectedFeatures.length === 0) {
+      showFeedback(
+        'error',
+        isAr
+          ? 'يرجى اختيار ميزة واحدة على الأقل للكود التجريبي المخصص.'
+          : 'Please select at least one feature for a custom trial code.'
+      );
+      return;
+    }
+
+    setIsGeneratingTrial(true);
+    soundManager.playClick();
+    try {
+      const tag = trialTargetMode === 'custom' ? `TRIAL${days}D` : `TRIAL${trialTargetMode.toUpperCase()}`;
+      const durationLabel = formatKeyDurationLabel(days);
+      const existingSet = new Set(activationKeys.map((k) => k.code));
+      const generatedRecords: ActivationKeyRecord[] = [];
+      const createdAtIso = new Date().toISOString();
+      const createdBy = auth.currentUser?.email || 'admin';
+      const batch = writeBatch(db);
+      const grantFeaturesList: FeatureKey[] =
+        trialTargetMode === 'custom' ? [...trialSelectedFeatures] : [];
+
+      while (generatedRecords.length < qty) {
+        const code = generateSecureRandomCode(tag);
+        if (existingSet.has(code)) continue;
+        existingSet.add(code);
+
+        const record: ActivationKeyRecord = {
+          id: code,
+          code,
+          durationInDays: days,
+          durationLabel,
+          keyType: 'trial',
+          grantTier: trialTargetMode,
+          grantFeatures: grantFeaturesList,
+          status: 'active',
+          createdAt: createdAtIso,
+          createdBy
+        };
+
+        batch.set(doc(db, 'activation_keys', code), {
+          code,
+          durationInDays: days,
+          durationLabel,
+          keyType: 'trial',
+          grantTier: trialTargetMode,
+          grantFeatures: grantFeaturesList,
+          status: 'active',
+          createdAt: createdAtIso,
+          createdBy
+        });
+        generatedRecords.push(record);
+      }
+
+      await batch.commit();
+      setLastGeneratedTrialBatch(generatedRecords);
+      soundManager.playProfitChime();
+      showFeedback(
+        'success',
+        isAr
+          ? `تم توليد ${generatedRecords.length} كود تجربة مجانية (${durationLabel}) بنجاح!`
+          : `Generated ${generatedRecords.length} trial codes (${durationLabel})!`
+      );
+    } catch (err: any) {
+      console.error('Trial key generation failed:', err);
+      showFeedback('error', err.message || 'Failed to generate trial codes');
+    } finally {
+      setIsGeneratingTrial(false);
+    }
+  };
+
+  const handleDownloadKeysCsv = (keysToExport: ActivationKeyRecord[], filenamePrefix = 'mbk-vip-keys') => {
+    soundManager.playClick();
+    if (!keysToExport.length) {
+      showFeedback('info', isAr ? 'لا توجد مفاتيح متاحة للتصدير' : 'No keys available to export');
+      return;
+    }
+
+    const escapeCsv = (val: string | number | undefined) => {
+      const str = String(val ?? '');
+      return `"${str.replace(/"/g, '""')}"`;
+    };
+
+    const headers = ['Code', 'KeyType', 'GrantTier', 'GrantFeatures', 'DurationDays', 'DurationLabel', 'Status', 'CreatedAt', 'UsedByEmail'];
+    const rows = keysToExport.map((k) =>
+      [
+        escapeCsv(k.code),
+        escapeCsv(k.keyType || 'vip'),
+        escapeCsv(k.grantTier || 'vip'),
+        escapeCsv((k.grantFeatures || []).join(' | ')),
+        escapeCsv(k.durationInDays),
+        escapeCsv(k.durationLabel || formatKeyDurationLabel(k.durationInDays)),
+        escapeCsv(k.status),
+        escapeCsv(k.createdAt || ''),
+        escapeCsv(k.usedByUserEmail || '')
+      ].join(',')
+    );
+
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `${filenamePrefix}-${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDeleteKey = async (code: string) => {
+    soundManager.playClick();
+    try {
+      await deleteDoc(doc(db, 'activation_keys', code));
+      showFeedback('success', isAr ? 'تم حذف المفتاح' : 'Key deleted');
+    } catch (err: any) {
+      showFeedback('error', err.message);
+    }
+  };
+
+  const handleRevokeKey = async (code: string) => {
+    soundManager.playClick();
+    try {
+      await updateDoc(doc(db, 'activation_keys', code), { status: 'revoked' });
+      showFeedback('success', isAr ? 'تم إلغاء تفعيل المفتاح' : 'Key revoked');
+    } catch (err: any) {
+      showFeedback('error', err.message);
+    }
+  };
+
+  const handleCopyKey = (code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedKeyCode(code);
+    soundManager.playClick();
+    setTimeout(() => setCopiedKeyCode(null), 2500);
   };
 
   // ================= REAL-TIME FIRESTORE USER CRM LISTENER =================
@@ -187,10 +607,21 @@ export const AdminDashboard: React.FC<Props> = ({
         snapshot.forEach((docSnap) => {
           const data = docSnap.data();
           const userRole = (data.role || 'free').toString().toUpperCase();
-          const subEndDate = data.subscription_end_date || data.subscriptionEndDate || null;
-          let subStatus = data.subscription_status || data.subscriptionStatus || (userRole === 'VIP' ? 'active' : 'none');
+          const subEndDate = data.eliteExpiryDate || data.vipExpiryDate || data.subscription_end_date || data.subscriptionEndDate || null;
+          const computedTier = getEffectiveTier({
+            role: userRole,
+            tier: data.tier,
+            isVip: data.isVip,
+            vipAccess: data.vipAccess,
+            isElite: data.isElite,
+            vipExpiryDate: data.vipExpiryDate,
+            eliteExpiryDate: data.eliteExpiryDate,
+            subscriptionEndDate: subEndDate,
+            isBanned: Boolean(data.isBanned)
+          });
+          let subStatus = data.subscription_status || data.subscriptionStatus || (computedTier !== 'free' ? 'active' : 'none');
 
-          if (subEndDate && new Date(subEndDate) < new Date() && userRole === 'VIP') {
+          if (subEndDate && new Date(subEndDate) < new Date() && (userRole === 'VIP' || userRole === 'ELITE' || Boolean(data.isVip) || Boolean(data.isElite))) {
             subStatus = 'expired';
           }
 
@@ -200,6 +631,13 @@ export const AdminDashboard: React.FC<Props> = ({
             username: data.email ? data.email.split('@')[0] : docSnap.id.slice(0, 8),
             email: data.email || 'N/A',
             role: userRole,
+            tier: computedTier,
+            isVip: Boolean(data.isVip),
+            vipAccess: Boolean(data.vipAccess),
+            isElite: Boolean(data.isElite),
+            vipExpiryDate: data.vipExpiryDate || null,
+            eliteExpiryDate: data.eliteExpiryDate || null,
+            grantedFeatures: (data.grantedFeatures && typeof data.grantedFeatures === 'object') ? data.grantedFeatures : {},
             displayName: data.displayName || data.email?.split('@')[0] || 'MBK Member',
             avatar: data.avatar || undefined,
             phone: data.phone || '',
@@ -293,12 +731,227 @@ export const AdminDashboard: React.FC<Props> = ({
     }
 
     try {
+      const lowerRole = newRole.toLowerCase();
       const userRef = doc(db, 'users', targetUserId);
-      await updateDoc(userRef, { role: newRole.toLowerCase() });
+      const rolePayload: Record<string, any> = {
+        role: lowerRole === 'elite' ? 'vip' : lowerRole,
+        isVip: lowerRole === 'vip' || lowerRole === 'elite' || lowerRole === 'admin',
+        vipAccess: lowerRole === 'vip' || lowerRole === 'elite' || lowerRole === 'admin',
+        updatedAt: serverTimestamp()
+      };
+      if (lowerRole === 'free') {
+        rolePayload.tier = 'free';
+        rolePayload.isElite = false;
+        rolePayload.vipExpiryDate = null;
+        rolePayload.eliteExpiryDate = null;
+        rolePayload.subscription_status = 'none';
+        rolePayload.subscription_end_date = null;
+      } else if (lowerRole === 'vip') {
+        rolePayload.tier = 'vip';
+        rolePayload.isElite = false;
+        rolePayload.subscription_status = 'active';
+      } else if (lowerRole === 'elite') {
+        rolePayload.tier = 'elite';
+        rolePayload.isElite = true;
+        rolePayload.subscription_status = 'active';
+      }
+      await updateDoc(userRef, rolePayload);
+      setInspectUser((prev) =>
+        prev && prev.id === targetUserId
+          ? {
+              ...prev,
+              role: newRole === 'ELITE' ? 'VIP' : newRole,
+              tier: lowerRole === 'elite' ? 'elite' : lowerRole === 'vip' ? 'vip' : lowerRole === 'admin' ? 'elite' : 'free',
+              isVip: rolePayload.isVip,
+              vipAccess: rolePayload.vipAccess,
+              isElite: Boolean(rolePayload.isElite),
+              subscriptionStatus: rolePayload.subscription_status || prev.subscriptionStatus
+            }
+          : prev
+      );
       soundManager.playProfitChime();
       showFeedback('success', isAr ? `تم تعيين الرتبة إلى ${newRole}` : `Role updated to ${newRole}`);
     } catch (err: any) {
       showFeedback('error', err.message);
+    }
+  };
+
+  // ================= DIRECT TIER GRANT & REVOKE (VIP / ELITE / FREE) =================
+  const computeExpiryIso = (mode: 'days' | 'date', days: number, dateStr: string): string => {
+    if (mode === 'date' && dateStr) {
+      const parsed = new Date(`${dateStr}T23:59:59.000Z`);
+      if (!Number.isNaN(parsed.getTime())) {
+        return parsed.toISOString();
+      }
+    }
+    const safeDays = Math.max(1, Number(days) || 30);
+    return new Date(Date.now() + safeDays * 24 * 60 * 60 * 1000).toISOString();
+  };
+
+  const handleGrantDirectTier = async () => {
+    if (!inspectUser) return;
+    setIsUpdatingTier(true);
+    soundManager.playClick();
+    try {
+      const expiryIso = computeExpiryIso(directTierMode, directTierDays, directTierCustomDate);
+      const isStaffTarget = ['ADMIN', 'MODERATOR', 'SALES'].includes(inspectUser.role.toUpperCase());
+      const nextRoleLower = isStaffTarget ? inspectUser.role.toLowerCase() : 'vip';
+      const isEliteTarget = directTierTarget === 'elite';
+
+      const payload: Record<string, any> = {
+        role: nextRoleLower,
+        tier: directTierTarget,
+        isVip: true,
+        vipAccess: true,
+        isElite: isEliteTarget,
+        vipExpiryDate: expiryIso,
+        eliteExpiryDate: isEliteTarget ? expiryIso : null,
+        subscription_status: 'active',
+        subscription_end_date: expiryIso,
+        updatedAt: serverTimestamp()
+      };
+
+      await updateDoc(doc(db, 'users', inspectUser.id), payload);
+      setInspectUser((prev) =>
+        prev
+          ? {
+              ...prev,
+              role: isStaffTarget ? prev.role : 'VIP',
+              tier: directTierTarget,
+              isVip: true,
+              vipAccess: true,
+              isElite: isEliteTarget,
+              vipExpiryDate: expiryIso,
+              eliteExpiryDate: isEliteTarget ? expiryIso : null,
+              subscriptionStatus: 'active',
+              subscriptionEndDate: expiryIso
+            }
+          : null
+      );
+      soundManager.playProfitChime();
+      showFeedback(
+        'success',
+        isAr
+          ? `تم منح باقة ${directTierTarget.toUpperCase()} حتى ${formatExpiryShort(expiryIso, true)}`
+          : `Granted ${directTierTarget.toUpperCase()} tier until ${formatExpiryShort(expiryIso, false)}`
+      );
+    } catch (err: any) {
+      showFeedback('error', err.message || 'Failed to update tier');
+    } finally {
+      setIsUpdatingTier(false);
+    }
+  };
+
+  const handleRevokeDirectTier = async () => {
+    if (!inspectUser) return;
+    setIsUpdatingTier(true);
+    soundManager.playClick();
+    try {
+      const isStaffTarget = ['ADMIN', 'MODERATOR', 'SALES'].includes(inspectUser.role.toUpperCase());
+      const payload: Record<string, any> = {
+        role: isStaffTarget ? inspectUser.role.toLowerCase() : 'free',
+        tier: 'free',
+        isVip: false,
+        vipAccess: false,
+        isElite: false,
+        vipExpiryDate: null,
+        eliteExpiryDate: null,
+        subscription_status: 'none',
+        subscription_end_date: null,
+        updatedAt: serverTimestamp()
+      };
+
+      await updateDoc(doc(db, 'users', inspectUser.id), payload);
+      setInspectUser((prev) =>
+        prev
+          ? {
+              ...prev,
+              role: isStaffTarget ? prev.role : 'FREE',
+              tier: 'free',
+              isVip: false,
+              vipAccess: false,
+              isElite: false,
+              vipExpiryDate: null,
+              eliteExpiryDate: null,
+              subscriptionStatus: 'none',
+              subscriptionEndDate: null
+            }
+          : null
+      );
+      soundManager.playProfitChime();
+      showFeedback(
+        'success',
+        isAr ? 'تم سحب الباقة وإرجاع الحساب إلى الباقة المجانية' : 'Subscription revoked and downgraded to Free tier'
+      );
+    } catch (err: any) {
+      showFeedback('error', err.message || 'Failed to revoke tier');
+    } finally {
+      setIsUpdatingTier(false);
+    }
+  };
+
+  // ================= INDIVIDUAL FEATURE GRANT / REVOKE =================
+  const handleGrantIndividualFeature = async (featureKey: FeatureKey) => {
+    if (!inspectUser) return;
+    setBusyFeatureKey(featureKey);
+    soundManager.playClick();
+    try {
+      const customDate = featureGrantDates[featureKey];
+      const days = featureGrantDays[featureKey] || 3;
+      const expiryIso = customDate
+        ? computeExpiryIso('date', days, customDate)
+        : computeExpiryIso('days', days, '');
+
+      const nextMap: Partial<Record<FeatureKey, string>> = {
+        ...(inspectUser.grantedFeatures || {}),
+        [featureKey]: expiryIso
+      };
+
+      await updateDoc(doc(db, 'users', inspectUser.id), {
+        grantedFeatures: nextMap,
+        updatedAt: serverTimestamp()
+      });
+
+      setInspectUser((prev) => (prev ? { ...prev, grantedFeatures: nextMap } : null));
+      soundManager.playProfitChime();
+      showFeedback(
+        'success',
+        isAr
+          ? `تم منح ميزة "${getFeatureLabel(featureKey, true)}" حتى ${formatExpiryShort(expiryIso, true)}`
+          : `Granted "${getFeatureLabel(featureKey, false)}" until ${formatExpiryShort(expiryIso, false)}`
+      );
+    } catch (err: any) {
+      showFeedback('error', err.message || 'Failed to grant feature');
+    } finally {
+      setBusyFeatureKey(null);
+    }
+  };
+
+  const handleRevokeIndividualFeature = async (featureKey: FeatureKey) => {
+    if (!inspectUser) return;
+    setBusyFeatureKey(featureKey);
+    soundManager.playClick();
+    try {
+      const nextMap: Partial<Record<FeatureKey, string>> = { ...(inspectUser.grantedFeatures || {}) };
+      delete nextMap[featureKey];
+
+      await updateDoc(doc(db, 'users', inspectUser.id), {
+        grantedFeatures: nextMap,
+        updatedAt: serverTimestamp()
+      });
+
+      setInspectUser((prev) => (prev ? { ...prev, grantedFeatures: nextMap } : null));
+      soundManager.playProfitChime();
+      showFeedback(
+        'success',
+        isAr
+          ? `تم إلغاء صلاحية "${getFeatureLabel(featureKey, true)}"`
+          : `Revoked "${getFeatureLabel(featureKey, false)}" access`
+      );
+    } catch (err: any) {
+      showFeedback('error', err.message || 'Failed to revoke feature');
+    } finally {
+      setBusyFeatureKey(null);
     }
   };
 
@@ -324,10 +977,17 @@ export const AdminDashboard: React.FC<Props> = ({
 
       const userRef = doc(db, 'users', inspectUser.id);
       const nextTotalPaid = (inspectUser.totalPaid || 0) + amountNum;
+      const preserveElite = inspectUser.tier === 'elite' || Boolean(inspectUser.isElite);
 
       await updateDoc(userRef, {
         totalPaid: nextTotalPaid,
         role: 'vip',
+        tier: preserveElite ? 'elite' : 'vip',
+        isVip: true,
+        vipAccess: true,
+        isElite: preserveElite,
+        vipExpiryDate: newEndDate,
+        eliteExpiryDate: preserveElite ? newEndDate : null,
         subscription_status: 'active',
         subscription_end_date: newEndDate,
         updatedAt: serverTimestamp()
@@ -337,8 +997,8 @@ export const AdminDashboard: React.FC<Props> = ({
       showFeedback(
         'success',
         isAr
-          ? `تم تسجيل الدفعة بقيمة $${amountNum} وتجديد اشتراك VIP للحساب بنجاح!`
-          : `Logged $${amountNum} payment and extended VIP access!`
+          ? `تم تسجيل الدفعة بقيمة $${amountNum} وتجديد اشتراك ${preserveElite ? 'Elite' : 'VIP'} للحساب بنجاح!`
+          : `Logged $${amountNum} payment and extended ${preserveElite ? 'Elite' : 'VIP'} access!`
       );
 
       setInspectUser((prev) =>
@@ -347,6 +1007,12 @@ export const AdminDashboard: React.FC<Props> = ({
               ...prev,
               totalPaid: nextTotalPaid,
               role: 'VIP',
+              tier: preserveElite ? 'elite' : 'vip',
+              isVip: true,
+              vipAccess: true,
+              isElite: preserveElite,
+              vipExpiryDate: newEndDate,
+              eliteExpiryDate: preserveElite ? newEndDate : null,
               subscriptionStatus: 'active',
               subscriptionEndDate: newEndDate
             }
@@ -370,14 +1036,17 @@ export const AdminDashboard: React.FC<Props> = ({
 
     if (!matchesSearch) return false;
 
+    const effTier = getEffectiveTier(u);
+
     if (userFilterTab === 'EXPIRING_SOON') {
       if (!u.subscriptionEndDate) return false;
       const endDate = new Date(u.subscriptionEndDate);
       const diffHours = (endDate.getTime() - new Date().getTime()) / (1000 * 60 * 60);
       return diffHours >= -24 && diffHours <= 72;
     }
-    if (userFilterTab === 'VIP') return u.role === 'VIP';
-    if (userFilterTab === 'FREE') return u.role === 'FREE' || u.role === 'STANDARD';
+    if (userFilterTab === 'VIP') return effTier === 'vip' && !['ADMIN', 'MODERATOR', 'SALES'].includes(u.role);
+    if (userFilterTab === 'ELITE') return effTier === 'elite' && !['ADMIN', 'MODERATOR', 'SALES'].includes(u.role);
+    if (userFilterTab === 'FREE') return effTier === 'free' && !['ADMIN', 'MODERATOR', 'SALES'].includes(u.role);
     if (userFilterTab === 'BANNED') return u.isBanned;
     if (userFilterTab === 'MUTED') return u.isMutedFromChat;
     if (userFilterTab === 'STAFF') return ['ADMIN', 'MODERATOR', 'SALES'].includes(u.role);
@@ -387,7 +1056,8 @@ export const AdminDashboard: React.FC<Props> = ({
 
   // Calculate Metrics
   const totalRevenueAll = users.reduce((acc, curr) => acc + (curr.totalPaid || 0), 0);
-  const totalVipCount = users.filter((u) => u.role === 'VIP').length;
+  const totalVipCount = users.filter((u) => getEffectiveTier(u) === 'vip' && !['ADMIN', 'MODERATOR', 'SALES'].includes(u.role)).length;
+  const totalEliteCount = users.filter((u) => getEffectiveTier(u) === 'elite' && !['ADMIN', 'MODERATOR', 'SALES'].includes(u.role)).length;
   const totalBannedCount = users.filter((u) => u.isBanned).length;
 
   // ACCESS DENIED VIEW IF NOT STAFF
@@ -404,8 +1074,8 @@ export const AdminDashboard: React.FC<Props> = ({
           </h2>
           <p className="text-xs text-[#787b86] leading-relaxed mb-6">
             {isAr
-              ? 'لوحة التحكم وإدارة العملاء مقتصرة فقط على رتب (ADMIN, MODERATOR, SALES).'
-              : 'This CRM Dashboard is strictly reserved for Admin, Moderator, and Sales roles.'}
+              ? 'لوحة التحكم وإدارة العملاء مقتصرة فقط على رتب (ADMIN, MODERATOR, SALES, ANALYSER).'
+              : 'This CRM Dashboard is strictly reserved for Admin, Moderator, Sales, and Analyser roles.'}
           </p>
           {onClose && (
             <button
@@ -489,6 +1159,21 @@ export const AdminDashboard: React.FC<Props> = ({
         </button>
 
         <button
+          onClick={() => setActiveTab('keys')}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+            activeTab === 'keys'
+              ? 'bg-[#089981] text-white shadow-md'
+              : 'text-[#787b86] hover:text-white hover:bg-[#2a2e39]'
+          }`}
+        >
+          <Key className="w-4 h-4 text-amber-400" />
+          <span>{isAr ? 'مولد مفاتيح تفعيل VIP' : 'VIP Activation Keys'}</span>
+          <span className="px-1.5 py-0.2 rounded text-[10px] bg-black/30 font-mono">
+            {activationKeys.filter((k) => k.status === 'active').length}
+          </span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('publishing')}
           className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
             activeTab === 'publishing'
@@ -499,6 +1184,20 @@ export const AdminDashboard: React.FC<Props> = ({
           <Zap className="w-4 h-4 text-amber-400" />
           <span>{isAr ? 'مركز نشر التوصيات والصفقات' : 'Publishing Center'}</span>
         </button>
+
+        {isFullAdmin && (
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+              activeTab === 'settings'
+                ? 'bg-[#089981] text-white shadow-md'
+                : 'text-[#787b86] hover:text-white hover:bg-[#2a2e39]'
+            }`}
+          >
+            <Settings className="w-4 h-4 text-cyan-400" />
+            <span>{isAr ? 'إعدادات المنصة' : 'Platform Settings'}</span>
+          </button>
+        )}
       </div>
 
       {/* Main Workspace Body */}
@@ -581,8 +1280,13 @@ export const AdminDashboard: React.FC<Props> = ({
             </div>
 
             <div className="p-4 rounded-2xl bg-[#131722] border border-[#2a2e39] space-y-1">
-              <span className="text-[11px] text-amber-400 font-bold block">{isAr ? 'أعضاء VIP الفاعلون' : 'Active VIP Members'}</span>
-              <div className="text-xl sm:text-2xl font-black text-amber-400 font-mono">{totalVipCount}</div>
+              <span className="text-[11px] text-amber-400 font-bold block">{isAr ? 'أعضاء VIP و Elite' : 'Active VIP / Elite'}</span>
+              <div className="text-xl sm:text-2xl font-black text-amber-400 font-mono">
+                {totalVipCount + totalEliteCount}
+                {totalEliteCount > 0 && (
+                  <span className="text-xs text-purple-300 ms-2">({totalEliteCount} Elite)</span>
+                )}
+              </div>
             </div>
 
             <div className="p-4 rounded-2xl bg-[#131722] border border-[#2a2e39] space-y-1">
@@ -616,7 +1320,7 @@ export const AdminDashboard: React.FC<Props> = ({
 
               {/* Filter Tabs */}
               <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
-                {(['ALL', 'EXPIRING_SOON', 'VIP', 'FREE', 'BANNED', 'MUTED', 'STAFF'] as const).map((tab) => (
+                {(['ALL', 'EXPIRING_SOON', 'VIP', 'ELITE', 'FREE', 'BANNED', 'MUTED', 'STAFF'] as const).map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setUserFilterTab(tab)}
@@ -632,6 +1336,8 @@ export const AdminDashboard: React.FC<Props> = ({
                       ? (isAr ? '⚡ ينتهي قريباً' : 'Expiring Soon')
                       : tab === 'VIP'
                       ? 'VIP'
+                      : tab === 'ELITE'
+                      ? 'ELITE'
                       : tab === 'FREE'
                       ? (isAr ? 'مجاني' : 'Free')
                       : tab === 'BANNED'
@@ -708,29 +1414,46 @@ export const AdminDashboard: React.FC<Props> = ({
                           </span>
                         </td>
 
-                        {/* Role Badge */}
+                        {/* Role & Tier Badge */}
                         <td className="py-3 px-3 font-mono">
-                          {u.role === 'ADMIN' ? (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-400 border border-red-500/40">
-                              ADMIN
-                            </span>
-                          ) : u.role === 'VIP' ? (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/40">
-                              VIP MEMBER
-                            </span>
-                          ) : u.role === 'MODERATOR' ? (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">
-                              MODERATOR
-                            </span>
-                          ) : u.role === 'SALES' ? (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
-                              SALES
-                            </span>
-                          ) : (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#2a2e39] text-[#787b86]">
-                              FREE
-                            </span>
-                          )}
+                          {(() => {
+                            const effTier = getEffectiveTier(u);
+                            const activeTrials = getActiveTrialFeatures(u);
+                            return (
+                              <div className="space-y-1">
+                                {u.role === 'ADMIN' ? (
+                                  <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-400 border border-red-500/40">
+                                    ADMIN
+                                  </span>
+                                ) : u.role === 'MODERATOR' ? (
+                                  <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                                    MODERATOR
+                                  </span>
+                                ) : u.role === 'SALES' ? (
+                                  <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                                    SALES
+                                  </span>
+                                ) : effTier === 'elite' ? (
+                                  <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                                    ELITE ($500)
+                                  </span>
+                                ) : effTier === 'vip' ? (
+                                  <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/40">
+                                    VIP ($100)
+                                  </span>
+                                ) : (
+                                  <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-[#2a2e39] text-[#787b86]">
+                                    FREE ($0)
+                                  </span>
+                                )}
+                                {activeTrials.length > 0 && (
+                                  <span className="block text-[9px] text-cyan-300">
+                                    +{activeTrials.length} {isAr ? 'ميزة مخصصة' : 'Trial Features'}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </td>
 
                         {/* Ban / Mute Toggles */}
@@ -791,15 +1514,674 @@ export const AdminDashboard: React.FC<Props> = ({
             <PublishingCenter lang={lang} currentUserRole={effectiveRole} />
           </div>
         )}
+
+        {/* TAB 3: BULK ACTIVATION KEYS & TRIAL CODE GENERATOR */}
+        {activeTab === 'keys' && (
+          <div className="space-y-6">
+            {/* Bulk VIP / Elite Generator Card */}
+            <div className="p-5 rounded-2xl bg-[#131722] border border-[#2a2e39] shadow-xl space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#2a2e39] pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+                    <Key className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">
+                      {isAr ? 'مولد مفاتيح التفعيل الجماعي (VIP & Elite Key Generator)' : 'Bulk VIP / Elite Activation Key Generator'}
+                    </h3>
+                    <p className="text-xs text-[#787b86]">
+                      {isAr
+                        ? 'أنشئ حتى 200 مفتاح تفعيل عشوائي ذو استخدام واحد لباقات VIP أو Elite مع تصدير CSV فوري'
+                        : 'Generate up to 200 single-use VIP or Elite activation keys with instant CSV export'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 text-[11px] font-mono">
+                  <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-bold">
+                    {activationKeys.filter((k) => k.status === 'active').length} {isAr ? 'متاح' : 'ACTIVE'}
+                  </span>
+                  <span className="px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/30 font-bold">
+                    {activationKeys.filter((k) => k.status === 'used').length} {isAr ? 'مستخدم' : 'USED'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                {/* Target Tier Selector */}
+                <div className="md:col-span-3">
+                  <label className="block text-[11px] font-bold text-[#787b86] mb-1.5">
+                    {isAr ? 'الباقة المستهدفة' : 'Target Tier'}
+                  </label>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {(['vip', 'elite'] as const).map((tierOpt) => (
+                      <button
+                        key={tierOpt}
+                        type="button"
+                        onClick={() => setBulkKeyTier(tierOpt)}
+                        className={`py-2.5 rounded-xl text-xs font-mono font-extrabold uppercase transition-all cursor-pointer border ${
+                          bulkKeyTier === tierOpt
+                            ? tierOpt === 'elite'
+                              ? 'bg-purple-500 text-white border-purple-400 shadow-sm'
+                              : 'bg-amber-500 text-black border-amber-400 shadow-sm'
+                            : 'bg-[#1e222d] text-[#d1d4dc] border-[#2a2e39]'
+                        }`}
+                      >
+                        {tierOpt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Duration Selector */}
+                <div className="md:col-span-3">
+                  <label className="block text-[11px] font-bold text-[#787b86] mb-1.5">
+                    {isAr ? 'مدة الصلاحية للمفاتيح' : 'Key Validity Duration'}
+                  </label>
+                  <select
+                    value={selectedKeyDays}
+                    onChange={(e) => setSelectedKeyDays(Number(e.target.value))}
+                    className="w-full px-4 py-2.5 bg-[#1e222d] border border-[#2a2e39] focus:border-amber-500 rounded-xl text-xs text-white font-mono focus:outline-hidden cursor-pointer"
+                  >
+                    <option value={30}>{isAr ? '30 يوم (شهر واحد)' : '30 Days (1 Month)'}</option>
+                    <option value={90}>{isAr ? '90 يوم (3 أشهر)' : '90 Days (3 Months)'}</option>
+                    <option value={36500}>{isAr ? 'مدى الحياة (Lifetime Access)' : 'Lifetime Access'}</option>
+                    <option value={7}>{isAr ? '7 أيام (أسبوع)' : '7 Days'}</option>
+                    <option value={365}>{isAr ? '365 يوم (سنة كاملة)' : '365 Days (1 Year)'}</option>
+                  </select>
+                </div>
+
+                {/* Quantity Selector */}
+                <div className="md:col-span-3">
+                  <label className="block text-[11px] font-bold text-[#787b86] mb-1.5">
+                    {isAr ? 'عدد المفاتيح (1 إلى 200)' : 'Quantity (1 to 200)'}
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    {[1, 10, 50, 100, 200].map((qty) => (
+                      <button
+                        key={qty}
+                        type="button"
+                        onClick={() => setBulkKeyQuantity(qty)}
+                        className={`flex-1 py-2.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer border ${
+                          bulkKeyQuantity === qty
+                            ? 'bg-amber-500 text-black border-amber-400 shadow-sm'
+                            : 'bg-[#1e222d] text-[#d1d4dc] border-[#2a2e39] hover:border-amber-500/40'
+                        }`}
+                      >
+                        {qty}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Generate Action */}
+                <div className="md:col-span-3">
+                  <button
+                    onClick={handleGenerateKey}
+                    disabled={isGeneratingKey}
+                    className="w-full px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-black font-extrabold text-xs shadow-lg hover:brightness-110 cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 transition-all"
+                  >
+                    {isGeneratingKey ? (
+                      <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4 fill-black" />
+                        <span>
+                          {isAr
+                            ? `توليد ${bulkKeyQuantity} (${bulkKeyTier.toUpperCase()})`
+                            : `Generate ${bulkKeyQuantity} ${bulkKeyTier.toUpperCase()}`}
+                        </span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Newly Generated Batch Download Banner */}
+              {lastGeneratedBatch.length > 0 && (
+                <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-xs font-bold text-emerald-400">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span>
+                      {isAr
+                        ? `الدفعة الأخيرة جاهزة: ${lastGeneratedBatch.length} مفتاح (${lastGeneratedBatch[0]?.grantTier?.toUpperCase()} • ${lastGeneratedBatch[0]?.durationLabel})`
+                        : `Latest batch ready: ${lastGeneratedBatch.length} keys (${lastGeneratedBatch[0]?.grantTier?.toUpperCase()} • ${lastGeneratedBatch[0]?.durationLabel})`}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadKeysCsv(lastGeneratedBatch, `mbk-batch-${lastGeneratedBatch.length}`)}
+                    className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs transition-all cursor-pointer flex items-center gap-1.5 shadow"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>{isAr ? `تحميل الدفعة CSV (${lastGeneratedBatch.length})` : `Download Batch CSV (${lastGeneratedBatch.length})`}</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Trial Code Generator Card */}
+            <div className="p-5 rounded-2xl bg-[#131722] border border-cyan-500/30 shadow-xl space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#2a2e39] pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400">
+                    <Sliders className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">
+                      {isAr ? 'مولد أكواد التجربة المخصصة (Trial Code Generator)' : 'Feature Trial Code Generator'}
+                    </h3>
+                    <p className="text-xs text-[#787b86]">
+                      {isAr
+                        ? 'أنشئ أكواد تفعيل مؤقتة مرتبطة بميزات محددة (مثل إشارات البوت فقط أو الشات) وبمدة مخصصة (3 أيام، 7 أيام...)'
+                        : 'Create single-use trial codes tied to specific features or tiers with custom durations'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+                {/* Trial Target Mode & Feature Checkboxes */}
+                <div className="lg:col-span-6 space-y-3">
+                  <label className="block text-[11px] font-bold text-[#787b86]">
+                    {isAr ? 'نطاق الكود التجريبي' : 'Trial Scope'}
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {([
+                      { id: 'custom', ar: 'ميزات محددة', en: 'Custom Features' },
+                      { id: 'vip', ar: 'تجربة VIP', en: 'VIP Trial' },
+                      { id: 'elite', ar: 'تجربة Elite', en: 'Elite Trial' }
+                    ] as const).map((modeOpt) => (
+                      <button
+                        key={modeOpt.id}
+                        type="button"
+                        onClick={() => setTrialTargetMode(modeOpt.id)}
+                        className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                          trialTargetMode === modeOpt.id
+                            ? 'bg-cyan-500 text-black border-cyan-400 shadow-sm'
+                            : 'bg-[#1e222d] text-[#d1d4dc] border-[#2a2e39] hover:border-cyan-500/40'
+                        }`}
+                      >
+                        {isAr ? modeOpt.ar : modeOpt.en}
+                      </button>
+                    ))}
+                  </div>
+
+                  {trialTargetMode === 'custom' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                      {FEATURE_CATALOG.map((feat) => {
+                        const checked = trialSelectedFeatures.includes(feat.key);
+                        return (
+                          <button
+                            key={feat.key}
+                            type="button"
+                            onClick={() => handleToggleTrialFeature(feat.key)}
+                            className={`p-2.5 rounded-xl border text-start flex items-center justify-between gap-2 transition-all cursor-pointer ${
+                              checked
+                                ? 'bg-cyan-500/15 border-cyan-500/50 text-white'
+                                : 'bg-[#1e222d] border-[#2a2e39] text-[#787b86] hover:text-white'
+                            }`}
+                          >
+                            <span className="text-[11px] font-bold truncate">
+                              {isAr ? feat.labelAr : feat.labelEn}
+                            </span>
+                            <span
+                              className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border ${
+                                checked ? 'bg-cyan-500 border-cyan-400 text-black' : 'border-[#363a45]'
+                              }`}
+                            >
+                              {checked && <Check className="w-3 h-3" />}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Duration & Quantity */}
+                <div className="lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#787b86] mb-1.5">
+                      {isAr ? 'المدة بالأيام (سريعة أو مخصصة)' : 'Trial Duration (Days)'}
+                    </label>
+                    <div className="flex items-center gap-1 mb-2">
+                      {[1, 3, 7, 14, 30].map((d) => (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => setTrialDurationDays(d)}
+                          className={`flex-1 py-1.5 rounded-lg text-[11px] font-mono font-bold border cursor-pointer ${
+                            trialDurationDays === d
+                              ? 'bg-cyan-500 text-black border-cyan-400'
+                              : 'bg-[#1e222d] text-[#d1d4dc] border-[#2a2e39]'
+                          }`}
+                        >
+                          {d}d
+                        </button>
+                      ))}
+                    </div>
+                    <input
+                      type="number"
+                      min={1}
+                      max={3650}
+                      value={trialDurationDays}
+                      onChange={(e) => setTrialDurationDays(Math.max(1, Number(e.target.value) || 1))}
+                      className="w-full px-3 py-2 bg-[#1e222d] border border-[#2a2e39] focus:border-cyan-500 rounded-xl text-xs text-white font-mono focus:outline-hidden"
+                      placeholder="Days"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#787b86] mb-1.5">
+                      {isAr ? 'عدد الأكواد (1 - 50)' : 'Code Quantity (1 - 50)'}
+                    </label>
+                    <div className="flex items-center gap-1 mb-2">
+                      {[1, 5, 10, 25, 50].map((q) => (
+                        <button
+                          key={q}
+                          type="button"
+                          onClick={() => setTrialQuantity(q)}
+                          className={`flex-1 py-1.5 rounded-lg text-[11px] font-mono font-bold border cursor-pointer ${
+                            trialQuantity === q
+                              ? 'bg-cyan-500 text-black border-cyan-400'
+                              : 'bg-[#1e222d] text-[#d1d4dc] border-[#2a2e39]'
+                          }`}
+                        >
+                          {q}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleGenerateTrialKeys}
+                      disabled={isGeneratingTrial}
+                      className="w-full py-2 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-400 text-black font-extrabold text-xs shadow-lg hover:brightness-110 cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      {isGeneratingTrial ? (
+                        <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <Sparkles className="w-4 h-4" />
+                          <span>{isAr ? `توليد ${trialQuantity} كود تجربة` : `Generate ${trialQuantity} Trial Codes`}</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {lastGeneratedTrialBatch.length > 0 && (
+                <div className="p-3.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-xs font-bold text-cyan-300">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span>
+                      {isAr
+                        ? `تم إنشاء ${lastGeneratedTrialBatch.length} كود تجربة (${lastGeneratedTrialBatch[0]?.durationLabel})`
+                        : `Generated ${lastGeneratedTrialBatch.length} trial codes (${lastGeneratedTrialBatch[0]?.durationLabel})`}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadKeysCsv(lastGeneratedTrialBatch, `mbk-trial-codes-${lastGeneratedTrialBatch.length}`)}
+                    className="px-4 py-2 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-black font-extrabold text-xs transition-all cursor-pointer flex items-center gap-1.5 shadow"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>{isAr ? `تحميل أكواد التجربة CSV` : `Download Trial CSV`}</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Keys Database Table */}
+            <div className="bg-[#131722] border border-[#2a2e39] rounded-2xl overflow-hidden shadow-xl p-4 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h4 className="text-xs font-bold text-white flex items-center gap-2">
+                  <Database className="w-4 h-4 text-[#089981]" />
+                  <span>{isAr ? 'سجل مفاتيح التفعيل المولدة' : 'Generated Activation Keys Registry'}</span>
+                  <span className="text-[10px] text-[#787b86] font-mono">
+                    ({activationKeys.length})
+                  </span>
+                </h4>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    type="text"
+                    value={keySearchQuery}
+                    onChange={(e) => setKeySearchQuery(e.target.value)}
+                    placeholder={isAr ? 'بحث بالكود أو البريد...' : 'Filter code or email...'}
+                    className="px-3 py-1.5 bg-[#1e222d] border border-[#2a2e39] focus:border-[#089981] rounded-lg text-[11px] text-white placeholder-[#787b86] focus:outline-hidden font-mono"
+                  />
+
+                  <div className="flex items-center gap-1">
+                    {(['ALL', 'active', 'used', 'revoked'] as const).map((statusTab) => (
+                      <button
+                        key={statusTab}
+                        type="button"
+                        onClick={() => setKeyStatusFilter(statusTab)}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase cursor-pointer transition-all ${
+                          keyStatusFilter === statusTab
+                            ? 'bg-[#089981] text-white'
+                            : 'bg-[#1e222d] text-[#787b86] hover:text-white'
+                        }`}
+                      >
+                        {statusTab}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleDownloadKeysCsv(
+                        activationKeys.filter((k) => k.status === 'active'),
+                        'mbk-active-keys'
+                      )
+                    }
+                    className="px-3 py-1.5 rounded-lg bg-[#1e222d] hover:bg-[#2a2e39] border border-amber-500/40 text-amber-400 font-bold text-[11px] flex items-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>{isAr ? 'تصدير المفاتيح المتاحة CSV' : 'Export Active CSV'}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto max-h-[520px] overflow-y-auto">
+                <table className="w-full text-start text-xs border-collapse">
+                  <thead className="sticky top-0 z-10">
+                    <tr className="border-b border-[#2a2e39] bg-[#181c27] text-[#787b86] font-mono text-[11px]">
+                      <th className="py-3 px-3 text-start">{isAr ? 'كود التفعيل' : 'Key Code'}</th>
+                      <th className="py-3 px-3 text-start">{isAr ? 'الباقة / الميزات' : 'Tier / Scope'}</th>
+                      <th className="py-3 px-3 text-start">{isAr ? 'المدة' : 'Duration'}</th>
+                      <th className="py-3 px-3 text-start">{isAr ? 'الحالة' : 'Status'}</th>
+                      <th className="py-3 px-3 text-start">{isAr ? 'تاريخ الإنشاء' : 'Created Date'}</th>
+                      <th className="py-3 px-3 text-start">{isAr ? 'المستخدم المفعل' : 'Used By'}</th>
+                      <th className="py-3 px-3 text-end">{isAr ? 'الإجراءات' : 'Actions'}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#2a2e39]/50">
+                    {(() => {
+                      const filteredKeys = activationKeys.filter((k) => {
+                        if (keyStatusFilter !== 'ALL' && k.status !== keyStatusFilter) return false;
+                        if (keySearchQuery.trim()) {
+                          const q = keySearchQuery.trim().toLowerCase();
+                          return (
+                            k.code.toLowerCase().includes(q) ||
+                            (k.usedByUserEmail || '').toLowerCase().includes(q)
+                          );
+                        }
+                        return true;
+                      });
+
+                      if (filteredKeys.length === 0) {
+                        return (
+                          <tr>
+                            <td colSpan={7} className="py-8 text-center text-[#787b86] italic">
+                              {isAr ? 'لا يوجد مفاتيح مطابقة للفلتر الحالي.' : 'No activation keys match current filter.'}
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      return filteredKeys.map((k) => (
+                        <tr key={k.id} className="hover:bg-[#1e222d]/60 transition-colors">
+                          {/* Code */}
+                          <td className="py-3 px-3 font-mono font-bold">
+                            <div className="flex items-center gap-2">
+                              <span className="text-amber-400 bg-amber-500/10 px-2 py-1 rounded border border-amber-500/30">
+                                {k.code}
+                              </span>
+                              <button
+                                onClick={() => handleCopyKey(k.code)}
+                                className="p-1.5 rounded-lg bg-[#2a2e39] hover:bg-[#363a45] text-[#787b86] hover:text-white transition-colors cursor-pointer"
+                                title="Copy Code"
+                              >
+                                {copiedKeyCode === k.code ? (
+                                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                ) : (
+                                  <Copy className="w-3.5 h-3.5" />
+                                )}
+                              </button>
+                            </div>
+                          </td>
+
+                          {/* Scope */}
+                          <td className="py-3 px-3 font-mono">
+                            {k.grantTier === 'elite' ? (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                                ELITE {k.keyType === 'trial' ? 'TRIAL' : ''}
+                              </span>
+                            ) : k.grantTier === 'custom' ? (
+                              <div className="flex flex-wrap gap-1">
+                                {(k.grantFeatures || []).map((f) => (
+                                  <span
+                                    key={f}
+                                    className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30"
+                                  >
+                                    {f}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/40">
+                                VIP {k.keyType === 'trial' ? 'TRIAL' : ''}
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Duration */}
+                          <td className="py-3 px-3 font-mono text-white">
+                            {k.durationInDays >= 36500
+                              ? (isAr ? 'مدى الحياة' : 'Lifetime')
+                              : `${k.durationInDays} ${isAr ? 'يوم' : 'Days'}`}
+                          </td>
+
+                          {/* Status */}
+                          <td className="py-3 px-3 font-mono">
+                            {k.status === 'active' ? (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
+                                ACTIVE
+                              </span>
+                            ) : k.status === 'used' ? (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-400 border border-blue-500/40">
+                                USED
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-400 border border-red-500/40">
+                                REVOKED
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Date */}
+                          <td className="py-3 px-3 font-mono text-[#787b86] text-[11px]">
+                            {k.createdAt ? new Date(k.createdAt).toLocaleDateString() : '—'}
+                          </td>
+
+                          {/* Used By */}
+                          <td className="py-3 px-3 font-mono text-xs text-white">
+                            {k.usedByUserEmail ? (
+                              <span className="text-emerald-400 text-[11px] truncate block">{k.usedByUserEmail}</span>
+                            ) : (
+                              <span className="text-[#787b86] italic text-[11px]">—</span>
+                            )}
+                          </td>
+
+                          {/* Actions */}
+                          <td className="py-3 px-3 text-end">
+                            <div className="flex items-center justify-end gap-1.5">
+                              {k.status === 'active' && (
+                                <button
+                                  onClick={() => handleRevokeKey(k.code)}
+                                  className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/40 font-bold text-[10px] transition-colors cursor-pointer"
+                                >
+                                  {isAr ? 'إلغاء' : 'Revoke'}
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleDeleteKey(k.code)}
+                                className="p-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/40 transition-colors cursor-pointer"
+                                title="Delete Key"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ));
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: PLATFORM SETTINGS (Dynamic WhatsApp, Telegram & Support Contact Links) */}
+        {activeTab === 'settings' && isFullAdmin && (
+          <div className="max-w-3xl mx-auto space-y-6">
+            <div className="p-5 sm:p-6 rounded-2xl bg-[#131722] border border-[#2a2e39] shadow-xl space-y-5">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#2a2e39] pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-cyan-500/15 border border-cyan-500/40 flex items-center justify-center text-cyan-400">
+                    <Settings className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white">
+                      {isAr ? 'إعدادات روابط الدعم والتواصل (Platform Settings)' : 'Platform Contact & Support Settings'}
+                    </h3>
+                    <p className="text-xs text-[#787b86]">
+                      {isAr
+                        ? 'تحديث رقم الواتساب ورابط قناة/دعم التيليجرام المباشر في قاعدة البيانات لجميع نوافذ الاشتراك والدعم'
+                        : 'Configure your live WhatsApp number and Telegram link stored in Firestore (settings/platform)'}
+                    </p>
+                  </div>
+                </div>
+                {settingsUpdatedAt && (
+                  <span className="text-[11px] font-mono text-[#787b86] bg-[#1e222d] px-2.5 py-1 rounded-lg border border-[#2a2e39]">
+                    {isAr ? 'آخر تحديث:' : 'Updated:'} {new Date(settingsUpdatedAt).toLocaleString()}
+                  </span>
+                )}
+              </div>
+
+              <form onSubmit={handleSavePlatformSettings} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* WhatsApp Number */}
+                  <div className="p-4 rounded-xl bg-[#181c27] border border-[#2a2e39] space-y-2">
+                    <label className="flex items-center gap-2 text-xs font-bold text-white">
+                      <MessageCircle className="w-4 h-4 text-[#25D366]" />
+                      <span>{isAr ? 'رقم الواتساب الرسمي (مع رمز الدولة)' : 'Official WhatsApp Number (with country code)'}</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={settingsWhatsapp}
+                      onChange={(e) => setSettingsWhatsapp(e.target.value)}
+                      placeholder="+971501234567"
+                      dir="ltr"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#131722] border border-[#2a2e39] focus:border-[#25D366] text-xs font-mono text-white placeholder-[#5d606b] focus:outline-hidden"
+                    />
+                    <p className="text-[11px] text-[#787b86]">
+                      {isAr
+                        ? 'أدخل الرقم الدولي كاملاً بدون مسافات زائدة (مثال: +971501234567).'
+                        : 'Enter international number (e.g., +971501234567). Used for Contact Support links.'}
+                    </p>
+                    {buildWhatsAppUrl(settingsWhatsapp) && (
+                      <a
+                        href={buildWhatsAppUrl(settingsWhatsapp)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-[11px] font-mono text-[#25D366] hover:underline"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        <span>{buildWhatsAppUrl(settingsWhatsapp)}</span>
+                      </a>
+                    )}
+                  </div>
+
+                  {/* Telegram Link */}
+                  <div className="p-4 rounded-xl bg-[#181c27] border border-[#2a2e39] space-y-2">
+                    <label className="flex items-center gap-2 text-xs font-bold text-white">
+                      <Send className="w-4 h-4 text-[#229ED9]" />
+                      <span>{isAr ? 'رابط أو معرف قناة التيليجرام' : 'Telegram Channel / Support Link'}</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={settingsTelegram}
+                      onChange={(e) => setSettingsTelegram(e.target.value)}
+                      placeholder="https://t.me/your_channel or @your_handle"
+                      dir="ltr"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#131722] border border-[#2a2e39] focus:border-[#229ED9] text-xs font-mono text-white placeholder-[#5d606b] focus:outline-hidden"
+                    />
+                    <p className="text-[11px] text-[#787b86]">
+                      {isAr
+                        ? 'يمكنك إدخال الرابط الكامل https://t.me/... أو معرف القناة @handle.'
+                        : 'Paste a full https://t.me/... URL or @handle — normalized automatically.'}
+                    </p>
+                    {normalizeTelegramUrl(settingsTelegram) && (
+                      <a
+                        href={normalizeTelegramUrl(settingsTelegram)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-[11px] font-mono text-[#229ED9] hover:underline"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        <span>
+                          {formatTelegramHandle(settingsTelegram)} ({normalizeTelegramUrl(settingsTelegram)})
+                        </span>
+                      </a>
+                    )}
+                  </div>
+                </div>
+
+                {/* Support Email */}
+                <div className="p-4 rounded-xl bg-[#181c27] border border-[#2a2e39] space-y-2">
+                  <label className="flex items-center gap-2 text-xs font-bold text-white">
+                    <Globe className="w-4 h-4 text-[#089981]" />
+                    <span>{isAr ? 'البريد الإلكتروني الرسمي للدعم' : 'Official Support Email'}</span>
+                  </label>
+                  <input
+                    type="email"
+                    value={settingsEmail}
+                    onChange={(e) => setSettingsEmail(e.target.value)}
+                    placeholder="support@mbktrading.live"
+                    dir="ltr"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#131722] border border-[#2a2e39] focus:border-[#089981] text-xs font-mono text-white placeholder-[#5d606b] focus:outline-hidden"
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+                  <div className="text-[11px] text-[#787b86] font-mono">
+                    {settingsUpdatedBy
+                      ? `${isAr ? 'آخر تعديل بواسطة:' : 'Last saved by:'} ${settingsUpdatedBy}`
+                      : (isAr ? 'المستند الهدف: settings/platform' : 'Target document: settings/platform')}
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isSavingSettings}
+                    className="px-6 py-2.5 rounded-xl bg-[#089981] hover:bg-[#07806c] disabled:opacity-50 text-white font-extrabold text-xs transition-all cursor-pointer flex items-center gap-2 shadow-lg"
+                  >
+                    {isSavingSettings ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4" />
+                    )}
+                    <span>{isAr ? 'حفظ إعدادات المنصة' : 'Save Platform Settings'}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ========================================================================= */}
-      {/* 3. DETAILED PROFILE INSPECTOR & MANUAL PAYMENT CRM MODAL */}
+      {/* 3. DETAILED PROFILE INSPECTOR, GRANULAR ACCESS & PAYMENT CRM MODAL */}
       {/* ========================================================================= */}
       {inspectUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in select-none">
           <div
-            className="bg-[#1e222d] border border-[#2a2e39] rounded-3xl w-full max-w-xl overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh]"
+            className="bg-[#1e222d] border border-[#2a2e39] rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl relative flex flex-col max-h-[92vh]"
             dir={isAr ? 'rtl' : 'ltr'}
           >
             {/* Modal Header */}
@@ -812,7 +2194,9 @@ export const AdminDashboard: React.FC<Props> = ({
                   <h3 className="text-sm font-bold text-white">
                     {isAr ? `ملف العميل: ${inspectUser.displayName}` : `CRM Inspector: ${inspectUser.displayName}`}
                   </h3>
-                  <p className="text-[10px] text-[#787b86] font-mono">UID: {inspectUser.id}</p>
+                  <p className="text-[10px] text-[#787b86] font-mono">
+                    UID: {inspectUser.id} • {getEffectiveTier(inspectUser).toUpperCase()}
+                  </p>
                 </div>
               </div>
 
@@ -827,7 +2211,7 @@ export const AdminDashboard: React.FC<Props> = ({
             {/* Modal Body */}
             <div className="p-5 overflow-y-auto space-y-4">
               {/* Core Details Grid */}
-              <div className="grid grid-cols-2 gap-3 p-4 rounded-2xl bg-[#131722] border border-[#2a2e39] text-xs">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 rounded-2xl bg-[#131722] border border-[#2a2e39] text-xs">
                 <div>
                   <span className="text-[#787b86] text-[10px] block">{isAr ? 'البريد الإلكتروني' : 'Email'}</span>
                   <span className="font-bold text-white font-mono truncate block">{inspectUser.email}</span>
@@ -839,20 +2223,21 @@ export const AdminDashboard: React.FC<Props> = ({
                 </div>
 
                 <div>
+                  <span className="text-[#787b86] text-[10px] block">{isAr ? 'الباقة الحالية' : 'Current Tier'}</span>
+                  <span className="font-bold text-amber-400 font-mono block uppercase">
+                    {getEffectiveTier(inspectUser)}
+                    {inspectUser.subscriptionEndDate ? ` (${formatExpiryShort(inspectUser.subscriptionEndDate, isAr)})` : ''}
+                  </span>
+                </div>
+
+                <div>
                   <span className="text-[#787b86] text-[10px] block">{isAr ? 'الدولة' : 'Country'}</span>
                   <span className="font-bold text-white block">{inspectUser.country || 'Global'}</span>
                 </div>
 
                 <div>
                   <span className="text-[#787b86] text-[10px] block">{isAr ? 'مستوى الخبرة' : 'Experience'}</span>
-                  <span className="font-bold text-amber-400 block">{inspectUser.experienceLevel || 'Beginner'}</span>
-                </div>
-
-                <div>
-                  <span className="text-[#787b86] text-[10px] block">{isAr ? 'الأصول المفضلة' : 'Preferred Assets'}</span>
-                  <span className="font-bold text-white block truncate">
-                    {inspectUser.assetClasses && inspectUser.assetClasses.length > 0 ? inspectUser.assetClasses.join(', ') : 'Indices, Forex'}
-                  </span>
+                  <span className="font-bold text-cyan-300 block">{inspectUser.experienceLevel || 'Beginner'}</span>
                 </div>
 
                 <div>
@@ -861,16 +2246,217 @@ export const AdminDashboard: React.FC<Props> = ({
                 </div>
               </div>
 
+              {/* Direct Tier Grant / Revoke Controls (VIP / Elite with Custom Expiration) */}
+              <div className="p-4 rounded-2xl bg-[#131722] border border-purple-500/30 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs font-bold text-white flex items-center gap-2">
+                    <Gem className="w-4 h-4 text-purple-400" />
+                    <span>{isAr ? 'منح أو سحب الباقة مباشرة (VIP / Elite)' : 'Direct Tier Grant / Revoke (VIP / Elite)'}</span>
+                  </span>
+                  <span className="text-[10px] font-mono text-[#787b86]">
+                    {isAr ? 'تحديد المدة أو تاريخ الانتهاء' : 'Custom days or expiry date'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  {(['vip', 'elite'] as const).map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setDirectTierTarget(t)}
+                      className={`py-2 px-3 rounded-xl text-xs font-extrabold uppercase border cursor-pointer transition-all ${
+                        directTierTarget === t
+                          ? t === 'elite'
+                            ? 'bg-purple-500 text-white border-purple-400 shadow-sm'
+                            : 'bg-amber-500 text-black border-amber-400 shadow-sm'
+                          : 'bg-[#1e222d] text-[#d1d4dc] border-[#2a2e39]'
+                      }`}
+                    >
+                      {t === 'elite' ? 'ELITE ($500)' : 'VIP ($100)'}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setDirectTierMode('days')}
+                    className={`px-3 py-1.5 rounded-lg text-[11px] font-bold border cursor-pointer ${
+                      directTierMode === 'days'
+                        ? 'bg-[#089981] text-white border-[#089981]'
+                        : 'bg-[#1e222d] text-[#787b86] border-[#2a2e39]'
+                    }`}
+                  >
+                    {isAr ? 'بالأيام' : 'By Days'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDirectTierMode('date')}
+                    className={`px-3 py-1.5 rounded-lg text-[11px] font-bold border cursor-pointer ${
+                      directTierMode === 'date'
+                        ? 'bg-[#089981] text-white border-[#089981]'
+                        : 'bg-[#1e222d] text-[#787b86] border-[#2a2e39]'
+                    }`}
+                  >
+                    {isAr ? 'بتاريخ مخصص' : 'Custom Date'}
+                  </button>
+
+                  {directTierMode === 'days' ? (
+                    <div className="flex flex-wrap items-center gap-1.5 flex-1">
+                      {[3, 7, 30, 90, 36500].map((d) => (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => setDirectTierDays(d)}
+                          className={`px-2.5 py-1.5 rounded-lg text-[11px] font-mono font-bold border cursor-pointer ${
+                            directTierDays === d
+                              ? 'bg-amber-500 text-black border-amber-400'
+                              : 'bg-[#1e222d] text-[#d1d4dc] border-[#2a2e39]'
+                          }`}
+                        >
+                          {d >= 36500 ? (isAr ? 'دائم' : 'Life') : `${d}d`}
+                        </button>
+                      ))}
+                      <input
+                        type="number"
+                        min={1}
+                        max={36500}
+                        value={directTierDays}
+                        onChange={(e) => setDirectTierDays(Math.max(1, Number(e.target.value) || 1))}
+                        className="w-20 px-2.5 py-1.5 bg-[#1e222d] border border-[#2a2e39] rounded-lg text-xs text-white font-mono"
+                      />
+                    </div>
+                  ) : (
+                    <input
+                      type="date"
+                      value={directTierCustomDate}
+                      onChange={(e) => setDirectTierCustomDate(e.target.value)}
+                      className="flex-1 px-3 py-1.5 bg-[#1e222d] border border-[#2a2e39] rounded-lg text-xs text-white font-mono"
+                    />
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                  <button
+                    type="button"
+                    disabled={isUpdatingTier}
+                    onClick={handleGrantDirectTier}
+                    className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#089981] to-emerald-500 text-white font-extrabold text-xs shadow-md hover:brightness-110 cursor-pointer disabled:opacity-50"
+                  >
+                    {isAr ? `منح صلاحية ${directTierTarget.toUpperCase()}` : `Grant ${directTierTarget.toUpperCase()} Access`}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isUpdatingTier}
+                    onClick={handleRevokeDirectTier}
+                    className="py-2.5 px-4 rounded-xl bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/40 font-extrabold text-xs cursor-pointer disabled:opacity-50"
+                  >
+                    {isAr ? 'سحب الباقة والعودة للمجاني (Free)' : 'Revoke Tier to Free ($0)'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Individual Feature Access Controls (Bot Signals, VIP Signals, VIP Chat, Standard AI) */}
+              <div className="p-4 rounded-2xl bg-[#131722] border border-cyan-500/30 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-white flex items-center gap-2">
+                    <Sliders className="w-4 h-4 text-cyan-400" />
+                    <span>{isAr ? 'التحكم الفردي في الميزات (تجربة / صلاحية مخصصة)' : 'Individual Feature Grants & Custom Expiry'}</span>
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  {FEATURE_CATALOG.map((feat) => {
+                    const currentExpiry = inspectUser.grantedFeatures?.[feat.key];
+                    const isGrantActive = Boolean(currentExpiry && new Date(currentExpiry).getTime() > Date.now());
+                    const isBusy = busyFeatureKey === feat.key;
+                    return (
+                      <div
+                        key={feat.key}
+                        className="p-3 rounded-xl bg-[#1e222d] border border-[#2a2e39] flex flex-col gap-2"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <div className="text-xs font-bold text-white">
+                              {isAr ? feat.labelAr : feat.labelEn}
+                            </div>
+                            <div className="text-[10px] font-mono">
+                              {isGrantActive ? (
+                                <span className="text-emerald-400">
+                                  {isAr ? 'مفعّلة حتى: ' : 'Granted until: '}
+                                  {formatExpiryShort(currentExpiry, isAr)}
+                                </span>
+                              ) : (
+                                <span className="text-[#787b86]">
+                                  {isAr ? 'غير مفعّلة كصلاحية فردية' : 'No active individual grant'}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="number"
+                              min={1}
+                              max={3650}
+                              value={featureGrantDays[feat.key] || 3}
+                              onChange={(e) =>
+                                setFeatureGrantDays((prev) => ({
+                                  ...prev,
+                                  [feat.key]: Math.max(1, Number(e.target.value) || 1)
+                                }))
+                              }
+                              className="w-16 px-2 py-1 bg-[#131722] border border-[#2a2e39] rounded-lg text-[11px] text-white font-mono"
+                              title={isAr ? 'عدد الأيام' : 'Days'}
+                            />
+                            <input
+                              type="date"
+                              value={featureGrantDates[feat.key] || ''}
+                              onChange={(e) =>
+                                setFeatureGrantDates((prev) => ({
+                                  ...prev,
+                                  [feat.key]: e.target.value
+                                }))
+                              }
+                              className="px-2 py-1 bg-[#131722] border border-[#2a2e39] rounded-lg text-[10px] text-white font-mono"
+                              title={isAr ? 'تاريخ انتهاء مخصص' : 'Custom expiry date'}
+                            />
+                            <button
+                              type="button"
+                              disabled={isBusy}
+                              onClick={() => handleGrantIndividualFeature(feat.key)}
+                              className="px-2.5 py-1 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-black font-extrabold text-[11px] cursor-pointer disabled:opacity-50"
+                            >
+                              {isAr ? 'منح' : 'Grant'}
+                            </button>
+                            {isGrantActive && (
+                              <button
+                                type="button"
+                                disabled={isBusy}
+                                onClick={() => handleRevokeIndividualFeature(feat.key)}
+                                className="px-2.5 py-1 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/40 font-bold text-[11px] cursor-pointer disabled:opacity-50"
+                              >
+                                {isAr ? 'سحب' : 'Revoke'}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Role Setter Controls */}
               <div className="p-4 rounded-2xl bg-[#131722] border border-[#2a2e39] space-y-2">
-                <span className="text-xs font-bold text-white block">{isAr ? 'تعيين رتبة العضوية' : 'Change User Role'}</span>
+                <span className="text-xs font-bold text-white block">{isAr ? 'تعيين رتبة العضوية والطاقم' : 'Change User Role'}</span>
                 <div className="flex flex-wrap items-center gap-2">
-                  {(['FREE', 'VIP', 'SALES', 'MODERATOR', 'ADMIN'] as const).map((r) => (
+                  {(['FREE', 'VIP', 'ELITE', 'SALES', 'MODERATOR', 'ADMIN'] as const).map((r) => (
                     <button
                       key={r}
                       onClick={() => handleSetRole(inspectUser.id, r)}
                       className={`px-3 py-1 rounded-xl text-xs font-bold cursor-pointer transition-all ${
-                        inspectUser.role === r
+                        (r === 'ELITE' ? inspectUser.tier === 'elite' : inspectUser.role === r && !(r === 'VIP' && inspectUser.tier === 'elite'))
                           ? 'bg-[#089981] text-white shadow-md'
                           : 'bg-[#1e222d] text-[#787b86] hover:text-white border border-[#2a2e39]'
                       }`}
@@ -885,7 +2471,7 @@ export const AdminDashboard: React.FC<Props> = ({
               <form onSubmit={handleLogManualPayment} className="p-4 rounded-2xl bg-gradient-to-br from-[#131722] to-[#181c27] border border-amber-500/30 space-y-3">
                 <div className="flex items-center gap-2 text-amber-400 font-bold text-xs">
                   <DollarSign className="w-4 h-4" />
-                  <span>{isAr ? 'تسجيل دفعة تفعيل وتجديد عضوية VIP' : 'Log Manual Payment & Renew VIP'}</span>
+                  <span>{isAr ? 'تسجيل دفعة تفعيل وتجديد العضوية' : 'Log Manual Payment & Renew Subscription'}</span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -897,7 +2483,7 @@ export const AdminDashboard: React.FC<Props> = ({
                       type="number"
                       value={paymentAmountInput}
                       onChange={(e) => setPaymentAmountInput(e.target.value)}
-                      placeholder="299"
+                      placeholder="100"
                       className="w-full px-3 py-2 bg-[#1e222d] border border-[#2a2e39] rounded-xl text-xs text-white font-mono focus:outline-hidden"
                       required
                     />
@@ -931,7 +2517,7 @@ export const AdminDashboard: React.FC<Props> = ({
                   ) : (
                     <>
                       <Crown className="w-4 h-4 fill-black" />
-                      <span>{isAr ? 'تسجيل الدفعة وتمديد VIP' : 'Log Payment & Extend VIP'}</span>
+                      <span>{isAr ? 'تسجيل الدفعة وتمديد الاشتراك' : 'Log Payment & Extend Access'}</span>
                     </>
                   )}
                 </button>
