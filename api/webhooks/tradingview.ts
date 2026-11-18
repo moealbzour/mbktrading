@@ -24,17 +24,31 @@ type Res = ServerResponse & {
 };
 
 function loadFirebaseConfig(): Record<string, any> {
+  const fallbackConfig = {
+    projectId: 'mbktrading-8dc98',
+    firestoreDatabaseId: 'ai-studio-mbktrading-5c717851-cdb4-4a97-a0f4-f006f13d6c7b',
+    apiKey: 'AIzaSyCgNCyANwJ9CJmTJX0HKH-ssGHlfktF0L8',
+    authDomain: 'mbktrading-8dc98.firebaseapp.com',
+    storageBucket: 'mbktrading-8dc98.firebasestorage.app',
+    messagingSenderId: '517824449905',
+    appId: '1:517824449905:web:7c51ad7b5008b33a8f7ad0'
+  };
+
   const candidates = [
     path.resolve(process.cwd(), 'firebase-applet-config.json'),
     path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../firebase-applet-config.json'),
     path.resolve(__dirname, '../../firebase-applet-config.json')
   ];
   for (const filePath of candidates) {
-    if (fs.existsSync(filePath)) {
-      return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    try {
+      if (fs.existsSync(filePath)) {
+        return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+      }
+    } catch {
+      // ignore read error
     }
   }
-  throw new Error('firebase-applet-config.json not found');
+  return fallbackConfig;
 }
 
 function getAdminDb() {
