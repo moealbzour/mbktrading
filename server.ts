@@ -126,12 +126,55 @@ app.get(['/api/tradingview/ideas', '/api/ideas', '/api/ideas/:symbol'], async (r
 // ==========================================
 // 3. TRADINGVIEW WEBHOOK ALERTS RECEIVER (Open by design for Pine Script alerts)
 // ==========================================
-app.get(['/api/webhooks/tradingview', '/api/webhook/tradingview'], (_req, res) => {
+app.get(['/api/webhooks/tradingview', '/api/webhook/tradingview'], async (req, res) => {
+  const queryMsg =
+    (typeof req.query.msg === 'string' && req.query.msg) ||
+    (typeof req.query.text === 'string' && req.query.text) ||
+    (typeof req.query.alert === 'string' && req.query.alert) ||
+    '';
+  const isTest =
+    Boolean(queryMsg) ||
+    req.query.test !== undefined ||
+    req.query.test1 !== undefined;
+
+  if (isTest) {
+    try {
+      const text =
+        (queryMsg && queryMsg.trim()) ||
+        'BUY US100 @ 21450 - TP1: 21550 SL: 21350 [Test Webhook Alert via Browser]';
+      const nowMs = Date.now();
+      const randomSuffix = Math.random()
+        .toString(36)
+        .slice(2, 8)
+        .replace(/[^a-z0-9]/g, '0')
+        .padEnd(4, '0');
+      const alertId = `alert-${nowMs}-${randomSuffix}`;
+      const timestamp = new Date(nowMs).toISOString();
+      const alertDoc = {
+        id: alertId,
+        text: text.slice(0, 2000),
+        chat_id: null,
+        timestamp,
+        timestampMs: nowMs
+      };
+      await saveBotAlertToFirestore(alertDoc);
+      return res.status(200).json({
+        success: true,
+        message: 'Test TradingView webhook alert generated and saved to bot_alerts successfully! Check your app.',
+        alertId,
+        text: alertDoc.text,
+        timestamp
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err?.message || 'Error generating test alert' });
+    }
+  }
+
   res.status(200).json({
     ok: true,
     endpoint: '/api/webhooks/tradingview',
-    method: 'POST',
-    message: 'MBK TradingView Webhook Receiver is active. Send POST JSON or plain text alerts to this URL.'
+    method: 'POST / GET (with ?test=1 or ?test1 or ?msg=...)',
+    message: 'MBK TradingView Webhook Receiver is active. Send POST JSON/text alerts from TradingView, or open this URL with ?test=1 to trigger an instant test alert.'
   });
 });
 

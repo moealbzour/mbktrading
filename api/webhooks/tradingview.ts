@@ -1,71 +1,125 @@
 import type { IncomingMessage, ServerResponse } from 'http';
 import fs from 'fs';
 import path from 'path';
-import {
-  initializeApp as initAdminApp,
-  getApps as getAdminApps,
-  getApp as getAdminApp,
-  applicationDefault
-} from 'firebase-admin/app';
-import { getFirestore as getAdminFirestore } from 'firebase-admin/firestore';
+import { fileURLToPath } from 'url';
 import { initializeApp as initClientApp, getApps as getClientApps } from 'firebase/app';
 import { getFirestore as getClientFirestore, doc, setDoc } from 'firebase/firestore';
 
 type Req = IncomingMessage & {
   method?: string;
   body?: any;
+  query?: Record<string, any>;
   headers: Record<string, string | string[] | undefined>;
   url?: string;
 };
 
 type Res = ServerResponse & {
-  status: (code: number) => Res;
-  json: (data: any) => void;
+  status?: (code: number) => Res;
+  json?: (data: any) => void;
 };
 
-function loadFirebaseConfig(): Record<string, any> {
-  const fallbackConfig = {
-    projectId: 'mbktrading-8dc98',
-    firestoreDatabaseId: 'ai-studio-mbktrading-5c717851-cdb4-4a97-a0f4-f006f13d6c7b',
-    apiKey: 'AIzaSyCgNCyANwJ9CJmTJX0HKH-ssGHlfktF0L8',
-    authDomain: 'mbktrading-8dc98.firebaseapp.com',
-    storageBucket: 'mbktrading-8dc98.firebasestorage.app',
-    messagingSenderId: '517824449905',
-    appId: '1:517824449905:web:7c51ad7b5008b33a8f7ad0'
-  };
+const FALLBACK_FIREBASE_CONFIG = {
+  projectId: 'mbktrading-8dc98',
+  firestoreDatabaseId: 'ai-studio-mbktrading-5c717851-cdb4-4a97-a0f4-f006f13d6c7b',
+  apiKey: 'AIzaSyCgNCyANwJ9CJmTJX0HKH-ssGHlfktF0L8',
+  authDomain: 'mbktrading-8dc98.firebaseapp.com',
+  storageBucket: 'mbktrading-8dc98.firebasestorage.app',
+  messagingSenderId: '517824449905',
+  appId: '1:517824449905:web:7c51ad7b5008b33a8f7ad0'
+};
 
-  const candidates = [
-    path.resolve(process.cwd(), 'firebase-applet-config.json'),
-    path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../firebase-applet-config.json'),
-    path.resolve(__dirname, '../../firebase-applet-config.json')
-  ];
-  for (const filePath of candidates) {
+function loadFirebaseConfig(): typeof FALLBACK_FIREBASE_CONFIG {
+  try {
+    const candidates: string[] = [path.resolve(process.cwd(), 'firebase-applet-config.json')];
     try {
-      if (fs.existsSync(filePath)) {
-        return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-      }
+      const currentDir = path.dirname(fileURLToPath(import.meta.url));
+      candidates.push(path.resolve(currentDir, '../../firebase-applet-config.json'));
     } catch {
-      // ignore read error
+      // ignore if import.meta.url is unavailable
     }
+
+    for (const filePath of candidates) {
+      if (fs.existsSync(filePath)) {
+        const parsed = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+        if (parsed && parsed.projectId && parsed.apiKey) {
+          return { ...FALLBACK_FIREBASE_CONFIG, ...parsed };
+        }
+      }
+    }
+  } catch {
+    // fallback to embedded config
   }
-  return fallbackConfig;
+  return FALLBACK_FIREBASE_CONFIG;
 }
 
-function getAdminDb() {
-  const config = loadFirebaseConfig();
-  const adminApp = !getAdminApps().length
-    ? initAdminApp({
-        credential: applicationDefault(),
-        projectId: config.projectId
-      })
-    : getAdminApp();
+interface BotAlertDoc {
+  id: string;
+  text: string;
+  chat_id: string | null;
+  timestamp: string;
+  timestampMs: number;
+}
 
-  const db =
+/**
+ * Writes the bot alert to the named Firestore database using the stateless Firestore REST API first
+ * (ideal for Vercel serverless functions and guarantees integerValue for timestampMs in firestore.rules),
+ * with an automatic fallback to the Firebase Web Client SDK.
+ */
+async function writeBotAlertToFirestore(alertDoc: BotAlertDoc): Promise<void> {
+  const config = loadFirebaseConfig();
+  const dbId =
     config.firestoreDatabaseId && config.firestoreDatabaseId !== '(default)'
-      ? getAdminFirestore(adminApp, config.firestoreDatabaseId)
-      : getAdminFirestore(adminApp);
-  db.settings({ ignoreUndefinedProperties: true });
-  return db;
+      ? config.firestoreDatabaseId
+      : '(default)';
+
+  const restUrl = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(
+    config.projectId
+  )}/databases/${encodeURIComponent(dbId)}/documents/bot_alerts?documentId=${encodeURIComponent(
+    alertDoc.id
+  )}&key=${encodeURIComponent(config.apiKey)}`;
+
+  const firestoreFields: Record<string, any> = {
+    id: { stringValue: alertDoc.id },
+    text: { stringValue: alertDoc.text },
+    chat_id: alertDoc.chat_id ? { stringValue: alertDoc.chat_id } : { nullValue: null },
+    timestamp: { stringValue: alertDoc.timestamp },
+    timestampMs: { integerValue: String(Math.trunc(alertDoc.timestampMs)) }
+  };
+
+  try {
+    const restRes = await fetch(restUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields: firestoreFields })
+    });
+
+    if (restRes.ok) {
+      return;
+    }
+    const errBody = await restRes.text();
+    console.warn('[Vercel Webhook] Firestore REST API response:', restRes.status, errBody);
+  } catch (restErr: any) {
+    console.warn('[Vercel Webhook] Firestore REST API error, falling back to Client SDK:', restErr?.message);
+  }
+
+  // Fallback to Firebase Web Client SDK
+  const clientApp = !getClientApps().length
+    ? initClientApp({
+        apiKey: config.apiKey,
+        authDomain: config.authDomain,
+        projectId: config.projectId,
+        storageBucket: config.storageBucket,
+        messagingSenderId: config.messagingSenderId,
+        appId: config.appId
+      })
+    : getClientApps()[0];
+
+  const clientDb =
+    config.firestoreDatabaseId && config.firestoreDatabaseId !== '(default)'
+      ? getClientFirestore(clientApp, config.firestoreDatabaseId)
+      : getClientFirestore(clientApp);
+
+  await setDoc(doc(clientDb, 'bot_alerts', alertDoc.id), alertDoc);
 }
 
 async function readRawBody(req: Req): Promise<string> {
@@ -91,6 +145,25 @@ function sendJson(res: ServerResponse, statusCode: number, body: Record<string, 
   res.end(JSON.stringify(body));
 }
 
+function buildAlertDoc(text: string, chatId: string | null = null): BotAlertDoc {
+  const nowMs = Date.now();
+  const randomSuffix = Math.random()
+    .toString(36)
+    .slice(2, 8)
+    .replace(/[^a-z0-9]/g, '0')
+    .padEnd(4, '0');
+  const alertId = `alert-${nowMs}-${randomSuffix}`;
+  const timestamp = new Date(nowMs).toISOString();
+
+  return {
+    id: alertId,
+    text: text.slice(0, 2000),
+    chat_id: chatId || null,
+    timestamp,
+    timestampMs: nowMs
+  };
+}
+
 export default async function handler(req: Req, res: Res | ServerResponse) {
   const method = (req.method || 'GET').toUpperCase();
 
@@ -100,59 +173,37 @@ export default async function handler(req: Req, res: Res | ServerResponse) {
 
   if (method === 'GET') {
     const urlObj = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
-    const queryMsg = urlObj.searchParams.get('msg') || urlObj.searchParams.get('text') || urlObj.searchParams.get('alert');
-    const isTest = urlObj.searchParams.get('test') === '1' || queryMsg;
+    const queryMsg =
+      urlObj.searchParams.get('msg') ||
+      urlObj.searchParams.get('text') ||
+      urlObj.searchParams.get('alert') ||
+      (typeof req.query?.msg === 'string' ? req.query.msg : '') ||
+      (typeof req.query?.text === 'string' ? req.query.text : '');
+
+    const isTest =
+      Boolean(queryMsg) ||
+      urlObj.searchParams.has('test') ||
+      urlObj.searchParams.has('test1') ||
+      req.query?.test !== undefined ||
+      req.query?.test1 !== undefined;
 
     if (isTest) {
-      const text = queryMsg || 'BUY US100 @ 21450 - TP1: 21550 SL: 21350 [Test Webhook Alert via Browser GET]';
-      const nowMs = Date.now();
-      const randomSuffix = Math.random().toString(36).slice(2, 8);
-      const alertId = `alert-${nowMs}-${randomSuffix}`;
-      const timestamp = new Date(nowMs).toISOString();
-      const alertDoc = {
-        id: alertId,
-        text,
-        chat_id: null,
-        timestamp,
-        timestampMs: nowMs
-      };
+      const text =
+        (queryMsg && queryMsg.trim()) ||
+        'BUY US100 @ 21450 - TP1: 21550 SL: 21350 [Test Webhook Alert via Browser]';
+      const alertDoc = buildAlertDoc(text, null);
 
       try {
-        let saved = false;
-        try {
-          const db = getAdminDb();
-          await db.collection('bot_alerts').doc(alertId).set(alertDoc);
-          saved = true;
-        } catch {
-          // fallback to client SDK
-        }
-
-        if (!saved) {
-          const config = loadFirebaseConfig();
-          const clientApp = !getClientApps().length
-            ? initClientApp({
-                apiKey: config.apiKey,
-                authDomain: config.authDomain,
-                projectId: config.projectId,
-                storageBucket: config.storageBucket,
-                messagingSenderId: config.messagingSenderId,
-                appId: config.appId
-              })
-            : getClientApps()[0];
-          const clientDb =
-            config.firestoreDatabaseId && config.firestoreDatabaseId !== '(default)'
-              ? getClientFirestore(clientApp, config.firestoreDatabaseId)
-              : getClientFirestore(clientApp);
-          await setDoc(doc(clientDb, 'bot_alerts', alertId), alertDoc);
-        }
-
+        await writeBotAlertToFirestore(alertDoc);
         return sendJson(res, 200, {
           success: true,
           message: 'Test TradingView webhook alert generated and saved to bot_alerts successfully! Check your app.',
-          alertId,
-          text
+          alertId: alertDoc.id,
+          text: alertDoc.text,
+          timestamp: alertDoc.timestamp
         });
       } catch (err: any) {
+        console.error('[Vercel Test Webhook Error]:', err);
         return sendJson(res, 500, { error: err?.message || 'Error generating test alert' });
       }
     }
@@ -160,8 +211,9 @@ export default async function handler(req: Req, res: Res | ServerResponse) {
     return sendJson(res, 200, {
       ok: true,
       endpoint: '/api/webhooks/tradingview',
-      method: 'POST / GET (with ?msg=... or ?test=1)',
-      message: 'MBK TradingView Webhook Receiver is active. Send POST JSON alerts or open this URL with ?msg=BUY+US100+@+21000 or ?test=1 to test instantly in the app.'
+      method: 'POST / GET (with ?test=1 or ?test1 or ?msg=...)',
+      message:
+        'MBK TradingView Webhook Receiver is active. Send POST JSON/text alerts from TradingView, or open this URL with ?test=1 to trigger an instant test alert.'
     });
   }
 
@@ -226,57 +278,8 @@ export default async function handler(req: Req, res: Res | ServerResponse) {
       return sendJson(res, 400, { error: 'Alert text content is required in payload' });
     }
 
-    const nowMs = Date.now();
-    const randomSuffix = Math.random()
-      .toString(36)
-      .slice(2, 8)
-      .replace(/[^a-z0-9]/g, '0')
-      .padEnd(4, '0');
-    const alertId = `alert-${nowMs}-${randomSuffix}`;
-    const timestamp = new Date(nowMs).toISOString();
-
-    const alertDoc = {
-      id: alertId,
-      text: text.slice(0, 2000),
-      chat_id: chatId || null,
-      timestamp,
-      timestampMs: nowMs
-    };
-
-    let savedToFirestore = false;
-    try {
-      const db = getAdminDb();
-      await db.collection('bot_alerts').doc(alertId).set(alertDoc);
-      savedToFirestore = true;
-    } catch (adminErr: any) {
-      console.warn('[Vercel Webhook] Admin SDK write failed, falling back to Client SDK:', adminErr?.message);
-      try {
-        const config = loadFirebaseConfig();
-        const clientApp = !getClientApps().length
-          ? initClientApp({
-              apiKey: config.apiKey,
-              authDomain: config.authDomain,
-              projectId: config.projectId,
-              storageBucket: config.storageBucket,
-              messagingSenderId: config.messagingSenderId,
-              appId: config.appId
-            })
-          : getClientApps()[0];
-        const clientDb =
-          config.firestoreDatabaseId && config.firestoreDatabaseId !== '(default)'
-            ? getClientFirestore(clientApp, config.firestoreDatabaseId)
-            : getClientFirestore(clientApp);
-        await setDoc(doc(clientDb, 'bot_alerts', alertId), alertDoc);
-        savedToFirestore = true;
-      } catch (clientErr: any) {
-        console.error('[Vercel Webhook] Client SDK fallback also failed:', clientErr?.message);
-        throw clientErr;
-      }
-    }
-
-    if (!savedToFirestore) {
-      throw new Error('Failed to save webhook alert to database');
-    }
+    const alertDoc = buildAlertDoc(text, chatId || null);
+    await writeBotAlertToFirestore(alertDoc);
 
     let telegramForwarded = false;
     const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_TOKEN || '';
@@ -301,7 +304,7 @@ export default async function handler(req: Req, res: Res | ServerResponse) {
     return sendJson(res, 200, {
       success: true,
       message: 'Alert saved to bot_alerts',
-      alertId,
+      alertId: alertDoc.id,
       telegramForwarded
     });
   } catch (err: any) {
