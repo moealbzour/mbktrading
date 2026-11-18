@@ -178,6 +178,7 @@ export function getActiveTrialFeatures(user?: Partial<UserProfile> | null): Arra
  */
 export function hasFeatureAccess(user: Partial<UserProfile> | null | undefined, feature: FeatureKey): boolean {
   if (!user || user.isBanned) return false;
+  if (feature === 'vipChat') return true;
   if (isStaffOrAdminUser(user)) return true;
 
   const tier = getEffectiveTier(user);

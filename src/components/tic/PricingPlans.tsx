@@ -37,6 +37,7 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({
   const freeFeatures = isAr
     ? [
         'التوصيات العامة المجانية',
+        'الشات العام (General Chat)',
         'حاسبة المخاطرة واللوت',
         'التداول التجريبي ($100K)',
         'التقويم الاقتصادي وأخبار MBK',
@@ -44,6 +45,7 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({
       ]
     : [
         'Free Public Signals',
+        'General Chat access',
         'Risk & position-size calculators',
         'Paper Trading ($100K)',
         'Economic Calendar & MBK News',
@@ -55,14 +57,12 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({
         'جميع مزايا الباقة المجانية',
         'تنبيهات بوت MBK الفورية بالكامل',
         'جميع توصيات VIP الكاملة (نقاط الدخول والأهداف)',
-        'الشات العام (General Chat)',
         'ذكاء MBK (MBK AI)'
       ]
     : [
         'All Free Tier tools included',
         'Full live MBK Bot alerts',
         'Full VIP Signals (Entries, TP1/TP2, SL)',
-        'General Chat access',
         'MBK AI Assistant'
       ];
 
@@ -160,8 +160,8 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({
             </h3>
             <p className="text-xs text-[#8a93a6] mb-4">
               {isAr
-                ? 'إشارات البوت والمحللين الكاملة + غرفة VIP + المساعد الذكي'
-                : 'Full real-time signals, Private VIP Chat & Standard AI'}
+                ? 'بوت MBK + توصيات VIP + ذكاء MBK'
+                : 'MBK Bot + VIP Signals + MBK AI'}
             </p>
 
             <div className="mb-5 pb-4 border-b border-[#2a2e39] flex items-baseline gap-1.5 font-mono tabular-nums">

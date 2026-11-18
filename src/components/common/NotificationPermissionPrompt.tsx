@@ -200,8 +200,8 @@ export const NotificationPermissionPrompt: React.FC<Props> = ({ lang = 'ar' }) =
             <p className="text-[11px] text-[#9db2c6] leading-relaxed">
               {justGranted
                 ? isAr
-                  ? 'ستصلك تنبيهات الصفقات، شات VIP والرسائل الخاصة مع الصوت مباشرة.'
-                  : 'Live trades, VIP chat, and DM notifications with sound are ready.'
+                  ? 'ستصلك تنبيهات الصفقات، الشات العام والرسائل الخاصة مع الصوت مباشرة.'
+                  : 'Live trades, General Chat, and DM notifications with sound are ready.'
                 : notificationPermission === 'denied'
                 ? isAr
                   ? 'لقد قمت بحظر إشعارات المتصفح. افتح إعدادات الموقع (أيقونة القفل/الضبط بجانب الرابط) واسمح بالإشعارات لتصلك تنبيهات الصفقات والرسائل الخاصة.'
@@ -211,8 +211,8 @@ export const NotificationPermissionPrompt: React.FC<Props> = ({ lang = 'ar' }) =
                   ? 'أضف الموقع إلى الشاشة الرئيسية أولاً عبر Safari ثم افتح الاختصار للسماح بإشعارات الهاتف والصوت.'
                   : 'Install MBK Trading to your iPhone Home Screen via Safari Share menu, then open it to allow notifications.'
                 : isAr
-                ? 'اسمح للموقع بإرسال إشعارات مع الصوت عند وصول توصية/صفقة جديدة أو رسالة شات أو رسالة خاصة.'
-                : 'Enable instant notifications and sound alerts for new trade signals, VIP chat messages, and direct messages.'}
+                ? 'اسمح للموقع بإرسال إشعارات مع الصوت عند وصول توصية/صفقة جديدة أو رسالة في الشات العام أو رسالة خاصة.'
+                : 'Enable instant notifications and sound alerts for new trade signals, General Chat messages, and direct messages.'}
             </p>
 
             {statusFeedback && (

@@ -302,16 +302,15 @@ service cloud.firestore {
     }
 
     // ---------------------------------------------------------------
-    // 3. PRIVATE VIP GROUP CHAT (VIP/Elite/vipChat Trial + Admin only, 500-char max)
+    // 3. GENERAL CHAT (All Signed-In Non-Banned Users: Free, VIP, Elite, Admin, 500-char max)
     // ---------------------------------------------------------------
     match /public_chat/{messageId} {
-      allow get: if isValidId(messageId) && hasGrantedFeature('vipChat');
-      allow list: if hasGrantedFeature('vipChat');
+      allow get: if isValidId(messageId) && isSignedIn() && !isBanned();
+      allow list: if isSignedIn() && !isBanned();
       allow create: if isValidId(messageId)
         && isSignedIn()
         && !isBanned()
         && !isMutedFromChat()
-        && hasGrantedFeature('vipChat')
         && (!isChatRoomClosed() || isModeratorOrAdmin())
         && incoming().uid == request.auth.uid
         && incoming().displayName is string
@@ -326,7 +325,7 @@ service cloud.firestore {
         && incoming().get('likes', 0) == 0;
       allow update: if isValidId(messageId) && (
         isModeratorOrAdmin()
-        || (hasGrantedFeature('vipChat')
+        || (isSignedIn()
             && !isBanned()
             && incoming().diff(existing()).affectedKeys().hasOnly(['reactions', 'likes']))
       );
@@ -337,13 +336,12 @@ service cloud.firestore {
     }
 
     match /chat_messages/{messageId} {
-      allow get: if isValidId(messageId) && hasGrantedFeature('vipChat');
-      allow list: if hasGrantedFeature('vipChat');
+      allow get: if isValidId(messageId) && isSignedIn() && !isBanned();
+      allow list: if isSignedIn() && !isBanned();
       allow create: if isValidId(messageId)
         && isSignedIn()
         && !isBanned()
         && !isMutedFromChat()
-        && hasGrantedFeature('vipChat')
         && incoming().uid == request.auth.uid
         && incoming().content is string
         && incoming().content.size() >= 1

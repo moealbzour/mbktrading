@@ -21,6 +21,7 @@ export const PublicTiersShowcase: React.FC<PublicTiersShowcaseProps> = ({
   const freeFeatures = isAr
     ? [
         'التوصيات العامة المجانية',
+        'الشات العام (General Chat)',
         'حاسبة المخاطرة واللوت',
         'التداول التجريبي ($100K)',
         'التقويم الاقتصادي والأخبار',
@@ -28,6 +29,7 @@ export const PublicTiersShowcase: React.FC<PublicTiersShowcaseProps> = ({
       ]
     : [
         'Free Public Signals',
+        'General Chat access',
         'Position Size & Risk Calculator',
         'Paper Trading ($100K)',
         'Economic Calendar & MBK News',
@@ -39,14 +41,12 @@ export const PublicTiersShowcase: React.FC<PublicTiersShowcaseProps> = ({
         'جميع مزايا الباقة المجانية ($0)',
         'تنبيهات بوت MBK الفورية',
         'توصيات VIP الكاملة (الدخول والأهداف وSL)',
-        'الشات العام (General Chat)',
         'ذكاء MBK (MBK AI)'
       ]
     : [
         'All Free Tier ($0) tools included',
         'Live MBK Bot alerts',
         'Full VIP Signals (Entries, TP, SL)',
-        'General Chat access',
         'MBK AI Assistant'
       ];
 

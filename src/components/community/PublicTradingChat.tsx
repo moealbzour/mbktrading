@@ -46,7 +46,6 @@ import {
 import { db, auth } from '../../lib/firebase';
 import { soundManager } from '../../utils/audio';
 import { UserProfile } from '../../types/trading';
-import { hasFeatureAccess } from '../../utils/entitlements';
 
 export interface ChatReplyTo {
   id: string;
@@ -136,15 +135,10 @@ export const PublicTradingChat: React.FC<Props> = ({
     Record<string, { isBanned?: boolean; isMutedFromChat?: boolean }>
   >({});
 
-  // Genuine RBAC + tier/trial authorization checks
+  // General Chat is open to all authenticated non-banned users (Free, VIP, Elite, Staff)
   const roleUpper = (userRole || user?.role || 'FREE').toUpperCase();
   const isCurrentAdmin = Boolean(isAdmin || user?.isAdmin || ['ADMIN', 'MODERATOR'].includes(roleUpper));
-  const canAccessChat = Boolean(
-    isCurrentAdmin ||
-      (user
-        ? hasFeatureAccess(user, 'vipChat')
-        : isVIP || ['VIP', 'ELITE', 'ANALYST', 'ANALYSER'].includes(roleUpper))
-  );
+  const canAccessChat = !user?.isBanned;
 
   // Image attachment & room moderation state (Admin/Moderator only)
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -1030,14 +1024,14 @@ export const PublicTradingChat: React.FC<Props> = ({
         {loading && messages.length === 0 ? (
           <div className="text-center py-16 text-[#787b86] text-xs font-mono animate-pulse">
             <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#089981]" />
-            <span>{isAr ? 'جاري الاتصال بغرفة VIP المباشرة...' : 'Connecting to VIP live chat...'}</span>
+            <span>{isAr ? 'جاري الاتصال بالشات العام...' : 'Connecting to General Chat...'}</span>
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-16 text-[#787b86] text-xs bg-[#1e222d]/60 rounded-xl border border-[#2a2e39] p-4 max-w-sm mx-auto">
             <MessageSquare className="w-8 h-8 mx-auto mb-2 text-[#089981] opacity-60" />
             <p className="font-bold text-white mb-1">{isAr ? 'لا توجد رسائل مطابقة' : 'No messages found'}</p>
             <p className="text-[11px]">
-              {isAr ? 'كن أول من يشارك تحليلاً أو سؤالاً في غرفة VIP!' : 'Be the first to post a setup in VIP chat!'}
+              {isAr ? 'كن أول من يشارك رسالة في الشات العام!' : 'Be the first to post in General Chat!'}
             </p>
           </div>
         ) : (
@@ -1499,10 +1493,8 @@ export const PublicTradingChat: React.FC<Props> = ({
               onChange={(e) => setInputText(e.target.value.slice(0, MAX_CHAT_CHARS))}
               placeholder={
                 isAr
-                  ? isCurrentAdmin
-                    ? 'اكتب تحليلاً أو رسالة (حد أقصى 500 حرف)...'
-                    : 'اكتب رسالة في غرفة VIP (حد أقصى 500 حرف)...'
-                  : 'Type a message in VIP chat (max 500 chars)...'
+                  ? 'اكتب رسالة في الشات العام (حد أقصى 500 حرف)...'
+                  : 'Type a message in General Chat (max 500 chars)...'
               }
               className="w-full bg-[#131722] border border-[#2a2e39] focus:border-[#089981] rounded-xl px-3 py-2 pe-16 text-xs text-white placeholder-[#787b86] transition-all focus:outline-none"
             />
@@ -1556,7 +1548,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                   <MessageSquare className="w-3.5 h-3.5" />
                 </div>
                 <h3 className="text-xs font-bold text-white">
-                  {isAr ? 'كتابة رسالة في غرفة VIP' : 'Compose VIP Chat Message'}
+                  {isAr ? 'كتابة رسالة في الشات العام' : 'Compose General Chat Message'}
                 </h3>
               </div>
 

@@ -97,7 +97,7 @@
     },
     "ChatMessage": {
       "title": "ChatMessage",
-      "description": "Private VIP members live chat message (capped at 500 characters)",
+      "description": "General live chat message for all authenticated members (capped at 500 characters)",
       "type": "object",
       "properties": {
         "uid": { "type": "string" },
@@ -119,7 +119,7 @@
     },
     "VipChatMessage": {
       "title": "VipChatMessage",
-      "description": "VIP lounge chat message in chat_messages collection",
+      "description": "General chat message in chat_messages collection",
       "type": "object",
       "properties": {
         "uid": { "type": "string" },
@@ -276,7 +276,7 @@
     },
     "/public_chat/{messageId}": {
       "schema": "ChatMessage",
-      "description": "VIP-gated private live trading chat messages"
+      "description": "General live trading chat messages accessible to all members"
     },
     "/chat_profiles/{userId}": {
       "schema": "ChatProfile",
@@ -292,7 +292,7 @@
     },
     "/chat_messages/{messageId}": {
       "schema": "VipChatMessage",
-      "description": "VIP lounge chat messages"
+      "description": "General chat messages"
     },
     "/signals/{signalId}": {
       "schema": "Signal",

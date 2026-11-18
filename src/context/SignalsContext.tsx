@@ -294,14 +294,14 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
           const profile = mapRawUserToProfile(snap.data());
           setCanReadVipSignals(hasFeatureAccess(profile, 'vipSignals'));
           setCanReadBotAlerts(hasFeatureAccess(profile, 'botSignals'));
-          setCanReadVipChat(hasFeatureAccess(profile, 'vipChat'));
+          setCanReadVipChat(!profile?.isBanned);
           setAuthResolved(true);
         },
         (err) => {
           console.warn('[SignalsContext] User role listener notice:', err?.message || err);
           setCanReadVipSignals(false);
           setCanReadBotAlerts(false);
-          setCanReadVipChat(false);
+          setCanReadVipChat(true);
           setAuthResolved(true);
         }
       );
@@ -642,24 +642,24 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
               const isRecent = d.timestampMs ? d.timestampMs > Date.now() - 2 * 60 * 1000 : true;
               if (d.uid && d.uid !== currentUserUid && isRecent) {
                 setUnreadChatCount((prev) => prev + 1);
-                const senderName = d.displayName || 'VIP Trader';
+                const senderName = d.displayName || 'Trader';
                 const msgBody = (d.text || '[صورة شارت]').toString().slice(0, 120);
 
                 triggerAudioAlert();
                 addToast({
-                  title: `شات VIP • ${senderName} 💬`,
+                  title: `الشات العام • ${senderName} 💬`,
                   message: msgBody,
                   type: 'info',
                   timestamp: 'الآن'
                 });
-                sendBrowserNotification(`غرفة VIP • ${senderName}`, msgBody, `vip-chat-${change.doc.id}`);
+                sendBrowserNotification(`الشات العام • ${senderName}`, msgBody, `general-chat-${change.doc.id}`);
               }
             });
           }
           isFirstChatSnapshot = false;
         },
         (err) => {
-          console.warn('[SignalsContext] Global VIP chat notification notice:', err?.message || err);
+          console.warn('[SignalsContext] Global chat notification notice:', err?.message || err);
         }
       );
     }
