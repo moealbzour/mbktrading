@@ -292,11 +292,16 @@ export const AdminDashboard: React.FC<Props> = ({
     setIsWipingBotAlerts(true);
     try {
       const snap = await getDocs(collection(db, 'bot_alerts'));
-      const batch = writeBatch(db);
-      snap.docs.forEach((d) => {
-        batch.delete(d.ref);
-      });
-      await batch.commit();
+      const docs = snap.docs;
+      const chunkSize = 400;
+      for (let i = 0; i < docs.length; i += chunkSize) {
+        const chunk = docs.slice(i, i + chunkSize);
+        const batch = writeBatch(db);
+        chunk.forEach((d) => {
+          batch.delete(d.ref);
+        });
+        await batch.commit();
+      }
       soundManager.playSuccess();
       showFeedback(
         'success',

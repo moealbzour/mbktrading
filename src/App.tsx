@@ -22,6 +22,7 @@ import { PromoCodeModal } from './components/PromoCodeModal';
 import { EmailVerificationGuard } from './components/EmailVerificationGuard';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 import { NotificationPermissionPrompt } from './components/common/NotificationPermissionPrompt';
+import { ExitConfirmationModal } from './components/common/ExitConfirmationModal';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
@@ -45,6 +46,7 @@ export default function App() {
   });
 
   const [promoModalOpen, setPromoModalOpen] = useState(false);
+  const [exitModalOpen, setExitModalOpen] = useState(false);
   const [pendingGoogleOnboarding, setPendingGoogleOnboarding] = useState<{
     uid: string;
     email: string;
@@ -66,6 +68,40 @@ export default function App() {
     const next = !isMuted;
     setIsMuted(next);
     soundManager.setMuted(next);
+  };
+
+  // Intercept back button / shortcut exit with confirmation
+  useEffect(() => {
+    try {
+      window.history.pushState({ app: 'mbk_trading' }, '');
+    } catch {
+      // ignore
+    }
+
+    const handlePopState = (e: PopStateEvent) => {
+      e.preventDefault();
+      try {
+        window.history.pushState({ app: 'mbk_trading' }, '');
+      } catch {
+        // ignore
+      }
+      setExitModalOpen(true);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
+
+  const handleConfirmExit = () => {
+    setExitModalOpen(false);
+    try {
+      window.close();
+      window.history.go(-2);
+    } catch {
+      // fallback
+    }
   };
 
   // Subscribe to live Firebase Auth state and Firestore user roles
@@ -294,6 +330,13 @@ export default function App() {
         onClose={() => setPromoModalOpen(false)}
         onApplyCode={handleApplyPromoCode}
         currentUser={currentUser}
+        lang={lang}
+      />
+
+      <ExitConfirmationModal
+        isOpen={exitModalOpen}
+        onConfirmExit={handleConfirmExit}
+        onCancel={() => setExitModalOpen(false)}
         lang={lang}
       />
 
