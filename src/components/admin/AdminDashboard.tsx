@@ -44,10 +44,11 @@ import {
   Gem,
   Settings,
   Save,
-  MessageCircle
+  MessageCircle,
+  Radio
 } from 'lucide-react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, onSnapshot, collection, updateDoc, deleteDoc, writeBatch, serverTimestamp, getDocs } from 'firebase/firestore';
+import { doc, setDoc, onSnapshot, collection, updateDoc, deleteDoc, writeBatch, serverTimestamp, getDocs } from 'firebase/firestore';
 import { auth, db } from '../../lib/firebase';
 import { soundManager } from '../../utils/audio';
 import { formatKeyDurationLabel } from '../../utils/activationKeyService';
@@ -316,6 +317,36 @@ export const AdminDashboard: React.FC<Props> = ({
       );
     } finally {
       setIsWipingBotAlerts(false);
+    }
+  };
+
+  const handleSimulateBotAlert = async () => {
+    if (!isFullAdmin) return;
+    soundManager.playClick();
+    try {
+      const nowMs = Date.now();
+      const randomSuffix = Math.random().toString(36).slice(2, 8);
+      const alertId = `alert-${nowMs}-${randomSuffix}`;
+      const alertDoc = {
+        id: alertId,
+        text: isAr
+          ? '🤖 [محاكاة Webhook تجريبي] BUY XAUUSD @ 2680.00 - TP1: 2700.00 SL: 2665.00'
+          : '🤖 [Test Webhook Simulation] BUY XAUUSD @ 2680.00 - TP1: 2700.00 SL: 2665.00',
+        chat_id: null,
+        timestamp: new Date(nowMs).toISOString(),
+        timestampMs: nowMs
+      };
+      await setDoc(doc(db, 'bot_alerts', alertId), alertDoc);
+      soundManager.playSuccess();
+      showFeedback(
+        'success',
+        isAr ? 'تم إرسال وتوليد تنبيه Webhook التجريبي بنجاح!' : 'Test webhook simulation alert sent successfully!'
+      );
+    } catch (err: any) {
+      showFeedback(
+        'error',
+        err?.message || (isAr ? 'فشل إرسال التنبيه التجريبي' : 'Failed to send test alert')
+      );
     }
   };
 
@@ -2214,6 +2245,27 @@ export const AdminDashboard: React.FC<Props> = ({
                   </button>
                 </div>
               </form>
+            </div>
+
+            {/* Test Bot Webhook Simulation Card */}
+            <div className="p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 space-y-3">
+              <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs">
+                <Radio className="w-4 h-4" />
+                <span>{isAr ? 'محاكاة وإرسال تنبيه Webhook تجريبي' : 'Simulate Test Webhook Alert'}</span>
+              </div>
+              <p className="text-[11px] text-[#787b86] leading-relaxed">
+                {isAr
+                  ? 'انقر هنا لإرسال تنبيه تداول تجريبي فوراً لاختبار صوت التنبيه، التوست، الشارة ورؤية التنبيه يظهر في القناة ومساعد التداول.'
+                  : 'Click here to instantly trigger a test webhook trading alert to test audio chimes, toasts, unread badges, and live bot feed.'}
+              </p>
+              <button
+                type="button"
+                onClick={handleSimulateBotAlert}
+                className="px-4 py-2 rounded-xl bg-[#089981] hover:bg-[#07806c] text-white font-bold text-xs transition-colors cursor-pointer flex items-center gap-2 shadow-md"
+              >
+                <Radio className="w-3.5 h-3.5" />
+                <span>{isAr ? '🚀 إرسال تنبيه محاكاة Webhook الآن' : '🚀 Send Test Webhook Simulation Now'}</span>
+              </button>
             </div>
 
             {/* Wipe Bot Server Signals Maintenance Card */}

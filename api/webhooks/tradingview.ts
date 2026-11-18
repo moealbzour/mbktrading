@@ -8,11 +8,14 @@ import {
   applicationDefault
 } from 'firebase-admin/app';
 import { getFirestore as getAdminFirestore } from 'firebase-admin/firestore';
+import { initializeApp as initClientApp, getApps as getClientApps } from 'firebase/app';
+import { getFirestore as getClientFirestore, doc, setDoc } from 'firebase/firestore';
 
 type Req = IncomingMessage & {
   method?: string;
   body?: any;
   headers: Record<string, string | string[] | undefined>;
+  url?: string;
 };
 
 type Res = ServerResponse & {
@@ -82,11 +85,69 @@ export default async function handler(req: Req, res: Res | ServerResponse) {
   }
 
   if (method === 'GET') {
+    const urlObj = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
+    const queryMsg = urlObj.searchParams.get('msg') || urlObj.searchParams.get('text') || urlObj.searchParams.get('alert');
+    const isTest = urlObj.searchParams.get('test') === '1' || queryMsg;
+
+    if (isTest) {
+      const text = queryMsg || 'BUY US100 @ 21450 - TP1: 21550 SL: 21350 [Test Webhook Alert via Browser GET]';
+      const nowMs = Date.now();
+      const randomSuffix = Math.random().toString(36).slice(2, 8);
+      const alertId = `alert-${nowMs}-${randomSuffix}`;
+      const timestamp = new Date(nowMs).toISOString();
+      const alertDoc = {
+        id: alertId,
+        text,
+        chat_id: null,
+        timestamp,
+        timestampMs: nowMs
+      };
+
+      try {
+        let saved = false;
+        try {
+          const db = getAdminDb();
+          await db.collection('bot_alerts').doc(alertId).set(alertDoc);
+          saved = true;
+        } catch {
+          // fallback to client SDK
+        }
+
+        if (!saved) {
+          const config = loadFirebaseConfig();
+          const clientApp = !getClientApps().length
+            ? initClientApp({
+                apiKey: config.apiKey,
+                authDomain: config.authDomain,
+                projectId: config.projectId,
+                storageBucket: config.storageBucket,
+                messagingSenderId: config.messagingSenderId,
+                appId: config.appId
+              })
+            : getClientApps()[0];
+          const clientDb =
+            config.firestoreDatabaseId && config.firestoreDatabaseId !== '(default)'
+              ? getClientFirestore(clientApp, config.firestoreDatabaseId)
+              : getClientFirestore(clientApp);
+          await setDoc(doc(clientDb, 'bot_alerts', alertId), alertDoc);
+        }
+
+        return sendJson(res, 200, {
+          success: true,
+          message: 'Test TradingView webhook alert generated and saved to bot_alerts successfully! Check your app.',
+          alertId,
+          text
+        });
+      } catch (err: any) {
+        return sendJson(res, 500, { error: err?.message || 'Error generating test alert' });
+      }
+    }
+
     return sendJson(res, 200, {
       ok: true,
       endpoint: '/api/webhooks/tradingview',
-      method: 'POST',
-      message: 'MBK TradingView Webhook Receiver is active. Send POST JSON or plain text alerts to this URL.'
+      method: 'POST / GET (with ?msg=... or ?test=1)',
+      message: 'MBK TradingView Webhook Receiver is active. Send POST JSON alerts or open this URL with ?msg=BUY+US100+@+21000 or ?test=1 to test instantly in the app.'
     });
   }
 
@@ -168,8 +229,40 @@ export default async function handler(req: Req, res: Res | ServerResponse) {
       timestampMs: nowMs
     };
 
-    const db = getAdminDb();
-    await db.collection('bot_alerts').doc(alertId).set(alertDoc);
+    let savedToFirestore = false;
+    try {
+      const db = getAdminDb();
+      await db.collection('bot_alerts').doc(alertId).set(alertDoc);
+      savedToFirestore = true;
+    } catch (adminErr: any) {
+      console.warn('[Vercel Webhook] Admin SDK write failed, falling back to Client SDK:', adminErr?.message);
+      try {
+        const config = loadFirebaseConfig();
+        const clientApp = !getClientApps().length
+          ? initClientApp({
+              apiKey: config.apiKey,
+              authDomain: config.authDomain,
+              projectId: config.projectId,
+              storageBucket: config.storageBucket,
+              messagingSenderId: config.messagingSenderId,
+              appId: config.appId
+            })
+          : getClientApps()[0];
+        const clientDb =
+          config.firestoreDatabaseId && config.firestoreDatabaseId !== '(default)'
+            ? getClientFirestore(clientApp, config.firestoreDatabaseId)
+            : getClientFirestore(clientApp);
+        await setDoc(doc(clientDb, 'bot_alerts', alertId), alertDoc);
+        savedToFirestore = true;
+      } catch (clientErr: any) {
+        console.error('[Vercel Webhook] Client SDK fallback also failed:', clientErr?.message);
+        throw clientErr;
+      }
+    }
+
+    if (!savedToFirestore) {
+      throw new Error('Failed to save webhook alert to database');
+    }
 
     let telegramForwarded = false;
     const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_TOKEN || '';
