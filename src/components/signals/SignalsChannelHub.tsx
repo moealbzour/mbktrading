@@ -212,9 +212,7 @@ export const SignalsChannelHub: React.FC<Props> = ({
 
       if (isBot) {
         await updateDoc(doc(db, 'bot_alerts', cleanId), {
-          text: editSigNotes,
-          symbol: editSigSymbol,
-          action: editSigAction
+          text: editSigNotes
         });
       } else {
         await updateDoc(doc(db, 'signals', cleanId), {
@@ -1119,32 +1117,33 @@ export const SignalsChannelHub: React.FC<Props> = ({
             </div>
 
             <form onSubmit={handleSaveEditSignal} className="space-y-3 text-xs">
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[#787b86] block mb-1">{isAr ? 'الرمز:' : 'Symbol:'}</label>
-                  <input
-                    type="text"
-                    value={editSigSymbol}
-                    onChange={(e) => setEditSigSymbol(e.target.value.toUpperCase())}
-                    className="w-full px-3 py-1.5 rounded-lg bg-[#131722] border border-[#2a2e39] text-white font-mono uppercase"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-[#787b86] block mb-1">{isAr ? 'النوع:' : 'Action:'}</label>
-                  <select
-                    value={editSigAction}
-                    onChange={(e) => setEditSigAction(e.target.value as 'BUY' | 'SELL')}
-                    className="w-full px-3 py-1.5 rounded-lg bg-[#131722] border border-[#2a2e39] text-white font-mono"
-                  >
-                    <option value="BUY">BUY (شراء)</option>
-                    <option value="SELL">SELL (بيع)</option>
-                  </select>
-                </div>
-              </div>
-
               {!editingSignal.isBot && (
-                <div className="grid grid-cols-2 gap-2 font-mono">
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[#787b86] block mb-1">{isAr ? 'الرمز:' : 'Symbol:'}</label>
+                      <input
+                        type="text"
+                        value={editSigSymbol}
+                        onChange={(e) => setEditSigSymbol(e.target.value.toUpperCase())}
+                        className="w-full px-3 py-1.5 rounded-lg bg-[#131722] border border-[#2a2e39] text-white font-mono uppercase"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[#787b86] block mb-1">{isAr ? 'النوع:' : 'Action:'}</label>
+                      <select
+                        value={editSigAction}
+                        onChange={(e) => setEditSigAction(e.target.value as 'BUY' | 'SELL')}
+                        className="w-full px-3 py-1.5 rounded-lg bg-[#131722] border border-[#2a2e39] text-white font-mono"
+                      >
+                        <option value="BUY">BUY (شراء)</option>
+                        <option value="SELL">SELL (بيع)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 font-mono">
                   <div>
                     <label className="text-[#787b86] block mb-1">ENTRY (سعر الدخول):</label>
                     <input
@@ -1186,6 +1185,7 @@ export const SignalsChannelHub: React.FC<Props> = ({
                     />
                   </div>
                 </div>
+                </>
               )}
 
               <div>

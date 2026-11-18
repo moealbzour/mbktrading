@@ -5,8 +5,10 @@ import {
   Compass,
   Sparkles,
   Calendar,
-  BarChart3
+  BarChart3,
+  Flame
 } from 'lucide-react';
+import { getUpcomingMacroEvents } from '../../services/macroEventsAndAnnouncementsService';
 
 interface MarketInsightsWidgetProps {
   selectedSymbol: MarketSymbol;
@@ -241,7 +243,7 @@ const TradingViewLiveEventsPanel: React.FC<{ lang?: 'ar' | 'en' }> = ({ lang = '
       isTransparent: true,
       width: '100%',
       height: '100%',
-      locale: lang === 'ar' ? 'ar' : 'en',
+      locale: lang === 'ar' ? 'ar_AE' : 'en',
       importanceFilter: '0,1',
       currencyFilter: 'USD,EUR,GBP,JPY,CAD,AUD,CHF'
     });
@@ -379,16 +381,50 @@ export const MarketInsightsWidget: React.FC<MarketInsightsWidgetProps> = ({
           <TradingIdeasFeed symbol={activeAsset} lang={lang} />
         </div>
 
-        {/* LIVE ECONOMIC CALENDAR (1 Column - Official TradingView Widget) */}
-        <div className="lg:col-span-1 bg-[#131722]/80 backdrop-blur-md p-3 rounded-xl border border-white/10 flex flex-col space-y-2 shadow-lg group hover:border-red-500/40 transition-all">
+        {/* LIVE ECONOMIC CALENDAR (1 Column - Arabic/English Upcoming Events + Official TradingView Widget) */}
+        <div className="lg:col-span-1 bg-[#131722]/80 backdrop-blur-md p-3 rounded-xl border border-white/10 flex flex-col space-y-2.5 shadow-lg group hover:border-red-500/40 transition-all">
           <div className="flex items-center justify-between pb-1 border-b border-white/5 shrink-0">
             <div className="flex items-center gap-1.5">
               <Calendar className="w-4 h-4 text-red-500" />
-              <span className="text-xs font-bold text-white">{isAr ? 'الأجندة الاقتصادية' : 'Economic Calendar'}</span>
+              <span className="text-xs font-bold text-white">
+                {isAr ? 'الأجندة والأحداث الاقتصادية القادمة' : 'Economic Calendar & Upcoming Events'}
+              </span>
             </div>
             <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/30">
-              LIVE FEED
+              {isAr ? 'تنبيه قبل ساعة' : 'LIVE FEED'}
             </span>
+          </div>
+
+          <div className="space-y-1.5">
+            {getUpcomingMacroEvents().slice(0, 3).map((ev) => (
+              <div
+                key={ev.id}
+                className="p-2 rounded-lg bg-[#1e222d] border border-[#2a2e39] flex items-center justify-between gap-2 text-start"
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <Flame className="w-3 h-3 text-rose-400 shrink-0" />
+                    <span className="px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-400 text-[9px] font-mono font-bold">
+                      {ev.code}
+                    </span>
+                    <span className="text-[11px] font-bold text-white truncate">
+                      {isAr ? ev.titleAr : ev.titleEn}
+                    </span>
+                  </div>
+                  <span className="text-[9.5px] text-[#787b86] font-mono block mt-0.5">
+                    {isAr
+                      ? `المتوقع: ${ev.forecast} • السابق: ${ev.previous}`
+                      : `Forecast: ${ev.forecast} • Prev: ${ev.previous}`}
+                  </span>
+                </div>
+                <span className="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[9.5px] font-mono font-bold shrink-0">
+                  {new Date(ev.releaseTimeMs).toLocaleTimeString(isAr ? 'ar-SA' : 'en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </span>
+              </div>
+            ))}
           </div>
 
           <TradingViewLiveEventsPanel lang={lang} />

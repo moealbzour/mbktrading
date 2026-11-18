@@ -45,7 +45,8 @@ import {
   Settings,
   Save,
   MessageCircle,
-  Radio
+  Radio,
+  Megaphone
 } from 'lucide-react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, setDoc, onSnapshot, collection, updateDoc, deleteDoc, writeBatch, serverTimestamp, getDocs } from 'firebase/firestore';
@@ -72,6 +73,7 @@ import {
 
 import { SubscriptionCountdown } from '../common/SubscriptionCountdown';
 import { PublishingCenter } from './PublishingCenter';
+import { AdminBroadcastsTab } from './AdminBroadcastsTab';
 
 export interface ActivationKeyRecord {
   id: string;
@@ -204,7 +206,7 @@ export const AdminDashboard: React.FC<Props> = ({
   const isFullAdmin = effectiveRole === 'admin' || Boolean(isAdmin);
   const isAnalyserOnly = ['analyser', 'analyst'].includes(effectiveRole) && !isFullAdmin;
 
-  const [activeTab, setActiveTab] = useState<'users' | 'news' | 'calendar' | 'overview' | 'publishing' | 'keys' | 'settings'>(
+  const [activeTab, setActiveTab] = useState<'users' | 'broadcasts' | 'news' | 'calendar' | 'overview' | 'publishing' | 'keys' | 'settings'>(
     isAnalyserOnly ? 'publishing' : 'users'
   );
 
@@ -276,20 +278,17 @@ export const AdminDashboard: React.FC<Props> = ({
   const [settingsUpdatedBy, setSettingsUpdatedBy] = useState<string | undefined>(undefined);
   const [isSavingSettings, setIsSavingSettings] = useState<boolean>(false);
   const [isWipingBotAlerts, setIsWipingBotAlerts] = useState<boolean>(false);
+  const [confirmWipeBots, setConfirmWipeBots] = useState<boolean>(false);
 
   const handleWipeAllBotAlerts = async () => {
     if (!isFullAdmin) return;
     soundManager.playClick();
-    if (
-      !window.confirm(
-        isAr
-          ? 'هل أنت متأكد من حذف وتفريغ جميع تنبيهات وبوت الـ Webhook من قاعدة البيانات نهائياً لتفريغ المساحة؟'
-          : 'Are you sure you want to permanently wipe all bot server signals from the database?'
-      )
-    ) {
+    if (!confirmWipeBots) {
+      setConfirmWipeBots(true);
       return;
     }
 
+    setConfirmWipeBots(false);
     setIsWipingBotAlerts(true);
     try {
       const snap = await getDocs(collection(db, 'bot_alerts'));
@@ -307,8 +306,8 @@ export const AdminDashboard: React.FC<Props> = ({
       showFeedback(
         'success',
         isAr
-          ? 'تم تفريغ وحذف جميع تنبيهات وبوت الـ Webhook بنجاح!'
-          : 'All bot server signals wiped successfully!'
+          ? `تم تفريغ وحذف جميع تنبيهات وبوت الـ Webhook (${docs.length}) بنجاح!`
+          : `All bot server signals (${docs.length}) wiped successfully!`
       );
     } catch (err: any) {
       showFeedback(
@@ -1258,6 +1257,18 @@ export const AdminDashboard: React.FC<Props> = ({
         >
           <Zap className="w-4 h-4 text-amber-400" />
           <span>{isAr ? 'مركز نشر التوصيات والصفقات' : 'Publishing Center'}</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('broadcasts')}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+            activeTab === 'broadcasts'
+              ? 'bg-amber-500 text-black shadow-md'
+              : 'text-amber-300/90 hover:text-white bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30'
+          }`}
+        >
+          <Megaphone className="w-4 h-4" />
+          <span>{isAr ? '📢 النوافذ المنبثقة والرسائل الجماعية' : '📢 Popups & Bulk DMs'}</span>
         </button>
 
         {isFullAdmin && (
@@ -2279,17 +2290,64 @@ export const AdminDashboard: React.FC<Props> = ({
                   ? 'هذا الإجراء سيقوم بحذف كافة تنبيهات Webhook الواردة من TradingView والمخزنة في مجموعة bot_alerts لتفريغ المساحة وتنظيف السجل عبر جميع الدومينات فوراً.'
                   : 'This action permanently deletes all incoming TradingView webhook alerts in bot_alerts to clear space and reset history across all domains.'}
               </p>
-              <button
-                type="button"
-                disabled={isWipingBotAlerts}
-                onClick={handleWipeAllBotAlerts}
-                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-2 shadow-md"
-              >
-                {isWipingBotAlerts ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                <span>{isAr ? '⚠️ حذف وتفريغ كافة تنبيهات البوت الآن' : '⚠️ Wipe All Bot Server Signals Now'}</span>
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={isWipingBotAlerts}
+                  onClick={handleWipeAllBotAlerts}
+                  className={`px-4 py-2 rounded-xl text-white font-bold text-xs transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-2 shadow-md ${
+                    confirmWipeBots
+                      ? 'bg-red-600 hover:bg-red-500 ring-2 ring-red-400 animate-pulse'
+                      : 'bg-rose-600 hover:bg-rose-500'
+                  }`}
+                >
+                  {isWipingBotAlerts ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                  <span>
+                    {confirmWipeBots
+                      ? isAr
+                        ? '🔥 اضغط مجدداً لتأكيد الحذف النهائي لجميع تنبيهات البوت'
+                        : '🔥 Click Again to Confirm Permanent Wipe'
+                      : isAr
+                      ? '⚠️ حذف وتفريغ كافة تنبيهات البوت الآن'
+                      : '⚠️ Wipe All Bot Server Signals Now'}
+                  </span>
+                </button>
+                {confirmWipeBots && (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmWipeBots(false)}
+                    className="px-3 py-2 rounded-xl bg-[#2a2e39] hover:bg-[#363a45] text-white text-xs font-bold cursor-pointer"
+                  >
+                    {isAr ? 'إلغاء' : 'Cancel'}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* 2.5 ADMIN BROADCASTS TAB (POPUP ANNOUNCEMENTS & SEGMENTED BULK DMs) */}
+        {/* ========================================================================= */}
+        {activeTab === 'broadcasts' && (
+          <AdminBroadcastsTab
+            isAr={isAr}
+            onShowFeedback={(type, message) => showFeedback(type, message)}
+            users={users.map((u) => ({
+              id: u.id || u.uid,
+              name: u.displayName || u.username || u.email?.split('@')[0] || 'Trader',
+              email: u.email,
+              role: u.role,
+              tier: u.tier,
+              isVip: u.isVip,
+              isElite: u.isElite,
+              vipExpiryDate: u.vipExpiryDate,
+              eliteExpiryDate: u.eliteExpiryDate,
+              subscriptionEndDate: u.subscriptionEndDate,
+              grantedFeatures: u.grantedFeatures,
+              isBanned: u.isBanned,
+            }))}
+          />
         )}
       </div>
 

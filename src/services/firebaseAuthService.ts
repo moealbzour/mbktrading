@@ -657,6 +657,23 @@ export async function updateOwnUserProfile(
     } catch (err) {
       console.warn('[Firebase Auth] displayName metadata sync notice:', err);
     }
+
+    try {
+      await setDoc(
+        doc(db, 'chat_profiles', uid),
+        {
+          uid,
+          displayName: cleanName,
+          role: (existingData.role || 'FREE').toString().toUpperCase(),
+          isVip: Boolean(existingData.isVip || existingData.vipAccess),
+          isElite: Boolean(existingData.isElite || existingData.tier === 'elite'),
+          updatedAtMs: Date.now()
+        },
+        { merge: true }
+      );
+    } catch (err) {
+      console.warn('[Firebase Auth] chat_profiles displayName sync notice:', err);
+    }
   }
 
   return { nameChanged };

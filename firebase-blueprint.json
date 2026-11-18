@@ -242,6 +242,27 @@
         "createdAt": { "type": "string", "maxLength": 64 }
       },
       "required": ["senderUid", "recipientUid", "senderName", "text", "timestampMs"]
+    },
+    "Announcement": {
+      "title": "Announcement",
+      "description": "Admin popup announcement or macro event warning targeted by tab and user segment",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 200 },
+        "message": { "type": "string", "maxLength": 1500 },
+        "type": { "type": "string", "enum": ["offer", "news", "event", "update"] },
+        "targetTabs": { "type": "array", "items": { "type": "string" } },
+        "targetAudience": { "type": "string", "enum": ["all", "free", "vip", "elite", "expiring_soon"] },
+        "ctaType": { "type": "string", "enum": ["none", "plans", "promo", "calendar", "url"] },
+        "ctaLabel": { "type": "string", "maxLength": 100 },
+        "ctaUrl": { "type": "string", "maxLength": 500 },
+        "isActive": { "type": "boolean" },
+        "createdBy": { "type": "string", "maxLength": 200 },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "timestampMs": { "type": "number" }
+      },
+      "required": ["id", "title", "message", "type", "targetTabs", "targetAudience", "isActive", "timestampMs"]
     }
   },
   "firestore": {
@@ -304,6 +325,10 @@
     "/settings/chat_room": {
       "schema": "ChatRoomSettings",
       "description": "Temporary chat lock & reset state managed by admin/moderators"
+    },
+    "/announcements/{announcementId}": {
+      "schema": "Announcement",
+      "description": "Admin popup announcements, offers, and macro event alerts"
     }
   }
 }

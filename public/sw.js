@@ -45,6 +45,9 @@ self.addEventListener('fetch', (event) => {
 // Handle OS/Mobile PWA notification clicks: focus open window or launch app
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  if (self.navigator && 'clearAppBadge' in self.navigator) {
+    self.navigator.clearAppBadge().catch(() => {});
+  }
   const targetUrl = (event.notification.data && event.notification.data.url) || '/';
 
   event.waitUntil(
@@ -60,3 +63,18 @@ self.addEventListener('notificationclick', (event) => {
     })
   );
 });
+
+// Sync PWA App Shortcut Badge from active client tabs
+self.addEventListener('message', (event) => {
+  const data = event.data;
+  if (!data || data.type !== 'SET_BADGE') return;
+  const count = Number(data.count || 0);
+  if (self.navigator && 'setAppBadge' in self.navigator) {
+    if (count > 0) {
+      self.navigator.setAppBadge(count).catch(() => {});
+    } else if ('clearAppBadge' in self.navigator) {
+      self.navigator.clearAppBadge().catch(() => {});
+    }
+  }
+});
+

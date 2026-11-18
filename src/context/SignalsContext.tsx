@@ -132,19 +132,51 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [unreadChatCount, setUnreadChatCount] = useState<number>(0);
   const [unreadTradesCount, setUnreadTradesCount] = useState<number>(0);
 
-  const markChatAsRead = useCallback(() => setUnreadChatCount(0), []);
-  const markTradesAsRead = useCallback(() => setUnreadTradesCount(0), []);
+  const markChatAsRead = useCallback(() => {
+    setUnreadChatCount(0);
+    try {
+      localStorage.setItem('mbk_last_seen_chat_ms', String(Date.now()));
+    } catch {
+      // ignore storage errors
+    }
+  }, []);
+
+  const markTradesAsRead = useCallback(() => {
+    setUnreadTradesCount(0);
+    try {
+      localStorage.setItem('mbk_last_seen_trades_ms', String(Date.now()));
+    } catch {
+      // ignore storage errors
+    }
+  }, []);
+
   const markDmAsRead = useCallback(() => setUnreadDmCount(0), []);
 
-  // Sync PWA App Shortcut / Icon Badge
+  // Sync PWA App Shortcut / Icon Badge & Browser Tab Title
   const totalUnread = unreadDmCount + unreadChatCount + unreadTradesCount;
   useEffect(() => {
+    if (typeof document !== 'undefined') {
+      const baseTitle = 'MBK Trading — منصة التداول الذكية';
+      document.title = totalUnread > 0 ? `(${totalUnread}) ${baseTitle}` : baseTitle;
+    }
+
     if (typeof navigator !== 'undefined') {
       if ('setAppBadge' in navigator) {
         if (totalUnread > 0) {
           (navigator as any).setAppBadge(totalUnread).catch(() => {});
         } else {
           (navigator as any).clearAppBadge?.().catch(() => {});
+        }
+      }
+
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        try {
+          navigator.serviceWorker.controller.postMessage({
+            type: 'SET_BADGE',
+            count: totalUnread
+          });
+        } catch {
+          // ignore
         }
       }
     }
@@ -314,6 +346,7 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
               const isRecent = data.timestampMs ? data.timestampMs > Date.now() - 5 * 60 * 1000 : true;
 
               if (!isFirstSignalsSnapshot && isRecent) {
+                setUnreadTradesCount((prev) => prev + 1);
                 triggerAudioAlert();
 
                 addToast({
@@ -644,57 +677,33 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   botAlerts.forEach((alert) => {
     if (!existingTradeIds.has(alert.id)) {
       const text = alert.text || '';
-      const upperText = text.toUpperCase();
-
-      const actionMatch = upperText.match(/\b(BUY|SELL)\b/);
-      const action: 'BUY' | 'SELL' = actionMatch ? (actionMatch[1] as 'BUY' | 'SELL') : 'BUY';
-
-      let symbol = 'US100';
-      if (upperText.includes('XAU') || upperText.includes('GOLD')) symbol = 'XAUUSD';
-      else if (upperText.includes('EUR')) symbol = 'EURUSD';
-      else if (upperText.includes('BTC')) symbol = 'BTCUSD';
-      else if (upperText.includes('GBP')) symbol = 'GBPUSD';
-      else if (upperText.includes('WTI') || upperText.includes('OIL')) symbol = 'WTI';
-      else if (upperText.includes('NAS') || upperText.includes('NDX') || upperText.includes('US100')) symbol = 'US100';
-
-      const priceMatch = text.match(/(\d{2,5}\.?\d{0,4})/);
-      const entryPrice = priceMatch ? parseFloat(priceMatch[1]) : 0;
-
-      const tp1 =
-        entryPrice > 0
-          ? action === 'BUY'
-            ? Math.round(entryPrice * 1.005 * 100) / 100
-            : Math.round(entryPrice * 0.995 * 100) / 100
-          : 0;
-      const sl =
-        entryPrice > 0
-          ? action === 'BUY'
-            ? Math.round(entryPrice * 0.995 * 100) / 100
-            : Math.round(entryPrice * 1.005 * 100) / 100
-          : 0;
 
       mergedTrades.push({
         id: `bot-${alert.id}`,
-        symbol,
-        nameAr: `${symbol} (تنبيه آلي)`,
-        action,
+        symbol: 'US100',
+        nameAr: 'TradingView Bot',
+        action: 'BUY',
         source: 'BOT_WEBHOOK',
         sourceLabelAr: 'تنبيه TradingView Webhook',
         sourceLabelEn: 'TradingView Webhook',
         status: 'RUNNING',
-        statusLabelAr: 'صفقة جارية الآن ⚡',
+        statusLabelAr: 'تنبيه آلي مباشر 🤖',
         openTime: alert.timestamp
-          ? new Date(alert.timestamp).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
+          ? new Date(alert.timestamp).toLocaleTimeString('ar-SA', {
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit'
+            })
           : 'الآن',
         duration: 'الآن',
         pips: 0,
-        entryPrice,
-        currentPrice: entryPrice,
-        tp1,
-        sl,
-        riskReward: entryPrice > 0 ? '1:2.4' : 'N/A',
+        entryPrice: 0,
+        currentPrice: 0,
+        tp1: 0,
+        sl: 0,
+        riskReward: 'N/A',
         strategy: 'TradingView PineScript Alert',
-        confidence: 90,
+        confidence: 100,
         notesAr: text,
         textMsg: text,
         isBotSignal: true,

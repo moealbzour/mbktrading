@@ -367,7 +367,8 @@ service cloud.firestore {
 
     function canReceiveDirectMessage(senderUid, recipientUid) {
       let profilePath = /databases/$(database)/documents/chat_profiles/$(recipientUid);
-      return !exists(profilePath)
+      return isAdmin()
+        || !exists(profilePath)
         || (
           get(profilePath).data.get('allowDirectMessages', true) == true
           && !(senderUid in get(profilePath).data.get('blockedUids', []))
@@ -604,6 +605,32 @@ service cloud.firestore {
         || (settingId != 'chat_room' && isAdmin() && isValidPlatformSettings(incoming()))
       );
       allow delete: if isValidId(settingId) && isAdmin();
+    }
+
+    // ---------------------------------------------------------------
+    // 7. ADMIN POPUP ANNOUNCEMENTS & MACRO EVENT WARNINGS
+    // ---------------------------------------------------------------
+    function isValidAnnouncement(data, docId) {
+      return data.id == docId
+        && data.title is string
+        && data.title.size() >= 1
+        && data.title.size() <= 200
+        && data.message is string
+        && data.message.size() >= 1
+        && data.message.size() <= 1500
+        && data.type in ['offer', 'news', 'event', 'update']
+        && data.targetTabs is list
+        && data.targetTabs.size() >= 1
+        && data.targetTabs.size() <= 20
+        && data.targetAudience in ['all', 'free', 'vip', 'elite', 'expiring_soon']
+        && data.isActive is bool
+        && data.timestampMs is number;
+    }
+
+    match /announcements/{announcementId} {
+      allow get, list: if isSignedIn();
+      allow create, update: if isValidId(announcementId) && isAdmin() && isValidAnnouncement(incoming(), announcementId);
+      allow delete: if isValidId(announcementId) && isAdmin();
     }
   }
 }

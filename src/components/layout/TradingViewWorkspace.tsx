@@ -78,6 +78,7 @@ import { CopyTradingPanel } from '../CopyTradingPanel';
 import { AutoBotPanel } from '../AutoBotPanel';
 import { IndicatorsStorePanel } from '../IndicatorsStorePanel';
 import { EliteLockedModule } from '../common/EliteLockedModule';
+import { MacroEventAndAnnouncementPopup } from '../common/MacroEventAndAnnouncementPopup';
 
 // Utility Modals
 import { SupportDeskModal } from '../modals/SupportDeskModal';
@@ -630,6 +631,8 @@ export const TradingViewWorkspace: React.FC<Props> = ({
     soundManager.playClick();
     setSideDrawerView(topic);
     localStorage.setItem('mbk_tv_sidebar_view', topic);
+    if (topic === 'trades') markTradesAsRead();
+    if (topic === 'chat') markChatAsRead();
   };
 
   const isAr = lang === 'ar';
@@ -1455,7 +1458,13 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                       >
                         <BarChart3 className="w-3.5 h-3.5 text-[#089981]" />
                         <span className="text-[11px]">{isAr ? 'صفقات اليوم' : 'Daily Trades'}</span>
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#089981] animate-ping" />
+                        {unreadTradesCount > 0 ? (
+                          <span className="px-1.5 py-0.2 min-w-[16px] h-[16px] rounded-full bg-rose-600 text-white text-[9px] font-mono font-extrabold flex items-center justify-center shadow-sm">
+                            {unreadTradesCount > 99 ? '99+' : unreadTradesCount}
+                          </span>
+                        ) : (
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#089981] animate-ping" />
+                        )}
                       </button>
 
                       <button
@@ -1466,6 +1475,29 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                       >
                         <MessageSquare className="w-3.5 h-3.5 text-blue-400" />
                         <span className="text-[11px]">{isAr ? 'الشات المباشر' : 'Live Chat'}</span>
+                        {unreadChatCount > 0 && (
+                          <span className="px-1.5 py-0.2 min-w-[16px] h-[16px] rounded-full bg-rose-600 text-white text-[9px] font-mono font-extrabold flex items-center justify-center shadow-sm">
+                            {unreadChatCount > 99 ? '99+' : unreadChatCount}
+                          </span>
+                        )}
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          soundManager.playClick();
+                          markDmAsRead();
+                          setActiveMainView('chart');
+                          setActiveView('dm');
+                        }}
+                        className="px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 text-[#787b86] hover:text-white"
+                      >
+                        <Mail className="w-3.5 h-3.5 text-purple-400" />
+                        <span className="text-[11px]">{isAr ? 'الوارد' : 'Inbox'}</span>
+                        {unreadDmCount > 0 && (
+                          <span className="px-1.5 py-0.2 min-w-[16px] h-[16px] rounded-full bg-rose-600 text-white text-[9px] font-mono font-extrabold flex items-center justify-center shadow-sm">
+                            {unreadDmCount > 99 ? '99+' : unreadDmCount}
+                          </span>
+                        )}
                       </button>
 
                       <button
@@ -1623,7 +1655,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                 )}
 
                 {/* FREE TIER BASIC TOOL: ECONOMIC CALENDAR */}
-                {activeView === 'calendar' && <EconomicCalendarPanel />}
+                {activeView === 'calendar' && <EconomicCalendarPanel lang={lang} />}
 
                 {/* FREE TIER BASIC TOOL: ACADEMY */}
                 {activeView === 'academy' && <TradingAcademyPanel lang={lang} />}
@@ -1828,7 +1860,13 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                       <span className={isBottomFolded ? 'hidden sm:inline text-[11px]' : 'text-[11px]'}>
                         {isAr ? 'صفقات اليوم' : 'Daily Trades'}
                       </span>
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#089981] animate-ping" />
+                      {unreadTradesCount > 0 ? (
+                        <span className="px-1.5 py-0.2 min-w-[16px] h-[16px] rounded-full bg-rose-600 text-white text-[9px] font-mono font-extrabold flex items-center justify-center shadow-sm">
+                          {unreadTradesCount > 99 ? '99+' : unreadTradesCount}
+                        </span>
+                      ) : (
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#089981] animate-ping" />
+                      )}
                     </button>
 
                     {/* Community Chat Tab */}
@@ -1848,6 +1886,33 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                       <span className={isBottomFolded ? 'hidden sm:inline text-[11px]' : 'text-[11px]'}>
                         {isAr ? 'الشات المباشر' : 'Live Chat'}
                       </span>
+                      {unreadChatCount > 0 && (
+                        <span className="px-1.5 py-0.2 min-w-[16px] h-[16px] rounded-full bg-rose-600 text-white text-[9px] font-mono font-extrabold flex items-center justify-center shadow-sm">
+                          {unreadChatCount > 99 ? '99+' : unreadChatCount}
+                        </span>
+                      )}
+                    </button>
+
+                    {/* Inbox / Direct Messages Quick Button */}
+                    <button
+                      onClick={() => {
+                        soundManager.playClick();
+                        markDmAsRead();
+                        setActiveMainView('chart');
+                        setActiveView('dm');
+                      }}
+                      className="px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 text-[#787b86] hover:text-white"
+                      title={isAr ? 'صندوق الرسائل الخاصة' : 'Direct Messages Inbox'}
+                    >
+                      <Mail className="w-3.5 h-3.5 text-purple-400" />
+                      <span className={isBottomFolded ? 'hidden sm:inline text-[11px]' : 'text-[11px]'}>
+                        {isAr ? 'الوارد' : 'Inbox'}
+                      </span>
+                      {unreadDmCount > 0 && (
+                        <span className="px-1.5 py-0.2 min-w-[16px] h-[16px] rounded-full bg-rose-600 text-white text-[9px] font-mono font-extrabold flex items-center justify-center shadow-sm">
+                          {unreadDmCount > 99 ? '99+' : unreadDmCount}
+                        </span>
+                      )}
                     </button>
 
                     {/* AI Analyst Tab */}
@@ -2012,7 +2077,13 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                       title={isAr ? 'صفقات اليوم' : 'Daily Trades'}
                     >
                       <BarChart3 className="w-4 h-4" />
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#089981] absolute top-0.5 end-0.5 animate-ping" />
+                      {unreadTradesCount > 0 ? (
+                        <span className="absolute -top-1 -end-1 min-w-[14px] h-[14px] px-0.5 rounded-full bg-rose-600 text-white text-[8px] font-mono font-extrabold flex items-center justify-center border border-[#131722]">
+                          {unreadTradesCount > 99 ? '99+' : unreadTradesCount}
+                        </span>
+                      ) : (
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#089981] absolute top-0.5 end-0.5 animate-ping" />
+                      )}
                     </button>
 
                     <button
@@ -2025,6 +2096,29 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                       title={isAr ? 'الشات المباشر' : 'Live Chat'}
                     >
                       <MessageSquare className="w-4 h-4" />
+                      {unreadChatCount > 0 && (
+                        <span className="absolute -top-1 -end-1 min-w-[14px] h-[14px] px-0.5 rounded-full bg-rose-600 text-white text-[8px] font-mono font-extrabold flex items-center justify-center border border-[#131722]">
+                          {unreadChatCount > 99 ? '99+' : unreadChatCount}
+                        </span>
+                      )}
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        soundManager.playClick();
+                        markDmAsRead();
+                        setActiveMainView('chart');
+                        setActiveView('dm');
+                      }}
+                      className="w-7 h-7 rounded-lg flex items-center justify-center relative transition-all cursor-pointer text-[#787b86] hover:text-white hover:bg-white/5"
+                      title={isAr ? 'صندوق الرسائل الخاصة' : 'Direct Messages Inbox'}
+                    >
+                      <Mail className="w-4 h-4" />
+                      {unreadDmCount > 0 && (
+                        <span className="absolute -top-1 -end-1 min-w-[14px] h-[14px] px-0.5 rounded-full bg-rose-600 text-white text-[8px] font-mono font-extrabold flex items-center justify-center border border-[#131722]">
+                          {unreadDmCount > 99 ? '99+' : unreadDmCount}
+                        </span>
+                      )}
                     </button>
 
                     <button
@@ -2080,7 +2174,13 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                     >
                       <BarChart3 className="w-3.5 h-3.5 text-[#089981]" />
                       <span className="text-[11px]">{isAr ? 'صفقات' : 'Trades'}</span>
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#089981] animate-ping" />
+                      {unreadTradesCount > 0 ? (
+                        <span className="px-1.5 py-0.2 min-w-[16px] h-[16px] rounded-full bg-rose-600 text-white text-[9px] font-mono font-extrabold flex items-center justify-center shadow-sm">
+                          {unreadTradesCount > 99 ? '99+' : unreadTradesCount}
+                        </span>
+                      ) : (
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#089981] animate-ping" />
+                      )}
                     </button>
 
                     <button
@@ -2094,6 +2194,30 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                     >
                       <MessageSquare className="w-3.5 h-3.5 text-blue-400" />
                       <span className="text-[11px]">{isAr ? 'الشات' : 'Chat'}</span>
+                      {unreadChatCount > 0 && (
+                        <span className="px-1.5 py-0.2 min-w-[16px] h-[16px] rounded-full bg-rose-600 text-white text-[9px] font-mono font-extrabold flex items-center justify-center shadow-sm">
+                          {unreadChatCount > 99 ? '99+' : unreadChatCount}
+                        </span>
+                      )}
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        soundManager.playClick();
+                        markDmAsRead();
+                        setActiveMainView('chart');
+                        setActiveView('dm');
+                      }}
+                      className="px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 text-[#787b86] hover:text-white"
+                      title={isAr ? 'صندوق الرسائل الخاصة' : 'Direct Messages Inbox'}
+                    >
+                      <Mail className="w-3.5 h-3.5 text-purple-400" />
+                      <span className="text-[11px]">{isAr ? 'الوارد' : 'Inbox'}</span>
+                      {unreadDmCount > 0 && (
+                        <span className="px-1.5 py-0.2 min-w-[16px] h-[16px] rounded-full bg-rose-600 text-white text-[9px] font-mono font-extrabold flex items-center justify-center shadow-sm">
+                          {unreadDmCount > 99 ? '99+' : unreadDmCount}
+                        </span>
+                      )}
                     </button>
 
                     <button
@@ -2254,6 +2378,19 @@ export const TradingViewWorkspace: React.FC<Props> = ({
           </button>
         </div>
       )}
+
+      {/* 1-Hour Macro Event Warning (CPI/Fed) & Tab-Targeted Admin Popup Announcements */}
+      <MacroEventAndAnnouncementPopup
+        user={user}
+        activeView={activeMainView === 'heatmap' ? 'heatmap' : activeView}
+        lang={lang}
+        onOpenPlansModal={() => setPlansModalOpen(true)}
+        onOpenPromoModal={onOpenPromoModal}
+        onNavigateToCalendar={() => {
+          setActiveMainView('chart');
+          setActiveView('calendar');
+        }}
+      />
     </div>
   );
 };

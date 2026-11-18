@@ -18,6 +18,10 @@ import {
 } from 'lucide-react';
 import { soundManager } from '../../utils/audio';
 import { RSSNewsItem, NewsImpact } from '../../types/trading';
+import {
+  getUpcomingMacroEvents,
+  translateFinancialHeadlineToArabic
+} from '../../services/macroEventsAndAnnouncementsService';
 
 interface Props {
   lang?: 'ar' | 'en';
@@ -49,7 +53,7 @@ const TradingViewEconomicEventsWidget: React.FC<{
       isTransparent: true,
       width: '100%',
       height: '100%',
-      locale: lang === 'ar' ? 'ar' : 'en',
+      locale: lang === 'ar' ? 'ar_AE' : 'en',
       importanceFilter: '0', // 0 = High Importance Events only (CPI, NFP, Fed Rates, etc.)
       currencyFilter: 'USD,EUR,GBP,JPY,CAD,AUD,CHF'
     });
@@ -235,6 +239,7 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
       setLoading(true);
 
       const urls = [
+        'https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Far.cointelegraph.com%2Frss',
         'https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fcointelegraph.com%2Frss',
         'https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.tradingview.com%2Ffeed%2F'
       ];
@@ -252,21 +257,24 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
 
       results.forEach((res, index) => {
         if (res.status === 'fulfilled' && res.value && res.value.status === 'ok' && Array.isArray(res.value.items)) {
-          const sourceName = index === 0 ? 'Cointelegraph' : 'TradingView Feed';
-          const defaultCategory = index === 0 ? 'عملات رقمية' : 'تحليل الأسواق';
+          const sourceName =
+            index === 0 ? 'Cointelegraph عربي' : index === 1 ? 'Cointelegraph' : 'TradingView Feed';
+          const defaultCategory = index <= 1 ? 'عملات رقمية' : 'تحليل الأسواق';
 
           res.value.items.forEach((raw: any, i: number) => {
-            const title = raw.title || '';
+            const title = (raw.title || '').trim();
+            if (!title) return;
             const content = raw.description || raw.content || '';
             const { sentiment, impact, impactScore } = classifySentimentAndImpactInBrowser(title, content);
 
             const timeAgoAr = calculateTimeAgoStr(raw.pubDate, true);
             const timeAgoEn = calculateTimeAgoStr(raw.pubDate, false);
+            const arabicTitle = translateFinancialHeadlineToArabic(title);
 
             parsedItems.push({
               id: `rss-${index}-${i}-${Date.now()}`,
               title,
-              titleAr: title,
+              titleAr: arabicTitle,
               link: raw.link || 'https://sa.investing.com/news',
               pubDate: raw.pubDate || new Date().toISOString(),
               timeAgo: timeAgoEn,
@@ -284,7 +292,7 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
       });
 
       if (parsedItems.length > 0) {
-        setNews(parsedItems);
+        setNews([...FALLBACK_NATIVE_NEWS.slice(0, 2), ...parsedItems]);
       } else {
         setNews(FALLBACK_NATIVE_NEWS);
       }
@@ -457,14 +465,14 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
                     <span className="w-1.5 h-1.5 rounded-full bg-[#787b86] shrink-0" />
                   )}
 
-                  {/* Arabic Headline (Clickable Link) */}
+                  {/* Headline (Arabic when isAr, English otherwise) */}
                   <a
                     href={item.link}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[#d1d4dc] hover:text-[#2962ff] font-medium text-xs transition-colors hover:underline max-w-[280px] sm:max-w-[420px] md:max-w-[520px] truncate"
                   >
-                    {item.titleAr || item.title}
+                    {isAr ? item.titleAr || item.title : item.title}
                   </a>
 
                   {/* Source & Time */}
@@ -636,7 +644,7 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
                           rel="noopener noreferrer"
                           className="text-xs sm:text-sm font-bold text-white group-hover:text-[#2962ff] transition-colors line-clamp-2 leading-snug block"
                         >
-                          {item.titleAr || item.title}
+                          {isAr ? item.titleAr || item.title : item.title}
                         </a>
                       </div>
 
@@ -655,9 +663,9 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
               </div>
             </div>
 
-            {/* COLUMN 2: TRADINGVIEW HIGH-IMPACT ECONOMIC EVENTS CALENDAR WIDGET */}
-            <div className="lg:col-span-1 bg-[#1e222d] border border-[#2a2e39] rounded-2xl p-3 sm:p-4 flex flex-col shadow-xl">
-              <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-[#2a2e39]">
+            {/* COLUMN 2: UPCOMING MAJOR EVENTS IN ARABIC/ENGLISH + TRADINGVIEW CALENDAR WIDGET */}
+            <div className="lg:col-span-1 bg-[#1e222d] border border-[#2a2e39] rounded-2xl p-3 sm:p-4 flex flex-col gap-3 shadow-xl">
+              <div className="flex items-center justify-between pb-2.5 border-b border-[#2a2e39]">
                 <div className="flex items-center gap-2">
                   <div className="p-1.5 rounded-lg bg-[#f23645]/15 border border-[#f23645]/30 text-[#f23645]">
                     <Flame className="w-4 h-4 animate-pulse" />
@@ -674,12 +682,42 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
 
                 <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-[#f23645]/20 text-[#f23645] border border-[#f23645]/30 flex items-center gap-1 animate-pulse">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#f23645]" />
-                  <span>HIGH IMPORTANCE</span>
+                  <span>{isAr ? 'تنبيه قبل ساعة' : '1H WARNING'}</span>
                 </span>
               </div>
 
+              {/* Native Arabic/English Upcoming Major Events List */}
+              <div className="space-y-2">
+                {getUpcomingMacroEvents().slice(0, 3).map((ev) => (
+                  <div
+                    key={ev.id}
+                    className="p-2.5 rounded-xl bg-[#131722] border border-[#2a2e39] flex items-center justify-between gap-2"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-400 text-[9px] font-mono font-bold">
+                          {ev.code}
+                        </span>
+                        <span className="text-[11px] font-bold text-white truncate">
+                          {isAr ? ev.titleAr : ev.titleEn}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-[#787b86] font-mono">
+                        {isAr ? `المتوقع: ${ev.forecast} | السابق: ${ev.previous}` : `Forecast: ${ev.forecast} | Prev: ${ev.previous}`}
+                      </span>
+                    </div>
+                    <span className="px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-mono font-bold shrink-0">
+                      {new Date(ev.releaseTimeMs).toLocaleTimeString(isAr ? 'ar-SA' : 'en-US', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
               {/* TRADINGVIEW EMBEDDED EVENTS WIDGET */}
-              <div className="flex-1 min-h-[550px] w-full">
+              <div className="flex-1 min-h-[420px] w-full">
                 <TradingViewEconomicEventsWidget lang={lang} />
               </div>
             </div>

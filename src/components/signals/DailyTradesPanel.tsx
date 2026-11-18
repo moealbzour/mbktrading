@@ -82,6 +82,15 @@ export const DailyTradesPanel: React.FC<Props> = ({
 
   const handleCopyLevels = (trade: DailyTrade) => {
     soundManager.playClick();
+    const isBot = trade.source === 'BOT_WEBHOOK' || Boolean(trade.isBotSignal);
+    if (isBot) {
+      const rawText = (trade.textMsg || trade.notesAr || '').trim();
+      navigator.clipboard.writeText(rawText);
+      setCopiedId(trade.id);
+      setTimeout(() => setCopiedId(null), 2000);
+      return;
+    }
+
     let text = `${trade.symbol} ${trade.action}`;
     if (trade.entryPrice > 0) {
       text += `\nEntry: ${trade.entryPrice}\nSL: ${trade.sl}\nTP1: ${trade.tp1}`;
@@ -112,20 +121,17 @@ export const DailyTradesPanel: React.FC<Props> = ({
   const [deletingTrade, setDeletingTrade] = useState(false);
   const [deleteTradeError, setDeleteTradeError] = useState<string | null>(null);
   const [wipingBots, setWipingBots] = useState(false);
+  const [confirmWipeBots, setConfirmWipeBots] = useState(false);
 
   const handleWipeAllBotSignals = async () => {
     if (!isRealAdmin) return;
     soundManager.playClick();
-    if (
-      !window.confirm(
-        isAr
-          ? 'هل أنت متأكد من حذف وتفريغ جميع تنبيهات وبوت الـ Webhook من قاعدة البيانات نهائياً؟'
-          : 'Are you sure you want to permanently wipe all bot server signals?'
-      )
-    ) {
+    if (!confirmWipeBots) {
+      setConfirmWipeBots(true);
       return;
     }
 
+    setConfirmWipeBots(false);
     setWipingBots(true);
     try {
       const snap = await getDocs(collection(db, 'bot_alerts'));
@@ -142,7 +148,9 @@ export const DailyTradesPanel: React.FC<Props> = ({
       soundManager.playSuccess();
       addToast({
         title: isAr ? 'تم تفريغ وحذف تنبيهات البوت' : 'Bot Signals Wiped',
-        message: isAr ? 'تم مسح جميع تنبيهات الـ Webhook بنجاح.' : 'All bot webhook alerts successfully cleared.',
+        message: isAr
+          ? `تم مسح جميع تنبيهات الـ Webhook (${docs.length}) بنجاح.`
+          : `All bot webhook alerts (${docs.length}) successfully cleared.`,
         type: 'bot',
         timestamp: isAr ? 'الآن' : 'Now'
       });
@@ -232,9 +240,7 @@ export const DailyTradesPanel: React.FC<Props> = ({
 
       if (isBot) {
         await updateDoc(doc(db, 'bot_alerts', cleanId), {
-          text: editNotes,
-          symbol: editSymbol,
-          action: editAction
+          text: editNotes
         });
       } else {
         await updateDoc(doc(db, 'signals', cleanId), {
@@ -293,16 +299,40 @@ export const DailyTradesPanel: React.FC<Props> = ({
 
         <div className="flex items-center gap-1.5">
           {isRealAdmin && (
-            <button
-              type="button"
-              disabled={wipingBots}
-              onClick={handleWipeAllBotSignals}
-              className="px-2 py-1 rounded bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/40 text-rose-400 text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1 shrink-0 disabled:opacity-50"
-              title={isAr ? 'حذف وتفريغ جميع تنبيهات البوت' : 'Wipe all bot signals'}
-            >
-              {wipingBots ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-              <span>{isAr ? 'تفريغ البوت' : 'Wipe Bots'}</span>
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                disabled={wipingBots}
+                onClick={handleWipeAllBotSignals}
+                className={`px-2 py-1 rounded border text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1 shrink-0 disabled:opacity-50 ${
+                  confirmWipeBots
+                    ? 'bg-red-600 text-white border-red-400 animate-pulse'
+                    : 'bg-rose-500/15 hover:bg-rose-500/25 border-rose-500/40 text-rose-400'
+                }`}
+                title={isAr ? 'حذف وتفريغ جميع تنبيهات البوت' : 'Wipe all bot signals'}
+              >
+                {wipingBots ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                <span>
+                  {confirmWipeBots
+                    ? isAr
+                      ? 'تأكيد التفريغ؟'
+                      : 'Confirm Wipe?'
+                    : isAr
+                    ? 'تفريغ البوت'
+                    : 'Wipe Bots'}
+                </span>
+              </button>
+              {confirmWipeBots && (
+                <button
+                  type="button"
+                  onClick={() => setConfirmWipeBots(false)}
+                  className="p-1 rounded bg-[#2a2e39] text-white hover:bg-[#363a45] text-[10px] cursor-pointer"
+                  title={isAr ? 'إلغاء' : 'Cancel'}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
           )}
 
           <button
@@ -462,42 +492,55 @@ export const DailyTradesPanel: React.FC<Props> = ({
                 className="rounded-lg border bg-[#1e222d] border-[#2a2e39] hover:border-[#363a45] p-2 space-y-1.5 transition-all text-xs"
               >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <span
-                      className={`px-1.5 py-0.2 rounded text-[10px] font-mono font-bold ${
-                        trade.action === 'BUY'
-                          ? 'bg-[#089981]/20 text-[#089981] border border-[#089981]/40'
-                          : 'bg-[#f23645]/20 text-[#f23645] border border-[#f23645]/40'
-                      }`}
-                    >
-                      {trade.action}
-                    </span>
+                  {isBot ? (
+                    <>
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-[#089981]" />
+                        <span className="text-[11px] font-bold text-white flex items-center gap-1">
+                          <Bot className="w-3.5 h-3.5 text-[#089981]" />
+                          <span>TradingView Bot</span>
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-[#787b86] font-mono">{trade.openTime}</span>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className={`px-1.5 py-0.2 rounded text-[10px] font-mono font-bold ${
+                            trade.action === 'BUY'
+                              ? 'bg-[#089981]/20 text-[#089981] border border-[#089981]/40'
+                              : 'bg-[#f23645]/20 text-[#f23645] border border-[#f23645]/40'
+                          }`}
+                        >
+                          {trade.action}
+                        </span>
 
-                    <span className="font-bold text-white font-mono text-xs">{trade.symbol}</span>
+                        <span className="font-bold text-white font-mono text-xs">{trade.symbol}</span>
 
-                    <span className="text-[9px] font-semibold text-[#787b86] flex items-center gap-0.5">
-                      {trade.source === 'BOT_WEBHOOK' ? (
-                        <span className="text-purple-400">🤖 Bot</span>
-                      ) : trade.source === 'VIP_MANUAL' ? (
-                        <span className="text-amber-400">👑 VIP</span>
-                      ) : (
-                        <span className="text-blue-400">📡 Free</span>
-                      )}
-                    </span>
-                  </div>
+                        <span className="text-[9px] font-semibold text-[#787b86] flex items-center gap-0.5">
+                          {trade.source === 'VIP_MANUAL' ? (
+                            <span className="text-amber-400">👑 VIP</span>
+                          ) : (
+                            <span className="text-blue-400">📡 Free</span>
+                          )}
+                        </span>
+                      </div>
 
-                  <div className="flex items-center gap-1 font-mono font-bold text-[11px]">
-                    {isRunning ? (
-                      <span className="text-amber-400 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
-                        <span>{trade.pips >= 0 ? `+${trade.pips}p` : `${trade.pips}p`}</span>
-                      </span>
-                    ) : isWin ? (
-                      <span className="text-[#089981]">🎯 +{trade.pips}p</span>
-                    ) : (
-                      <span className="text-[#f23645]">🛑 {trade.pips}p</span>
-                    )}
-                  </div>
+                      <div className="flex items-center gap-1 font-mono font-bold text-[11px]">
+                        {isRunning ? (
+                          <span className="text-amber-400 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+                            <span>{trade.pips >= 0 ? `+${trade.pips}p` : `${trade.pips}p`}</span>
+                          </span>
+                        ) : isWin ? (
+                          <span className="text-[#089981]">🎯 +{trade.pips}p</span>
+                        ) : (
+                          <span className="text-[#f23645]">🛑 {trade.pips}p</span>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <div className="relative rounded overflow-hidden">
@@ -516,7 +559,7 @@ export const DailyTradesPanel: React.FC<Props> = ({
                     </div>
                   )}
 
-                  {trade.entryPrice > 0 ? (
+                  {!isBot && trade.entryPrice > 0 ? (
                     <div
                       className={`grid grid-cols-3 gap-1 bg-[#131722] p-1.5 rounded text-center font-mono ${
                         shouldBlur ? 'filter blur-[4px] select-none pointer-events-none' : ''
@@ -543,15 +586,11 @@ export const DailyTradesPanel: React.FC<Props> = ({
                     </div>
                   ) : (
                     <div
-                      className={`bg-[#131722] p-2 rounded border border-purple-500/30 text-purple-200 text-[11px] font-mono leading-relaxed space-y-1 ${
+                      className={`bg-[#1a1e29] p-2.5 rounded-lg border border-[#2a2e39]/90 text-[#d1d4dc] text-[11px] font-mono leading-relaxed text-start dir-ltr ${
                         shouldBlur ? 'filter blur-[4px] select-none pointer-events-none' : ''
                       }`}
                     >
-                      <div className="flex items-center gap-1 text-purple-400 font-bold text-[10px]">
-                        <Bot className="w-3.5 h-3.5" />
-                        <span>{isAr ? 'إشعار آلي / تنبيه' : 'Bot Notice'}</span>
-                      </div>
-                      <p className="whitespace-pre-wrap break-words text-white/90 text-[10.5px]">
+                      <p className="whitespace-pre-wrap break-words text-white/95 text-[11px]">
                         {trade.textMsg || trade.notesAr || (isAr ? 'تنبيه آلي مباشر' : 'Direct bot alert')}
                       </p>
                     </div>
@@ -671,72 +710,76 @@ export const DailyTradesPanel: React.FC<Props> = ({
             </div>
 
             <form onSubmit={handleSaveEditTrade} className="space-y-3 text-xs">
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[#787b86] block mb-1">{isAr ? 'الرمز:' : 'Symbol:'}</label>
-                  <input
-                    type="text"
-                    value={editSymbol}
-                    onChange={(e) => setEditSymbol(e.target.value.toUpperCase())}
-                    className="w-full px-3 py-1.5 rounded-lg bg-[#131722] border border-[#2a2e39] text-white font-mono uppercase"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-[#787b86] block mb-1">{isAr ? 'النوع:' : 'Action:'}</label>
-                  <select
-                    value={editAction}
-                    onChange={(e) => setEditAction(e.target.value as 'BUY' | 'SELL')}
-                    className="w-full px-3 py-1.5 rounded-lg bg-[#131722] border border-[#2a2e39] text-white font-mono"
-                  >
-                    <option value="BUY">BUY (شراء)</option>
-                    <option value="SELL">SELL (بيع)</option>
-                  </select>
-                </div>
-              </div>
+              {!(editingTrade.isBotSignal || editingTrade.source === 'BOT_WEBHOOK') && (
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[#787b86] block mb-1">{isAr ? 'الرمز:' : 'Symbol:'}</label>
+                      <input
+                        type="text"
+                        value={editSymbol}
+                        onChange={(e) => setEditSymbol(e.target.value.toUpperCase())}
+                        className="w-full px-3 py-1.5 rounded-lg bg-[#131722] border border-[#2a2e39] text-white font-mono uppercase"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[#787b86] block mb-1">{isAr ? 'النوع:' : 'Action:'}</label>
+                      <select
+                        value={editAction}
+                        onChange={(e) => setEditAction(e.target.value as 'BUY' | 'SELL')}
+                        className="w-full px-3 py-1.5 rounded-lg bg-[#131722] border border-[#2a2e39] text-white font-mono"
+                      >
+                        <option value="BUY">BUY (شراء)</option>
+                        <option value="SELL">SELL (بيع)</option>
+                      </select>
+                    </div>
+                  </div>
 
-              <div className="grid grid-cols-2 gap-2 font-mono">
-                <div>
-                  <label className="text-[#787b86] block mb-1">ENTRY (سعر الدخول):</label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={editEntry}
-                    onChange={(e) => setEditEntry(e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-lg bg-[#131722] border border-[#2a2e39] text-white font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="text-[#f23645] block mb-1">SL (وقف الخسارة):</label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={editSl}
-                    onChange={(e) => setEditSl(e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-lg bg-[#131722] border border-[#2a2e39] text-[#f23645] font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="text-[#089981] block mb-1">TP1 (الهدف الأول):</label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={editTp1}
-                    onChange={(e) => setEditTp1(e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-lg bg-[#131722] border border-[#2a2e39] text-[#089981] font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="text-[#089981] block mb-1">TP2 (الهدف الثاني):</label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={editTp2}
-                    onChange={(e) => setEditTp2(e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-lg bg-[#131722] border border-[#2a2e39] text-[#089981] font-mono"
-                  />
-                </div>
-              </div>
+                  <div className="grid grid-cols-2 gap-2 font-mono">
+                    <div>
+                      <label className="text-[#787b86] block mb-1">ENTRY (سعر الدخول):</label>
+                      <input
+                        type="number"
+                        step="any"
+                        value={editEntry}
+                        onChange={(e) => setEditEntry(e.target.value)}
+                        className="w-full px-3 py-1.5 rounded-lg bg-[#131722] border border-[#2a2e39] text-white font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[#f23645] block mb-1">SL (وقف الخسارة):</label>
+                      <input
+                        type="number"
+                        step="any"
+                        value={editSl}
+                        onChange={(e) => setEditSl(e.target.value)}
+                        className="w-full px-3 py-1.5 rounded-lg bg-[#131722] border border-[#2a2e39] text-[#f23645] font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[#089981] block mb-1">TP1 (الهدف الأول):</label>
+                      <input
+                        type="number"
+                        step="any"
+                        value={editTp1}
+                        onChange={(e) => setEditTp1(e.target.value)}
+                        className="w-full px-3 py-1.5 rounded-lg bg-[#131722] border border-[#2a2e39] text-[#089981] font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[#089981] block mb-1">TP2 (الهدف الثاني):</label>
+                      <input
+                        type="number"
+                        step="any"
+                        value={editTp2}
+                        onChange={(e) => setEditTp2(e.target.value)}
+                        className="w-full px-3 py-1.5 rounded-lg bg-[#131722] border border-[#2a2e39] text-[#089981] font-mono"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
 
               <div>
                 <label className="text-[#787b86] block mb-1">
@@ -803,11 +846,13 @@ export const DailyTradesPanel: React.FC<Props> = ({
                   ? 'هل أنت متأكد من حذف هذه الصفقة/التنبيه نهائياً من قاعدة البيانات؟'
                   : 'Are you sure you want to permanently delete this signal/alert from the database?'}
               </p>
-              <div className="px-3 py-2 rounded-lg bg-[#131722] border border-[#2a2e39] font-mono text-white font-bold flex items-center justify-between">
-                <span>
-                  {pendingDeleteTrade.trade.action} {pendingDeleteTrade.trade.symbol}
+              <div className="px-3 py-2 rounded-lg bg-[#131722] border border-[#2a2e39] font-mono text-white font-bold flex items-center justify-between gap-2">
+                <span className="truncate">
+                  {pendingDeleteTrade.targetCollection === 'bot_alerts'
+                    ? pendingDeleteTrade.trade.textMsg || 'TradingView Bot Alert'
+                    : `${pendingDeleteTrade.trade.action} ${pendingDeleteTrade.trade.symbol}`}
                 </span>
-                <span className="text-[10px] text-[#787b86]">{pendingDeleteTrade.targetCollection}</span>
+                <span className="text-[10px] text-[#787b86] shrink-0">{pendingDeleteTrade.targetCollection}</span>
               </div>
               {deleteTradeError && (
                 <div className="p-2.5 rounded-lg bg-rose-500/15 border border-rose-500/40 text-rose-300 text-[11px] font-mono break-words">
