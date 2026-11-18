@@ -1,8 +1,13 @@
 import type { IncomingMessage, ServerResponse } from 'http';
 import fs from 'fs';
 import path from 'path';
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, doc, setDoc } from 'firebase/firestore';
+import {
+  initializeApp as initAdminApp,
+  getApps as getAdminApps,
+  getApp as getAdminApp,
+  applicationDefault
+} from 'firebase-admin/app';
+import { getFirestore as getAdminFirestore } from 'firebase-admin/firestore';
 
 type Req = IncomingMessage & {
   method?: string;
@@ -18,7 +23,8 @@ type Res = ServerResponse & {
 function loadFirebaseConfig(): Record<string, any> {
   const candidates = [
     path.resolve(process.cwd(), 'firebase-applet-config.json'),
-    path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../firebase-applet-config.json')
+    path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../firebase-applet-config.json'),
+    path.resolve(__dirname, '../../firebase-applet-config.json')
   ];
   for (const filePath of candidates) {
     if (fs.existsSync(filePath)) {
@@ -28,21 +34,21 @@ function loadFirebaseConfig(): Record<string, any> {
   throw new Error('firebase-applet-config.json not found');
 }
 
-function getDbClient() {
+function getAdminDb() {
   const config = loadFirebaseConfig();
-  const firebaseConfig = {
-    apiKey: config.apiKey,
-    authDomain: config.authDomain,
-    projectId: config.projectId,
-    storageBucket: config.storageBucket,
-    messagingSenderId: config.messagingSenderId,
-    appId: config.appId
-  };
+  const adminApp = !getAdminApps().length
+    ? initAdminApp({
+        credential: applicationDefault(),
+        projectId: config.projectId
+      })
+    : getAdminApp();
 
-  const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-  return config.firestoreDatabaseId && config.firestoreDatabaseId !== '(default)'
-    ? getFirestore(app, config.firestoreDatabaseId)
-    : getFirestore(app);
+  const db =
+    config.firestoreDatabaseId && config.firestoreDatabaseId !== '(default)'
+      ? getAdminFirestore(adminApp, config.firestoreDatabaseId)
+      : getAdminFirestore(adminApp);
+  db.settings({ ignoreUndefinedProperties: true });
+  return db;
 }
 
 async function readRawBody(req: Req): Promise<string> {
@@ -162,8 +168,8 @@ export default async function handler(req: Req, res: Res | ServerResponse) {
       timestampMs: nowMs
     };
 
-    const db = getDbClient();
-    await setDoc(doc(db, 'bot_alerts', alertId), alertDoc);
+    const db = getAdminDb();
+    await db.collection('bot_alerts').doc(alertId).set(alertDoc);
 
     let telegramForwarded = false;
     const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_TOKEN || '';

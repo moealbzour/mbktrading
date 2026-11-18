@@ -16,7 +16,7 @@ import {
   Trash2,
   Edit3
 } from 'lucide-react';
-import { doc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { doc, deleteDoc, updateDoc, collection, getDocs, writeBatch } from 'firebase/firestore';
 import { auth, db } from '../../lib/firebase';
 import { DailyTrade, UserProfile } from '../../types/trading';
 import { soundManager } from '../../utils/audio';
@@ -111,6 +111,42 @@ export const DailyTradesPanel: React.FC<Props> = ({
   } | null>(null);
   const [deletingTrade, setDeletingTrade] = useState(false);
   const [deleteTradeError, setDeleteTradeError] = useState<string | null>(null);
+  const [wipingBots, setWipingBots] = useState(false);
+
+  const handleWipeAllBotSignals = async () => {
+    if (!isRealAdmin) return;
+    soundManager.playClick();
+    if (
+      !window.confirm(
+        isAr
+          ? 'هل أنت متأكد من حذف وتفريغ جميع تنبيهات وبوت الـ Webhook من قاعدة البيانات نهائياً؟'
+          : 'Are you sure you want to permanently wipe all bot server signals?'
+      )
+    ) {
+      return;
+    }
+
+    setWipingBots(true);
+    try {
+      const snap = await getDocs(collection(db, 'bot_alerts'));
+      const batch = writeBatch(db);
+      snap.docs.forEach((d) => {
+        batch.delete(d.ref);
+      });
+      await batch.commit();
+      soundManager.playSuccess();
+      addToast({
+        title: isAr ? 'تم تفريغ وحذف تنبيهات البوت' : 'Bot Signals Wiped',
+        message: isAr ? 'تم مسح جميع تنبيهات الـ Webhook بنجاح.' : 'All bot webhook alerts successfully cleared.',
+        type: 'bot',
+        timestamp: isAr ? 'الآن' : 'Now'
+      });
+    } catch (err: any) {
+      setDbError(`[Wipe Bot Alerts Error]: ${err?.message || err}`);
+    } finally {
+      setWipingBots(false);
+    }
+  };
 
   const handleDeleteTrade = (trade: DailyTrade) => {
     if (!isRealAdmin) return;
@@ -250,18 +286,33 @@ export const DailyTradesPanel: React.FC<Props> = ({
           <span className="text-[10px] text-[#787b86] font-mono">({displayedTrades.length})</span>
         </div>
 
-        <button
-          onClick={() => {
-            soundManager.playClick();
-            setRefreshing(true);
-            setTimeout(() => setRefreshing(false), 400);
-          }}
-          disabled={refreshing}
-          className="p-1 rounded bg-[#1e222d] hover:bg-[#2a2e39] text-[#787b86] hover:text-white transition-colors cursor-pointer"
-          title={isAr ? 'تحديث' : 'Refresh'}
-        >
-          <RefreshCw className={`w-3 h-3 ${refreshing ? 'animate-spin text-[#089981]' : ''}`} />
-        </button>
+        <div className="flex items-center gap-1.5">
+          {isRealAdmin && (
+            <button
+              type="button"
+              disabled={wipingBots}
+              onClick={handleWipeAllBotSignals}
+              className="px-2 py-1 rounded bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/40 text-rose-400 text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1 shrink-0 disabled:opacity-50"
+              title={isAr ? 'حذف وتفريغ جميع تنبيهات البوت' : 'Wipe all bot signals'}
+            >
+              {wipingBots ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+              <span>{isAr ? 'تفريغ البوت' : 'Wipe Bots'}</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => {
+              soundManager.playClick();
+              setRefreshing(true);
+              setTimeout(() => setRefreshing(false), 400);
+            }}
+            disabled={refreshing}
+            className="p-1 rounded bg-[#1e222d] hover:bg-[#2a2e39] text-[#787b86] hover:text-white transition-colors cursor-pointer"
+            title={isAr ? 'تحديث' : 'Refresh'}
+          >
+            <RefreshCw className={`w-3 h-3 ${refreshing ? 'animate-spin text-[#089981]' : ''}`} />
+          </button>
+        </div>
       </div>
 
       {/* RAW FIRESTORE DB ERROR ALERT BANNER */}

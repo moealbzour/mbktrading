@@ -47,7 +47,7 @@ import {
   MessageCircle
 } from 'lucide-react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, onSnapshot, collection, updateDoc, deleteDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { doc, onSnapshot, collection, updateDoc, deleteDoc, writeBatch, serverTimestamp, getDocs } from 'firebase/firestore';
 import { auth, db } from '../../lib/firebase';
 import { soundManager } from '../../utils/audio';
 import { formatKeyDurationLabel } from '../../utils/activationKeyService';
@@ -274,6 +274,45 @@ export const AdminDashboard: React.FC<Props> = ({
   const [settingsUpdatedAt, setSettingsUpdatedAt] = useState<string | undefined>(undefined);
   const [settingsUpdatedBy, setSettingsUpdatedBy] = useState<string | undefined>(undefined);
   const [isSavingSettings, setIsSavingSettings] = useState<boolean>(false);
+  const [isWipingBotAlerts, setIsWipingBotAlerts] = useState<boolean>(false);
+
+  const handleWipeAllBotAlerts = async () => {
+    if (!isFullAdmin) return;
+    soundManager.playClick();
+    if (
+      !window.confirm(
+        isAr
+          ? 'هل أنت متأكد من حذف وتفريغ جميع تنبيهات وبوت الـ Webhook من قاعدة البيانات نهائياً لتفريغ المساحة؟'
+          : 'Are you sure you want to permanently wipe all bot server signals from the database?'
+      )
+    ) {
+      return;
+    }
+
+    setIsWipingBotAlerts(true);
+    try {
+      const snap = await getDocs(collection(db, 'bot_alerts'));
+      const batch = writeBatch(db);
+      snap.docs.forEach((d) => {
+        batch.delete(d.ref);
+      });
+      await batch.commit();
+      soundManager.playSuccess();
+      showFeedback(
+        'success',
+        isAr
+          ? 'تم تفريغ وحذف جميع تنبيهات وبوت الـ Webhook بنجاح!'
+          : 'All bot server signals wiped successfully!'
+      );
+    } catch (err: any) {
+      showFeedback(
+        'error',
+        err?.message || (isAr ? 'فشل حذف تنبيهات البوت' : 'Failed to wipe bot alerts')
+      );
+    } finally {
+      setIsWipingBotAlerts(false);
+    }
+  };
 
   // Notifications
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
@@ -2170,6 +2209,28 @@ export const AdminDashboard: React.FC<Props> = ({
                   </button>
                 </div>
               </form>
+            </div>
+
+            {/* Wipe Bot Server Signals Maintenance Card */}
+            <div className="p-5 rounded-2xl bg-rose-500/10 border border-rose-500/30 space-y-3">
+              <div className="flex items-center gap-2 text-rose-400 font-bold text-xs">
+                <Trash2 className="w-4 h-4" />
+                <span>{isAr ? 'تفريغ وحذف جميع تنبيهات البوت (Wipe Bot Signals)' : 'Wipe All Bot Server Signals'}</span>
+              </div>
+              <p className="text-[11px] text-[#787b86] leading-relaxed">
+                {isAr
+                  ? 'هذا الإجراء سيقوم بحذف كافة تنبيهات Webhook الواردة من TradingView والمخزنة في مجموعة bot_alerts لتفريغ المساحة وتنظيف السجل عبر جميع الدومينات فوراً.'
+                  : 'This action permanently deletes all incoming TradingView webhook alerts in bot_alerts to clear space and reset history across all domains.'}
+              </p>
+              <button
+                type="button"
+                disabled={isWipingBotAlerts}
+                onClick={handleWipeAllBotAlerts}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-2 shadow-md"
+              >
+                {isWipingBotAlerts ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                <span>{isAr ? '⚠️ حذف وتفريغ كافة تنبيهات البوت الآن' : '⚠️ Wipe All Bot Server Signals Now'}</span>
+              </button>
             </div>
           </div>
         )}
