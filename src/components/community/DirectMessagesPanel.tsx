@@ -43,6 +43,7 @@ interface Props {
   lang?: 'ar' | 'en';
   initialTargetUser?: DmTargetUser | null;
   onClearInitialTarget?: () => void;
+  isCompact?: boolean;
 }
 
 function formatMessageTime(tsMs: number, isAr: boolean): string {
@@ -94,7 +95,8 @@ export const DirectMessagesPanel: React.FC<Props> = ({
   user,
   lang = 'ar',
   initialTargetUser,
-  onClearInitialTarget
+  onClearInitialTarget,
+  isCompact = false
 }) => {
   const isAr = lang === 'ar';
   const myUid = user.uid || user.id || '';
@@ -114,6 +116,20 @@ export const DirectMessagesPanel: React.FC<Props> = ({
   const [feedback, setFeedback] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+
+  const scrollDmToBottom = () => {
+    const run = () => {
+      if (messagesContainerRef.current) {
+        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+      }
+    };
+    run();
+    if (typeof window !== 'undefined') {
+      window.requestAnimationFrame(run);
+      window.setTimeout(run, 70);
+    }
+  };
 
   const showNotice = (type: 'error' | 'success', text: string) => {
     setFeedback({ type, text });
@@ -173,7 +189,7 @@ export const DirectMessagesPanel: React.FC<Props> = ({
   }, [activeConvoId, myUid, conversations, messages.length]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    scrollDmToBottom();
   }, [messages.length, activeConvoId]);
 
   const directoryByUid = useMemo(() => {
@@ -345,11 +361,15 @@ export const DirectMessagesPanel: React.FC<Props> = ({
 
   return (
     <div
-      className="h-[calc(100vh-140px)] min-h-[480px] w-full rounded-2xl border border-[#2a2e39] bg-[#1e222d] overflow-hidden flex flex-col shadow-2xl"
+      className={`${
+        isCompact
+          ? 'h-full w-full flex-1 min-h-0 bg-[#1e222d]'
+          : 'h-[calc(100vh-140px)] min-h-[480px] w-full rounded-2xl border border-[#2a2e39] bg-[#1e222d] shadow-2xl'
+      } overflow-hidden flex flex-col`}
       dir={isAr ? 'rtl' : 'ltr'}
     >
       {/* Top Bar: Header & Global DM Privacy Toggle */}
-      <div className="px-4 py-3 bg-[#131722] border-b border-[#2a2e39] flex flex-wrap items-center justify-between gap-2 shrink-0">
+      <div className={`${isCompact ? 'px-2.5 py-2' : 'px-4 py-3'} bg-[#131722] border-b border-[#2a2e39] flex flex-wrap items-center justify-between gap-2 shrink-0`}>
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-xl bg-[#089981]/15 border border-[#089981]/40 flex items-center justify-center text-[#089981]">
             <Mail className="w-4 h-4" />
@@ -417,8 +437,10 @@ export const DirectMessagesPanel: React.FC<Props> = ({
       <div className="flex-1 min-h-0 flex overflow-hidden">
         {/* LEFT/START: Conversations & Members Directory */}
         <div
-          className={`w-full md:w-80 lg:w-96 border-e border-[#2a2e39] bg-[#171b26] flex flex-col shrink-0 ${
-            selectedRecipientUid ? 'hidden md:flex' : 'flex'
+          className={`${
+            isCompact ? 'w-full' : 'w-full md:w-72 lg:w-80 border-e border-[#2a2e39]'
+          } bg-[#171b26] flex flex-col shrink-0 ${
+            selectedRecipientUid ? (isCompact ? 'hidden' : 'hidden md:flex') : 'flex'
           }`}
         >
           {/* Tabs: Chats | Members */}
@@ -628,7 +650,7 @@ export const DirectMessagesPanel: React.FC<Props> = ({
         {/* RIGHT/END: Active DM Thread */}
         <div
           className={`flex-1 min-w-0 flex flex-col bg-[#131722] ${
-            selectedRecipientUid ? 'flex' : 'hidden md:flex'
+            selectedRecipientUid ? 'flex' : isCompact ? 'hidden' : 'hidden md:flex'
           }`}
         >
           {!activeRecipient ? (
@@ -648,12 +670,12 @@ export const DirectMessagesPanel: React.FC<Props> = ({
           ) : (
             <>
               {/* Thread Header */}
-              <div className="px-4 py-2.5 bg-[#1e222d] border-b border-[#2a2e39] flex items-center justify-between gap-2 shrink-0">
-                <div className="flex items-center gap-2.5 min-w-0">
+              <div className="px-3 py-2 bg-[#1e222d] border-b border-[#2a2e39] flex items-center justify-between gap-2 shrink-0">
+                <div className="flex items-center gap-2 min-w-0">
                   <button
                     type="button"
                     onClick={() => setSelectedRecipientUid(null)}
-                    className="md:hidden p-1.5 rounded-lg bg-[#131722] border border-[#2a2e39] text-[#d1d4dc] hover:text-white cursor-pointer"
+                    className={`${isCompact ? 'flex' : 'md:hidden'} p-1.5 rounded-lg bg-[#131722] border border-[#2a2e39] text-[#d1d4dc] hover:text-white cursor-pointer shrink-0`}
                     aria-label="Back"
                   >
                     {isAr ? <ArrowRight className="w-4 h-4" /> : <ArrowLeft className="w-4 h-4" />}
@@ -720,7 +742,7 @@ export const DirectMessagesPanel: React.FC<Props> = ({
               </div>
 
               {/* Messages Feed */}
-              <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 space-y-2.5">
+              <div ref={messagesContainerRef} className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 space-y-2.5">
                 {messages.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-center text-[#787b86] text-xs space-y-1">
                     <MessageCircle className="w-7 h-7 opacity-40 text-[#089981]" />

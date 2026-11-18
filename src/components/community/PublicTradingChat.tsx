@@ -169,6 +169,9 @@ export const PublicTradingChat: React.FC<Props> = ({
   const [showEmojiPickerFor, setShowEmojiPickerFor] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const hasInitiallyScrolledRef = useRef<boolean>(false);
+  const prevLastMessageIdRef = useRef<string | null>(null);
   const [showScrollBottom, setShowScrollBottom] = useState<boolean>(false);
   const [newMessagesWhileScrolled, setNewMessagesWhileScrolled] = useState<number>(0);
 
@@ -178,14 +181,27 @@ export const PublicTradingChat: React.FC<Props> = ({
   };
 
   const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTo({
-        top: scrollRef.current.scrollHeight,
-        behavior
-      });
-      setShowScrollBottom(false);
-      setNewMessagesWhileScrolled(0);
+    const performScroll = (b: ScrollBehavior) => {
+      if (scrollRef.current) {
+        if (b === 'auto') {
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        } else {
+          scrollRef.current.scrollTo({
+            top: scrollRef.current.scrollHeight,
+            behavior: b
+          });
+        }
+      }
+    };
+
+    performScroll(behavior);
+    if (typeof window !== 'undefined') {
+      window.requestAnimationFrame(() => performScroll(behavior));
+      window.setTimeout(() => performScroll('auto'), 70);
+      window.setTimeout(() => performScroll('auto'), 220);
     }
+    setShowScrollBottom(false);
+    setNewMessagesWhileScrolled(0);
   };
 
   // 1a. Live Chat Room Settings Listener (temporary lock state + reset timestamp)
@@ -289,6 +305,8 @@ export const PublicTradingChat: React.FC<Props> = ({
           };
         });
 
+        list.sort((a, b) => (a.timestampMs || 0) - (b.timestampMs || 0));
+
         setMessages(list);
         const pinned = [...list].reverse().find((m) => m.isPinned) || null;
         setPinnedMessage(pinned);
@@ -361,20 +379,25 @@ export const PublicTradingChat: React.FC<Props> = ({
     }
   }, [messages, canAccessChat, isCurrentAdmin, isAr]);
 
-  // Auto-scroll logic
+  // Always scroll down to the newest messages on initial load, new messages, or filter/layout changes
+  const lastMessageId = messages.length > 0 ? messages[messages.length - 1].id : null;
   useEffect(() => {
-    if (scrollRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
-      const isNearBottom = scrollHeight - scrollTop - clientHeight < 150;
-      if (isNearBottom || messages.length <= 10) {
-        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-        setShowScrollBottom(false);
-        setNewMessagesWhileScrolled(0);
-      } else {
-        setNewMessagesWhileScrolled((prev) => prev + 1);
-      }
+    if (messages.length === 0) return;
+
+    if (!hasInitiallyScrolledRef.current) {
+      hasInitiallyScrolledRef.current = true;
+      prevLastMessageIdRef.current = lastMessageId;
+      scrollToBottom('auto');
+      return;
     }
-  }, [messages.length]);
+
+    if (lastMessageId !== prevLastMessageIdRef.current) {
+      prevLastMessageIdRef.current = lastMessageId;
+      scrollToBottom('smooth');
+    } else {
+      scrollToBottom('auto');
+    }
+  }, [messages.length, lastMessageId, activeSymbolFilter, isCompact]);
 
   const handleMessagesScroll = () => {
     if (!scrollRef.current) return;
@@ -543,6 +566,7 @@ export const PublicTradingChat: React.FC<Props> = ({
       setImageCaption('');
       setReplyingTo(null);
       setIsTypePopupOpen(false);
+      scrollToBottom('smooth');
       soundManager.playProfitChime();
     } catch (err: any) {
       console.error('Send Firestore chat message error:', err);
@@ -1246,6 +1270,11 @@ export const PublicTradingChat: React.FC<Props> = ({
                       <img
                         src={msg.imageUrl}
                         alt="Chart Analysis"
+                        onLoad={() => {
+                          if (!showScrollBottom) {
+                            scrollToBottom('auto');
+                          }
+                        }}
                         onClick={() =>
                           setLightboxImage({
                             url: msg.imageUrl!,
@@ -1351,6 +1380,7 @@ export const PublicTradingChat: React.FC<Props> = ({
             );
           })
         )}
+        <div ref={messagesEndRef} className="h-1 w-full shrink-0" />
       </div>
 
       {/* FLOATING JUMP-TO-LATEST BUTTON */}

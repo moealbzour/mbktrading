@@ -216,8 +216,16 @@ export const TradingViewWorkspace: React.FC<Props> = ({
 
   const handleOpenDmWithUser = (target: DmTargetUser) => {
     setDmTargetUser(target);
-    setActiveMainView('chart');
-    setActiveView('dm');
+    markDmAsRead();
+    if (activeView === 'chat' || chatPosition === 'hide') {
+      setActiveMainView('chart');
+      setActiveView('dm');
+    } else {
+      setSideDrawerView('dm');
+      localStorage.setItem('mbk_tv_sidebar_view', 'dm');
+      setIsSidebarShrinked(false);
+      setIsBottomFolded(false);
+    }
   };
 
   const handleToggleHeaderNotifications = async () => {
@@ -295,9 +303,9 @@ export const TradingViewWorkspace: React.FC<Props> = ({
   const [isSidebarShrinked, setIsSidebarShrinked] = useState<boolean>(() => {
     return localStorage.getItem('mbk_tv_sidebar_shrinked') === 'true';
   });
-  const [sideDrawerView, setSideDrawerView] = useState<'trades' | 'chat' | 'ai'>(() => {
+  const [sideDrawerView, setSideDrawerView] = useState<'trades' | 'chat' | 'dm' | 'ai'>(() => {
     const saved = localStorage.getItem('mbk_tv_sidebar_view');
-    if (saved === 'trades' || saved === 'chat' || saved === 'ai') return saved;
+    if (saved === 'trades' || saved === 'chat' || saved === 'dm' || saved === 'ai') return saved;
     return 'trades';
   });
 
@@ -627,12 +635,13 @@ export const TradingViewWorkspace: React.FC<Props> = ({
     return 'order-2';
   };
 
-  const handleSelectTopic = (topic: 'trades' | 'chat' | 'ai') => {
+  const handleSelectTopic = (topic: 'trades' | 'chat' | 'dm' | 'ai') => {
     soundManager.playClick();
     setSideDrawerView(topic);
     localStorage.setItem('mbk_tv_sidebar_view', topic);
     if (topic === 'trades') markTradesAsRead();
     if (topic === 'chat') markChatAsRead();
+    if (topic === 'dm') markDmAsRead();
   };
 
   const isAr = lang === 'ar';
@@ -936,6 +945,56 @@ export const TradingViewWorkspace: React.FC<Props> = ({
             <span className="hidden sm:inline">{isAr ? 'الباقات' : 'Plans'}</span>
           </button>
 
+          {/* Quick Direct Messages (Inbox) Button in Top Header */}
+          <button
+            type="button"
+            onClick={() => {
+              soundManager.playClick();
+              markDmAsRead();
+              setActiveMainView('chart');
+              setActiveView('dm');
+            }}
+            className={`px-2 py-1 rounded-lg border transition-colors cursor-pointer shrink-0 relative flex items-center gap-1 text-[10px] sm:text-xs font-bold ${
+              activeMainView === 'chart' && activeView === 'dm'
+                ? 'bg-purple-500/20 border-purple-500/50 text-purple-300'
+                : 'bg-[#131722] hover:bg-[#2a2e39] border-[#2a2e39] text-purple-400 hover:text-white'
+            }`}
+            title={isAr ? 'الوارد — الرسائل الخاصة' : 'Inbox — Direct Messages'}
+          >
+            <Mail className="w-3.5 h-3.5" />
+            <span className="hidden lg:inline">{isAr ? 'الوارد' : 'Inbox'}</span>
+            {unreadDmCount > 0 && (
+              <span className="min-w-[16px] h-4 px-1 rounded-full bg-[#f23645] text-white text-[9px] font-mono font-bold flex items-center justify-center shadow">
+                {unreadDmCount > 99 ? '99+' : unreadDmCount}
+              </span>
+            )}
+          </button>
+
+          {/* Quick General Chat Button in Top Header */}
+          <button
+            type="button"
+            onClick={() => {
+              soundManager.playClick();
+              markChatAsRead();
+              setActiveMainView('chart');
+              setActiveView('chat');
+            }}
+            className={`px-2 py-1 rounded-lg border transition-colors cursor-pointer shrink-0 relative flex items-center gap-1 text-[10px] sm:text-xs font-bold ${
+              activeMainView === 'chart' && activeView === 'chat'
+                ? 'bg-blue-500/20 border-blue-500/50 text-blue-300'
+                : 'bg-[#131722] hover:bg-[#2a2e39] border-[#2a2e39] text-blue-400 hover:text-white'
+            }`}
+            title={isAr ? 'الشات العام' : 'General Chat'}
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            <span className="hidden lg:inline">{isAr ? 'الشات العام' : 'General Chat'}</span>
+            {unreadChatCount > 0 && (
+              <span className="min-w-[16px] h-4 px-1 rounded-full bg-[#f23645] text-white text-[9px] font-mono font-bold flex items-center justify-center shadow">
+                {unreadChatCount > 99 ? '99+' : unreadChatCount}
+              </span>
+            )}
+          </button>
+
           {/* Notification Bell Toggle */}
           <button
             type="button"
@@ -1038,6 +1097,89 @@ export const TradingViewWorkspace: React.FC<Props> = ({
           </button>
         </div>
       </header>
+
+      {/* DESKTOP / LAPTOP HORIZONTAL NAVIGATION BAR (Always visible on md+ screens so every feature is accessible at a glance) */}
+      <nav className="hidden md:flex items-center justify-between gap-2 px-3 py-1.5 bg-[#171b26] border-b border-[#2a2e39] shrink-0 z-30 overflow-x-auto scrollbar-none">
+        <div className="flex items-center gap-1 min-w-0">
+          {navItems.map((item) => {
+            const isActive =
+              item.id === 'heatmap'
+                ? activeMainView === 'heatmap'
+                : activeMainView === 'chart' && activeView === item.id;
+            const Icon = item.icon;
+
+            return (
+              <button
+                key={`top-nav-${item.id}`}
+                type="button"
+                onClick={() => {
+                  soundManager.playClick();
+                  if (item.id === 'signals') markTradesAsRead();
+                  if (item.id === 'chat') markChatAsRead();
+                  if (item.id === 'dm') markDmAsRead();
+
+                  if (item.id === 'heatmap') {
+                    setActiveMainView('heatmap');
+                  } else {
+                    setActiveMainView('chart');
+                    setActiveView(item.id as WorkspaceView);
+                  }
+                }}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 whitespace-nowrap ${
+                  isActive
+                    ? 'bg-[#089981] text-white shadow-sm'
+                    : 'text-[#9db2c6] hover:text-white hover:bg-[#2a2e39]'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5 shrink-0" />
+                <span>{isAr ? item.labelAr : item.labelEn}</span>
+                {'badge' in item && Number(item.badge) > 0 && (
+                  <span className="min-w-[16px] h-4 px-1 rounded-full bg-[#f23645] text-white text-[9px] font-mono font-extrabold flex items-center justify-center">
+                    {Number(item.badge) > 99 ? '99+' : item.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Quick Desk Utilities on Laptop Top Nav */}
+        <div className="flex items-center gap-1 shrink-0 border-s border-[#2a2e39] ps-2">
+          <button
+            type="button"
+            onClick={() => {
+              soundManager.playClick();
+              setCalculatorModalOpen(true);
+            }}
+            className="px-2 py-1 rounded-lg text-[11px] font-bold text-blue-400 hover:bg-blue-500/15 hover:text-white flex items-center gap-1 cursor-pointer transition-colors whitespace-nowrap"
+          >
+            <Calculator className="w-3.5 h-3.5" />
+            <span>{isAr ? 'حاسبة اللوت' : 'Lot Calc'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              soundManager.playClick();
+              setSessionsModalOpen(true);
+            }}
+            className="px-2 py-1 rounded-lg text-[11px] font-bold text-amber-400 hover:bg-amber-500/15 hover:text-white flex items-center gap-1 cursor-pointer transition-colors whitespace-nowrap"
+          >
+            <Clock className="w-3.5 h-3.5" />
+            <span>{isAr ? 'الجلسات' : 'Sessions'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              soundManager.playClick();
+              setSupportModalOpen(true);
+            }}
+            className="px-2 py-1 rounded-lg text-[11px] font-bold text-[#089981] hover:bg-[#089981]/15 hover:text-white flex items-center gap-1 cursor-pointer transition-colors whitespace-nowrap"
+          >
+            <Headphones className="w-3.5 h-3.5" />
+            <span>{isAr ? 'الدعم' : 'Support'}</span>
+          </button>
+        </div>
+      </nav>
 
       {/* MOBILE WORKSPACE CUSTOMIZATION MODAL/DROPDOWN */}
       {mobileWorkspaceMenuOpen && (
@@ -1482,13 +1624,10 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                       </button>
 
                       <button
-                        onClick={() => {
-                          soundManager.playClick();
-                          markDmAsRead();
-                          setActiveMainView('chart');
-                          setActiveView('dm');
-                        }}
-                        className="px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 text-[#787b86] hover:text-white"
+                        onClick={() => handleSelectTopic('dm')}
+                        className={`px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                          sideDrawerView === 'dm' ? 'bg-white text-[#131722] shadow-sm' : 'text-[#787b86] hover:text-white'
+                        }`}
                       >
                         <Mail className="w-3.5 h-3.5 text-purple-400" />
                         <span className="text-[11px]">{isAr ? 'الوارد' : 'Inbox'}</span>
@@ -1542,6 +1681,15 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                       onOpenPlansModal={() => setPlansModalOpen(true)}
                       onStartDirectMessage={handleOpenDmWithUser}
                       lang={lang}
+                      isCompact={true}
+                    />
+                  )}
+                  {sideDrawerView === 'dm' && (
+                    <DirectMessagesPanel
+                      user={user}
+                      lang={lang}
+                      initialTargetUser={dmTargetUser}
+                      onClearInitialTarget={() => setDmTargetUser(null)}
                       isCompact={true}
                     />
                   )}
@@ -1892,15 +2040,17 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                       )}
                     </button>
 
-                    {/* Inbox / Direct Messages Quick Button */}
+                    {/* Inbox / Direct Messages Tab */}
                     <button
                       onClick={() => {
-                        soundManager.playClick();
-                        markDmAsRead();
-                        setActiveMainView('chart');
-                        setActiveView('dm');
+                        handleSelectTopic('dm');
+                        if (isBottomFolded) setIsBottomFolded(false);
                       }}
-                      className="px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 text-[#787b86] hover:text-white"
+                      className={`px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                        sideDrawerView === 'dm'
+                          ? 'bg-white text-[#131722] shadow-sm'
+                          : 'text-[#787b86] hover:text-white'
+                      }`}
                       title={isAr ? 'الوارد' : 'Inbox'}
                     >
                       <Mail className="w-3.5 h-3.5 text-purple-400" />
@@ -1976,6 +2126,14 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                       onStartDirectMessage={handleOpenDmWithUser}
                       lang={lang}
                       isCompact={false}
+                    />
+                  ) : sideDrawerView === 'dm' ? (
+                    <DirectMessagesPanel
+                      user={user}
+                      lang={lang}
+                      initialTargetUser={dmTargetUser}
+                      onClearInitialTarget={() => setDmTargetUser(null)}
+                      isCompact={true}
                     />
                   ) : (
                     <TradingViewAIPanel
@@ -2104,13 +2262,15 @@ export const TradingViewWorkspace: React.FC<Props> = ({
 
                     <button
                       onClick={() => {
-                        soundManager.playClick();
-                        markDmAsRead();
-                        setActiveMainView('chart');
-                        setActiveView('dm');
+                        handleSelectTopic('dm');
+                        setIsSidebarShrinked(false);
                       }}
-                      className="w-7 h-7 rounded-lg flex items-center justify-center relative transition-all cursor-pointer text-[#787b86] hover:text-white hover:bg-white/5"
-                      title={isAr ? 'صندوق الرسائل الخاصة' : 'Direct Messages Inbox'}
+                      className={`w-7 h-7 rounded-lg flex items-center justify-center relative transition-all cursor-pointer ${
+                        sideDrawerView === 'dm'
+                          ? 'bg-purple-600 text-white shadow-sm'
+                          : 'text-[#787b86] hover:text-white hover:bg-white/5'
+                      }`}
+                      title={isAr ? 'الوارد (الرسائل الخاصة)' : 'Direct Messages Inbox'}
                     >
                       <Mail className="w-4 h-4" />
                       {unreadDmCount > 0 && (
@@ -2127,7 +2287,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                           ? 'bg-amber-500 text-black shadow-sm'
                           : 'text-[#787b86] hover:text-white hover:bg-white/5'
                       }`}
-                      title={isAr ? 'المستشار الذكي' : 'AI Analyst'}
+                      title={isAr ? 'ذكاء MBK' : 'MBK AI'}
                     >
                       <Bot className="w-4 h-4" />
                     </button>
@@ -2144,76 +2304,85 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                   </div>
                 </div>
               ) : (
-                /* Expanded View Header */
-                <>
-                  {/* SVG Fold Toggle Button */}
-                  <button
-                    onClick={handleToggleShrink}
-                    className="p-1 sm:px-2 sm:py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[#787b86] hover:text-white transition-all cursor-pointer flex items-center gap-1 text-xs shrink-0 group"
-                    title={isAr ? 'طي اللوحة المساعدة' : 'Fold helping panel'}
-                  >
-                    {chatPosition === 'right' ? (
-                      <ChevronRight className="w-3.5 h-3.5 text-[#787b86] group-hover:text-white group-hover:scale-110 transition-transform" />
-                    ) : (
-                      <ChevronLeft className="w-3.5 h-3.5 text-[#787b86] group-hover:text-white group-hover:scale-110 transition-transform" />
-                    )}
-                    <span className="text-[11px] font-medium hidden xxs:inline">{isAr ? 'طي' : 'Fold'}</span>
-                  </button>
+                /* Expanded View Header: 2-row layout so all 4 tabs (MBK Bot, General Chat, Inbox, MBK AI) are 100% visible on laptop without horizontal clipping */
+                <div className="w-full flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between gap-2 w-full">
+                    {/* SVG Fold Toggle Button */}
+                    <button
+                      onClick={handleToggleShrink}
+                      className="p-1 sm:px-2 sm:py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[#787b86] hover:text-white transition-all cursor-pointer flex items-center gap-1 text-xs shrink-0 group"
+                      title={isAr ? 'طي اللوحة المساعدة' : 'Fold helping panel'}
+                    >
+                      {chatPosition === 'right' ? (
+                        <ChevronRight className="w-3.5 h-3.5 text-[#787b86] group-hover:text-white group-hover:scale-110 transition-transform" />
+                      ) : (
+                        <ChevronLeft className="w-3.5 h-3.5 text-[#787b86] group-hover:text-white group-hover:scale-110 transition-transform" />
+                      )}
+                      <span className="text-[11px] font-medium">{isAr ? 'طي' : 'Fold'}</span>
+                    </button>
 
-                  {/* Topic Tabs */}
-                  <div className="flex items-center gap-1 bg-white/5 p-0.5 rounded-lg border border-white/10 min-w-0 overflow-x-auto scrollbar-none">
+                    {/* Dock Controls */}
+                    <div className="flex items-center gap-1 shrink-0">
+                      <ChatDockControls
+                        currentPosition={chatPosition}
+                        onSelectPosition={handleSetChatPosition}
+                        isAr={isAr}
+                        compact
+                      />
+                    </div>
+                  </div>
+
+                  {/* Full-Width 4-Tab Grid: MBK Bot | General Chat | Inbox | MBK AI */}
+                  <div className="grid grid-cols-4 gap-1 bg-white/5 p-1 rounded-lg border border-white/10 w-full">
                     <button
                       onClick={() => handleSelectTopic('trades')}
-                      className={`px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                      className={`px-1.5 py-1.5 rounded-md text-[11px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 relative ${
                         sideDrawerView === 'trades'
                           ? 'bg-white text-[#131722] shadow-sm'
-                          : 'text-[#787b86] hover:text-white'
+                          : 'text-[#9db2c6] hover:text-white hover:bg-white/5'
                       }`}
                       title={isAr ? 'بوت MBK' : 'MBK Bot'}
                     >
-                      <BarChart3 className="w-3.5 h-3.5 text-[#089981]" />
-                      <span className="text-[11px]">{isAr ? 'بوت MBK' : 'MBK Bot'}</span>
-                      {unreadTradesCount > 0 ? (
-                        <span className="px-1.5 py-0.2 min-w-[16px] h-[16px] rounded-full bg-rose-600 text-white text-[9px] font-mono font-extrabold flex items-center justify-center shadow-sm">
+                      <BarChart3 className="w-3.5 h-3.5 text-[#089981] shrink-0" />
+                      <span className="truncate">{isAr ? 'بوت MBK' : 'Bot'}</span>
+                      {unreadTradesCount > 0 && (
+                        <span className="px-1 min-w-[15px] h-[15px] rounded-full bg-rose-600 text-white text-[9px] font-mono font-extrabold flex items-center justify-center shrink-0">
                           {unreadTradesCount > 99 ? '99+' : unreadTradesCount}
                         </span>
-                      ) : (
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#089981] animate-ping" />
                       )}
                     </button>
 
                     <button
                       onClick={() => handleSelectTopic('chat')}
-                      className={`px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                      className={`px-1.5 py-1.5 rounded-md text-[11px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 relative ${
                         sideDrawerView === 'chat'
                           ? 'bg-white text-[#131722] shadow-sm'
-                          : 'text-[#787b86] hover:text-white'
+                          : 'text-[#9db2c6] hover:text-white hover:bg-white/5'
                       }`}
                       title={isAr ? 'الشات العام' : 'General Chat'}
                     >
-                      <MessageSquare className="w-3.5 h-3.5 text-blue-400" />
-                      <span className="text-[11px]">{isAr ? 'الشات العام' : 'General Chat'}</span>
+                      <MessageSquare className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                      <span className="truncate">{isAr ? 'الشات' : 'Chat'}</span>
                       {unreadChatCount > 0 && (
-                        <span className="px-1.5 py-0.2 min-w-[16px] h-[16px] rounded-full bg-rose-600 text-white text-[9px] font-mono font-extrabold flex items-center justify-center shadow-sm">
+                        <span className="px-1 min-w-[15px] h-[15px] rounded-full bg-rose-600 text-white text-[9px] font-mono font-extrabold flex items-center justify-center shrink-0">
                           {unreadChatCount > 99 ? '99+' : unreadChatCount}
                         </span>
                       )}
                     </button>
 
                     <button
-                      onClick={() => {
-                        soundManager.playClick();
-                        markDmAsRead();
-                        setActiveMainView('chart');
-                        setActiveView('dm');
-                      }}
-                      className="px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 text-[#787b86] hover:text-white"
-                      title={isAr ? 'الوارد' : 'Inbox'}
+                      onClick={() => handleSelectTopic('dm')}
+                      className={`px-1.5 py-1.5 rounded-md text-[11px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 relative ${
+                        sideDrawerView === 'dm'
+                          ? 'bg-white text-[#131722] shadow-sm'
+                          : 'text-[#9db2c6] hover:text-white hover:bg-white/5'
+                      }`}
+                      title={isAr ? 'الوارد (الرسائل الخاصة)' : 'Inbox (Direct Messages)'}
                     >
-                      <Mail className="w-3.5 h-3.5 text-purple-400" />
-                      <span className="text-[11px]">{isAr ? 'الوارد' : 'Inbox'}</span>
+                      <Mail className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                      <span className="truncate">{isAr ? 'الوارد' : 'Inbox'}</span>
                       {unreadDmCount > 0 && (
-                        <span className="px-1.5 py-0.2 min-w-[16px] h-[16px] rounded-full bg-rose-600 text-white text-[9px] font-mono font-extrabold flex items-center justify-center shadow-sm">
+                        <span className="px-1 min-w-[15px] h-[15px] rounded-full bg-rose-600 text-white text-[9px] font-mono font-extrabold flex items-center justify-center shrink-0">
                           {unreadDmCount > 99 ? '99+' : unreadDmCount}
                         </span>
                       )}
@@ -2221,28 +2390,18 @@ export const TradingViewWorkspace: React.FC<Props> = ({
 
                     <button
                       onClick={() => handleSelectTopic('ai')}
-                      className={`px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                      className={`px-1.5 py-1.5 rounded-md text-[11px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 relative ${
                         sideDrawerView === 'ai'
                           ? 'bg-white text-[#131722] shadow-sm'
-                          : 'text-[#787b86] hover:text-white'
+                          : 'text-[#9db2c6] hover:text-white hover:bg-white/5'
                       }`}
                       title={isAr ? 'ذكاء MBK' : 'MBK AI'}
                     >
-                      <Bot className="w-3.5 h-3.5 text-amber-400" />
-                      <span className="text-[11px]">{isAr ? 'ذكاء MBK' : 'MBK AI'}</span>
+                      <Bot className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      <span className="truncate">{isAr ? 'الذكاء' : 'AI'}</span>
                     </button>
                   </div>
-
-                  {/* Dock Controls */}
-                  <div className="flex items-center gap-1 shrink-0">
-                    <ChatDockControls
-                      currentPosition={chatPosition}
-                      onSelectPosition={handleSetChatPosition}
-                      isAr={isAr}
-                      compact
-                    />
-                  </div>
-                </>
+                </div>
               )}
             </div>
 
@@ -2250,7 +2409,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
             {!isSidebarShrinked && (
               <div
                 className={`flex-1 min-h-0 flex flex-col relative ${
-                  sideDrawerView === 'chat'
+                  sideDrawerView === 'chat' || sideDrawerView === 'dm'
                     ? 'overflow-hidden p-0 h-full w-full'
                     : 'overflow-y-auto p-2.5'
                 }`}
@@ -2280,6 +2439,14 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                       onStartDirectMessage={handleOpenDmWithUser}
                       lang={lang}
                       isCompact={false}
+                    />
+                  ) : sideDrawerView === 'dm' ? (
+                    <DirectMessagesPanel
+                      user={user}
+                      lang={lang}
+                      initialTargetUser={dmTargetUser}
+                      onClearInitialTarget={() => setDmTargetUser(null)}
+                      isCompact={true}
                     />
                   ) : (
                     <TradingViewAIPanel

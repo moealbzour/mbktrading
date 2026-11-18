@@ -385,6 +385,15 @@ app.post(['/api/gemini/chat', '/api/gemini/agent'], async (req, res) => {
 async function startServer() {
   const isProd = process.env.NODE_ENV === 'production';
 
+  app.use((req, res, next) => {
+    if (req.path === '/' || req.path === '/index.html' || req.path.startsWith('/sw.js')) {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+    next();
+  });
+
   if (!isProd) {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -392,8 +401,17 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    app.use(express.static(path.resolve(__dirname, 'dist')));
+    app.use(
+      express.static(path.resolve(__dirname, 'dist'), {
+        setHeaders: (res, filePath) => {
+          if (filePath.endsWith('index.html') || filePath.endsWith('sw.js')) {
+            res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+          }
+        }
+      })
+    );
     app.get('*', (_req, res) => {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
       res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
     });
   }

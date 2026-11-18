@@ -1,36 +1,52 @@
-const CACHE_NAME = 'mbk-trading-v2';
-const PRECACHE_URLS = ['/', '/index.html', '/favicon.svg', '/manifest.json', '/icon-192.png'];
+const CACHE_NAME = 'mbk-trading-v6';
+const PRECACHE_URLS = ['/favicon.svg', '/manifest.json', '/icon-192.png', '/mbk-logo.png'];
 
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS)).then(() => self.skipWaiting())
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS).catch(() => {}))
   );
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys.map((key) => {
-          if (key !== CACHE_NAME) {
-            return caches.delete(key);
-          }
-        })
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(
+          keys.map((key) => {
+            if (key !== CACHE_NAME) {
+              return caches.delete(key);
+            }
+          })
+        )
       )
-    ).then(() => self.clients.claim())
+      .then(() => self.clients.claim())
   );
 });
 
 self.addEventListener('fetch', (event) => {
-  // Pass through non-GET and API requests directly to network
-  if (event.request.method !== 'GET' || event.request.url.includes('/api/')) {
+  const url = event.request.url;
+
+  // Never intercept non-GET, API routes, Vite module scripts, or external Firebase/Google APIs
+  if (
+    event.request.method !== 'GET' ||
+    url.includes('/api/') ||
+    url.includes('/src/') ||
+    url.includes('/@') ||
+    url.includes('/node_modules/') ||
+    url.includes('hot-update') ||
+    url.includes('googleapis.com') ||
+    url.includes('firebase')
+  ) {
     return;
   }
 
+  // Always network-first with no-cache for HTML navigation and JS/CSS bundles so laptop/mobile always get latest build
   event.respondWith(
-    fetch(event.request)
+    fetch(event.request, { cache: 'no-cache' })
       .then((response) => {
-        if (response.status === 200) {
+        if (response && response.status === 200 && response.type === 'basic') {
           const responseClone = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, responseClone);
@@ -67,7 +83,12 @@ self.addEventListener('notificationclick', (event) => {
 // Sync PWA App Shortcut Badge from active client tabs
 self.addEventListener('message', (event) => {
   const data = event.data;
-  if (!data || data.type !== 'SET_BADGE') return;
+  if (!data) return;
+  if (data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+    return;
+  }
+  if (data.type !== 'SET_BADGE') return;
   const count = Number(data.count || 0);
   if (self.navigator && 'setAppBadge' in self.navigator) {
     if (count > 0) {
@@ -77,4 +98,3 @@ self.addEventListener('message', (event) => {
     }
   }
 });
-
