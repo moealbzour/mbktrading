@@ -297,15 +297,14 @@ export const MarketInsightsWidget: React.FC<MarketInsightsWidgetProps> = ({
           </div>
           <div className="min-w-0">
             <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5 truncate">
-              <span>{isAr ? 'تحليلات ورؤى السوق اللحظية' : 'Live Market Insights'}</span>
+              <span>{isAr ? 'تحليلات السوق' : 'Market Insights'}</span>
               <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center gap-1 shrink-0">
                 <Sparkles className="w-2.5 h-2.5" />
-                <span>TRADINGVIEW ANALYTICS</span>
+                <span>MBK</span>
               </span>
             </h3>
-            {/* Dynamic Subtitle reflecting activeAsset */}
             <p className="text-[10px] text-[#787b86] truncate">
-              {isAr ? `التحليل الفني ومعلومات الرمز المباشرة لـ ${activeAsset}` : `Live Technical Analysis & Symbol Info for ${activeAsset}`}
+              {isAr ? `${activeAsset}` : `${activeAsset}`}
             </p>
           </div>
         </div>
@@ -358,7 +357,7 @@ export const MarketInsightsWidget: React.FC<MarketInsightsWidgetProps> = ({
               <div className="flex items-center justify-between px-1">
                 <span className="text-[11px] font-bold text-amber-400 font-mono flex items-center gap-1">
                   <span>🎯</span>
-                  <span>{isAr ? 'مؤشرات الشراء والبيع (Buy/Sell Gauges)' : 'Buy/Sell Gauge Indicators'}</span>
+                  <span>{isAr ? 'مؤشرات الشراء والبيع' : 'Buy/Sell Gauges'}</span>
                 </span>
                 <span className="text-[9px] text-[#787b86] font-mono">15m • 1h • 4h • 1D</span>
               </div>
@@ -369,9 +368,9 @@ export const MarketInsightsWidget: React.FC<MarketInsightsWidgetProps> = ({
               <div className="flex items-center justify-between px-1">
                 <span className="text-[11px] font-bold text-blue-400 font-mono flex items-center gap-1">
                   <span>📰</span>
-                  <span>{isAr ? 'القصص الرئيسية والأخبار (Top Stories Timeline)' : 'Top Stories & Timeline'}</span>
+                  <span>{isAr ? 'أخبار MBK' : 'MBK News'}</span>
                 </span>
-                <span className="text-[9px] text-[#787b86] font-mono">LIVE FEED</span>
+                <span className="text-[9px] text-[#787b86] font-mono">LIVE</span>
               </div>
               <TradingViewTimelineWidget symbol={activeAsset} lang={lang} />
             </div>
@@ -387,7 +386,7 @@ export const MarketInsightsWidget: React.FC<MarketInsightsWidgetProps> = ({
             <div className="flex items-center gap-1.5">
               <Calendar className="w-4 h-4 text-red-500" />
               <span className="text-xs font-bold text-white">
-                {isAr ? 'الأجندة والأحداث الاقتصادية القادمة' : 'Economic Calendar & Upcoming Events'}
+                {isAr ? 'التقويم الاقتصادي' : 'Economic Calendar'}
               </span>
             </div>
             <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/30">

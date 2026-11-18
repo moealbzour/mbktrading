@@ -125,18 +125,17 @@ export const PWAInstallPrompt: React.FC<Props> = ({ lang = 'ar' }) => {
       >
         <div className="flex items-center gap-3">
           {/* App Icon */}
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#089981] to-[#065f46] p-0.5 shrink-0 flex items-center justify-center shadow-sm">
-            <span className="font-mono font-black text-xs text-white">MBK</span>
-          </div>
+          <img
+            src="/mbk-logo.png"
+            alt="MBK Trading"
+            className="w-11 h-11 rounded-lg object-cover border border-[#089981]/40 shrink-0 shadow-sm"
+          />
 
           {/* Text Content */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-bold text-white truncate">
-                {isAr ? 'تطبيق MBK Trading المؤسسي' : 'MBK Trading Web App'}
-              </span>
-              <span className="px-1 py-0.2 rounded text-[9px] font-mono bg-[#089981]/20 text-[#089981] font-bold">
-                PWA
+                MBK Trading
               </span>
             </div>
             <p className="text-[11px] text-[#787b86] truncate">
@@ -193,9 +192,11 @@ export const PWAInstallPrompt: React.FC<Props> = ({ lang = 'ar' }) => {
             </button>
 
             <div className="text-center mb-4">
-              <div className="w-12 h-12 rounded-xl bg-[#2a2e39] border border-[#363a45] mx-auto mb-2 flex items-center justify-center">
-                <Smartphone className="w-6 h-6 text-[#089981]" />
-              </div>
+              <img
+                src="/mbk-logo.png"
+                alt="MBK Trading"
+                className="w-16 h-16 rounded-xl object-cover border border-[#363a45] mx-auto mb-2 shadow-md"
+              />
               <h3 className="text-sm font-bold text-white">
                 {isIOS
                   ? isAr

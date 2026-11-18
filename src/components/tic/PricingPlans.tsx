@@ -36,36 +36,34 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({
 
   const freeFeatures = isAr
     ? [
-        'إشارات البوت المجانية (Free Bot Trader)',
-        'توصيات يدوية محدودة ومختارة يومياً',
-        'حاسبة المخاطرة واللوت الاحترافية',
-        'محفظة التداول الافتراضية ($100K Paper Trading)',
-        'الأجندة الاقتصادية اللحظية (Economic Calendar)',
-        'أكاديمية MBK الأساسية للتداول (Academy)'
+        'التوصيات العامة المجانية',
+        'حاسبة المخاطرة واللوت',
+        'التداول التجريبي ($100K)',
+        'التقويم الاقتصادي وأخبار MBK',
+        'أكاديمية MBK'
       ]
     : [
-        'Free Bot Trader alerts & summary',
-        'Limited daily manual trading signals',
+        'Free Public Signals',
         'Risk & position-size calculators',
-        'Paper Trading simulator ($100K virtual equity)',
-        'Real-time Economic Calendar & news wire',
-        'MBK Trading Foundation Academy'
+        'Paper Trading ($100K)',
+        'Economic Calendar & MBK News',
+        'MBK Academy'
       ];
 
   const vipFeatures = isAr
     ? [
-        'جميع مزايا الباقة المجانية (Free Tier)',
-        'بث إشارات البوت اللحظي بالكامل بدون قيود',
-        'جميع التوصيات اليدوية الكاملة (نقاط الدخول والأهداف)',
-        'دخول غرفة شات VIP الخاصة (Private VIP Group Chat)',
-        'المساعد الذكي القياسي للمحادثة النصية (Standard AI)'
+        'جميع مزايا الباقة المجانية',
+        'تنبيهات بوت MBK الفورية بالكامل',
+        'جميع توصيات VIP الكاملة (نقاط الدخول والأهداف)',
+        'الشات العام (General Chat)',
+        'ذكاء MBK (MBK AI)'
       ]
     : [
         'All Free Tier tools included',
-        'Full real-time Bot Signals webhook stream',
-        'Full manual trading signals (Entries, TP1/TP2, SL)',
-        'Private VIP Group Chat access',
-        'Standard AI Assistant conversational text support'
+        'Full live MBK Bot alerts',
+        'Full VIP Signals (Entries, TP1/TP2, SL)',
+        'General Chat access',
+        'MBK AI Assistant'
       ];
 
   return (
@@ -73,7 +71,7 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({
       {/* Header */}
       <div className="rounded-2xl border border-[#2a2e39] p-5 sm:p-6 bg-[#1e222d] text-center max-w-3xl mx-auto space-y-2">
         <div className="text-xs font-bold text-[#089981]">
-          {isAr ? 'باقات العضوية والوصول المؤسسي' : 'MBK Trading Membership Tiers'}
+          MBK Trading
         </div>
         <h2 className="text-xl sm:text-2xl font-extrabold text-white">
           {isAr ? 'اختر خطة التداول المناسبة لك' : 'Choose Your Trading Plan'}

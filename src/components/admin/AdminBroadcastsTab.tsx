@@ -57,18 +57,18 @@ interface Props {
 }
 
 const AVAILABLE_TABS: Array<{ id: string; labelAr: string; labelEn: string }> = [
-  { id: 'on_open', labelAr: '🚀 عند فتح الموقع/التطبيق', labelEn: '🚀 On App Open' },
-  { id: 'all', labelAr: '🌐 في جميع الأقسام والتبويبات', labelEn: '🌐 Every Tab (All)' },
-  { id: 'signals', labelAr: '📡 قنوات الإشارات والبوت', labelEn: '📡 Signals & Bot Hub' },
-  { id: 'chart', labelAr: '📈 الرسم البياني (الشارت)', labelEn: '📈 Live Chart' },
-  { id: 'chat', labelAr: '💬 شات VIP المباشر', labelEn: '💬 VIP Live Chat' },
-  { id: 'dm', labelAr: '✉️ الرسائل الخاصة (الوارد)', labelEn: '✉️ Direct Messages' },
-  { id: 'ai', labelAr: '🤖 المستشار الذكي (AI)', labelEn: '🤖 AI Analyst' },
-  { id: 'calendar', labelAr: '📅 التقويم الاقتصادي', labelEn: '📅 Economic Calendar' },
-  { id: 'news', labelAr: '📰 الأخبار الاقتصادية', labelEn: '📰 Financial News' },
+  { id: 'on_open', labelAr: '🚀 عند فتح التطبيق', labelEn: '🚀 On App Open' },
+  { id: 'all', labelAr: '🌐 جميع الأقسام', labelEn: '🌐 Every Tab (All)' },
+  { id: 'signals', labelAr: '📡 بوت وتوصيات MBK', labelEn: '📡 MBK Bot & Signals' },
+  { id: 'chart', labelAr: '📈 الشارت', labelEn: '📈 Chart' },
+  { id: 'chat', labelAr: '💬 الشات العام', labelEn: '💬 General Chat' },
+  { id: 'dm', labelAr: '✉️ الوارد (Inbox)', labelEn: '✉️ Inbox' },
+  { id: 'ai', labelAr: '🤖 ذكاء MBK', labelEn: '🤖 MBK AI' },
+  { id: 'calendar', labelAr: '📅 التقويم الاقتصادي', labelEn: '📅 Calendar' },
+  { id: 'news', labelAr: '📰 أخبار MBK', labelEn: '📰 MBK News' },
   { id: 'paper', labelAr: '💼 التداول التجريبي', labelEn: '💼 Paper Trading' },
-  { id: 'academy', labelAr: '🎓 الأكاديمية التعليمية', labelEn: '🎓 Trading Academy' },
-  { id: 'elite', labelAr: '💎 باقة Elite', labelEn: '💎 Elite Modules' }
+  { id: 'academy', labelAr: '🎓 الأكاديمية', labelEn: '🎓 Academy' },
+  { id: 'elite', labelAr: '💎 باقة Elite', labelEn: '💎 Elite' }
 ];
 
 export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedback }) => {
@@ -150,8 +150,8 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
       );
       setPopupMessage(
         isAr
-          ? 'احصل على وصول فوري لتوصيات المحللين المباشرة، وبث روبوت TradingView Webhook اللحظي، وغرفة شات النخبة VIP، والمستشار الذكي.'
-          : 'Unlock real-time analyst setups, automated TradingView Webhook Bot alerts, VIP live chat, and the AI Market Analyst.'
+          ? 'احصل على وصول فوري لتوصيات VIP، وتنبيهات بوت MBK الفورية، والشات العام، وذكاء MBK.'
+          : 'Unlock real-time VIP signals, live MBK Bot alerts, General Chat, and MBK AI.'
       );
       setSelectedTabs(['on_open', 'signals', 'chart']);
       setTargetAudience('free');
@@ -252,15 +252,15 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
       setDmSegment('expiring_soon');
       setDmMessageText(
         isAr
-          ? 'مرحباً {name} 👋،\nنود تذكيرك بأن اشتراكك الفعال في منصة MBK Trading سينتهي خلال {days} أيام.\nيمكنك التجديد الآن أو التواصل مع الدعم لضمان استمرار وصول توصيات VIP وتنبيهات البوت الآلي وغرفة الشات دون انقطاع.'
-          : 'Hello {name} 👋,\nYour MBK Trading subscription expires in {days} days. Renew now to keep uninterrupted access to VIP signals, TradingView bot alerts, and live VIP chat.'
+          ? 'مرحباً {name} 👋،\nنود تذكيرك بأن اشتراكك الفعال في منصة MBK Trading سينتهي خلال {days} أيام.\nيمكنك التجديد الآن أو التواصل مع الدعم لضمان استمرار وصول توصيات VIP وتنبيهات بوت MBK والشات العام دون انقطاع.'
+          : 'Hello {name} 👋,\nYour MBK Trading subscription expires in {days} days. Renew now to keep uninterrupted access to VIP signals, MBK Bot alerts, and General Chat.'
       );
     } else if (tpl === 'offer') {
       setDmSegment('free');
       setDmMessageText(
         isAr
-          ? 'مرحباً {name} 🔥،\nعرض خاص وحصري لك من إدارة MBK Trading!\nقم بترقية حسابك إلى باقة VIP اليوم واحصل على وصول فوري لتوصيات النخبة، وبث روبوت TradingView Webhook اللحظي، وغرفة الشات المباشرة.'
-          : 'Hello {name} 🔥,\nExclusive offer from MBK Trading! Upgrade your account to VIP today and unlock real-time VIP trade signals, automated TradingView bot alerts, and VIP community chat.'
+          ? 'مرحباً {name} 🔥،\nعرض خاص وحصري لك من إدارة MBK Trading!\nقم بترقية حسابك إلى باقة VIP اليوم واحصل على وصول فوري لتوصيات VIP، وتنبيهات بوت MBK الفورية، والشات العام.'
+          : 'Hello {name} 🔥,\nExclusive offer from MBK Trading! Upgrade your account to VIP today and unlock real-time VIP signals, live MBK Bot alerts, and General Chat.'
       );
     } else if (tpl === 'macro') {
       setDmSegment('all');

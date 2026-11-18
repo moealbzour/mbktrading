@@ -434,8 +434,8 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
               nameAr: data.nameAr || data.symbol || 'صفقة تداول',
               action: (data.action || 'BUY').toUpperCase() as 'BUY' | 'SELL',
               source,
-              sourceLabelAr: data.sourceLabelAr || (isBot ? 'بوت TradingView' : isVip ? 'توصية VIP' : 'تحليل عام'),
-              sourceLabelEn: data.sourceLabelEn || (isBot ? 'TradingView Bot' : isVip ? 'VIP Signal' : 'Free Public'),
+              sourceLabelAr: data.sourceLabelAr || (isBot ? 'بوت MBK' : isVip ? 'توصية VIP' : 'عام'),
+              sourceLabelEn: data.sourceLabelEn || (isBot ? 'MBK Bot' : isVip ? 'VIP Signal' : 'Free'),
               status: status as DailyTradeStatus,
               statusLabelAr: data.statusLabelAr || (status === 'RUNNING' ? 'صفقة جارية الآن ⚡' : 'هدف محقق 🎯'),
               openTime: data.openTime || 'الآن',
@@ -497,7 +497,7 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
             snapshot.docChanges().forEach((change) => {
               if (change.type === 'added') {
                 const data = change.doc.data();
-                const text = data.text || 'TradingView PineScript Alert';
+                const text = data.text || 'MBK Bot Alert';
                 const isRecent = data.timestampMs ? data.timestampMs > Date.now() - 5 * 60 * 1000 : true;
 
                 if (!isFirstBotSnapshot && isRecent) {
@@ -505,7 +505,7 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
                   triggerAudioAlert();
 
                   addToast({
-                    title: 'تنبيه TradingView Webhook 🤖',
+                    title: 'بوت MBK 🤖',
                     message: text,
                     type: 'bot',
                     timestamp: 'الآن'
@@ -681,13 +681,13 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       mergedTrades.push({
         id: `bot-${alert.id}`,
         symbol: 'US100',
-        nameAr: 'TradingView Bot',
+        nameAr: 'MBK Bot',
         action: 'BUY',
         source: 'BOT_WEBHOOK',
-        sourceLabelAr: 'تنبيه TradingView Webhook',
-        sourceLabelEn: 'TradingView Webhook',
+        sourceLabelAr: 'بوت MBK',
+        sourceLabelEn: 'MBK Bot',
         status: 'RUNNING',
-        statusLabelAr: 'تنبيه آلي مباشر 🤖',
+        statusLabelAr: 'بوت MBK 🤖',
         openTime: alert.timestamp
           ? new Date(alert.timestamp).toLocaleTimeString('ar-SA', {
               hour: '2-digit',
@@ -702,7 +702,7 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         tp1: 0,
         sl: 0,
         riskReward: 'N/A',
-        strategy: 'TradingView PineScript Alert',
+        strategy: 'MBK Bot',
         confidence: 100,
         notesAr: text,
         textMsg: text,

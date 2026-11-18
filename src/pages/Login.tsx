@@ -144,9 +144,16 @@ export const Login: React.FC<LoginProps> = ({
 
       {/* Clean 3-Zone Top Navigation Bar */}
       <header className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between gap-8 relative z-20 shrink-0 border-b border-[#2a2e39]/60">
-        <span className="text-base font-extrabold text-white tracking-tight whitespace-nowrap shrink-0">
-          MBK Trading
-        </span>
+        <div className="flex items-center gap-2.5 shrink-0">
+          <img
+            src="/mbk-logo.png"
+            alt="MBK Trading"
+            className="h-9 w-auto rounded-lg object-contain border border-white/10 shadow-sm"
+          />
+          <span className="text-base font-extrabold text-white tracking-tight whitespace-nowrap">
+            MBK Trading
+          </span>
+        </div>
 
         <nav className="hidden md:flex items-center gap-6 text-xs font-medium text-[#8a93a6]">
           <a href="#tiers-showcase-login" className="hover:text-white transition-colors whitespace-nowrap shrink-0">
@@ -217,16 +224,18 @@ export const Login: React.FC<LoginProps> = ({
 
               {/* Form Title & Subtitle */}
               <div className="text-center mb-5">
-                <div className="w-11 h-11 rounded-2xl bg-[#089981]/15 border border-[#089981]/30 text-[#089981] flex items-center justify-center mx-auto mb-3 shadow-inner">
-                  <Lock className="w-5 h-5" />
+                <div className="w-28 mx-auto mb-3 rounded-xl bg-[#0b0e14] border border-[#2a2e39] p-1.5 flex items-center justify-center shadow-inner">
+                  <img
+                    src="/mbk-logo.png"
+                    alt="MBK Trading"
+                    className="w-full h-auto object-contain rounded-lg"
+                  />
                 </div>
                 <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-                  {isAr ? 'تسجيل الدخول إلى المنصة' : 'Institutional Sign In'}
+                  {isAr ? 'تسجيل الدخول' : 'Sign In'}
                 </h2>
                 <p className="text-xs text-[#787b86] mt-1">
-                  {isAr
-                    ? 'أدخل بيانات حسابك الموثق في MBK Trading Desk'
-                    : 'Enter your credentials to access your MBK workspace'}
+                  {isAr ? 'مرحباً بك في MBK Trading' : 'Welcome to MBK Trading'}
                 </p>
               </div>
 
@@ -450,9 +459,9 @@ export const Login: React.FC<LoginProps> = ({
         </div>
       </main>
 
-      {/* Institutional Footer */}
+      {/* Footer */}
       <footer className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-4 text-center text-[11px] text-[#787b86] border-t border-[#2a2e39]/60 relative z-20 shrink-0">
-        MBK Trading Desk Platform © 2026 • Encrypted Firebase Auth & Real-Time Firestore Registry
+        MBK Trading © 2026
       </footer>
     </div>
   );

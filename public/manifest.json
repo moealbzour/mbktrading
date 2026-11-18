@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "MBKtrading - المنصة المؤسسية للتداول",
+  "name": "MBK Trading",
   "short_name": "MBK Trading",
-  "description": "منصة التداول المؤسسية لناسداك والذهب: إشارات حية، شارتات TradingView، وتحليلات الذكاء الاصطناعي.",
+  "description": "MBK Trading — توصيات، بوت MBK، الشات العام، وأخبار الأسواق.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

@@ -26,31 +26,31 @@ export interface FeatureMeta {
 export const FEATURE_CATALOG: FeatureMeta[] = [
   {
     key: 'botSignals',
-    labelAr: 'إشارات البوت اللحظية (Bot Signals)',
-    labelEn: 'Real-Time Bot Signals',
-    descriptionAr: 'وصول كامل لتنبيهات وبث البوت الآلي الفوري',
-    descriptionEn: 'Full access to real-time algorithmic bot webhook alerts'
+    labelAr: 'بوت MBK',
+    labelEn: 'MBK Bot',
+    descriptionAr: 'وصول كامل لتنبيهات بوت MBK الفورية',
+    descriptionEn: 'Full access to live MBK Bot alerts'
   },
   {
     key: 'vipSignals',
-    labelAr: 'التوصيات اليدوية الكاملة (VIP Signals)',
-    labelEn: 'Full VIP Manual Signals',
-    descriptionAr: 'فتح جميع أسعار الدخول والأهداف ووقف الخسارة بدون تشفير',
+    labelAr: 'توصيات VIP',
+    labelEn: 'VIP Signals',
+    descriptionAr: 'فتح جميع التوصيات ونقاط الدخول والأهداف ووقف الخسارة',
     descriptionEn: 'Unlocks all active entry levels, take-profits, and stop-losses'
   },
   {
     key: 'vipChat',
-    labelAr: 'غرفة شات VIP الخاصة (Private VIP Chat)',
-    labelEn: 'Private VIP Group Chat',
-    descriptionAr: 'دخول ومشاركة في غرفة النقاش الخاصة بالأعضاء',
-    descriptionEn: 'Read and post messages in the private VIP members chat'
+    labelAr: 'الشات العام',
+    labelEn: 'General Chat',
+    descriptionAr: 'دخول ومشاركة في الشات العام للأعضاء',
+    descriptionEn: 'Read and post messages in General Chat'
   },
   {
     key: 'standardAi',
-    labelAr: 'المساعد الذكي القياسي (Standard AI)',
-    labelEn: 'Standard AI Assistant',
-    descriptionAr: 'محادثة ذكية تفاعلية فورية للأسئلة والتحليل العام',
-    descriptionEn: 'Conversational Gemini text assistant inside the workspace'
+    labelAr: 'ذكاء MBK',
+    labelEn: 'MBK AI',
+    descriptionAr: 'محادثة ذكية تفاعلية فورية للتحليل',
+    descriptionEn: 'Interactive AI assistant inside the workspace'
   }
 ];
 
@@ -93,10 +93,10 @@ export const ELITE_UNRELEASED_FEATURES: EliteLockedModuleMeta[] = [
   },
   {
     key: 'indicatorsStore',
-    titleAr: 'متجر المؤشرات الحصرية (Indicators Store)',
-    titleEn: 'Indicators Store',
-    subtitleAr: 'حزمة مؤشرات Pine Script المؤسسية الحصرية لمنصة TradingView',
-    subtitleEn: 'Proprietary Pine Script liquidity & SMC indicator suite'
+    titleAr: 'مؤشرات MBK الحصرية',
+    titleEn: 'MBK Indicators',
+    subtitleAr: 'حزمة مؤشرات MBK الخاصة بالسيولة والاتجاه',
+    subtitleEn: 'Exclusive MBK liquidity & trend indicator suite'
   }
 ];
 

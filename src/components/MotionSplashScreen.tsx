@@ -29,17 +29,24 @@ export const MotionSplashScreen: React.FC<MotionSplashScreenProps> = ({
   return (
     <div
       dir={isAr ? 'rtl' : 'ltr'}
-      className="min-h-screen h-[100dvh] w-full bg-[#131722] text-[#d1d4dc] flex flex-col justify-between relative overflow-hidden select-none antialiased"
+      className="min-h-screen h-[100dvh] w-full bg-[#090c12] text-[#d1d4dc] flex flex-col justify-between relative overflow-hidden select-none antialiased"
     >
       {/* Subtle Architectural Grid */}
-      <div className="absolute inset-0 bg-[radial-gradient(#2a2e39_1px,transparent_1px)] [background-size:28px_28px] opacity-35 pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(#2a2e39_1px,transparent_1px)] [background-size:28px_28px] opacity-30 pointer-events-none" />
       <div className="absolute top-1/2 start-1/2 -translate-x-1/2 -translate-y-1/2 w-[520px] h-[520px] bg-[#089981]/10 rounded-full blur-[140px] pointer-events-none" />
 
       {/* Top Bar */}
       <header className="w-full max-w-6xl mx-auto px-6 py-5 flex items-center justify-between relative z-10">
-        <span className="text-sm font-bold tracking-tight text-white whitespace-nowrap shrink-0">
-          MBK Trading
-        </span>
+        <div className="flex items-center gap-2.5 shrink-0">
+          <img
+            src="/mbk-logo.png"
+            alt="MBK Trading"
+            className="h-9 w-auto rounded-lg object-contain border border-white/10 shadow-md"
+          />
+          <span className="text-sm font-extrabold tracking-tight text-white whitespace-nowrap">
+            MBK Trading
+          </span>
+        </div>
         <button
           type="button"
           onClick={onToggleLang}
@@ -50,7 +57,7 @@ export const MotionSplashScreen: React.FC<MotionSplashScreenProps> = ({
         </button>
       </header>
 
-      {/* Center Animated Brand Emblem */}
+      {/* Center Animated Official MBK Logo */}
       <main className="flex-1 flex flex-col items-center justify-center px-6 relative z-10 text-center">
         <motion.div
           initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, scale: 0.9, y: 12 }}
@@ -58,62 +65,33 @@ export const MotionSplashScreen: React.FC<MotionSplashScreenProps> = ({
           transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
           className="flex flex-col items-center"
         >
-          {/* Geometric MBK Trading Logo Mark */}
-          <div className="relative mb-7">
+          <div className="relative mb-6">
             <motion.div
-              initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.85 }}
+              initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.88 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-              className="w-24 h-24 rounded-2xl bg-[#1e222d] border border-[#2a2e39] shadow-2xl flex items-center justify-center relative overflow-hidden"
+              className="w-56 sm:w-64 rounded-2xl bg-[#0b0e14] border border-[#2a2e39] shadow-[0_0_50px_rgba(8,153,129,0.22)] p-2 flex items-center justify-center relative overflow-hidden"
             >
-              <svg
-                viewBox="0 0 64 64"
-                className="w-14 h-14"
-                fill="none"
-                aria-label="MBK Trading Logo"
-              >
-                <rect x="6" y="34" width="8" height="20" rx="2" fill="#2a2e39" />
-                <rect x="18" y="24" width="8" height="30" rx="2" fill="#089981" fillOpacity="0.65" />
-                <rect x="30" y="16" width="8" height="38" rx="2" fill="#089981" />
-                <path
-                  d="M10 28L22 18L34 22L54 10"
-                  stroke="#ffffff"
-                  strokeWidth="3.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <path
-                  d="M44 10H54V20"
-                  stroke="#089981"
-                  strokeWidth="3.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+              <img
+                src="/mbk-logo.png"
+                alt="MBK Trading Logo"
+                className="w-full h-auto object-contain rounded-xl"
+              />
             </motion.div>
           </div>
-
-          <motion.h1
-            initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
-            className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-2"
-          >
-            MBK Trading
-          </motion.h1>
 
           <motion.p
             initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.25, ease: [0.16, 1, 0.3, 1] }}
-            className="text-sm text-[#8a93a6] max-w-md mb-8"
+            transition={{ duration: 0.5, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="text-xs sm:text-sm font-semibold text-[#8a93a6] max-w-md mb-7"
           >
             {isAr
-              ? 'منصة التوصيات المؤسسية وتنبيهات البوت وغرفة التداول المباشرة'
-              : 'Institutional Signals, Algorithmic Alerts & Live Trading Workspace'}
+              ? 'بوت MBK • التوصيات • الشات العام • أخبار MBK'
+              : 'MBK Bot • Signals • General Chat • MBK News'}
           </motion.p>
 
-          {/* Smooth Progress Sweep (GPU transform scaleX) */}
+          {/* Smooth Progress Sweep */}
           <div className="w-56 h-1 bg-[#1e222d] rounded-full overflow-hidden mb-7 border border-[#2a2e39]">
             <motion.div
               initial={{ scaleX: 0 }}
@@ -132,7 +110,7 @@ export const MotionSplashScreen: React.FC<MotionSplashScreenProps> = ({
             onClick={onComplete}
             className="px-6 py-3 rounded-xl bg-[#089981] hover:bg-[#07846f] text-white font-bold text-xs transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap shadow-lg shadow-[#089981]/20"
           >
-            <span>{isAr ? 'دخول المنصة' : 'Continue to MBK Trading'}</span>
+            <span>{isAr ? 'دخول المنصة' : 'Enter MBK Trading'}</span>
             <ArrowRight className={`w-4 h-4 ${isAr ? 'rotate-180' : ''}`} />
           </motion.button>
         </motion.div>
@@ -140,7 +118,7 @@ export const MotionSplashScreen: React.FC<MotionSplashScreenProps> = ({
 
       {/* Minimal Footer */}
       <footer className="w-full max-w-6xl mx-auto px-6 py-4 text-center text-xs text-[#787b86] relative z-10">
-        MBK Trading Desk © 2026
+        MBK Trading © 2026
       </footer>
     </div>
   );

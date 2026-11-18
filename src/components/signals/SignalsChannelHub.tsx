@@ -129,7 +129,7 @@ export const SignalsChannelHub: React.FC<Props> = ({
     setDeleteSignalError(null);
     setPendingDeleteSignal({
       id,
-      label: label || (targetCollection === 'bot_alerts' ? 'TradingView Bot Alert' : id),
+      label: label || (targetCollection === 'bot_alerts' ? 'MBK Bot Alert' : id),
       targetCollection
     });
   };
@@ -334,7 +334,7 @@ export const SignalsChannelHub: React.FC<Props> = ({
             }`}
           >
             <span className="w-2 h-2 rounded-full bg-[#089981]" />
-            <span>{isAr ? 'القناة المجانية العامة' : 'Free Public Channel'}</span>
+            <span>{isAr ? 'التوصيات العامة' : 'Free Signals'}</span>
           </button>
 
           <button
@@ -349,7 +349,7 @@ export const SignalsChannelHub: React.FC<Props> = ({
             }`}
           >
             <Crown className="w-3.5 h-3.5 text-amber-400" />
-            <span>{isAr ? 'قناة النخبة VIP (المحللين)' : 'VIP Analyst Channel'}</span>
+            <span>{isAr ? 'توصيات VIP' : 'VIP Signals'}</span>
             {!hasVipSignalsAccess && <Lock className="w-2.5 h-2.5 text-amber-400" />}
           </button>
 
@@ -365,7 +365,7 @@ export const SignalsChannelHub: React.FC<Props> = ({
             }`}
           >
             <Bot className="w-3.5 h-3.5 text-[#089981]" />
-            <span>{isAr ? 'إشارات روبوت TradingView' : 'TradingView Webhook Bot'}</span>
+            <span>{isAr ? 'بوت MBK' : 'MBK Bot'}</span>
             {!hasBotSignalsAccess && <Lock className="w-2.5 h-2.5 text-amber-400" />}
           </button>
         </div>
@@ -376,7 +376,7 @@ export const SignalsChannelHub: React.FC<Props> = ({
             <span className="w-2 h-2 rounded-full bg-[#089981] animate-pulse" />
             <span>
               {activeChannel === 'bot' ? botAlerts.length : channelSignals.length}{' '}
-              {isAr ? 'صفقات نشطة' : 'Active setups'}
+              {isAr ? 'نشط' : 'Live'}
             </span>
           </div>
 
@@ -401,24 +401,18 @@ export const SignalsChannelHub: React.FC<Props> = ({
         <div>
           {activeChannel === 'free' ? (
             <p className="text-[#d1d4dc]">
-              📢 <strong className="text-white">{isAr ? 'القناة المجانية المفتوحة:' : 'Public Free Channel:'}</strong>{' '}
-              {isAr
-                ? 'توصيات يومية مدروسة مع تعليمات واضحة لإدارة رأس المال، متاحة لكافة المتداولين.'
-                : 'Curated daily trade setups with risk parameters, open for all traders.'}
+              📢 <strong className="text-white">{isAr ? 'التوصيات العامة:' : 'Free Signals:'}</strong>{' '}
+              {isAr ? 'توصيات مجانية عامة' : 'Public daily signals'}
             </p>
           ) : activeChannel === 'vip' ? (
             <p className="text-[#d1d4dc]">
-              👑 <strong className="text-amber-400">{isAr ? 'قناة كبار المتداولين VIP:' : 'VIP Institutional Channel:'}</strong>{' '}
-              {isAr
-                ? 'صفقات لحظية مباشرة من فريق أبحاث MBK مع أهداف متتالية وتنبيهات صوتية فورية.'
-                : 'Direct institutional setups from MBK research team with instant audio notifications.'}
+              👑 <strong className="text-amber-400">{isAr ? 'توصيات VIP:' : 'VIP Signals:'}</strong>{' '}
+              {isAr ? 'توصيات مباشرة خاصة بمشتركي VIP' : 'Direct live VIP signals'}
             </p>
           ) : (
             <p className="text-[#d1d4dc]">
-              ⚡ <strong className="text-[#089981]">{isAr ? 'إشارات TradingView Webhook الآلية:' : 'Automated TradingView Webhook Feed:'}</strong>{' '}
-              {isAr
-                ? 'ربط مباشر مع مؤشرات Pine Script لإرسال التنبيهات لحظة ظهور الفرصة.'
-                : 'Direct algorithmic webhook stream from TradingView Pine Script indicators.'}
+              ⚡ <strong className="text-[#089981]">{isAr ? 'بوت MBK:' : 'MBK Bot:'}</strong>{' '}
+              {isAr ? 'تنبيهات بوت MBK الفورية' : 'Live MBK Bot alerts'}
             </p>
           )}
         </div>
@@ -462,12 +456,12 @@ export const SignalsChannelHub: React.FC<Props> = ({
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2 text-xs font-bold text-[#089981]">
                   <Bot className="w-4 h-4" />
-                  <span>{isAr ? 'بوت التداول المجاني (Free Bot Trader)' : 'Free Bot Trader (Starter Access)'}</span>
+                  <span>{isAr ? 'بوت MBK' : 'MBK Bot'}</span>
                 </div>
                 <p className="text-xs text-[#b2b5be] leading-relaxed">
                   {isAr
-                    ? 'تحصل على تنبيهات القناة المجانية وحاسبة المخاطر والتداول التجريبي مجاناً. لتفعيل البث اللحظي الكامل لروبوت TradingView Webhook، قم بالترقية إلى باقة VIP.'
-                    : 'Your Free Tier includes public setups, risk calculator & paper trading. Upgrade to VIP ($100/mo) or redeem a trial key to unlock the live Webhook Bot stream.'}
+                    ? 'قم بالترقية إلى باقة VIP لتفعيل تنبيهات بوت MBK الفورية.'
+                    : 'Upgrade to VIP ($100/mo) or redeem a key to unlock live MBK Bot alerts.'}
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -502,12 +496,12 @@ export const SignalsChannelHub: React.FC<Props> = ({
                 <Lock className="w-6 h-6" />
               </div>
               <h4 className="text-sm font-black text-white">
-                {isAr ? 'تنبيهات روبوت TradingView الفورية مخصصة لباقة VIP' : 'Real-Time TradingView Bot Feed requires VIP'}
+                {isAr ? 'بوت MBK مخصص لباقة VIP' : 'MBK Bot requires VIP'}
               </h4>
               <p className="text-xs text-[#787b86] max-w-md mx-auto">
                 {isAr
-                  ? 'اشترك في باقة VIP أو فعّل كود التفعيل التجريبي لاستقبال تنبيهات البوت الفورية والصوتية بدون تأخير.'
-                  : 'Upgrade to VIP or apply a trial code for real-time TradingView bot signals and instant audio notifications.'}
+                  ? 'اشترك في باقة VIP أو فعّل كود التفعيل لاستقبال تنبيهات بوت MBK الفورية.'
+                  : 'Upgrade to VIP or apply an activation key for live MBK Bot alerts.'}
               </p>
             </div>
           </div>
@@ -521,14 +515,12 @@ export const SignalsChannelHub: React.FC<Props> = ({
                 <div>
                   <div className="flex items-center gap-2">
                     <h4 className="text-sm font-bold text-white">
-                      {isAr ? 'قناة تنبيهات TradingView Bot' : 'TradingView Bot Alerts Channel'}
+                      {isAr ? 'بوت MBK' : 'MBK Bot'}
                     </h4>
                     <span className="w-2 h-2 rounded-full bg-[#089981] animate-ping" />
                   </div>
                   <p className="text-[11px] text-[#787b86]">
-                    {isAr
-                      ? 'آخر 30 تنبيه لحظي مرسل عبر Webhook'
-                      : 'Latest 30 live Pine Script alerts via Webhook'}
+                    {isAr ? 'تنبيهات بوت MBK المباشرة' : 'Live MBK Bot alerts'}
                   </p>
                 </div>
               </div>
@@ -542,13 +534,13 @@ export const SignalsChannelHub: React.FC<Props> = ({
               {botAlertsLoading ? (
                 <div className="p-8 text-center text-[#787b86] text-xs">
                   <Bot className="w-6 h-6 animate-bounce mx-auto mb-2 text-[#089981]" />
-                  <p>{isAr ? 'جاري الاتصال بقناة التنبيهات المباشرة...' : 'Connecting to live alerts stream...'}</p>
+                  <p>{isAr ? 'جاري التحميل...' : 'Loading...'}</p>
                 </div>
               ) : botAlerts.length === 0 ? (
                 <div className="p-8 text-center bg-[#131722] border border-[#2a2e39] rounded-xl text-[#787b86]">
                   <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-50 text-[#089981]" />
                   <p className="text-sm font-semibold">
-                    {isAr ? 'لا توجد تنبيهات من بوت TradingView حتى الآن' : 'No TradingView bot alerts received yet'}
+                    {isAr ? 'لا توجد تنبيهات حالياً' : 'No MBK Bot alerts yet'}
                   </p>
                 </div>
               ) : (
@@ -571,7 +563,7 @@ export const SignalsChannelHub: React.FC<Props> = ({
                           <span className="w-2 h-2 rounded-full bg-[#089981]" />
                           <span className="text-xs font-bold text-white flex items-center gap-1">
                             <Bot className="w-3.5 h-3.5 text-[#089981]" />
-                            <span>TradingView Bot</span>
+                            <span>{isAr ? 'بوت MBK' : 'MBK Bot'}</span>
                           </span>
                           {alertItem.chat_id && (
                             <span className="text-[10px] text-[#787b86] font-mono bg-[#1e222d] px-2 py-0.5 rounded border border-[#2a2e39]">
@@ -612,7 +604,7 @@ export const SignalsChannelHub: React.FC<Props> = ({
                                     alertItem.id,
                                     true,
                                     'bot_alerts',
-                                    'TradingView Bot Alert'
+                                    'MBK Bot Alert'
                                   );
                                 }}
                                 className="p-1 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 cursor-pointer"

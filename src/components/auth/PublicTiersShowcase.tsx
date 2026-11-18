@@ -20,44 +20,44 @@ export const PublicTiersShowcase: React.FC<PublicTiersShowcaseProps> = ({
 
   const freeFeatures = isAr
     ? [
-        'بوت الإشارات المجاني (Free Bot Trader)',
-        'توصيات يدوية محدودة يومياً',
-        'حاسبة المخاطرة واللوت الاحترافية',
-        'التداول التجريبي ($100K Paper Trading)',
-        'الأجندة الاقتصادية والأكاديمية الأساسية'
+        'التوصيات العامة المجانية',
+        'حاسبة المخاطرة واللوت',
+        'التداول التجريبي ($100K)',
+        'التقويم الاقتصادي والأخبار',
+        'أكاديمية MBK'
       ]
     : [
-        'Free Bot Trader alerts preview',
-        'Limited daily manual signals',
-        'Position size & risk calculators',
-        'Paper Trading ($100K virtual portfolio)',
-        'Economic Calendar & Trading Academy'
+        'Free Public Signals',
+        'Position Size & Risk Calculator',
+        'Paper Trading ($100K)',
+        'Economic Calendar & MBK News',
+        'MBK Academy'
       ];
 
   const vipFeatures = isAr
     ? [
         'جميع مزايا الباقة المجانية ($0)',
-        'بث إشارات البوت اللحظي بالكامل',
-        'التوصيات اليدوية الكاملة (الدخول والأهداف وSL)',
-        'غرفة شات VIP الخاصة (Private VIP Group Chat)',
-        'المساعد الذكي القياسي (Standard AI Assistant)'
+        'تنبيهات بوت MBK الفورية',
+        'توصيات VIP الكاملة (الدخول والأهداف وSL)',
+        'الشات العام (General Chat)',
+        'ذكاء MBK (MBK AI)'
       ]
     : [
         'All Free Tier ($0) tools included',
-        'Full real-time Bot Signals webhook stream',
-        'Full manual VIP signals (Entries, TP, SL)',
-        'Private VIP Group Chat access',
-        'Standard AI Assistant text conversations'
+        'Live MBK Bot alerts',
+        'Full VIP Signals (Entries, TP, SL)',
+        'General Chat access',
+        'MBK AI Assistant'
       ];
 
   return (
     <div dir={isAr ? 'rtl' : 'ltr'} className="space-y-5">
-      {/* Editorial Intro Header (Zero Pill Clutter) */}
+      {/* Editorial Intro Header */}
       <div className="space-y-2">
         <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-[#8a93a6]">
           <span className="text-[#089981] font-bold">MBK Trading</span>
           <span aria-hidden="true">·</span>
-          <span>{isAr ? 'منصة التوصيات المؤسسية والتداول اللحظي' : 'Institutional Signals & Trading Desk'}</span>
+          <span>{isAr ? 'بوت MBK • توصيات • شات عام • أخبار' : 'MBK Bot • Signals • General Chat • News'}</span>
         </div>
 
         <h1 className="text-2xl sm:text-3xl font-extrabold text-white leading-tight [text-wrap:balance]">

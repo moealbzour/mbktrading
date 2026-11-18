@@ -786,12 +786,12 @@ export const PublicTradingChat: React.FC<Props> = ({
           </div>
           <div>
             <h3 className="text-sm font-black text-white">
-              {isAr ? 'غرفة مجتمع أعضاء VIP الخاصة' : 'Private VIP Members Group Chat'}
+              {isAr ? 'الشات العام' : 'General Chat'}
             </h3>
             <p className="text-xs text-[#787b86] mt-1.5 leading-relaxed">
               {isAr
-                ? 'تم حصر شات المجتمع المباشر للأعضاء النشطين والمحللين المعتمدين لضمان جودة النقاش والمتابعة اللحظية.'
-                : 'Live trading room chat is exclusive to active VIP members and certified analysts.'}
+                ? 'الشات العام متاح للأعضاء المشتركين.'
+                : 'General Chat is available for active members.'}
             </p>
           </div>
           <div className="flex flex-col gap-2">
@@ -858,7 +858,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                   isCompact ? 'text-xs' : 'text-xs sm:text-sm'
                 }`}
               >
-                <span>{isAr ? 'غرفة VIP المباشرة' : 'VIP Live Community'}</span>
+                <span>{isAr ? 'الشات العام' : 'General Chat'}</span>
               </h2>
 
               {!isCompact && (
@@ -873,7 +873,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#089981] opacity-75" />
                       <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#089981]" />
                     </span>
-                    <span>VIP LIVE</span>
+                    <span>LIVE</span>
                   </span>
                 )
               )}
@@ -881,17 +881,17 @@ export const PublicTradingChat: React.FC<Props> = ({
 
             <p className="text-[10px] text-[#787b86] flex items-center gap-1.5 truncate mt-0.5">
               <span className="font-mono text-[#089981] font-bold">
-                {isAr ? `${messages.length} رسالة (سجل مفتوح)` : `${messages.length} msgs (Open)`}
+                {isAr ? `${messages.length} رسالة` : `${messages.length} msgs`}
               </span>
               <span className="text-[#434651]">•</span>
               <span className={chatRoomSettings.isClosed ? 'text-rose-400 font-bold' : 'text-[#089981] font-bold'}>
                 {chatRoomSettings.isClosed
                   ? isAr
                     ? 'مغلق مؤقتاً'
-                    : 'Temp Closed'
+                    : 'Closed'
                   : isAr
-                  ? 'متصل (Live)'
-                  : 'Connected'}
+                  ? 'متصل'
+                  : 'Online'}
               </span>
             </p>
           </div>

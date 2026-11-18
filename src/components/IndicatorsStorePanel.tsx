@@ -14,10 +14,10 @@ export const IndicatorsStorePanel: React.FC<Props> = ({
 }) => {
   return (
     <EliteLockedModule
-      titleAr="متجر المؤشرات الحصرية (Indicators Store)"
-      titleEn="Indicators Store"
-      subtitleAr="حزمة مؤشرات Pine Script المؤسسية الحصرية لمنصة TradingView مخصصة لباقة Elite وستُتاح قريباً."
-      subtitleEn="Proprietary institutional Pine Script TradingView indicators reserved for the Elite Tier."
+      titleAr="مؤشرات MBK الحصرية"
+      titleEn="MBK Indicators"
+      subtitleAr="مؤشرات MBK الحصرية مخصصة لباقة Elite وستُتاح قريباً."
+      subtitleEn="Exclusive MBK indicators reserved for the Elite Tier."
       lang={lang}
       onViewPlans={onViewPlans}
     />

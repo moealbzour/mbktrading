@@ -357,7 +357,7 @@ export const DirectMessagesPanel: React.FC<Props> = ({
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-xs sm:text-sm font-black text-white">
-                {isAr ? 'الرسائل الخاصة المباشرة (DM)' : 'Direct Messages (DM)'}
+                {isAr ? 'الوارد (Inbox)' : 'Inbox'}
               </h2>
               {totalUnread > 0 && (
                 <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-[#f23645] text-white">
@@ -366,9 +366,7 @@ export const DirectMessagesPanel: React.FC<Props> = ({
               )}
             </div>
             <p className="text-[11px] text-[#787b86]">
-              {isAr
-                ? 'تواصل خاص مشفر بين المتداولين مع تحكم كامل بالخصوصية والحظر'
-                : 'Private 1-to-1 trader messaging with full opt-in & block controls'}
+              {isAr ? 'الرسائل الخاصة' : 'Direct Messages'}
             </p>
           </div>
         </div>

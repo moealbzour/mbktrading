@@ -100,19 +100,15 @@ export const EconomicCalendarPanel: React.FC<Props> = ({ lang = 'ar' }) => {
             </div>
             <div>
               <h2 className="text-sm sm:text-base font-extrabold text-white flex items-center gap-2 flex-wrap">
-                <span>
-                  {isAr
-                    ? 'الأحداث الاقتصادية الكبرى القادمة (تنبيه تلقائي قبل ساعة)'
-                    : 'Major Upcoming Macro Events (1-Hour Auto Warning)'}
-                </span>
+                <span>{isAr ? 'الأحداث الاقتصادية القادمة' : 'Upcoming Events'}</span>
                 <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">
-                  {isAr ? 'تحذير منبثق قبل 60 دقيقة' : '60-MIN POPUP ALERT'}
+                  {isAr ? 'تنبيه قبل ساعة' : '1H ALERT'}
                 </span>
               </h2>
               <p className="text-xs text-[#8a93a6] mt-0.5">
                 {isAr
-                  ? 'يظهر إشعار منبثق تلقائياً مع تنبيه صوتي عندما يتبقى ساعة واحدة على صدور بيانات CPI أو قرار الفائدة الفيدرالية أو الوظائف NFP'
-                  : 'Automatically triggers a popup warning and audio alert when 1 hour remains before CPI, Federal Reserve (FOMC), or NFP releases'}
+                  ? 'تنبيه منبثق قبل ساعة من صدور CPI والفيدرالي والوظائف'
+                  : '1-hour popup warning before CPI, FOMC & NFP'}
               </p>
             </div>
           </div>
@@ -247,20 +243,14 @@ export const EconomicCalendarPanel: React.FC<Props> = ({ lang = 'ar' }) => {
             </div>
             <div>
               <h2 className="text-sm sm:text-base font-bold text-slate-100 flex items-center gap-2">
-                <span>
-                  {isAr
-                    ? 'الأجندة الاقتصادية العالمية المباشرة (TradingView Calendar)'
-                    : 'Global Live Economic Calendar (TradingView)'}
-                </span>
+                <span>{isAr ? 'التقويم الاقتصادي' : 'Economic Calendar'}</span>
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
                   <Globe className="w-3 h-3" />
-                  <span>{isAr ? 'مباشر بالعربية' : 'LIVE FEED'}</span>
+                  <span>{isAr ? 'مباشر' : 'LIVE'}</span>
                 </span>
               </h2>
               <p className="text-xs text-slate-400">
-                {isAr
-                  ? 'جدول البيانات الاقتصادية العالمية اللحظي لكافة العملات الرئيسية'
-                  : 'Real-time global macroeconomic releases across major currencies'}
+                {isAr ? 'البيانات الاقتصادية المباشرة' : 'Live economic releases'}
               </p>
             </div>
           </div>

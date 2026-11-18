@@ -646,8 +646,8 @@ export const TradingViewWorkspace: React.FC<Props> = ({
   const navItems = [
     {
       id: 'signals' as WorkspaceView | 'heatmap',
-      labelAr: 'قنوات التوصيات والبوت',
-      labelEn: 'Signals & Bot Hub',
+      labelAr: 'بوت وتوصيات MBK',
+      labelEn: 'MBK Bot & Signals',
       shortAr: 'الإشارات',
       shortEn: 'Signals',
       icon: Radio,
@@ -655,8 +655,8 @@ export const TradingViewWorkspace: React.FC<Props> = ({
     },
     {
       id: 'chart' as WorkspaceView | 'heatmap',
-      labelAr: 'الرسم البياني',
-      labelEn: 'Live Chart',
+      labelAr: 'الشارت',
+      labelEn: 'Chart',
       shortAr: 'الشارت',
       shortEn: 'Chart',
       icon: BarChart2
@@ -664,15 +664,15 @@ export const TradingViewWorkspace: React.FC<Props> = ({
     {
       id: 'heatmap' as WorkspaceView | 'heatmap',
       labelAr: 'الخريطة الحرارية',
-      labelEn: 'Market Heatmap',
+      labelEn: 'Heatmap',
       shortAr: 'الخريطة',
       shortEn: 'Heatmap',
       icon: Flame
     },
     {
       id: 'chat' as WorkspaceView | 'heatmap',
-      labelAr: 'غرفة شات VIP',
-      labelEn: 'VIP Group Chat',
+      labelAr: 'الشات العام',
+      labelEn: 'General Chat',
       shortAr: 'الشات',
       shortEn: 'Chat',
       icon: MessageSquare,
@@ -680,25 +680,25 @@ export const TradingViewWorkspace: React.FC<Props> = ({
     },
     {
       id: 'dm' as WorkspaceView | 'heatmap',
-      labelAr: 'الرسائل الخاصة (DM)',
-      labelEn: 'Direct Messages (DM)',
-      shortAr: 'الخاص',
-      shortEn: 'DMs',
+      labelAr: 'الوارد',
+      labelEn: 'Inbox',
+      shortAr: 'الوارد',
+      shortEn: 'Inbox',
       icon: Mail,
       badge: unreadDmCount
     },
     {
       id: 'ai' as WorkspaceView | 'heatmap',
-      labelAr: 'المساعد الذكي (Standard AI)',
-      labelEn: 'Standard AI Assistant',
+      labelAr: 'ذكاء MBK',
+      labelEn: 'MBK AI',
       shortAr: 'الذكاء',
       shortEn: 'AI',
       icon: Bot
     },
     {
       id: 'paper' as WorkspaceView | 'heatmap',
-      labelAr: 'التداول التجريبي (Paper Trading)',
-      labelEn: 'Paper Trading Simulator',
+      labelAr: 'التداول التجريبي',
+      labelEn: 'Paper Trading',
       shortAr: 'تجريبي',
       shortEn: 'Paper',
       icon: Wallet
@@ -706,31 +706,31 @@ export const TradingViewWorkspace: React.FC<Props> = ({
     {
       id: 'calendar' as WorkspaceView | 'heatmap',
       labelAr: 'التقويم الاقتصادي',
-      labelEn: 'Economic Calendar',
+      labelEn: 'Calendar',
       shortAr: 'التقويم',
       shortEn: 'Calendar',
       icon: Calendar
     },
     {
       id: 'academy' as WorkspaceView | 'heatmap',
-      labelAr: 'الأكاديمية التعليمية',
-      labelEn: 'Trading Academy',
+      labelAr: 'الأكاديمية',
+      labelEn: 'Academy',
       shortAr: 'الأكاديمية',
       shortEn: 'Academy',
       icon: GraduationCap
     },
     {
       id: 'elite' as WorkspaceView | 'heatmap',
-      labelAr: `باقة Elite (${ELITE_LOCK_BADGE_TEXT})`,
-      labelEn: `Elite Modules (${ELITE_LOCK_BADGE_TEXT})`,
+      labelAr: 'باقة Elite',
+      labelEn: 'Elite',
       shortAr: 'Elite 🔒',
       shortEn: 'Elite 🔒',
       icon: Gem
     },
     {
       id: 'news' as WorkspaceView | 'heatmap',
-      labelAr: 'الأخبار الاقتصادية',
-      labelEn: 'Financial News',
+      labelAr: 'أخبار MBK',
+      labelEn: 'MBK News',
       shortAr: 'الأخبار',
       shortEn: 'News',
       icon: Newspaper
@@ -750,15 +750,15 @@ export const TradingViewWorkspace: React.FC<Props> = ({
       return [{
         id: 'admin' as WorkspaceView | 'heatmap',
         labelAr: isAnalyserRole
-          ? 'مركز النشر والتحليل'
+          ? 'مركز النشر'
           : isModOrSales
-          ? 'لوحة إدارة العملاء (CRM)'
-          : 'إدارة المنصة (Admin)',
+          ? 'إدارة العملاء'
+          : 'الإدارة',
         labelEn: isAnalyserRole
-          ? 'Publishing Center'
+          ? 'Publishing'
           : isModOrSales
-          ? 'CRM & Staff Panel'
-          : 'Admin Panel',
+          ? 'CRM'
+          : 'Admin',
         shortAr: isAnalyserRole ? 'النشر' : isModOrSales ? 'CRM' : 'الإدارة',
         shortEn: isAnalyserRole ? 'Publish' : isModOrSales ? 'CRM' : 'Admin',
         icon: Shield
@@ -771,21 +771,20 @@ export const TradingViewWorkspace: React.FC<Props> = ({
       className="h-screen h-[100dvh] max-h-[100dvh] w-full max-w-full bg-[#131722] text-[#d1d4dc] flex flex-col font-sans select-none overflow-hidden antialiased"
       dir={isAr ? 'rtl' : 'ltr'}
     >
-      {/* 1. TOP HEADER (CLEAN TRADINGVIEW TOOLBAR - FLEXIBLE ON ALL SCREEN SIZES) */}
+      {/* 1. TOP HEADER */}
       <header className="h-12 sm:h-13 bg-[#1e222d] border-b border-[#2a2e39] px-2 sm:px-4 flex items-center justify-between shrink-0 z-40 gap-1.5 sm:gap-2">
-        {/* Left: Brand + Active Symbol Switcher */}
+        {/* Left: Real MBK Logo + Brand */}
         <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0">
-          <div className="flex items-center gap-1.5 shrink-0">
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white text-[#131722] font-mono font-black text-xs sm:text-sm flex items-center justify-center shadow-sm">
-              MBK
-            </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <img
+              src="/mbk-logo.png"
+              alt="MBK Trading"
+              className="h-8 sm:h-9 w-auto rounded-lg object-contain border border-white/10 shadow-sm bg-[#0b0e14]"
+            />
             <div className="hidden sm:block">
-              <div className="flex items-center gap-1">
-                <span className="font-bold text-white text-xs sm:text-sm tracking-wide">MBK DESK</span>
-                <span className="px-1.5 py-0.2 rounded text-[9px] sm:text-[10px] font-mono font-bold bg-[#131722] text-[#089981] border border-[#089981]/30">
-                  v4.0
-                </span>
-              </div>
+              <span className="font-extrabold text-white text-xs sm:text-sm tracking-wide">
+                MBK TRADING
+              </span>
             </div>
           </div>
           {/* MODULAR WORKSPACE CONTROLS (Collapsible Widgets + Chat Docking) */}
@@ -1457,7 +1456,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                         }`}
                       >
                         <BarChart3 className="w-3.5 h-3.5 text-[#089981]" />
-                        <span className="text-[11px]">{isAr ? 'صفقات اليوم' : 'Daily Trades'}</span>
+                        <span className="text-[11px]">{isAr ? 'بوت MBK' : 'MBK Bot'}</span>
                         {unreadTradesCount > 0 ? (
                           <span className="px-1.5 py-0.2 min-w-[16px] h-[16px] rounded-full bg-rose-600 text-white text-[9px] font-mono font-extrabold flex items-center justify-center shadow-sm">
                             {unreadTradesCount > 99 ? '99+' : unreadTradesCount}
@@ -1474,7 +1473,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                         }`}
                       >
                         <MessageSquare className="w-3.5 h-3.5 text-blue-400" />
-                        <span className="text-[11px]">{isAr ? 'الشات المباشر' : 'Live Chat'}</span>
+                        <span className="text-[11px]">{isAr ? 'الشات العام' : 'General Chat'}</span>
                         {unreadChatCount > 0 && (
                           <span className="px-1.5 py-0.2 min-w-[16px] h-[16px] rounded-full bg-rose-600 text-white text-[9px] font-mono font-extrabold flex items-center justify-center shadow-sm">
                             {unreadChatCount > 99 ? '99+' : unreadChatCount}
@@ -1507,7 +1506,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                         }`}
                       >
                         <Bot className="w-3.5 h-3.5 text-amber-400" />
-                        <span className="text-[11px]">{isAr ? 'المستشار الذكي' : 'AI Analyst'}</span>
+                        <span className="text-[11px]">{isAr ? 'ذكاء MBK' : 'MBK AI'}</span>
                       </button>
                     </div>
                   </div>
@@ -1753,10 +1752,10 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                       <div className="flex items-center gap-2">
                         <Newspaper className="w-5 h-5 text-[#089981]" />
                         <h2 className="text-sm font-bold text-white">
-                          {isAr ? 'وكالة الأخبار الاقتصادية اللحظية (RSS Live Wire)' : 'Real Financial RSS News Wire'}
+                          {isAr ? 'أخبار MBK' : 'MBK News'}
                         </h2>
                       </div>
-                      <span className="text-xs font-mono text-[#089981]">ForexLive • Yahoo Finance</span>
+                      <span className="text-xs font-mono text-[#089981]">MBK NEWS</span>
                     </div>
 
                     <LiveNewsTicker lang={lang} isFullPage={true} />
@@ -1854,11 +1853,11 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                           ? 'bg-white text-[#131722] shadow-sm'
                           : 'text-[#787b86] hover:text-white'
                       }`}
-                      title={isAr ? 'صفقات اليوم' : 'Daily Trades'}
+                      title={isAr ? 'بوت MBK' : 'MBK Bot'}
                     >
                       <BarChart3 className="w-3.5 h-3.5 text-[#089981]" />
                       <span className={isBottomFolded ? 'hidden sm:inline text-[11px]' : 'text-[11px]'}>
-                        {isAr ? 'صفقات اليوم' : 'Daily Trades'}
+                        {isAr ? 'بوت MBK' : 'MBK Bot'}
                       </span>
                       {unreadTradesCount > 0 ? (
                         <span className="px-1.5 py-0.2 min-w-[16px] h-[16px] rounded-full bg-rose-600 text-white text-[9px] font-mono font-extrabold flex items-center justify-center shadow-sm">
@@ -1880,11 +1879,11 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                           ? 'bg-white text-[#131722] shadow-sm'
                           : 'text-[#787b86] hover:text-white'
                       }`}
-                      title={isAr ? 'غرفة الشات المباشرة' : 'Live Community Chat'}
+                      title={isAr ? 'الشات العام' : 'General Chat'}
                     >
                       <MessageSquare className="w-3.5 h-3.5 text-blue-400" />
                       <span className={isBottomFolded ? 'hidden sm:inline text-[11px]' : 'text-[11px]'}>
-                        {isAr ? 'الشات المباشر' : 'Live Chat'}
+                        {isAr ? 'الشات العام' : 'General Chat'}
                       </span>
                       {unreadChatCount > 0 && (
                         <span className="px-1.5 py-0.2 min-w-[16px] h-[16px] rounded-full bg-rose-600 text-white text-[9px] font-mono font-extrabold flex items-center justify-center shadow-sm">
@@ -1902,7 +1901,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                         setActiveView('dm');
                       }}
                       className="px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 text-[#787b86] hover:text-white"
-                      title={isAr ? 'صندوق الرسائل الخاصة' : 'Direct Messages Inbox'}
+                      title={isAr ? 'الوارد' : 'Inbox'}
                     >
                       <Mail className="w-3.5 h-3.5 text-purple-400" />
                       <span className={isBottomFolded ? 'hidden sm:inline text-[11px]' : 'text-[11px]'}>
@@ -1926,11 +1925,11 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                           ? 'bg-white text-[#131722] shadow-sm'
                           : 'text-[#787b86] hover:text-white'
                       }`}
-                      title={isAr ? 'المستشار الذكي' : 'AI Analyst'}
+                      title={isAr ? 'ذكاء MBK' : 'MBK AI'}
                     >
                       <Bot className="w-3.5 h-3.5 text-amber-400" />
                       <span className={isBottomFolded ? 'hidden sm:inline text-[11px]' : 'text-[11px]'}>
-                        {isAr ? 'المستشار الذكي' : 'AI Analyst'}
+                        {isAr ? 'ذكاء MBK' : 'MBK AI'}
                       </span>
                     </button>
                   </div>
@@ -2170,10 +2169,10 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                           ? 'bg-white text-[#131722] shadow-sm'
                           : 'text-[#787b86] hover:text-white'
                       }`}
-                      title={isAr ? 'صفقات اليوم' : 'Daily Trades'}
+                      title={isAr ? 'بوت MBK' : 'MBK Bot'}
                     >
                       <BarChart3 className="w-3.5 h-3.5 text-[#089981]" />
-                      <span className="text-[11px]">{isAr ? 'صفقات' : 'Trades'}</span>
+                      <span className="text-[11px]">{isAr ? 'بوت MBK' : 'MBK Bot'}</span>
                       {unreadTradesCount > 0 ? (
                         <span className="px-1.5 py-0.2 min-w-[16px] h-[16px] rounded-full bg-rose-600 text-white text-[9px] font-mono font-extrabold flex items-center justify-center shadow-sm">
                           {unreadTradesCount > 99 ? '99+' : unreadTradesCount}
@@ -2190,10 +2189,10 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                           ? 'bg-white text-[#131722] shadow-sm'
                           : 'text-[#787b86] hover:text-white'
                       }`}
-                      title={isAr ? 'غرفة الشات المباشرة' : 'Live Community Chat'}
+                      title={isAr ? 'الشات العام' : 'General Chat'}
                     >
                       <MessageSquare className="w-3.5 h-3.5 text-blue-400" />
-                      <span className="text-[11px]">{isAr ? 'الشات' : 'Chat'}</span>
+                      <span className="text-[11px]">{isAr ? 'الشات العام' : 'General Chat'}</span>
                       {unreadChatCount > 0 && (
                         <span className="px-1.5 py-0.2 min-w-[16px] h-[16px] rounded-full bg-rose-600 text-white text-[9px] font-mono font-extrabold flex items-center justify-center shadow-sm">
                           {unreadChatCount > 99 ? '99+' : unreadChatCount}
@@ -2209,7 +2208,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                         setActiveView('dm');
                       }}
                       className="px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 text-[#787b86] hover:text-white"
-                      title={isAr ? 'صندوق الرسائل الخاصة' : 'Direct Messages Inbox'}
+                      title={isAr ? 'الوارد' : 'Inbox'}
                     >
                       <Mail className="w-3.5 h-3.5 text-purple-400" />
                       <span className="text-[11px]">{isAr ? 'الوارد' : 'Inbox'}</span>
@@ -2227,10 +2226,10 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                           ? 'bg-white text-[#131722] shadow-sm'
                           : 'text-[#787b86] hover:text-white'
                       }`}
-                      title={isAr ? 'المستشار الذكي' : 'AI Analyst'}
+                      title={isAr ? 'ذكاء MBK' : 'MBK AI'}
                     >
                       <Bot className="w-3.5 h-3.5 text-amber-400" />
-                      <span className="text-[11px]">{isAr ? 'الذكاء' : 'AI'}</span>
+                      <span className="text-[11px]">{isAr ? 'ذكاء MBK' : 'MBK AI'}</span>
                     </button>
                   </div>
 

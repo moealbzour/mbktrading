@@ -147,10 +147,10 @@ export const DailyTradesPanel: React.FC<Props> = ({
       }
       soundManager.playSuccess();
       addToast({
-        title: isAr ? 'تم تفريغ وحذف تنبيهات البوت' : 'Bot Signals Wiped',
+        title: isAr ? 'تم تفريغ تنبيهات البوت' : 'MBK Bot Wiped',
         message: isAr
-          ? `تم مسح جميع تنبيهات الـ Webhook (${docs.length}) بنجاح.`
-          : `All bot webhook alerts (${docs.length}) successfully cleared.`,
+          ? `تم مسح جميع تنبيهات بوت MBK (${docs.length}) بنجاح.`
+          : `All MBK Bot alerts (${docs.length}) cleared.`,
         type: 'bot',
         timestamp: isAr ? 'الآن' : 'Now'
       });
@@ -292,7 +292,7 @@ export const DailyTradesPanel: React.FC<Props> = ({
         <div className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-[#089981] animate-ping" />
           <h3 className="text-xs font-bold text-white">
-            {isAr ? 'تغذية الإشارات الفورية' : 'Live Signal Feed'}
+            {isAr ? 'بوت وتوصيات MBK' : 'MBK Bot & Signals'}
           </h3>
           <span className="text-[10px] text-[#787b86] font-mono">({displayedTrades.length})</span>
         </div>
@@ -498,7 +498,7 @@ export const DailyTradesPanel: React.FC<Props> = ({
                         <span className="w-2 h-2 rounded-full bg-[#089981]" />
                         <span className="text-[11px] font-bold text-white flex items-center gap-1">
                           <Bot className="w-3.5 h-3.5 text-[#089981]" />
-                          <span>TradingView Bot</span>
+                          <span>{isAr ? 'بوت MBK' : 'MBK Bot'}</span>
                         </span>
                       </div>
                       <span className="text-[10px] text-[#787b86] font-mono">{trade.openTime}</span>
@@ -849,7 +849,7 @@ export const DailyTradesPanel: React.FC<Props> = ({
               <div className="px-3 py-2 rounded-lg bg-[#131722] border border-[#2a2e39] font-mono text-white font-bold flex items-center justify-between gap-2">
                 <span className="truncate">
                   {pendingDeleteTrade.targetCollection === 'bot_alerts'
-                    ? pendingDeleteTrade.trade.textMsg || 'TradingView Bot Alert'
+                    ? pendingDeleteTrade.trade.textMsg || 'MBK Bot Alert'
                     : `${pendingDeleteTrade.trade.action} ${pendingDeleteTrade.trade.symbol}`}
                 </span>
                 <span className="text-[10px] text-[#787b86] shrink-0">{pendingDeleteTrade.targetCollection}</span>

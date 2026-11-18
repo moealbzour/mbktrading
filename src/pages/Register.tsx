@@ -221,9 +221,16 @@ export const Register: React.FC<RegisterProps> = ({
 
       {/* 3-Zone Top Header Navigation */}
       <header className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between gap-8 relative z-20 shrink-0 border-b border-[#2a2e39]/60">
-        <span className="text-base font-extrabold text-white tracking-tight whitespace-nowrap shrink-0">
-          MBK Trading
-        </span>
+        <div className="flex items-center gap-2.5 shrink-0">
+          <img
+            src="/mbk-logo.png"
+            alt="MBK Trading"
+            className="h-9 w-auto rounded-lg object-contain border border-white/10 shadow-sm"
+          />
+          <span className="text-base font-extrabold text-white tracking-tight whitespace-nowrap">
+            MBK Trading
+          </span>
+        </div>
 
         <nav className="hidden md:flex items-center gap-6 text-xs font-medium text-[#8a93a6]">
           <a href="#tiers-showcase" className="hover:text-white transition-colors whitespace-nowrap shrink-0">
@@ -761,9 +768,9 @@ export const Register: React.FC<RegisterProps> = ({
         </div>
       </main>
 
-      {/* Institutional Footer */}
+      {/* Footer */}
       <footer className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-4 text-center text-[11px] text-[#787b86] border-t border-[#2a2e39]/60 relative z-20 shrink-0">
-        MBK Trading Desk Platform © 2026 • Encrypted Institutional Onboarding & Verified Access
+        MBK Trading © 2026
       </footer>
     </div>
   );
