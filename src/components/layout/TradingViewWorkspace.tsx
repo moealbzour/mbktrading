@@ -178,6 +178,11 @@ export const TradingViewWorkspace: React.FC<Props> = ({
 
   const {
     unreadDmCount,
+    unreadChatCount,
+    unreadTradesCount,
+    markChatAsRead,
+    markTradesAsRead,
+    markDmAsRead,
     notificationPermission,
     requestNotificationPermission,
     addToast
@@ -642,7 +647,8 @@ export const TradingViewWorkspace: React.FC<Props> = ({
       labelEn: 'Signals & Bot Hub',
       shortAr: 'الإشارات',
       shortEn: 'Signals',
-      icon: Radio
+      icon: Radio,
+      badge: unreadTradesCount
     },
     {
       id: 'chart' as WorkspaceView | 'heatmap',
@@ -666,7 +672,8 @@ export const TradingViewWorkspace: React.FC<Props> = ({
       labelEn: 'VIP Group Chat',
       shortAr: 'الشات',
       shortEn: 'Chat',
-      icon: MessageSquare
+      icon: MessageSquare,
+      badge: unreadChatCount
     },
     {
       id: 'dm' as WorkspaceView | 'heatmap',
@@ -1219,6 +1226,10 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                   key={item.id}
                   onClick={() => {
                     soundManager.playClick();
+                    if (item.id === 'signals') markTradesAsRead();
+                    if (item.id === 'chat') markChatAsRead();
+                    if (item.id === 'dm') markDmAsRead();
+
                     if (item.id === 'heatmap') {
                       setActiveMainView('heatmap');
                     } else {

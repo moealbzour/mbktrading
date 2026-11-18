@@ -60,11 +60,16 @@ export interface SignalsContextValue {
   toasts: ToastItem[];
   dbError: string | null;
   unreadDmCount: number;
+  unreadChatCount: number;
+  unreadTradesCount: number;
   notificationPermission: AppNotificationPermission;
   setDbError: (err: string | null) => void;
   addToast: (toast: Omit<ToastItem, 'id'>) => void;
   removeToast: (id: string) => void;
   requestNotificationPermission: () => Promise<AppNotificationPermission>;
+  markChatAsRead: () => void;
+  markTradesAsRead: () => void;
+  markDmAsRead: () => void;
 }
 
 const SignalsContext = createContext<SignalsContextValue>({
@@ -76,11 +81,16 @@ const SignalsContext = createContext<SignalsContextValue>({
   toasts: [],
   dbError: null,
   unreadDmCount: 0,
+  unreadChatCount: 0,
+  unreadTradesCount: 0,
   notificationPermission: 'default',
   setDbError: () => {},
   addToast: () => {},
   removeToast: () => {},
-  requestNotificationPermission: async () => 'default'
+  requestNotificationPermission: async () => 'default',
+  markChatAsRead: () => {},
+  markTradesAsRead: () => {},
+  markDmAsRead: () => {}
 });
 
 const SUPER_ADMIN_EMAIL = 'moe.albzour@gmail.com';
@@ -119,6 +129,27 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [canReadBotAlerts, setCanReadBotAlerts] = useState<boolean>(false);
   const [canReadVipChat, setCanReadVipChat] = useState<boolean>(false);
   const [unreadDmCount, setUnreadDmCount] = useState<number>(0);
+  const [unreadChatCount, setUnreadChatCount] = useState<number>(0);
+  const [unreadTradesCount, setUnreadTradesCount] = useState<number>(0);
+
+  const markChatAsRead = useCallback(() => setUnreadChatCount(0), []);
+  const markTradesAsRead = useCallback(() => setUnreadTradesCount(0), []);
+  const markDmAsRead = useCallback(() => setUnreadDmCount(0), []);
+
+  // Sync PWA App Shortcut / Icon Badge
+  const totalUnread = unreadDmCount + unreadChatCount + unreadTradesCount;
+  useEffect(() => {
+    if (typeof navigator !== 'undefined') {
+      if ('setAppBadge' in navigator) {
+        if (totalUnread > 0) {
+          (navigator as any).setAppBadge(totalUnread).catch(() => {});
+        } else {
+          (navigator as any).clearAppBadge?.().catch(() => {});
+        }
+      }
+    }
+  }, [totalUnread]);
+
   const [notificationPermission, setNotificationPermission] = useState<AppNotificationPermission>(() =>
     getNotificationPermissionState()
   );
@@ -437,6 +468,7 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 const isRecent = data.timestampMs ? data.timestampMs > Date.now() - 5 * 60 * 1000 : true;
 
                 if (!isFirstBotSnapshot && isRecent) {
+                  setUnreadTradesCount((prev) => prev + 1);
                   triggerAudioAlert();
 
                   addToast({
@@ -576,6 +608,7 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
               const d = change.doc.data();
               const isRecent = d.timestampMs ? d.timestampMs > Date.now() - 2 * 60 * 1000 : true;
               if (d.uid && d.uid !== currentUserUid && isRecent) {
+                setUnreadChatCount((prev) => prev + 1);
                 const senderName = d.displayName || 'VIP Trader';
                 const msgBody = (d.text || '[صورة شارت]').toString().slice(0, 120);
 
@@ -687,11 +720,16 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         toasts,
         dbError,
         unreadDmCount,
+        unreadChatCount,
+        unreadTradesCount,
         notificationPermission,
         setDbError,
         addToast,
         removeToast,
-        requestNotificationPermission
+        requestNotificationPermission,
+        markChatAsRead,
+        markTradesAsRead,
+        markDmAsRead
       }}
     >
       {children}
