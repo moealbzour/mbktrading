@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { doc, onSnapshot, getDoc } from 'firebase/firestore';
+import { db } from './lib/firebase';
 import {
   MarketSymbol,
   MarketTicker,
@@ -24,6 +26,8 @@ import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 import { NotificationPermissionPrompt } from './components/common/NotificationPermissionPrompt';
 import { ExitConfirmationModal } from './components/common/ExitConfirmationModal';
 
+const REMOTE_VERSION_STORAGE_KEY = 'mbk_synced_remote_version';
+
 export default function App() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
     try {
@@ -47,6 +51,8 @@ export default function App() {
 
   const [promoModalOpen, setPromoModalOpen] = useState(false);
   const [exitModalOpen, setExitModalOpen] = useState(false);
+  const [isApplyingRemoteUpdate, setIsApplyingRemoteUpdate] = useState(false);
+  const isReloadingRef = useRef(false);
   const [pendingGoogleOnboarding, setPendingGoogleOnboarding] = useState<{
     uid: string;
     email: string;
@@ -69,6 +75,123 @@ export default function App() {
     setIsMuted(next);
     soundManager.setMuted(next);
   };
+
+  // Remote Force-Update Listener (Admin 1-Click Push Update to all Laptop, Mobile & PWA Shortcut Users)
+  useEffect(() => {
+    const applyRemoteVersionIfNeeded = async (data: Record<string, any> | undefined) => {
+      if (!data || isReloadingRef.current) return;
+      const remoteVersionId = typeof data.versionId === 'string' ? data.versionId.trim() : '';
+      if (!remoteVersionId) return;
+
+      let localSyncedVersion: string | null = null;
+      try {
+        localSyncedVersion = localStorage.getItem(REMOTE_VERSION_STORAGE_KEY);
+      } catch {
+        // ignore
+      }
+
+      // First time recording the version on a fresh load that already has ?v= matching remoteVersionId
+      const currentUrl = new URL(window.location.href);
+      const urlVersionParam = currentUrl.searchParams.get('v');
+      if (!localSyncedVersion && urlVersionParam === remoteVersionId) {
+        try {
+          localStorage.setItem(REMOTE_VERSION_STORAGE_KEY, remoteVersionId);
+        } catch {
+          // ignore
+        }
+        return;
+      }
+
+      if (localSyncedVersion !== remoteVersionId) {
+        isReloadingRef.current = true;
+        try {
+          localStorage.setItem(REMOTE_VERSION_STORAGE_KEY, remoteVersionId);
+          // Unfold any hidden/collapsed layout panels so new navigation tabs & DMs are immediately visible
+          if (data.resetLayout !== false) {
+            localStorage.setItem('mbk_tv_nav_rail_folded', 'false');
+            localStorage.setItem('mbk_tv_sidebar_shrinked', 'false');
+            localStorage.setItem('mbk_tv_bottom_panel_folded', 'false');
+          }
+        } catch {
+          // ignore
+        }
+
+        // If the user previously had an older version (or never synced this push), purge caches & reload while keeping mbk_user signed in!
+        setIsApplyingRemoteUpdate(true);
+
+        try {
+          if ('caches' in window) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map((k) => caches.delete(k)));
+          }
+        } catch {
+          // ignore
+        }
+
+        try {
+          if ('serviceWorker' in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(
+              registrations.map(async (reg) => {
+                try {
+                  await reg.update();
+                  if (reg.waiting) {
+                    reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+                  }
+                } catch {
+                  // ignore
+                }
+              })
+            );
+          }
+        } catch {
+          // ignore
+        }
+
+        setTimeout(() => {
+          const nextUrl = new URL(window.location.href);
+          nextUrl.searchParams.set('v', remoteVersionId);
+          window.location.replace(nextUrl.toString());
+        }, 700);
+      }
+    };
+
+    const versionRef = doc(db, 'settings', 'app_version');
+    const unsubVersion = onSnapshot(
+      versionRef,
+      (snap) => {
+        if (snap.exists()) {
+          applyRemoteVersionIfNeeded(snap.data());
+        }
+      },
+      () => {
+        // ignore snapshot permission/network transient notice
+      }
+    );
+
+    // Also check immediately when a user opens/resumes their installed PWA home screen shortcut
+    const handleVisibilityOrFocus = async () => {
+      if (document.visibilityState === 'visible' && !isReloadingRef.current) {
+        try {
+          const snap = await getDoc(versionRef);
+          if (snap.exists()) {
+            applyRemoteVersionIfNeeded(snap.data());
+          }
+        } catch {
+          // ignore
+        }
+      }
+    };
+
+    window.addEventListener('focus', handleVisibilityOrFocus);
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+
+    return () => {
+      unsubVersion();
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+    };
+  }, []);
 
   // Intercept back button / shortcut exit with confirmation
   useEffect(() => {
@@ -346,6 +469,27 @@ export default function App() {
       {/* Re-prompt every visit if user hasn't allowed notifications yet */}
       {currentUser && !currentUser.isBanned && currentUser.isEmailVerified !== false && (
         <NotificationPermissionPrompt lang={lang} />
+      )}
+
+      {/* Remote Live Update Overlay */}
+      {isApplyingRemoteUpdate && (
+        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#1e222d] border border-[#089981] rounded-2xl px-6 py-5 max-w-sm w-full text-center shadow-2xl space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-[#089981]/20 border border-[#089981]/40 text-[#089981] flex items-center justify-center text-2xl mx-auto animate-bounce">
+              🚀
+            </div>
+            <h3 className="text-sm font-extrabold text-white">
+              {lang === 'ar'
+                ? 'جاري تحديث المنصة للإصدار الجديد...'
+                : 'Updating platform to the latest version...'}
+            </h3>
+            <p className="text-xs text-[#9ca3af]">
+              {lang === 'ar'
+                ? 'يتم الآن مسح الكاش القديم وتفعيل الميزات الجديدة تلقائياً دون تسجيل الخروج.'
+                : 'Clearing old cache and syncing new features automatically while keeping you signed in.'}
+            </p>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -196,6 +196,20 @@
       },
       "required": ["isClosed"]
     },
+    "AppVersionSettings": {
+      "title": "AppVersionSettings",
+      "description": "Remote app version and force-reload broadcast trigger controlled by admin to push updates to all active tabs and PWA shortcuts",
+      "type": "object",
+      "properties": {
+        "versionId": { "type": "string", "maxLength": 100 },
+        "versionLabel": { "type": "string", "maxLength": 100 },
+        "forceReloadAtMs": { "type": "number" },
+        "resetLayout": { "type": "boolean" },
+        "updatedAt": { "type": "string", "maxLength": 64 },
+        "updatedBy": { "type": "string", "maxLength": 200 }
+      },
+      "required": ["versionId", "forceReloadAtMs"]
+    },
     "ChatProfile": {
       "title": "ChatProfile",
       "description": "Public chat directory profile with DM opt-in/opt-out preference and blocked user list (no PII)",
@@ -325,6 +339,10 @@
     "/settings/chat_room": {
       "schema": "ChatRoomSettings",
       "description": "Temporary chat lock & reset state managed by admin/moderators"
+    },
+    "/settings/app_version": {
+      "schema": "AppVersionSettings",
+      "description": "Global force-reload and cache-purge broadcast state controlled by admin"
     },
     "/announcements/{announcementId}": {
       "schema": "Announcement",

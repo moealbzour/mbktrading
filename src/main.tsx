@@ -12,7 +12,7 @@ createRoot(document.getElementById('root')!).render(
   </ThemeProvider>
 );
 
-// Register Service Worker with immediate update check & one-time auto-refresh when a new SW replaces an old cache
+// Register Service Worker at /sw.js (exact path so it replaces any previously registered /sw.js on laptop/mobile)
 if (
   'serviceWorker' in navigator &&
   (import.meta.env.PROD || window.location.protocol === 'https:' || window.location.hostname === 'localhost')
@@ -26,7 +26,7 @@ if (
 
   window.addEventListener('load', () => {
     navigator.serviceWorker
-      .register('/sw.js?v=6', { updateViaCache: 'none' })
+      .register('/sw.js', { updateViaCache: 'none' })
       .then((reg) => {
         reg.update().catch(() => {});
         if (reg.waiting) {

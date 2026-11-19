@@ -279,6 +279,76 @@ export const AdminDashboard: React.FC<Props> = ({
   const [isSavingSettings, setIsSavingSettings] = useState<boolean>(false);
   const [isWipingBotAlerts, setIsWipingBotAlerts] = useState<boolean>(false);
   const [confirmWipeBots, setConfirmWipeBots] = useState<boolean>(false);
+  const [isPushingAppUpdate, setIsPushingAppUpdate] = useState<boolean>(false);
+  const [remoteAppVersionInfo, setRemoteAppVersionInfo] = useState<{
+    versionId?: string;
+    versionLabel?: string;
+    updatedAt?: string;
+    updatedBy?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!isStaff) return;
+    const unsubVer = onSnapshot(
+      doc(db, 'settings', 'app_version'),
+      (snap) => {
+        if (snap.exists()) {
+          setRemoteAppVersionInfo(snap.data() as any);
+        }
+      },
+      () => {
+        // ignore
+      }
+    );
+    return () => unsubVer();
+  }, [isStaff]);
+
+  const handlePushAppUpdateToAllUsers = async () => {
+    if (!isFullAdmin || isPushingAppUpdate) return;
+    soundManager.playClick();
+    setIsPushingAppUpdate(true);
+    try {
+      const nowMs = Date.now();
+      const newVersionId = `v-${nowMs}`;
+      const nowIso = new Date(nowMs).toISOString();
+      const updatedBy = auth.currentUser?.email || 'Admin';
+      const versionLabel = new Date(nowMs).toLocaleString();
+
+      // Pre-save on admin's own browser so the admin sees confirmation first, then refreshes cleanly
+      try {
+        localStorage.setItem('mbk_synced_remote_version', newVersionId);
+        localStorage.setItem('mbk_tv_nav_rail_folded', 'false');
+        localStorage.setItem('mbk_tv_sidebar_shrinked', 'false');
+        localStorage.setItem('mbk_tv_bottom_panel_folded', 'false');
+      } catch {
+        // ignore
+      }
+
+      await setDoc(doc(db, 'settings', 'app_version'), {
+        versionId: newVersionId,
+        versionLabel,
+        forceReloadAtMs: nowMs,
+        resetLayout: true,
+        updatedAt: nowIso,
+        updatedBy
+      });
+
+      soundManager.playProfitChime();
+      showFeedback(
+        'success',
+        isAr
+          ? '🚀 تم دفع التحديث بنجاح لجميع أجهزة اللابتوب والموبايل والاختصارات (PWA) في الوقت الفعلي دون إخراجهم من حساباتهم!'
+          : '🚀 Update pushed live to all connected laptops, mobiles, and PWA shortcuts without signing them out!'
+      );
+    } catch (err: any) {
+      showFeedback(
+        'error',
+        err?.message || (isAr ? 'فشل دفع التحديث للمستخدمين' : 'Failed to push app update')
+      );
+    } finally {
+      setIsPushingAppUpdate(false);
+    }
+  };
 
   const handleWipeAllBotAlerts = async () => {
     if (!isFullAdmin) return;
@@ -1190,7 +1260,23 @@ export const AdminDashboard: React.FC<Props> = ({
         </div>
 
         {/* Global Action controls */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {isFullAdmin && (
+            <button
+              type="button"
+              disabled={isPushingAppUpdate}
+              onClick={handlePushAppUpdateToAllUsers}
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#089981] to-emerald-500 hover:brightness-110 disabled:opacity-50 text-white text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5 shadow-md"
+              title={
+                isAr
+                  ? 'إجبار جميع المتصفحات والاختصارات (PWA) على مسح الكاش وتحميل أحدث إصدار فوراً دون تسجيل خروجهم'
+                  : 'Force all open tabs and PWA shortcuts to clear cache and reload the newest version immediately'
+              }
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isPushingAppUpdate ? 'animate-spin' : ''}`} />
+              <span>{isAr ? '🚀 دفع التحديث لجميع المستخدمين' : '🚀 Push Update to All Users'}</span>
+            </button>
+          )}
           {onClose && (
             <button
               onClick={() => {
@@ -2126,6 +2212,59 @@ export const AdminDashboard: React.FC<Props> = ({
         {/* TAB 4: PLATFORM SETTINGS (Dynamic WhatsApp, Telegram & Support Contact Links) */}
         {activeTab === 'settings' && isFullAdmin && (
           <div className="max-w-3xl mx-auto space-y-6">
+            {/* 1-Click Remote Force-Update Card for All Devices & Installed PWA Shortcuts */}
+            <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-[#089981]/20 via-[#131722] to-cyan-500/15 border border-[#089981]/50 shadow-xl space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-[#089981]/20 border border-[#089981]/40 flex items-center justify-center text-[#089981]">
+                    <RefreshCw className={`w-5 h-5 ${isPushingAppUpdate ? 'animate-spin' : ''}`} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-extrabold text-white">
+                      {isAr
+                        ? '🚀 دفع التحديث الفوري لجميع المستخدمين والاختصارات (Force Update All Users)'
+                        : '🚀 Push Instant App Update to All Users & PWA Shortcuts'}
+                    </h3>
+                    <p className="text-xs text-[#9ca3af]">
+                      {isAr
+                        ? 'مسح الكاش القديم وتحديث الموقع تلقائياً لدى جميع المستخدمين (لابتوب، موبايل، واختصارات الشاشة الرئيسية) دون الحاجة لتسجيل الخروج أو حذف الاختصار.'
+                        : 'Remotely clear stale caches, unfold hidden panels, and reload the latest version on all user devices and installed PWA shortcuts without signing them out.'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                <div className="text-[11px] font-mono text-[#787b86] bg-[#181c27] px-3 py-1.5 rounded-xl border border-[#2a2e39]">
+                  {remoteAppVersionInfo?.versionId ? (
+                    <span>
+                      {isAr ? 'آخر دفع تحديث:' : 'Last pushed:'}{' '}
+                      <strong className="text-emerald-400">{remoteAppVersionInfo.versionId}</strong>
+                      {remoteAppVersionInfo.updatedAt
+                        ? ` • ${new Date(remoteAppVersionInfo.updatedAt).toLocaleString()}`
+                        : ''}
+                    </span>
+                  ) : (
+                    <span>{isAr ? 'جاهز لدفع التحديث الفوري' : 'Ready for instant remote broadcast'}</span>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  disabled={isPushingAppUpdate}
+                  onClick={handlePushAppUpdateToAllUsers}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#089981] to-emerald-500 hover:brightness-110 disabled:opacity-50 text-white font-extrabold text-xs transition-all cursor-pointer flex items-center gap-2 shadow-lg"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isPushingAppUpdate ? 'animate-spin' : ''}`} />
+                  <span>
+                    {isAr
+                      ? '🚀 دفع التحديث الآن لجميع الأجهزة والاختصارات'
+                      : '🚀 Push Update Now to All Devices & Shortcuts'}
+                  </span>
+                </button>
+              </div>
+            </div>
+
             <div className="p-5 sm:p-6 rounded-2xl bg-[#131722] border border-[#2a2e39] shadow-xl space-y-5">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#2a2e39] pb-4">
                 <div className="flex items-center gap-3">

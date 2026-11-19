@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mbk-trading-v6';
+const CACHE_NAME = 'mbk-trading-v8';
 const PRECACHE_URLS = ['/favicon.svg', '/manifest.json', '/icon-192.png', '/mbk-logo.png'];
 
 self.addEventListener('install', (event) => {
@@ -22,6 +22,15 @@ self.addEventListener('activate', (event) => {
         )
       )
       .then(() => self.clients.claim())
+      .then(() =>
+        self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+          clients.forEach((client) => {
+            if ('navigate' in client && client.url) {
+              client.navigate(client.url).catch(() => {});
+            }
+          });
+        })
+      )
   );
 });
 
@@ -44,7 +53,7 @@ self.addEventListener('fetch', (event) => {
 
   // Always network-first with no-cache for HTML navigation and JS/CSS bundles so laptop/mobile always get latest build
   event.respondWith(
-    fetch(event.request, { cache: 'no-cache' })
+    fetch(event.request, { cache: 'no-store' })
       .then((response) => {
         if (response && response.status === 200 && response.type === 'basic') {
           const responseClone = response.clone();

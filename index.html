@@ -3,14 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     <meta name="theme-color" content="#131722" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="MBK Trading" />
     <link rel="manifest" href="/manifest.json" />
-    <link rel="icon" type="image/png" href="/mbk-logo.png" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" href="/mbk-logo.png?v=8" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=8" />
     <title>MBK Trading</title>
     <meta name="description" content="MBK Trading — توصيات، بوت MBK، الشات العام، وأخبار الأسواق." />
     <meta property="og:title" content="MBK Trading" />
@@ -20,6 +23,34 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+      (function () {
+        try {
+          var BUILD_VER = 'mbk-2026-11-18-v8';
+          var prev = localStorage.getItem('mbk_app_build_ver');
+          if (prev !== BUILD_VER) {
+            localStorage.setItem('mbk_app_build_ver', BUILD_VER);
+            // Reset any hidden/folded panel flags on laptop so all new tabs and panels are immediately visible
+            localStorage.setItem('mbk_tv_nav_rail_folded', 'false');
+            localStorage.setItem('mbk_tv_sidebar_shrinked', 'false');
+            localStorage.setItem('mbk_tv_bottom_panel_folded', 'false');
+            if (localStorage.getItem('mbk_tv_chat_dock_position') === 'hide') {
+              localStorage.setItem('mbk_tv_chat_dock_position', 'left');
+            }
+            if ('caches' in window) {
+              caches.keys().then(function (keys) {
+                return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+              });
+            }
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.getRegistrations().then(function (regs) {
+                regs.forEach(function (r) { r.update(); });
+              });
+            }
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body class="bg-[#131722] text-[#d1d4dc] antialiased selection:bg-[#089981]/30 selection:text-[#089981]">
     <div id="root"></div>

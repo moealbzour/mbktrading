@@ -591,16 +591,32 @@ service cloud.firestore {
         && (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64));
     }
 
+    function isValidAppVersionSettings(data) {
+      return data.keys().hasAll(['versionId', 'forceReloadAtMs'])
+        && data.keys().hasOnly(['versionId', 'versionLabel', 'forceReloadAtMs', 'resetLayout', 'updatedAt', 'updatedBy'])
+        && data.versionId is string
+        && data.versionId.size() >= 1
+        && data.versionId.size() <= 100
+        && data.forceReloadAtMs is number
+        && data.forceReloadAtMs >= 0
+        && (!('versionLabel' in data) || data.versionLabel == null || (data.versionLabel is string && data.versionLabel.size() <= 100))
+        && (!('resetLayout' in data) || data.resetLayout is bool)
+        && (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64))
+        && (!('updatedBy' in data) || (data.updatedBy is string && data.updatedBy.size() <= 200));
+    }
+
     match /settings/{settingId} {
       allow get: if isValidId(settingId) && (
         settingId == 'platform'
+        || settingId == 'app_version'
         || (settingId == 'chat_room' && isSignedIn())
         || isAdmin()
       );
       allow list: if isAdmin();
       allow create, update: if isValidId(settingId) && (
         (settingId == 'chat_room' && isModeratorOrAdmin() && isValidChatRoomSettings(incoming()))
-        || (settingId != 'chat_room' && isAdmin() && isValidPlatformSettings(incoming()))
+        || (settingId == 'app_version' && isAdmin() && isValidAppVersionSettings(incoming()))
+        || (settingId == 'platform' && isAdmin() && isValidPlatformSettings(incoming()))
       );
       allow delete: if isValidId(settingId) && isAdmin();
     }
