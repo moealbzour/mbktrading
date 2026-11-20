@@ -3,6 +3,8 @@ import {
   collection,
   doc,
   getDoc,
+  limit,
+  limitToLast,
   onSnapshot,
   orderBy,
   query,
@@ -134,7 +136,7 @@ export function subscribeToOwnChatProfile(
 export function subscribeToChatDirectory(
   onChange: (profiles: ChatProfile[]) => void
 ): () => void {
-  const q = query(collection(db, 'chat_profiles'), orderBy('displayName', 'asc'));
+  const q = query(collection(db, 'chat_profiles'), orderBy('displayName', 'asc'), limit(100));
   return onSnapshot(
     q,
     (snap) => {
@@ -206,7 +208,8 @@ export function subscribeToDmMessages(
   }
   const q = query(
     collection(db, 'dm_conversations', convoId, 'messages'),
-    orderBy('timestampMs', 'asc')
+    orderBy('timestampMs', 'asc'),
+    limitToLast(60)
   );
   return onSnapshot(
     q,

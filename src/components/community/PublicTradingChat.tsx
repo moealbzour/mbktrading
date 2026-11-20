@@ -32,6 +32,7 @@ import {
   collection,
   query,
   orderBy,
+  limitToLast,
   onSnapshot,
   addDoc,
   doc,
@@ -249,9 +250,24 @@ export const PublicTradingChat: React.FC<Props> = ({
     setLoading(true);
     isInitialSnapshotRef.current = true;
 
+    try {
+      const cachedRaw = localStorage.getItem('mbk_cached_public_chat_v1');
+      if (cachedRaw) {
+        const parsed = JSON.parse(cachedRaw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMessages(parsed);
+          const pinned = [...parsed].reverse().find((m: ChatMessageItem) => m.isPinned) || null;
+          setPinnedMessage(pinned);
+        }
+      }
+    } catch {
+      // ignore
+    }
+
     const chatQuery = query(
       collection(db, 'public_chat'),
-      orderBy('timestampMs', 'asc')
+      orderBy('timestampMs', 'asc'),
+      limitToLast(80)
     );
 
     const unsubscribe = onSnapshot(
@@ -308,6 +324,13 @@ export const PublicTradingChat: React.FC<Props> = ({
         list.sort((a, b) => (a.timestampMs || 0) - (b.timestampMs || 0));
 
         setMessages(list);
+        try {
+          if (list.length > 0) {
+            localStorage.setItem('mbk_cached_public_chat_v1', JSON.stringify(list));
+          }
+        } catch {
+          // ignore
+        }
         const pinned = [...list].reverse().find((m) => m.isPinned) || null;
         setPinnedMessage(pinned);
         setLoading(false);

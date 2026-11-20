@@ -239,65 +239,73 @@ function mapUserDocToProfile(firebaseUser: FirebaseUser, data: Record<string, an
 }
 
 /**
- * Fetches or creates the user registry document in Firestore 'users' collection using UID
+ * Fetches or creates the user registry document in Firestore 'users' collection using UID.
+ * Gracefully falls back if Firestore daily read/write quota is temporarily exhausted.
  */
 export async function fetchOrCreateUserRegistry(
   user: FirebaseUser,
   _defaultRole: string = 'free',
   extraData?: UserOnboardingData
 ): Promise<{ email: string; role: string; uid: string }> {
-  const userDocRef = doc(db, 'users', user.uid);
-  const docSnap = await getDoc(userDocRef);
-
-  if (docSnap.exists()) {
-    const data = docSnap.data() as FirestoreUserData;
-    return {
-      uid: user.uid,
-      email: user.email || data.email || '',
-      role: data.role || 'free'
-    };
-  }
-
   const safeEmail = (user.email || '').slice(0, 200);
-  const safeDisplayName = (user.displayName || safeEmail.split('@')[0] || 'Trader').slice(0, 100);
-  const safePhone = (extraData?.phone || '').slice(0, 40);
-  const safeCountry = (extraData?.country || '').slice(0, 80);
+  const isSuperAdmin = safeEmail.toLowerCase() === SUPER_ADMIN_EMAIL;
+  const fallbackRole = isSuperAdmin ? 'admin' : _defaultRole;
 
-  const newRegistryDoc = {
-    email: safeEmail,
-    role: 'free',
-    tier: 'free',
-    isVip: false,
-    vipAccess: false,
-    vipExpiryDate: null,
-    isElite: false,
-    eliteExpiryDate: null,
-    grantedFeatures: {},
-    subscription_status: 'none',
-    subscription_end_date: null,
-    isBanned: false,
-    isMutedFromChat: false,
-    totalPaid: 0,
-    displayName: safeDisplayName,
-    phone: safePhone,
-    country: safeCountry,
-    dob: extraData?.dob || '',
-    experienceLevel: extraData?.experienceLevel || '',
-    assetClasses: Array.isArray(extraData?.assetClasses) ? extraData.assetClasses : [],
-    favoritePairs: extraData?.favoritePairs || '',
-    emailVerified: Boolean(
-      user.emailVerified || user.providerData.some((p) => p.providerId === 'google.com')
-    ),
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp()
-  };
+  try {
+    const userDocRef = doc(db, 'users', user.uid);
+    const docSnap = await getDoc(userDocRef);
 
-  await setDoc(userDocRef, newRegistryDoc);
+    if (docSnap.exists()) {
+      const data = docSnap.data() as FirestoreUserData;
+      return {
+        uid: user.uid,
+        email: user.email || data.email || '',
+        role: isSuperAdmin ? 'admin' : data.role || 'free'
+      };
+    }
+
+    const safeDisplayName = (user.displayName || safeEmail.split('@')[0] || 'Trader').slice(0, 100);
+    const safePhone = (extraData?.phone || '').slice(0, 40);
+    const safeCountry = (extraData?.country || '').slice(0, 80);
+
+    const newRegistryDoc = {
+      email: safeEmail,
+      role: fallbackRole,
+      tier: isSuperAdmin ? 'elite' : 'free',
+      isVip: isSuperAdmin,
+      vipAccess: isSuperAdmin,
+      vipExpiryDate: null,
+      isElite: isSuperAdmin,
+      eliteExpiryDate: null,
+      grantedFeatures: {},
+      subscription_status: isSuperAdmin ? 'active' : 'none',
+      subscription_end_date: null,
+      isBanned: false,
+      isMutedFromChat: false,
+      totalPaid: 0,
+      displayName: safeDisplayName,
+      phone: safePhone,
+      country: safeCountry,
+      dob: extraData?.dob || '',
+      experienceLevel: extraData?.experienceLevel || '',
+      assetClasses: Array.isArray(extraData?.assetClasses) ? extraData.assetClasses : [],
+      favoritePairs: extraData?.favoritePairs || '',
+      emailVerified: Boolean(
+        user.emailVerified || user.providerData.some((p) => p.providerId === 'google.com')
+      ),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    };
+
+    await setDoc(userDocRef, newRegistryDoc);
+  } catch (err) {
+    console.warn('[Firebase Auth] fetchOrCreateUserRegistry fallback (quota/offline):', err);
+  }
 
   return {
     uid: user.uid,
     email: safeEmail,
-    role: 'free'
+    role: fallbackRole
   };
 }
 
@@ -333,7 +341,11 @@ export async function registerWithFirebase(
 
   // 2. Redeem activation key atomically if supplied
   if (extraData.promoCode && extraData.promoCode.trim()) {
-    await redeemActivationKey(extraData.promoCode, user.uid, user.email || cleanEmail);
+    try {
+      await redeemActivationKey(extraData.promoCode, user.uid, user.email || cleanEmail);
+    } catch (keyErr) {
+      console.warn('[Firebase Auth] Promo code redemption notice during registration:', keyErr);
+    }
   }
 
   // 3. Send verification email via Firebase Auth SDK
@@ -345,9 +357,18 @@ export async function registerWithFirebase(
     console.warn('[Firebase Auth] Could not send email verification:', verifyErr);
   }
 
-  const userDocRef = doc(db, 'users', user.uid);
-  const latestSnap = await getDoc(userDocRef);
-  const userProfile = mapUserDocToProfile(user, latestSnap.exists() ? latestSnap.data() : {});
+  let data: Record<string, any> = {};
+  try {
+    const userDocRef = doc(db, 'users', user.uid);
+    const latestSnap = await getDoc(userDocRef);
+    if (latestSnap.exists()) {
+      data = latestSnap.data();
+    }
+  } catch (err) {
+    console.warn('[Firebase Auth] registerWithFirebase profile read fallback:', err);
+  }
+
+  const userProfile = mapUserDocToProfile(user, data);
 
   // 4. Immediately sign out user so they verify email before entering dashboard
   try {
@@ -373,28 +394,39 @@ export async function loginWithFirebase(
   const cleanEmail = email.trim();
   const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, pass);
   const user = userCredential.user;
+  const isSuperAdmin = user.email?.toLowerCase() === SUPER_ADMIN_EMAIL;
 
-  await fetchOrCreateUserRegistry(user, 'free');
+  await fetchOrCreateUserRegistry(user, isSuperAdmin ? 'admin' : 'free');
 
   if (promoCode && promoCode.trim()) {
-    await redeemActivationKey(promoCode, user.uid, user.email || cleanEmail);
+    try {
+      await redeemActivationKey(promoCode, user.uid, user.email || cleanEmail);
+    } catch (err) {
+      console.warn('[Firebase Auth] Promo code redemption notice during login:', err);
+    }
   }
 
-  const userDocRef = doc(db, 'users', user.uid);
-  const latestSnap = await getDoc(userDocRef);
-  const data = latestSnap.exists() ? latestSnap.data() : {};
+  let data: Record<string, any> = isSuperAdmin
+    ? { role: 'admin', tier: 'elite', isVip: true, isElite: true }
+    : {};
 
-  if (
-    user.emailVerified &&
-    user.email?.toLowerCase() === SUPER_ADMIN_EMAIL &&
-    data.role !== 'admin'
-  ) {
-    try {
-      await updateDoc(userDocRef, { role: 'admin', updatedAt: serverTimestamp() });
-      data.role = 'admin';
-    } catch {
-      // ignore if rules handle super-admin via verified token
+  try {
+    const userDocRef = doc(db, 'users', user.uid);
+    const latestSnap = await getDoc(userDocRef);
+    if (latestSnap.exists()) {
+      data = latestSnap.data();
     }
+
+    if (user.emailVerified && isSuperAdmin && data.role !== 'admin') {
+      try {
+        await updateDoc(userDocRef, { role: 'admin', updatedAt: serverTimestamp() });
+        data.role = 'admin';
+      } catch {
+        data.role = 'admin';
+      }
+    }
+  } catch (err) {
+    console.warn('[Firebase Auth] loginWithFirebase Firestore quota fallback:', err);
   }
 
   return mapUserDocToProfile(user, data);
@@ -415,42 +447,53 @@ export async function signInWithGooglePopup(promoCode?: string): Promise<{
   inFlightGoogleSignIn = (async () => {
     const userCredential = await signInWithPopup(auth, googleProvider);
     const user = userCredential.user;
+    const isSuperAdmin = user.email?.toLowerCase() === SUPER_ADMIN_EMAIL;
     pendingRegistrationUids.add(user.uid);
 
     try {
       const userDocRef = doc(db, 'users', user.uid);
-      const docSnap = await getDoc(userDocRef);
-
       let isNewUser = false;
-      if (!docSnap.exists()) {
-        isNewUser = true;
-      } else {
-        const data = docSnap.data();
-        if (!data.experienceLevel && !data.phone && !data.country) {
-          isNewUser = true;
+      let data: Record<string, any> = isSuperAdmin
+        ? { role: 'admin', tier: 'elite', isVip: true, isElite: true }
+        : {};
+
+      try {
+        const docSnap = await getDoc(userDocRef);
+        if (!docSnap.exists()) {
+          isNewUser = !isSuperAdmin;
+        } else {
+          data = docSnap.data();
+          if (!isSuperAdmin && !data.experienceLevel && !data.phone && !data.country) {
+            isNewUser = true;
+          }
         }
-      }
 
-      await fetchOrCreateUserRegistry(user, 'free');
+        await fetchOrCreateUserRegistry(user, isSuperAdmin ? 'admin' : 'free');
 
-      if (promoCode && promoCode.trim()) {
-        await redeemActivationKey(promoCode, user.uid, user.email || '');
-      }
-
-      const latestSnap = await getDoc(userDocRef);
-      const data = latestSnap.exists() ? latestSnap.data() : {};
-
-      if (
-        (user.emailVerified || user.providerData.some((p) => p.providerId === 'google.com')) &&
-        user.email?.toLowerCase() === SUPER_ADMIN_EMAIL &&
-        data.role !== 'admin'
-      ) {
-        try {
-          await updateDoc(userDocRef, { role: 'admin', updatedAt: serverTimestamp() });
-          data.role = 'admin';
-        } catch {
-          // ignore
+        if (promoCode && promoCode.trim()) {
+          await redeemActivationKey(promoCode, user.uid, user.email || '');
         }
+
+        const latestSnap = await getDoc(userDocRef);
+        if (latestSnap.exists()) {
+          data = latestSnap.data();
+        }
+
+        if (
+          (user.emailVerified || user.providerData.some((p) => p.providerId === 'google.com')) &&
+          isSuperAdmin &&
+          data.role !== 'admin'
+        ) {
+          try {
+            await updateDoc(userDocRef, { role: 'admin', updatedAt: serverTimestamp() });
+            data.role = 'admin';
+          } catch {
+            data.role = 'admin';
+          }
+        }
+      } catch (err) {
+        console.warn('[Firebase Auth] signInWithGooglePopup Firestore quota fallback:', err);
+        isNewUser = false;
       }
 
       const userProfile = {
@@ -486,39 +529,50 @@ export async function saveGoogleUserOnboardingProfile(
 ): Promise<UserProfile> {
   const currentUser = auth.currentUser;
   const userDocRef = doc(db, 'users', uid);
-  const docSnap = await getDoc(userDocRef);
 
   const safeDisplayName = (currentUser?.displayName || currentUser?.email?.split('@')[0] || 'Trader').slice(0, 100);
   const safePhone = (extraData.phone || '').slice(0, 40);
   const safeCountry = (extraData.country || '').slice(0, 80);
 
-  if (!docSnap.exists() && currentUser) {
-    await fetchOrCreateUserRegistry(currentUser, 'free', {
-      ...extraData,
-      phone: safePhone,
-      country: safeCountry,
-      experienceLevel: extraData.experienceLevel || 'Beginner'
-    });
-  } else {
-    await updateDoc(userDocRef, {
-      displayName: safeDisplayName,
-      phone: safePhone,
-      country: safeCountry,
-      dob: extraData.dob || '',
-      experienceLevel: extraData.experienceLevel || 'Beginner',
-      assetClasses: Array.isArray(extraData.assetClasses) ? extraData.assetClasses : [],
-      favoritePairs: extraData.favoritePairs || '',
-      emailVerified: true,
-      updatedAt: serverTimestamp()
-    });
-  }
+  let data: Record<string, any> = {
+    displayName: safeDisplayName,
+    phone: safePhone,
+    country: safeCountry,
+    dob: extraData.dob || '',
+    experienceLevel: extraData.experienceLevel || 'Beginner',
+    assetClasses: Array.isArray(extraData.assetClasses) ? extraData.assetClasses : [],
+    favoritePairs: extraData.favoritePairs || '',
+    emailVerified: true
+  };
 
-  if (extraData.promoCode && extraData.promoCode.trim()) {
-    await redeemActivationKey(extraData.promoCode, uid, currentUser?.email || '');
-  }
+  try {
+    const docSnap = await getDoc(userDocRef);
 
-  const freshSnap = await getDoc(userDocRef);
-  const data = freshSnap.exists() ? freshSnap.data() : {};
+    if (!docSnap.exists() && currentUser) {
+      await fetchOrCreateUserRegistry(currentUser, 'free', {
+        ...extraData,
+        phone: safePhone,
+        country: safeCountry,
+        experienceLevel: extraData.experienceLevel || 'Beginner'
+      });
+    } else {
+      await updateDoc(userDocRef, {
+        ...data,
+        updatedAt: serverTimestamp()
+      });
+    }
+
+    if (extraData.promoCode && extraData.promoCode.trim()) {
+      await redeemActivationKey(extraData.promoCode, uid, currentUser?.email || '');
+    }
+
+    const freshSnap = await getDoc(userDocRef);
+    if (freshSnap.exists()) {
+      data = freshSnap.data();
+    }
+  } catch (err) {
+    console.warn('[Firebase Auth] saveGoogleUserOnboardingProfile quota fallback:', err);
+  }
 
   if (currentUser) {
     return {
