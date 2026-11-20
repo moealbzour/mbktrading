@@ -170,149 +170,72 @@ export function subscribeToChatDirectory(
     onChange(initialCached);
   }
 
+  let secondaryProfiles: ChatProfile[] = [];
+  let secondaryChecked = false;
+
+  const mapDocToProfile = (docId: string, d: Record<string, any>): ChatProfile => ({
+    uid: d.uid || docId,
+    displayName: d.displayName || 'Trader',
+    avatar: d.avatar || '',
+    role: (d.role || 'FREE').toString().toUpperCase(),
+    allowDirectMessages: d.allowDirectMessages !== false,
+    blockedUids: Array.isArray(d.blockedUids) ? d.blockedUids : [],
+    updatedAt: d.updatedAt
+  });
+
+  const deduplicateAndSortProfiles = (list: ChatProfile[]): ChatProfile[] => {
+    const roleRank = (role?: string): number => {
+      const r = (role || '').toUpperCase();
+      if (r === 'ADMIN') return 5;
+      if (r === 'MODERATOR' || r === 'ANALYSER' || r === 'ANALYST' || r === 'SALES') return 4;
+      if (r === 'ELITE') return 3;
+      if (r === 'VIP') return 2;
+      return 1;
+    };
+
+    const dedupByName = new Map<string, ChatProfile>();
+    for (const p of list) {
+      if (!p || !p.uid) continue;
+      const normName = (p.displayName || '').trim().toLowerCase();
+      const key = normName || p.uid;
+      const existing = dedupByName.get(key);
+      if (!existing) {
+        dedupByName.set(key, p);
+      } else {
+        const pScore = roleRank(p.role) * 10 + (p.avatar ? 2 : 0) + (p.uid === auth.currentUser?.uid ? 20 : 0);
+        const exScore = roleRank(existing.role) * 10 + (existing.avatar ? 2 : 0) + (existing.uid === auth.currentUser?.uid ? 20 : 0);
+        if (pScore > exScore) {
+          dedupByName.set(key, p);
+        }
+      }
+    }
+
+    const uniqueList = Array.from(dedupByName.values());
+    uniqueList.sort((a, b) => a.displayName.localeCompare(b.displayName));
+    return uniqueList;
+  };
+
+  let latestPrimaryProfiles: ChatProfile[] = [];
+
   const q = query(collection(db, 'chat_profiles'), orderBy('displayName', 'asc'), limit(100));
   return onSnapshot(
     q,
     (snap) => {
-      const list: ChatProfile[] = snap.docs.map((docSnap) => {
-        const d = docSnap.data();
-        return {
-          uid: d.uid || docSnap.id,
-          displayName: d.displayName || 'Trader',
-          avatar: d.avatar || '',
-          role: (d.role || 'FREE').toString().toUpperCase(),
-          allowDirectMessages: d.allowDirectMessages !== false,
-          blockedUids: Array.isArray(d.blockedUids) ? d.blockedUids : [],
-          updatedAt: d.updatedAt
-        };
-      });
+      latestPrimaryProfiles = snap.docs.map((docSnap) => mapDocToProfile(docSnap.id, docSnap.data()));
 
-      const loadedIds = new Set(list.map((p) => p.uid));
-      const isSuperAdmin =
-        auth.currentUser?.email?.toLowerCase() === SUPER_ADMIN_EMAIL && auth.currentUser?.emailVerified;
-
-      // Merge with cached chat_profiles
-      for (const cachedProfile of readCachedArray<ChatProfile>(CACHED_CHAT_PROFILES_KEY)) {
-        if (cachedProfile && cachedProfile.uid && !loadedIds.has(cachedProfile.uid)) {
-          list.push(cachedProfile);
-          loadedIds.add(cachedProfile.uid);
-          if (isSuperAdmin || auth.currentUser?.uid === cachedProfile.uid) {
-            setDoc(doc(db, 'chat_profiles', cachedProfile.uid), {
-              uid: cachedProfile.uid,
-              displayName: (cachedProfile.displayName || 'MBK Trader').slice(0, 100),
-              avatar: (cachedProfile.avatar || '').slice(0, 1000),
-              role: (cachedProfile.role || 'FREE').toString().toUpperCase().slice(0, 40),
-              allowDirectMessages: cachedProfile.allowDirectMessages !== false,
-              blockedUids: Array.isArray(cachedProfile.blockedUids) ? cachedProfile.blockedUids.slice(0, 200) : [],
-              updatedAt: cachedProfile.updatedAt || new Date().toISOString()
-            }).catch(() => {});
-          }
-        }
-      }
-
-      // Also populate member directory from Admin CRM cached users (mbk_admin_cached_users_v1)
-      const adminCachedUsers = readCachedArray<any>('mbk_admin_cached_users_v1');
-      for (const u of adminCachedUsers) {
-        const uid = u?.uid || u?.id;
-        if (uid && !loadedIds.has(uid) && !u?.isBanned) {
-          const displayName = (u.displayName || u.username || u.email?.split('@')[0] || 'MBK Trader').trim().slice(0, 100);
-          const role = (u.role || (u.isVip ? 'VIP' : 'FREE')).toString().toUpperCase().slice(0, 40);
-          const avatar = (u.avatar || '').slice(0, 1000);
-          const profile: ChatProfile = {
-            uid,
-            displayName,
-            avatar,
-            role,
-            allowDirectMessages: true,
-            blockedUids: [],
-            updatedAt: new Date().toISOString()
-          };
-          list.push(profile);
-          loadedIds.add(uid);
-          if (isSuperAdmin || auth.currentUser?.uid === uid) {
-            setDoc(doc(db, 'chat_profiles', uid), profile).catch(() => {});
-          }
-        }
-      }
-
-      // Also harvest members from cached General Chat messages (mbk_cached_public_chat_v1)
-      const cachedChatMsgs = readCachedArray<any>('mbk_cached_public_chat_v1');
-      for (const m of cachedChatMsgs) {
-        if (m && m.uid && !loadedIds.has(m.uid) && !String(m.uid).startsWith('seed-')) {
-          const displayName = (m.user || m.displayName || 'MBK Trader').trim().slice(0, 100);
-          const role = (m.role || 'FREE').toString().toUpperCase().slice(0, 40);
-          const avatar = (m.avatar || '').slice(0, 1000);
-          const profile: ChatProfile = {
-            uid: m.uid,
-            displayName,
-            avatar,
-            role,
-            allowDirectMessages: true,
-            blockedUids: [],
-            updatedAt: new Date().toISOString()
-          };
-          list.push(profile);
-          loadedIds.add(m.uid);
-          if (isSuperAdmin || auth.currentUser?.uid === m.uid) {
-            setDoc(doc(db, 'chat_profiles', m.uid), profile).catch(() => {});
-          }
-        }
-      }
-
-      // Silent background sync from legacyDb chat_profiles once per session
-      if (!(window as any).__mbkLegacyChatProfilesSynced) {
-        (window as any).__mbkLegacyChatProfilesSynced = true;
+      if (!secondaryChecked) {
+        secondaryChecked = true;
         getDocs(query(collection(legacyDb, 'chat_profiles'), limit(100)))
-          .then((legacySnap) => {
-            legacySnap.forEach((legacyDoc) => {
-              if (!loadedIds.has(legacyDoc.id)) {
-                const d = legacyDoc.data();
-                if (isSuperAdmin || auth.currentUser?.uid === legacyDoc.id) {
-                  setDoc(doc(db, 'chat_profiles', legacyDoc.id), {
-                    uid: d.uid || legacyDoc.id,
-                    displayName: String(d.displayName || 'MBK Trader').slice(0, 100),
-                    avatar: String(d.avatar || '').slice(0, 1000),
-                    role: String(d.role || 'FREE').toUpperCase().slice(0, 40),
-                    allowDirectMessages: d.allowDirectMessages !== false,
-                    blockedUids: Array.isArray(d.blockedUids) ? d.blockedUids.slice(0, 200) : [],
-                    updatedAt: d.updatedAt || new Date().toISOString()
-                  }).catch(() => {});
-                }
-              }
-            });
+          .then((secSnap) => {
+            secondaryProfiles = secSnap.docs.map((d) => mapDocToProfile(d.id, d.data()));
+            const merged = deduplicateAndSortProfiles([...latestPrimaryProfiles, ...secondaryProfiles]);
+            writeCachedArray(CACHED_CHAT_PROFILES_KEY, merged);
+            onChange(merged);
           })
           .catch(() => {});
       }
 
-      // Deduplicate chat_profiles by uid and normalized displayName (prefer higher tier / non-empty avatar)
-      const roleRank = (role?: string): number => {
-        const r = (role || '').toUpperCase();
-        if (r === 'ADMIN') return 5;
-        if (r === 'MODERATOR' || r === 'ANALYSER' || r === 'ANALYST' || r === 'SALES') return 4;
-        if (r === 'ELITE') return 3;
-        if (r === 'VIP') return 2;
-        return 1;
-      };
-
-      const dedupByName = new Map<string, ChatProfile>();
-      for (const p of list) {
-        if (!p || !p.uid) continue;
-        const normName = (p.displayName || '').trim().toLowerCase();
-        const key = normName || p.uid;
-        const existing = dedupByName.get(key);
-        if (!existing) {
-          dedupByName.set(key, p);
-        } else {
-          const pScore = roleRank(p.role) * 10 + (p.avatar ? 2 : 0) + (p.uid === auth.currentUser?.uid ? 20 : 0);
-          const exScore = roleRank(existing.role) * 10 + (existing.avatar ? 2 : 0) + (existing.uid === auth.currentUser?.uid ? 20 : 0);
-          if (pScore > exScore) {
-            dedupByName.set(key, p);
-          }
-        }
-      }
-
-      const uniqueList = Array.from(dedupByName.values());
-      uniqueList.sort((a, b) => a.displayName.localeCompare(b.displayName));
+      const uniqueList = deduplicateAndSortProfiles([...latestPrimaryProfiles, ...secondaryProfiles]);
       writeCachedArray(CACHED_CHAT_PROFILES_KEY, uniqueList);
       onChange(uniqueList);
     },
@@ -337,55 +260,64 @@ export function subscribeToDmConversations(
     onChange(initialCached);
   }
 
+  const mapDocToConvo = (docId: string, d: Record<string, any>): DmConversation => ({
+    id: docId,
+    participants: Array.isArray(d.participants) ? d.participants : [],
+    participantNames: d.participantNames || {},
+    participantAvatars: d.participantAvatars || {},
+    participantRoles: d.participantRoles || {},
+    lastMessage: d.lastMessage || '',
+    lastSenderUid: d.lastSenderUid || '',
+    lastMessageAtMs: Number(d.lastMessageAtMs || 0),
+    unreadBy: d.unreadBy || {},
+    updatedAt: d.updatedAt
+  });
+
+  const secondaryConvosMap = new Map<string, DmConversation>();
+  let latestPrimaryConvos: DmConversation[] = [];
+  let secondaryChecked = false;
+
+  const mergeConvos = (primaryList: DmConversation[]): DmConversation[] => {
+    const byId = new Map<string, DmConversation>();
+    primaryList.forEach((c) => byId.set(c.id, c));
+    secondaryConvosMap.forEach((secConvo, id) => {
+      const existing = byId.get(id);
+      if (!existing || secConvo.lastMessageAtMs > existing.lastMessageAtMs) {
+        byId.set(id, secConvo);
+      }
+    });
+    const combined = Array.from(byId.values());
+    combined.sort((a, b) => b.lastMessageAtMs - a.lastMessageAtMs);
+    return combined;
+  };
+
   const q = query(collection(db, 'dm_conversations'), where('participants', 'array-contains', uid));
   return onSnapshot(
     q,
     (snap) => {
-      const list: DmConversation[] = snap.docs.map((docSnap) => {
-        const d = docSnap.data();
-        return {
-          id: docSnap.id,
-          participants: Array.isArray(d.participants) ? d.participants : [],
-          participantNames: d.participantNames || {},
-          participantAvatars: d.participantAvatars || {},
-          participantRoles: d.participantRoles || {},
-          lastMessage: d.lastMessage || '',
-          lastSenderUid: d.lastSenderUid || '',
-          lastMessageAtMs: Number(d.lastMessageAtMs || 0),
-          unreadBy: d.unreadBy || {},
-          updatedAt: d.updatedAt
-        };
-      });
+      latestPrimaryConvos = snap.docs.map((docSnap) => mapDocToConvo(docSnap.id, docSnap.data()));
 
-      const loadedIds = new Set(list.map((c) => c.id));
-      for (const cachedConvo of readCachedArray<DmConversation>(cacheKey)) {
-        if (cachedConvo && cachedConvo.id && !loadedIds.has(cachedConvo.id)) {
-          list.push(cachedConvo);
-          loadedIds.add(cachedConvo.id);
-          if (cachedConvo.lastSenderUid === uid) {
-            setDoc(doc(db, 'dm_conversations', cachedConvo.id), cachedConvo).catch(() => {});
-          }
-        }
-      }
-
-      // Silent background sync from legacyDb dm_conversations once per session
-      if (!(window as any).__mbkLegacyDmConvosSynced) {
-        (window as any).__mbkLegacyDmConvosSynced = true;
+      if (!secondaryChecked) {
+        secondaryChecked = true;
         getDocs(query(collection(legacyDb, 'dm_conversations'), where('participants', 'array-contains', uid)))
-          .then((legacySnap) => {
-            legacySnap.forEach((legacyDoc) => {
-              if (!loadedIds.has(legacyDoc.id)) {
-                const d = legacyDoc.data();
-                if (d.lastSenderUid === uid) {
-                  setDoc(doc(db, 'dm_conversations', legacyDoc.id), d).catch(() => {});
-                }
+          .then((secSnap) => {
+            const primaryById = new Map(latestPrimaryConvos.map((c) => [c.id, c]));
+            secSnap.docs.forEach((sDoc) => {
+              const convo = mapDocToConvo(sDoc.id, sDoc.data());
+              secondaryConvosMap.set(sDoc.id, convo);
+              const ex = primaryById.get(sDoc.id);
+              if (!ex || convo.lastMessageAtMs > ex.lastMessageAtMs) {
+                setDoc(doc(db, 'dm_conversations', sDoc.id), { id: sDoc.id, ...sDoc.data() }, { merge: true }).catch(() => {});
               }
             });
+            const merged = mergeConvos(latestPrimaryConvos);
+            writeCachedArray(cacheKey, merged);
+            onChange(merged);
           })
           .catch(() => {});
       }
 
-      list.sort((a, b) => b.lastMessageAtMs - a.lastMessageAtMs);
+      const list = mergeConvos(latestPrimaryConvos);
       writeCachedArray(cacheKey, list);
       onChange(list);
     },
@@ -410,6 +342,31 @@ export function subscribeToDmMessages(
     onChange(initialCached);
   }
 
+  const mapDocToMsg = (docId: string, d: Record<string, any>): DmMessage => ({
+    id: docId,
+    senderUid: d.senderUid || '',
+    recipientUid: d.recipientUid || '',
+    senderName: d.senderName || 'Trader',
+    text: d.text || '',
+    timestampMs: Number(d.timestampMs || 0),
+    createdAt: d.createdAt
+  });
+
+  const secondaryMsgsMap = new Map<string, DmMessage>();
+  let latestPrimaryMsgs: DmMessage[] = [];
+  let secondaryChecked = false;
+
+  const mergeMsgs = (primaryList: DmMessage[]): DmMessage[] => {
+    const byId = new Map<string, DmMessage>();
+    primaryList.forEach((m) => byId.set(m.id, m));
+    secondaryMsgsMap.forEach((m, id) => {
+      if (!byId.has(id)) byId.set(id, m);
+    });
+    const combined = Array.from(byId.values());
+    combined.sort((a, b) => a.timestampMs - b.timestampMs);
+    return combined;
+  };
+
   const q = query(
     collection(db, 'dm_conversations', convoId, 'messages'),
     orderBy('timestampMs', 'asc'),
@@ -418,28 +375,34 @@ export function subscribeToDmMessages(
   return onSnapshot(
     q,
     (snap) => {
-      const list: DmMessage[] = snap.docs.map((docSnap) => {
-        const d = docSnap.data();
-        return {
-          id: docSnap.id,
-          senderUid: d.senderUid || '',
-          recipientUid: d.recipientUid || '',
-          senderName: d.senderName || 'Trader',
-          text: d.text || '',
-          timestampMs: Number(d.timestampMs || 0),
-          createdAt: d.createdAt
-        };
-      });
+      latestPrimaryMsgs = snap.docs.map((docSnap) => mapDocToMsg(docSnap.id, docSnap.data()));
 
-      const loadedIds = new Set(list.map((m) => m.id));
-      for (const cachedMsg of readCachedArray<DmMessage>(cacheKey)) {
-        if (cachedMsg && cachedMsg.id && !loadedIds.has(cachedMsg.id)) {
-          list.push(cachedMsg);
-          loadedIds.add(cachedMsg.id);
-        }
+      if (!secondaryChecked) {
+        secondaryChecked = true;
+        getDocs(
+          query(
+            collection(legacyDb, 'dm_conversations', convoId, 'messages'),
+            orderBy('timestampMs', 'asc'),
+            limitToLast(60)
+          )
+        )
+          .then((secSnap) => {
+            const primaryIds = new Set(latestPrimaryMsgs.map((m) => m.id));
+            secSnap.docs.forEach((mDoc) => {
+              const msg = mapDocToMsg(mDoc.id, mDoc.data());
+              secondaryMsgsMap.set(mDoc.id, msg);
+              if (!primaryIds.has(mDoc.id)) {
+                setDoc(doc(db, 'dm_conversations', convoId, 'messages', mDoc.id), mDoc.data(), { merge: true }).catch(() => {});
+              }
+            });
+            const merged = mergeMsgs(latestPrimaryMsgs);
+            writeCachedArray(cacheKey, merged);
+            onChange(merged);
+          })
+          .catch(() => {});
       }
 
-      list.sort((a, b) => a.timestampMs - b.timestampMs);
+      const list = mergeMsgs(latestPrimaryMsgs);
       writeCachedArray(cacheKey, list);
       onChange(list);
     },

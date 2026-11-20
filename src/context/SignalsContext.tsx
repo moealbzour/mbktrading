@@ -488,65 +488,6 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
             });
           });
 
-          // Merge with locally cached signals/trades so no previously loaded signal disappears during database migration
-          const loadedSignalIds = new Set(liveSignals.map((s) => s.id));
-          const cachedSignals = readCachedJson<ChannelSignalItem[]>(CACHED_SIGNALS_KEY, []);
-          const cachedTrades = readCachedJson<DailyTrade[]>(CACHED_TRADES_KEY, []);
-          const isSuperAdmin =
-            auth.currentUser?.email?.toLowerCase() === SUPER_ADMIN_EMAIL && auth.currentUser?.emailVerified;
-
-          for (const cSig of cachedSignals) {
-            if (cSig && cSig.id && !loadedSignalIds.has(cSig.id)) {
-              liveSignals.push(cSig);
-              loadedSignalIds.add(cSig.id);
-              if (isSuperAdmin) {
-                const isVipSig = cSig.channel === 'vip' || cSig.accessLevel === 'vip';
-                const isBotSig = cSig.channel === 'bot' || cSig.source === 'BOT_WEBHOOK';
-                setDoc(doc(db, 'signals', cSig.id), {
-                  symbol: cSig.symbol || 'US100',
-                  nameAr: cSig.symbol || 'US100',
-                  action: cSig.action || 'BUY',
-                  orderType: cSig.action || 'BUY',
-                  type: cSig.action || 'BUY',
-                  source: cSig.source || (isBotSig ? 'BOT_WEBHOOK' : isVipSig ? 'VIP_MANUAL' : 'FREE_PUBLIC'),
-                  entryPrice: Number(cSig.entryPrice || 0),
-                  currentPrice: Number(cSig.entryPrice || 0),
-                  tp1: Number(cSig.tp1 || 0),
-                  tp2: Number(cSig.tp2 || 0),
-                  sl: Number(cSig.sl || 0),
-                  pips: Number(cSig.pips || 0),
-                  strategy: cSig.strategy || 'MBK Strategy',
-                  timeframe: cSig.timeframe || '15m',
-                  accessLevel: cSig.accessLevel || (isVipSig ? 'vip' : 'free'),
-                  access_level: cSig.accessLevel || (isVipSig ? 'vip' : 'free'),
-                  confidence: Number(cSig.confidence || 92),
-                  notesAr: cSig.instructionsAr || '',
-                  notesEn: cSig.instructionsEn || '',
-                  instructionsAr: cSig.instructionsAr || '',
-                  instructionsEn: cSig.instructionsEn || '',
-                  author: cSig.author || 'MBK Chief Admin',
-                  authorRole: cSig.authorRole || 'ADMIN',
-                  status: cSig.status || 'RUNNING',
-                  openTime: cSig.openTime || cSig.timeAgo || 'الآن',
-                  duration: cSig.duration || 'الآن',
-                  channel: cSig.channel || 'vip',
-                  isBlurredForFree: Boolean(cSig.isBlurredForFree || isVipSig),
-                  isBotSignal: isBotSig,
-                  createdAt: new Date(cSig.timestampMs || Date.now()).toISOString(),
-                  timestampMs: Number(cSig.timestampMs || Date.now())
-                }, { merge: true }).catch(() => {});
-              }
-            }
-          }
-
-          const loadedTradeIds = new Set(liveTrades.map((t) => t.id));
-          for (const cTrade of cachedTrades) {
-            if (cTrade && cTrade.id && !loadedTradeIds.has(cTrade.id) && !cTrade.id.startsWith('bot-')) {
-              liveTrades.push(cTrade);
-              loadedTradeIds.add(cTrade.id);
-            }
-          }
-
           liveSignals.sort((a, b) => (b.timestampMs || 0) - (a.timestampMs || 0));
           liveTrades.sort((a, b) => (b.timestampMs || 0) - (a.timestampMs || 0));
 
@@ -556,28 +497,10 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
           setSignals(() => nextSignals);
           setRawTrades(() => nextTrades);
           try {
-            if (nextSignals.length > 0) {
-              localStorage.setItem(CACHED_SIGNALS_KEY, JSON.stringify(nextSignals));
-            }
-            if (nextTrades.length > 0) {
-              localStorage.setItem(CACHED_TRADES_KEY, JSON.stringify(nextTrades));
-            }
+            localStorage.setItem(CACHED_SIGNALS_KEY, JSON.stringify(nextSignals));
+            localStorage.setItem(CACHED_TRADES_KEY, JSON.stringify(nextTrades));
           } catch {
             // ignore storage errors
-          }
-
-          // Background sync of signals from legacyDb once per session when readable
-          if (isSuperAdmin && !(window as any).__mbkLegacySignalsSynced) {
-            (window as any).__mbkLegacySignalsSynced = true;
-            getDocs(query(collection(legacyDb, 'signals'), orderBy('timestampMs', 'desc'), limit(LIVE_SIGNALS_LIMIT)))
-              .then((legacySnap) => {
-                legacySnap.forEach((legacyDoc) => {
-                  if (!loadedSignalIds.has(legacyDoc.id)) {
-                    setDoc(doc(db, 'signals', legacyDoc.id), legacyDoc.data(), { merge: true }).catch(() => {});
-                  }
-                });
-              })
-              .catch(() => {});
           }
 
           isFirstSignalsSnapshot = false;
@@ -652,54 +575,14 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
               });
             });
 
-            // Merge with cached bot alerts and auto-sync missing ones to (default)
-            const loadedBotIds = new Set(rawAlerts.map((a) => a.id));
-            const cachedAlerts = readCachedJson<BotAlertItem[]>(CACHED_BOT_ALERTS_KEY, []);
-            for (const cAlert of cachedAlerts) {
-              if (cAlert && cAlert.id && !loadedBotIds.has(cAlert.id)) {
-                rawAlerts.push(cAlert);
-                loadedBotIds.add(cAlert.id);
-                setDoc(doc(db, 'bot_alerts', cAlert.id), {
-                  id: cAlert.id,
-                  text: (cAlert.text || 'MBK Bot Alert').slice(0, 2000),
-                  chat_id: cAlert.chat_id || null,
-                  timestamp: cAlert.timestamp || new Date().toISOString(),
-                  timestampMs: Math.trunc(Number(cAlert.timestampMs || Date.now()))
-                }).catch(() => {});
-              }
-            }
-
             rawAlerts.sort((a, b) => (b.timestampMs || 0) - (a.timestampMs || 0));
             const nextBotAlerts = rawAlerts.slice(0, LIVE_SIGNALS_LIMIT);
 
             setBotAlerts(() => nextBotAlerts);
             try {
-              if (nextBotAlerts.length > 0) {
-                localStorage.setItem(CACHED_BOT_ALERTS_KEY, JSON.stringify(nextBotAlerts));
-              }
+              localStorage.setItem(CACHED_BOT_ALERTS_KEY, JSON.stringify(nextBotAlerts));
             } catch {
               // ignore storage errors
-            }
-
-            // Background sync of bot_alerts from legacyDb once per session when readable
-            if (!(window as any).__mbkLegacyBotAlertsSynced) {
-              (window as any).__mbkLegacyBotAlertsSynced = true;
-              getDocs(query(collection(legacyDb, 'bot_alerts'), orderBy('timestampMs', 'desc'), limit(LIVE_SIGNALS_LIMIT)))
-                .then((legacySnap) => {
-                  legacySnap.forEach((legacyDoc) => {
-                    if (!loadedBotIds.has(legacyDoc.id)) {
-                      const d = legacyDoc.data();
-                      setDoc(doc(db, 'bot_alerts', legacyDoc.id), {
-                        id: legacyDoc.id,
-                        text: String(d.text || 'MBK Bot Alert').slice(0, 2000),
-                        chat_id: d.chat_id || null,
-                        timestamp: String(d.timestamp || new Date().toISOString()),
-                        timestampMs: Math.trunc(Number(d.timestampMs || Date.now()))
-                      }).catch(() => {});
-                    }
-                  });
-                })
-                .catch(() => {});
             }
 
             isFirstBotSnapshot = false;

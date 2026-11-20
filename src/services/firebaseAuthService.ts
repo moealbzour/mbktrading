@@ -20,7 +20,7 @@ import {
   onSnapshot,
   serverTimestamp
 } from 'firebase/firestore';
-import { auth, googleProvider, db } from '../lib/firebase';
+import { auth, googleProvider, db, legacyDb } from '../lib/firebase';
 import { UserProfile } from '../types/trading';
 import { redeemActivationKey } from '../utils/activationKeyService';
 
@@ -264,6 +264,33 @@ export async function fetchOrCreateUserRegistry(
       };
     }
 
+    // Check standby/secondary database (legacyDb) before creating a fresh free document
+    try {
+      const legacySnap = await getDoc(doc(legacyDb, 'users', user.uid));
+      if (legacySnap.exists()) {
+        const legacyData = legacySnap.data();
+        const migratedRole = isSuperAdmin ? 'admin' : (legacyData.role || fallbackRole);
+        await setDoc(
+          userDocRef,
+          {
+            ...legacyData,
+            uid: user.uid,
+            email: safeEmail || legacyData.email || '',
+            role: migratedRole,
+            updatedAt: serverTimestamp()
+          },
+          { merge: true }
+        );
+        return {
+          uid: user.uid,
+          email: safeEmail || legacyData.email || '',
+          role: migratedRole
+        };
+      }
+    } catch {
+      // ignore if standby db is unreachable
+    }
+
     const safeDisplayName = (user.displayName || safeEmail.split('@')[0] || 'Trader').slice(0, 100);
     const safePhone = (extraData?.phone || '').slice(0, 40);
     const safeCountry = (extraData?.country || '').slice(0, 80);
@@ -275,6 +302,7 @@ export async function fetchOrCreateUserRegistry(
       ['vip', 'moderator', 'analyser', 'analyst', 'sales'].includes(normFallback);
 
     const newRegistryDoc = {
+      uid: user.uid,
       email: safeEmail,
       role: fallbackRole,
       tier: isAdminOrEliteFallback ? 'elite' : isStaffOrVipFallback ? 'vip' : 'free',
@@ -304,6 +332,7 @@ export async function fetchOrCreateUserRegistry(
     };
 
     await setDoc(userDocRef, newRegistryDoc);
+    setDoc(doc(legacyDb, 'users', user.uid), newRegistryDoc, { merge: true }).catch(() => {});
   } catch (err) {
     console.warn('[Firebase Auth] fetchOrCreateUserRegistry fallback (quota/offline):', err);
   }
@@ -933,6 +962,18 @@ export function subscribeToAuth(onUserChange: (user: UserProfile | null) => void
             } catch {
               // ignore
             }
+          } else if (roleWeight(data.role) <= 1) {
+            // Check standby database (legacyDb) once if primary db shows free role, in case admin/VIP role exists there
+            getDoc(doc(legacyDb, 'users', firebaseUser.uid))
+              .then((legSnap) => {
+                if (legSnap.exists()) {
+                  const legData = legSnap.data();
+                  if (roleWeight(legData.role) > roleWeight(data.role)) {
+                    setDoc(userDocRef, { ...legData, uid: firebaseUser.uid }, { merge: true }).catch(() => {});
+                  }
+                }
+              })
+              .catch(() => {});
           }
         }
         onUserChange(mapUserDocToProfile(firebaseUser, data));

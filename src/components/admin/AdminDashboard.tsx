@@ -50,10 +50,15 @@ import {
 } from 'lucide-react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, setDoc, onSnapshot, collection, updateDoc, deleteDoc, writeBatch, serverTimestamp, getDocs, query, limit } from 'firebase/firestore';
-import { auth, db, legacyDb } from '../../lib/firebase';
+import { auth, db, legacyDb, getActiveDatabaseMode, setActiveDatabaseMode, ActiveDatabaseMode } from '../../lib/firebase';
 import { soundManager } from '../../utils/audio';
 import { formatKeyDurationLabel } from '../../utils/activationKeyService';
-import { syncAllLegacyDataToDefaultDb } from '../../utils/legacyDbRecovery';
+import {
+  syncAllLegacyDataToDefaultDb,
+  createFullBackupSnapshot,
+  restoreFromBackupSnapshot,
+  getLastAutoBackupTime
+} from '../../utils/legacyDbRecovery';
 import {
   DEFAULT_PLATFORM_SETTINGS,
   buildWhatsAppUrl,
@@ -477,7 +482,7 @@ export const AdminDashboard: React.FC<Props> = ({
     }
     setIsSyncingLegacyDb(true);
     try {
-      const stats = await syncAllLegacyDataToDefaultDb();
+      const stats = await syncAllLegacyDataToDefaultDb(true);
       const totalRecovered =
         stats.usersRecovered +
         stats.signalsRecovered +
@@ -515,32 +520,107 @@ export const AdminDashboard: React.FC<Props> = ({
     }
   };
 
+  const [isExportingBackup, setIsExportingBackup] = useState(false);
+  const [isImportingBackup, setIsImportingBackup] = useState(false);
+  const [activeDbMode, setActiveDbMode] = useState<ActiveDatabaseMode>(() => getActiveDatabaseMode());
+  const [lastAutoBackupIso, setLastAutoBackupIso] = useState<string | null>(() => getLastAutoBackupTime());
+
+  const handleSwitchDatabaseMode = async (targetMode?: ActiveDatabaseMode) => {
+    if (!isFullAdmin) return;
+    soundManager.playClick();
+    const nextMode: ActiveDatabaseMode = targetMode || (activeDbMode === 'default' ? 'secondary' : 'default');
+    try {
+      // Take a quick local cache backup before switching
+      await createFullBackupSnapshot(false, true).catch(() => {});
+      setActiveDatabaseMode(nextMode);
+      setActiveDbMode(nextMode);
+      soundManager.playProfitChime();
+      showFeedback(
+        'success',
+        isAr
+          ? `🔀 تم تبديل قاعدة البيانات النشطة إلى (${nextMode === 'default' ? 'الرئيسية (default)' : 'الاحتياطية ai-studio-mbktrading'})! جاري إعادة تحميل المنصة...`
+          : `🔀 Switched active database to (${nextMode === 'default' ? 'Primary (default)' : 'Standby ai-studio-mbktrading'})! Reloading workspace...`
+      );
+      setTimeout(() => {
+        window.location.reload();
+      }, 900);
+    } catch (err: any) {
+      showFeedback('error', err?.message || 'Failed to switch database');
+    }
+  };
+
+  const handleExportFullBackupJson = async () => {
+    if (!isFullAdmin || isExportingBackup) return;
+    soundManager.playClick();
+    setIsExportingBackup(true);
+    try {
+      const snapshot = await createFullBackupSnapshot(true, false);
+      setLastAutoBackupIso(snapshot.createdAt);
+      const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `mbk-full-backup-${new Date().toISOString().slice(0, 16).replace(':', '')}.json`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      soundManager.playSuccess();
+      showFeedback(
+        'success',
+        isAr
+          ? `💾 تم تحميل وحفظ النسخة الاحتياطية الكاملة (${snapshot.users.length} عضو، ${snapshot.signals.length} صفقة، ${snapshot.public_chat.length} رسالة شات، ${snapshot.dm_conversations.length} محادثة خاصة)!`
+          : `💾 Full backup exported (${snapshot.users.length} users, ${snapshot.signals.length} trades, ${snapshot.public_chat.length} chat msgs, ${snapshot.dm_conversations.length} DMs)!`
+      );
+    } catch (err: any) {
+      showFeedback('error', err?.message || (isAr ? 'فشل تصدير النسخة الاحتياطية' : 'Failed to export backup'));
+    } finally {
+      setIsExportingBackup(false);
+    }
+  };
+
+  const handleImportFullBackupJson = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !isFullAdmin) return;
+    soundManager.playClick();
+    setIsImportingBackup(true);
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const count = await restoreFromBackupSnapshot(parsed);
+      soundManager.playProfitChime();
+      showFeedback(
+        'success',
+        isAr
+          ? `✅ تم استرجاع ${count} سجل من ملف النسخة الاحتياطية إلى قاعدة البيانات بنجاح!`
+          : `✅ Successfully restored ${count} records from backup file into Firestore!`
+      );
+    } catch (err: any) {
+      showFeedback('error', err?.message || (isAr ? 'ملف النسخة الاحتياطية غير صالح' : 'Invalid backup file'));
+    } finally {
+      setIsImportingBackup(false);
+    }
+  };
+
+  // Automatic hourly snapshot backup from local cache (0 quota reads)
   useEffect(() => {
-    if (!isStaff) return;
-    let cancelled = false;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-
-    const runAutoRecovery = async () => {
-      if (cancelled) return;
-      try {
-        const stats = await syncAllLegacyDataToDefaultDb();
-        if (!cancelled && stats.legacyDbStatus === 'quota_locked') {
-          timer = setTimeout(runAutoRecovery, 30000);
-        }
-      } catch {
-        if (!cancelled) {
-          timer = setTimeout(runAutoRecovery, 45000);
-        }
-      }
-    };
-
-    runAutoRecovery();
-
+    if (!isFullAdmin) return;
+    const initialTimer = setTimeout(() => {
+      createFullBackupSnapshot(false, true)
+        .then((s) => setLastAutoBackupIso(s.createdAt))
+        .catch(() => {});
+    }, 15000);
+    const hourlyInterval = setInterval(() => {
+      createFullBackupSnapshot(false, true)
+        .then((s) => setLastAutoBackupIso(s.createdAt))
+        .catch(() => {});
+    }, 60 * 60 * 1000);
     return () => {
-      cancelled = true;
-      if (timer) clearTimeout(timer);
+      clearTimeout(initialTimer);
+      clearInterval(hourlyInterval);
     };
-  }, [isStaff]);
+  }, [isFullAdmin]);
 
   useEffect(() => {
     if (!isStaff) return;
@@ -874,178 +954,150 @@ export const AdminDashboard: React.FC<Props> = ({
     setUsersLoading(true);
 
     try {
-      const usersColRef = collection(db, 'users');
-      const unsub = onSnapshot(usersColRef, (snapshot) => {
-        const loadedUsers: AdminUserRecord[] = [];
-        snapshot.forEach((docSnap) => {
-          const data = docSnap.data();
-          const userRole = (data.role || 'free').toString().toUpperCase();
-          const subEndDate = data.eliteExpiryDate || data.vipExpiryDate || data.subscription_end_date || data.subscriptionEndDate || null;
-          const computedTier = getEffectiveTier({
-            role: userRole,
-            tier: data.tier,
-            isVip: data.isVip,
-            vipAccess: data.vipAccess,
-            isElite: data.isElite,
-            vipExpiryDate: data.vipExpiryDate,
-            eliteExpiryDate: data.eliteExpiryDate,
-            subscriptionEndDate: subEndDate,
-            isBanned: Boolean(data.isBanned)
-          });
-          let subStatus = data.subscription_status || data.subscriptionStatus || (computedTier !== 'free' ? 'active' : 'none');
-
-          if (subEndDate && new Date(subEndDate) < new Date() && (userRole === 'VIP' || userRole === 'ELITE' || Boolean(data.isVip) || Boolean(data.isElite))) {
-            subStatus = 'expired';
-          }
-
-          loadedUsers.push({
-            id: docSnap.id,
-            uid: docSnap.id,
-            username: data.email ? data.email.split('@')[0] : docSnap.id.slice(0, 8),
-            email: data.email || 'N/A',
-            role: userRole,
-            tier: computedTier,
-            isVip: Boolean(data.isVip),
-            vipAccess: Boolean(data.vipAccess),
-            isElite: Boolean(data.isElite),
-            vipExpiryDate: data.vipExpiryDate || null,
-            eliteExpiryDate: data.eliteExpiryDate || null,
-            grantedFeatures: (data.grantedFeatures && typeof data.grantedFeatures === 'object') ? data.grantedFeatures : {},
-            displayName: data.displayName || data.email?.split('@')[0] || 'MBK Member',
-            avatar: data.avatar || undefined,
-            phone: data.phone || '',
-            country: data.country || '',
-            dob: data.dob || '',
-            experienceLevel: data.experienceLevel || '',
-            assetClasses: data.assetClasses || [],
-            favoritePairs: data.favoritePairs || '',
-            totalPaid: Number(data.totalPaid || 0),
-            isBanned: Boolean(data.isBanned),
-            isMutedFromChat: Boolean(data.isMutedFromChat),
-            subscriptionStatus: subStatus as any,
-            subscriptionEndDate: subEndDate,
-            createdAt: data.createdAt ? new Date(data.createdAt.seconds ? data.createdAt.seconds * 1000 : data.createdAt).toLocaleDateString() : '2026',
-            lastActiveAt: data.updatedAt ? new Date(data.updatedAt.seconds ? data.updatedAt.seconds * 1000 : data.updatedAt).toLocaleTimeString() : undefined
-          });
+      const mapDocToAdminUser = (docId: string, data: Record<string, any>): AdminUserRecord => {
+        const userRole = (data.role || 'free').toString().toUpperCase();
+        const subEndDate = data.eliteExpiryDate || data.vipExpiryDate || data.subscription_end_date || data.subscriptionEndDate || null;
+        const computedTier = getEffectiveTier({
+          role: userRole,
+          tier: data.tier,
+          isVip: data.isVip,
+          vipAccess: data.vipAccess,
+          isElite: data.isElite,
+          vipExpiryDate: data.vipExpiryDate,
+          eliteExpiryDate: data.eliteExpiryDate,
+          subscriptionEndDate: subEndDate,
+          isBanned: Boolean(data.isBanned)
         });
+        let subStatus = data.subscription_status || data.subscriptionStatus || (computedTier !== 'free' ? 'active' : 'none');
 
-          // Merge with any locally cached users ONLY for UIDs that do NOT yet exist in live Firestore
-          const loadedIds = new Set(loadedUsers.map((u) => u.id));
-          const rawCombinedUsers = [...loadedUsers];
-          try {
-            const rawCached = localStorage.getItem('mbk_admin_cached_users_v1');
-            if (rawCached) {
-              const parsedCached = JSON.parse(rawCached);
-              if (Array.isArray(parsedCached)) {
-                for (const cachedUser of parsedCached) {
-                  if (cachedUser && cachedUser.id && !loadedIds.has(cachedUser.id)) {
-                    rawCombinedUsers.push(cachedUser);
-                    loadedIds.add(cachedUser.id);
-                  }
-                }
-              }
-            }
-          } catch {
-            // ignore
-          }
+        if (subEndDate && new Date(subEndDate) < new Date() && (userRole === 'VIP' || userRole === 'ELITE' || Boolean(data.isVip) || Boolean(data.isElite))) {
+          subStatus = 'expired';
+        }
 
-          // Deduplicate users by both UID and normalized Email (live Firestore record or higher tier wins)
-          const loadedFromFirestoreIds = new Set(loadedUsers.map((u) => u.id));
-          const tierScore = (u: AdminUserRecord): number => {
-            const r = (u.role || '').toUpperCase();
-            let score = 0;
-            // Live Firestore document gets priority over stale localStorage cache
-            if (loadedFromFirestoreIds.has(u.id)) score += 20;
-            if (r === 'ADMIN') score += 100;
-            else if (r === 'MODERATOR' || r === 'ANALYSER' || r === 'ANALYST' || r === 'SALES') score += 80;
-            else if (u.isElite || u.tier === 'elite') score += 60;
-            else if (u.isVip || u.vipAccess || u.tier === 'vip') score += 40;
-            if (u.phone) score += 5;
-            if (u.country) score += 5;
-            if (Number(u.totalPaid || 0) > 0) score += 10;
-            if (u.id === auth.currentUser?.uid) score += 50;
-            return score;
-          };
+        return {
+          id: docId,
+          uid: docId,
+          username: data.email ? data.email.split('@')[0] : docId.slice(0, 8),
+          email: data.email || 'N/A',
+          role: userRole,
+          tier: computedTier,
+          isVip: Boolean(data.isVip),
+          vipAccess: Boolean(data.vipAccess),
+          isElite: Boolean(data.isElite),
+          vipExpiryDate: data.vipExpiryDate || null,
+          eliteExpiryDate: data.eliteExpiryDate || null,
+          grantedFeatures: (data.grantedFeatures && typeof data.grantedFeatures === 'object') ? data.grantedFeatures : {},
+          displayName: data.displayName || data.email?.split('@')[0] || 'MBK Member',
+          avatar: data.avatar || undefined,
+          phone: data.phone || '',
+          country: data.country || '',
+          dob: data.dob || '',
+          experienceLevel: data.experienceLevel || '',
+          assetClasses: data.assetClasses || [],
+          favoritePairs: data.favoritePairs || '',
+          totalPaid: Number(data.totalPaid || 0),
+          isBanned: Boolean(data.isBanned),
+          isMutedFromChat: Boolean(data.isMutedFromChat),
+          subscriptionStatus: subStatus as any,
+          subscriptionEndDate: subEndDate,
+          createdAt: data.createdAt ? new Date(data.createdAt.seconds ? data.createdAt.seconds * 1000 : data.createdAt).toLocaleDateString() : '2026',
+          lastActiveAt: data.updatedAt ? new Date(data.updatedAt.seconds ? data.updatedAt.seconds * 1000 : data.updatedAt).toLocaleTimeString() : undefined
+        };
+      };
 
-          const byEmailMap = new Map<string, AdminUserRecord>();
-          const byIdMap = new Map<string, AdminUserRecord>();
-          const duplicateFirestoreIdsToDelete: string[] = [];
+      let secondaryUsersList: AdminUserRecord[] = [];
+      let secondaryFetched = false;
 
-          for (const candidate of rawCombinedUsers) {
-            if (!candidate || !candidate.id) continue;
-            const cleanEmail = (candidate.email || '').trim().toLowerCase();
-            const hasValidEmail = cleanEmail && cleanEmail !== 'n/a' && cleanEmail.includes('@');
+      const deduplicateUsers = (primaryList: AdminUserRecord[], secList: AdminUserRecord[]): AdminUserRecord[] => {
+        const rawCombinedUsers = [...primaryList, ...secList];
+        const loadedFromPrimaryIds = new Set(primaryList.map((u) => u.id));
+        const tierScore = (u: AdminUserRecord): number => {
+          const r = (u.role || '').toUpperCase();
+          let score = 0;
+          if (r === 'ADMIN') score += 100;
+          else if (r === 'MODERATOR' || r === 'ANALYSER' || r === 'ANALYST' || r === 'SALES') score += 80;
+          else if (u.isElite || u.tier === 'elite') score += 60;
+          else if (u.isVip || u.vipAccess || u.tier === 'vip') score += 40;
+          if (loadedFromPrimaryIds.has(u.id)) score += 10;
+          if (u.phone) score += 5;
+          if (u.country) score += 5;
+          if (Number(u.totalPaid || 0) > 0) score += 10;
+          if (u.id === auth.currentUser?.uid) score += 50;
+          return score;
+        };
 
-            if (hasValidEmail) {
-              const existingForEmail = byEmailMap.get(cleanEmail);
-              if (!existingForEmail) {
-                byEmailMap.set(cleanEmail, candidate);
-                byIdMap.set(candidate.id, candidate);
-              } else {
-                const keepCandidate = tierScore(candidate) > tierScore(existingForEmail);
-                const winner = keepCandidate ? candidate : existingForEmail;
-                const loser = keepCandidate ? existingForEmail : candidate;
-                // Merge any missing fields from loser into winner
-                const mergedWinner: AdminUserRecord = {
-                  ...loser,
-                  ...winner,
-                  phone: winner.phone || loser.phone || '',
-                  country: winner.country || loser.country || '',
-                  dob: winner.dob || loser.dob || '',
-                  totalPaid: Math.max(Number(winner.totalPaid || 0), Number(loser.totalPaid || 0))
-                };
-                byEmailMap.set(cleanEmail, mergedWinner);
-                byIdMap.delete(loser.id);
-                byIdMap.set(mergedWinner.id, mergedWinner);
-                if (loser.id !== mergedWinner.id && loadedFromFirestoreIds.has(loser.id)) {
-                  duplicateFirestoreIdsToDelete.push(loser.id);
-                }
-              }
-            } else if (!byIdMap.has(candidate.id)) {
+        const byEmailMap = new Map<string, AdminUserRecord>();
+        const byIdMap = new Map<string, AdminUserRecord>();
+
+        for (const candidate of rawCombinedUsers) {
+          if (!candidate || !candidate.id) continue;
+          const cleanEmail = (candidate.email || '').trim().toLowerCase();
+          const hasValidEmail = cleanEmail && cleanEmail !== 'n/a' && cleanEmail.includes('@');
+
+          if (hasValidEmail) {
+            const existingForEmail = byEmailMap.get(cleanEmail);
+            if (!existingForEmail) {
+              byEmailMap.set(cleanEmail, candidate);
               byIdMap.set(candidate.id, candidate);
+            } else {
+              const keepCandidate = tierScore(candidate) > tierScore(existingForEmail);
+              const winner = keepCandidate ? candidate : existingForEmail;
+              const loser = keepCandidate ? existingForEmail : candidate;
+              const mergedWinner: AdminUserRecord = {
+                ...loser,
+                ...winner,
+                phone: winner.phone || loser.phone || '',
+                country: winner.country || loser.country || '',
+                dob: winner.dob || loser.dob || '',
+                totalPaid: Math.max(Number(winner.totalPaid || 0), Number(loser.totalPaid || 0))
+              };
+              byEmailMap.set(cleanEmail, mergedWinner);
+              byIdMap.delete(loser.id);
+              byIdMap.set(mergedWinner.id, mergedWinner);
             }
+          } else if (!byIdMap.has(candidate.id)) {
+            byIdMap.set(candidate.id, candidate);
+          }
+        }
+
+        return Array.from(byIdMap.values());
+      };
+
+      let latestPrimaryUsers: AdminUserRecord[] = [];
+
+      const usersColRef = collection(db, 'users');
+      const unsub = onSnapshot(
+        usersColRef,
+        (snapshot) => {
+          const loadedUsers: AdminUserRecord[] = [];
+          snapshot.forEach((docSnap) => {
+            loadedUsers.push(mapDocToAdminUser(docSnap.id, docSnap.data()));
+          });
+          latestPrimaryUsers = loadedUsers;
+
+          if (!secondaryFetched) {
+            secondaryFetched = true;
+            getDocs(query(collection(legacyDb, 'users'), limit(500)))
+              .then((secSnap) => {
+                const secList: AdminUserRecord[] = [];
+                secSnap.forEach((d) => {
+                  secList.push(mapDocToAdminUser(d.id, d.data()));
+                });
+                secondaryUsersList = secList;
+                const combined = deduplicateUsers(latestPrimaryUsers, secondaryUsersList);
+                setUsers(combined);
+                try {
+                  if (combined.length > 0) {
+                    localStorage.setItem('mbk_admin_cached_users_v1', JSON.stringify(combined));
+                  }
+                } catch {
+                  // ignore
+                }
+              })
+              .catch(() => {});
           }
 
-          const mergedUsers = Array.from(byIdMap.values());
-
-          // Clean up duplicate ghost records from Firestore & sync missing canonical users
-          if (isFullAdmin) {
-            for (const dupId of duplicateFirestoreIdsToDelete) {
-              deleteDoc(doc(db, 'users', dupId)).catch(() => {});
-              deleteDoc(doc(db, 'chat_profiles', dupId)).catch(() => {});
-            }
-
-            for (const canonicalUser of mergedUsers) {
-              if (!loadedFromFirestoreIds.has(canonicalUser.id)) {
-                setDoc(doc(db, 'users', canonicalUser.id), {
-                  uid: canonicalUser.id,
-                  email: canonicalUser.email || '',
-                  displayName: canonicalUser.displayName || canonicalUser.username || 'MBK Member',
-                  role: (canonicalUser.role || 'free').toString().toLowerCase(),
-                  tier: canonicalUser.tier || 'free',
-                  isVip: Boolean(canonicalUser.isVip),
-                  vipAccess: Boolean(canonicalUser.vipAccess),
-                  isElite: Boolean(canonicalUser.isElite),
-                  vipExpiryDate: canonicalUser.vipExpiryDate || null,
-                  eliteExpiryDate: canonicalUser.eliteExpiryDate || null,
-                  grantedFeatures: canonicalUser.grantedFeatures || {},
-                  phone: canonicalUser.phone || '',
-                  country: canonicalUser.country || '',
-                  dob: canonicalUser.dob || '',
-                  experienceLevel: canonicalUser.experienceLevel || '',
-                  assetClasses: Array.isArray(canonicalUser.assetClasses) ? canonicalUser.assetClasses : [],
-                  favoritePairs: canonicalUser.favoritePairs || '',
-                  totalPaid: Number(canonicalUser.totalPaid || 0),
-                  isBanned: Boolean(canonicalUser.isBanned),
-                  isMutedFromChat: Boolean(canonicalUser.isMutedFromChat),
-                  subscription_status: canonicalUser.subscriptionStatus || 'none',
-                  subscription_end_date: canonicalUser.subscriptionEndDate || null,
-                  createdAt: serverTimestamp(),
-                  updatedAt: serverTimestamp(),
-                }, { merge: true }).catch(() => {});
-              }
-            }
-          }
+          const mergedUsers = deduplicateUsers(latestPrimaryUsers, secondaryUsersList);
 
           setUsers(mergedUsers);
           setDbQuotaExceeded(false);
@@ -1057,40 +1109,6 @@ export const AdminDashboard: React.FC<Props> = ({
             // ignore
           }
           setUsersLoading(false);
-
-          // Ensure all active CRM users have a directory entry in chat_profiles so the DM Inbox Members list is complete
-          if (isFullAdmin && mergedUsers.length > 0 && !(window as any).__mbkChatProfilesSeededFromCrm) {
-            (window as any).__mbkChatProfilesSeededFromCrm = true;
-            for (const u of mergedUsers) {
-              if (u && u.id && !u.isBanned) {
-                setDoc(doc(db, 'chat_profiles', u.id), {
-                  uid: u.id,
-                  displayName: (u.displayName || u.username || u.email?.split('@')[0] || 'MBK Member').slice(0, 100),
-                  avatar: (u.avatar || '').slice(0, 1000),
-                  role: (u.role || 'FREE').toString().toUpperCase().slice(0, 40),
-                  allowDirectMessages: true,
-                  blockedUids: [],
-                  updatedAt: new Date().toISOString()
-                }, { merge: true }).catch(() => {});
-              }
-            }
-          }
-
-          // Silent background sync from legacyDb once per session when readable
-          if (isFullAdmin && !(window as any).__mbkLegacyUsersSynced) {
-            (window as any).__mbkLegacyUsersSynced = true;
-            getDocs(query(collection(legacyDb, 'users'), limit(300)))
-              .then((legacySnap) => {
-                legacySnap.forEach((legacyDoc) => {
-                  if (!loadedIds.has(legacyDoc.id)) {
-                    setDoc(doc(db, 'users', legacyDoc.id), legacyDoc.data(), { merge: true }).catch(() => {});
-                  }
-                });
-              })
-              .catch(() => {
-                // legacyDb still in daily free-tier cooldown; active users auto-register in (default) on visit
-              });
-          }
         },
         (err: any) => {
           const msg = String(err?.message || err || '').toLowerCase();
@@ -1167,6 +1185,7 @@ export const AdminDashboard: React.FC<Props> = ({
     try {
       const userRef = doc(db, 'users', targetUser.id);
       await setDoc(userRef, { uid: targetUser.id, isBanned: nextBanned, updatedAt: serverTimestamp() }, { merge: true });
+      setDoc(doc(legacyDb, 'users', targetUser.id), { uid: targetUser.id, isBanned: nextBanned, updatedAt: serverTimestamp() }, { merge: true }).catch(() => {});
       setUsers((prev) => {
         const nextList = prev.map((u) => (u.id === targetUser.id ? { ...u, isBanned: nextBanned } : u));
         try {
@@ -1195,6 +1214,7 @@ export const AdminDashboard: React.FC<Props> = ({
     try {
       const userRef = doc(db, 'users', targetUser.id);
       await setDoc(userRef, { uid: targetUser.id, isMutedFromChat: nextMuted, updatedAt: serverTimestamp() }, { merge: true });
+      setDoc(doc(legacyDb, 'users', targetUser.id), { uid: targetUser.id, isMutedFromChat: nextMuted, updatedAt: serverTimestamp() }, { merge: true }).catch(() => {});
       setUsers((prev) => {
         const nextList = prev.map((u) => (u.id === targetUser.id ? { ...u, isMutedFromChat: nextMuted } : u));
         try {
@@ -1262,12 +1282,22 @@ export const AdminDashboard: React.FC<Props> = ({
         rolePayload.subscription_status = 'active';
       }
 
-      // Use setDoc with merge: true so it succeeds even if the user doc was only in cache
+      // Use setDoc with merge: true on both primary and standby databases so role never reverts
       await setDoc(userRef, rolePayload, { merge: true });
+      setDoc(doc(legacyDb, 'users', targetUserId), rolePayload, { merge: true }).catch(() => {});
 
       // Also sync the user's role badge in chat_profiles so General Chat & DM Inbox reflect ADMIN/STAFF immediately
       await setDoc(
         doc(db, 'chat_profiles', targetUserId),
+        {
+          uid: targetUserId,
+          role: upperRole === 'ELITE' ? 'VIP' : upperRole,
+          updatedAt: new Date().toISOString()
+        },
+        { merge: true }
+      ).catch(() => {});
+      setDoc(
+        doc(legacyDb, 'chat_profiles', targetUserId),
         {
           uid: targetUserId,
           role: upperRole === 'ELITE' ? 'VIP' : upperRole,
@@ -1358,6 +1388,7 @@ export const AdminDashboard: React.FC<Props> = ({
       };
 
       await setDoc(doc(db, 'users', inspectUser.id), payload, { merge: true });
+      setDoc(doc(legacyDb, 'users', inspectUser.id), payload, { merge: true }).catch(() => {});
       setUsers((prev) => {
         const nextList = prev.map((u) =>
           u.id === inspectUser.id
@@ -1774,6 +1805,54 @@ export const AdminDashboard: React.FC<Props> = ({
                 <Database className={`w-3.5 h-3.5 ${isSyncingLegacyDb ? 'animate-spin' : ''}`} />
                 <span>{isAr ? '🔄 استعادة البيانات والمحادثات القديمة' : '🔄 Restore Legacy Data & Chats'}</span>
               </button>
+              <button
+                type="button"
+                onClick={() => handleSwitchDatabaseMode()}
+                className="px-3 py-1.5 rounded-xl bg-[#1e222d] hover:bg-[#2a2e39] border border-purple-500/50 text-purple-300 hover:text-white text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5"
+                title={
+                  isAr
+                    ? `قاعدة البيانات النشطة حالياً: ${activeDbMode === 'default' ? '(default)' : 'ai-studio-mbktrading'}. اضغط للتبديل الفوري إلى قاعدة البيانات البديلة في حال الطوارئ أو امتلاء الحصة`
+                    : `Active DB: ${activeDbMode === 'default' ? '(default)' : 'ai-studio-mbktrading'}. Click to switch to the standby database immediately`
+                }
+              >
+                <Database className="w-3.5 h-3.5 text-purple-400" />
+                <span>
+                  {isAr
+                    ? `🔀 قاعدة البيانات: ${activeDbMode === 'default' ? 'الرئيسية (1)' : 'الاحتياطية (2)'}`
+                    : `🔀 Active DB: ${activeDbMode === 'default' ? 'Primary (1)' : 'Standby (2)'}`}
+                </span>
+              </button>
+              <button
+                type="button"
+                disabled={isExportingBackup}
+                onClick={handleExportFullBackupJson}
+                className="px-3 py-1.5 rounded-xl bg-[#1e222d] hover:bg-[#2a2e39] border border-[#089981]/50 text-[#089981] hover:text-white text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5"
+                title={
+                  isAr
+                    ? 'حفظ نسخة احتياطية كاملة لجميع الأعضاء والصفقات والمحادثات كملف JSON (يتم أيضاً الحفظ التلقائي كل ساعة)'
+                    : 'Download complete JSON backup of all users, trades, chats, and DMs (also auto-saved hourly)'
+                }
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>{isAr ? '💾 حفظ نسخة احتياطية (Backup)' : '💾 Export Full Backup'}</span>
+              </button>
+              <label
+                className="px-3 py-1.5 rounded-xl bg-[#1e222d] hover:bg-[#2a2e39] border border-cyan-500/40 text-cyan-300 hover:text-white text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5"
+                title={
+                  isAr
+                    ? 'رفع واسترجاع قاعدة البيانات بالكامل من ملف نسخة احتياطية JSON'
+                    : 'Upload and restore database from a JSON backup file'
+                }
+              >
+                <Database className={`w-3.5 h-3.5 ${isImportingBackup ? 'animate-spin' : ''}`} />
+                <span>{isAr ? '📂 استرجاع نسخة (Restore)' : '📂 Restore Backup'}</span>
+                <input
+                  type="file"
+                  accept=".json,application/json"
+                  onChange={handleImportFullBackupJson}
+                  className="hidden"
+                />
+              </label>
               <button
                 type="button"
                 disabled={isPushingAppUpdate}

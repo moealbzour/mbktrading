@@ -16,6 +16,36 @@ export interface RecoveryStats {
   legacyDbStatus: 'synced' | 'quota_locked' | 'idle';
 }
 
+const DELETED_DOC_IDS_KEY = 'mbk_deleted_doc_ids_v1';
+
+export function markDocumentDeleted(id: string): void {
+  if (!id) return;
+  try {
+    const cleanId = id.replace(/^bot-/, '');
+    const raw = localStorage.getItem(DELETED_DOC_IDS_KEY);
+    const list: string[] = raw ? JSON.parse(raw) : [];
+    const set = new Set(Array.isArray(list) ? list : []);
+    set.add(id);
+    set.add(cleanId);
+    localStorage.setItem(DELETED_DOC_IDS_KEY, JSON.stringify(Array.from(set).slice(-500)));
+  } catch {
+    // ignore
+  }
+}
+
+export function isDocumentDeleted(id: string): boolean {
+  if (!id) return false;
+  try {
+    const cleanId = id.replace(/^bot-/, '');
+    const raw = localStorage.getItem(DELETED_DOC_IDS_KEY);
+    if (!raw) return false;
+    const list: string[] = JSON.parse(raw);
+    return Array.isArray(list) && (list.includes(id) || list.includes(cleanId));
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Extracts cached Firestore documents from the browser's IndexedDB storage
  * for the legacy `ai-studio-mbktrading-5c717851-cdb4-4a97-a0f4-f006f13d6c7b` database,
@@ -100,13 +130,13 @@ async function extractDocsFromLegacyIndexedDb(): Promise<{
     // ignore getDocsFromCache errors
   }
 
-  // 2. Also scan raw IndexedDB databases matching firestore / ai-studio-mbktrading for any stored remoteDocuments
+  // 2. Also scan raw IndexedDB databases matching firestore for any stored remoteDocuments
   try {
     if (typeof window.indexedDB.databases === 'function') {
       const dbs = await window.indexedDB.databases();
       for (const dbInfo of dbs) {
         const dbName = dbInfo.name || '';
-        if (!dbName.includes('firestore') || !dbName.includes(LEGACY_DB_NAME)) continue;
+        if (!dbName.includes('firestore')) continue;
 
         await new Promise<void>((resolve) => {
           const req = window.indexedDB.open(dbName);
@@ -200,7 +230,20 @@ function parseFirestoreRestValue(v: any): any {
  * Full Live & Local Cache Sync from `legacyDb` (ai-studio-mbktrading-5c717851-cdb4-4a97-a0f4-f006f13d6c7b)
  * into the active `(default)` Firestore database.
  */
-export async function syncAllLegacyDataToDefaultDb(): Promise<RecoveryStats> {
+let localIdbExtractedThisSession = false;
+let activeSyncPromise: Promise<RecoveryStats> | null = null;
+
+export async function syncAllLegacyDataToDefaultDb(forceFullRun = false): Promise<RecoveryStats> {
+  if (activeSyncPromise && !forceFullRun) {
+    return activeSyncPromise;
+  }
+  activeSyncPromise = runSyncAllLegacyDataInternal(forceFullRun).finally(() => {
+    activeSyncPromise = null;
+  });
+  return activeSyncPromise;
+}
+
+async function runSyncAllLegacyDataInternal(forceFullRun = false): Promise<RecoveryStats> {
   const stats: RecoveryStats = {
     usersRecovered: 0,
     signalsRecovered: 0,
@@ -219,8 +262,21 @@ export async function syncAllLegacyDataToDefaultDb(): Promise<RecoveryStats> {
   const isSuperAdmin =
     currentUser.email?.toLowerCase() === SUPER_ADMIN_EMAIL && currentUser.emailVerified;
 
-  // Step 1: Recover everything available in local IndexedDB cache from legacyDb right now
-  const localCache = await extractDocsFromLegacyIndexedDb();
+  // Step 1: Recover everything available in local IndexedDB cache from legacyDb once per session
+  const localCache =
+    !localIdbExtractedThisSession || forceFullRun
+      ? await extractDocsFromLegacyIndexedDb()
+      : {
+          users: [],
+          signals: [],
+          bot_alerts: [],
+          public_chat: [],
+          chat_profiles: [],
+          dm_conversations: [],
+          dm_messages: [],
+          activation_keys: []
+        };
+  localIdbExtractedThisSession = true;
 
   const rolePriority = (r?: string): number => {
     const up = (r || 'FREE').toString().toUpperCase();
@@ -281,7 +337,7 @@ export async function syncAllLegacyDataToDefaultDb(): Promise<RecoveryStats> {
   if (isSuperAdmin) {
     for (const s of localCache.signals) {
       const sigId = s.id;
-      if (!sigId) continue;
+      if (!sigId || isDocumentDeleted(sigId)) continue;
       const { id: _id, ...data } = s;
       await setDoc(doc(db, 'signals', sigId), data, { merge: true })
         .then(() => {
@@ -304,7 +360,7 @@ export async function syncAllLegacyDataToDefaultDb(): Promise<RecoveryStats> {
 
   for (const b of localCache.bot_alerts) {
     const alertId = b.id;
-    if (!alertId || !String(alertId).startsWith('alert-')) continue;
+    if (!alertId || !String(alertId).startsWith('alert-') || isDocumentDeleted(alertId)) continue;
     await setDoc(doc(db, 'bot_alerts', alertId), {
       id: alertId,
       text: String(b.text || 'MBK Bot Alert').slice(0, 2000),
@@ -314,18 +370,6 @@ export async function syncAllLegacyDataToDefaultDb(): Promise<RecoveryStats> {
     })
       .then(() => {
         stats.botAlertsRecovered++;
-      })
-      .catch(() => {});
-  }
-
-  for (const m of localCache.public_chat) {
-    const msgId = m.id;
-    if (!msgId) continue;
-    if (!isSuperAdmin && m.uid !== currentUser.uid) continue;
-    const { id: _id, ...data } = m;
-    await setDoc(doc(db, 'public_chat', msgId), data, { merge: true })
-      .then(() => {
-        stats.publicChatRecovered++;
       })
       .catch(() => {});
   }
@@ -376,9 +420,10 @@ export async function syncAllLegacyDataToDefaultDb(): Promise<RecoveryStats> {
       .catch(() => {});
   }
 
-  // Step 2: Query live `legacyDb` over the network (succeeds immediately as soon as daily read quota resets or if upgraded)
+  // Step 2: Merge any new messages, DMs, trades, and users from the secondary database (legacyDb) into primary db
   try {
-    if (isSuperAdmin) {
+    const isAdminUser = isSuperAdmin || currentUser.email?.toLowerCase() === SUPER_ADMIN_EMAIL;
+    if (isAdminUser) {
       const legacyUsersSnap = await getDocs(query(collection(legacyDb, 'users'), limit(500)));
       stats.legacyDbStatus = 'synced';
       for (const uDoc of legacyUsersSnap.docs) {
@@ -389,6 +434,7 @@ export async function syncAllLegacyDataToDefaultDb(): Promise<RecoveryStats> {
         query(collection(legacyDb, 'signals'), orderBy('timestampMs', 'desc'), limit(100))
       );
       for (const sDoc of legacySignalsSnap.docs) {
+        if (isDocumentDeleted(sDoc.id)) continue;
         await setDoc(doc(db, 'signals', sDoc.id), sDoc.data(), { merge: true })
           .then(() => {
             stats.signalsRecovered++;
@@ -411,6 +457,7 @@ export async function syncAllLegacyDataToDefaultDb(): Promise<RecoveryStats> {
     );
     stats.legacyDbStatus = 'synced';
     for (const bDoc of legacyBotsSnap.docs) {
+      if (isDocumentDeleted(bDoc.id)) continue;
       const d = bDoc.data();
       if (bDoc.id.startsWith('alert-')) {
         await setDoc(doc(db, 'bot_alerts', bDoc.id), {
@@ -427,26 +474,20 @@ export async function syncAllLegacyDataToDefaultDb(): Promise<RecoveryStats> {
       }
     }
 
-    const legacyChatSnap = await getDocs(
-      query(collection(legacyDb, 'public_chat'), orderBy('timestampMs', 'desc'), limit(100))
-    );
-    for (const cDoc of legacyChatSnap.docs) {
-      const d = cDoc.data();
-      if (isSuperAdmin || d.uid === currentUser.uid) {
-        await setDoc(doc(db, 'public_chat', cDoc.id), d, { merge: true })
-          .then(() => {
-            stats.publicChatRecovered++;
-          })
-          .catch(() => {});
-      }
-    }
-
     const legacyProfilesSnap = await getDocs(query(collection(legacyDb, 'chat_profiles'), limit(200)));
     for (const pDoc of legacyProfilesSnap.docs) {
       const d = pDoc.data();
-      if (isSuperAdmin || pDoc.id === currentUser.uid) {
+      if (isAdminUser || pDoc.id === currentUser.uid) {
+        const existingProfileRef = doc(db, 'chat_profiles', pDoc.id);
+        const existingProfileSnap = await getDoc(existingProfileRef).catch(() => null);
+        if (existingProfileSnap && existingProfileSnap.exists()) {
+          const exRole = existingProfileSnap.data()?.role;
+          if (rolePriority(exRole) >= rolePriority(d.role)) {
+            continue;
+          }
+        }
         await setDoc(
-          doc(db, 'chat_profiles', pDoc.id),
+          existingProfileRef,
           {
             uid: d.uid || pDoc.id,
             displayName: String(d.displayName || 'MBK Trader').slice(0, 100),
@@ -465,23 +506,34 @@ export async function syncAllLegacyDataToDefaultDb(): Promise<RecoveryStats> {
       }
     }
 
-    const legacyDmSnap = isSuperAdmin
+    const legacyDmSnap = isAdminUser
       ? await getDocs(query(collection(legacyDb, 'dm_conversations'), limit(200)))
       : await getDocs(
           query(collection(legacyDb, 'dm_conversations'), where('participants', 'array-contains', currentUser.uid))
         );
     for (const dmDoc of legacyDmSnap.docs) {
       const d = dmDoc.data();
-      await setDoc(doc(db, 'dm_conversations', dmDoc.id), { id: dmDoc.id, ...d }, { merge: true })
-        .then(() => {
+      const targetConvoRef = doc(db, 'dm_conversations', dmDoc.id);
+      const existingConvoSnap = await getDoc(targetConvoRef).catch(() => null);
+      if (existingConvoSnap && existingConvoSnap.exists()) {
+        const exConvo = existingConvoSnap.data();
+        if (Number(d.lastMessageAtMs || 0) > Number(exConvo.lastMessageAtMs || 0)) {
+          await setDoc(targetConvoRef, { id: dmDoc.id, ...d }, { merge: true }).catch(() => {});
           stats.dmConversationsRecovered++;
-        })
-        .catch(() => {});
+        }
+      } else {
+        await setDoc(targetConvoRef, { id: dmDoc.id, ...d }, { merge: true })
+          .then(() => {
+            stats.dmConversationsRecovered++;
+          })
+          .catch(() => {});
+      }
 
       const msgSnap = await getDocs(
         query(collection(legacyDb, 'dm_conversations', dmDoc.id, 'messages'), orderBy('timestampMs', 'asc'), limit(100))
       );
       for (const mDoc of msgSnap.docs) {
+        if (isDocumentDeleted(mDoc.id)) continue;
         await setDoc(
           doc(db, 'dm_conversations', dmDoc.id, 'messages', mDoc.id),
           mDoc.data(),
@@ -502,3 +554,227 @@ export async function syncAllLegacyDataToDefaultDb(): Promise<RecoveryStats> {
 
   return stats;
 }
+
+export interface MbkFullBackupSnapshot {
+  version: string;
+  createdAt: string;
+  users: Record<string, any>[];
+  signals: Record<string, any>[];
+  bot_alerts: Record<string, any>[];
+  public_chat: Record<string, any>[];
+  chat_profiles: Record<string, any>[];
+  dm_conversations: Record<string, any>[];
+  dm_messages: { convoId: string; id: string; data: Record<string, any> }[];
+  activation_keys: Record<string, any>[];
+}
+
+const HOURLY_BACKUP_STORAGE_KEY = 'mbk_hourly_auto_backup_v1';
+const HOURLY_BACKUP_TIME_KEY = 'mbk_hourly_auto_backup_time';
+
+export function getLastAutoBackupTime(): string | null {
+  try {
+    return localStorage.getItem(HOURLY_BACKUP_TIME_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export async function createFullBackupSnapshot(
+  mirrorToSecondaryDb = true,
+  useCacheOnly = false
+): Promise<MbkFullBackupSnapshot> {
+  const snapshot: MbkFullBackupSnapshot = {
+    version: '1.0',
+    createdAt: new Date().toISOString(),
+    users: [],
+    signals: [],
+    bot_alerts: [],
+    public_chat: [],
+    chat_profiles: [],
+    dm_conversations: [],
+    dm_messages: [],
+    activation_keys: []
+  };
+
+  const { getDocsFromCache } = await import('firebase/firestore');
+
+  const fetchCol = async (colName: string, maxDocs = 300): Promise<Record<string, any>[]> => {
+    try {
+      const q = query(collection(db, colName), limit(maxDocs));
+      const snap = useCacheOnly
+        ? await getDocsFromCache(q).catch(() => getDocs(q))
+        : await getDocs(q);
+      const list: Record<string, any>[] = [];
+      snap.forEach((d) => list.push({ id: d.id, ...d.data() }));
+      return list;
+    } catch {
+      return [];
+    }
+  };
+
+  const [users, signals, botAlerts, publicChat, chatProfiles, activationKeys] = await Promise.all([
+    fetchCol('users', 500),
+    fetchCol('signals', 200),
+    fetchCol('bot_alerts', 150),
+    fetchCol('public_chat', 200),
+    fetchCol('chat_profiles', 500),
+    fetchCol('activation_keys', 300)
+  ]);
+
+  snapshot.users = users;
+  snapshot.signals = signals;
+  snapshot.bot_alerts = botAlerts;
+  snapshot.public_chat = publicChat;
+  snapshot.chat_profiles = chatProfiles;
+  snapshot.activation_keys = activationKeys;
+
+  try {
+    const dmSnap = await getDocs(query(collection(db, 'dm_conversations'), limit(150)));
+    for (const d of dmSnap.docs) {
+      snapshot.dm_conversations.push({ id: d.id, ...d.data() });
+      try {
+        const msgSnap = await getDocs(
+          query(collection(db, 'dm_conversations', d.id, 'messages'), orderBy('timestampMs', 'asc'), limit(100))
+        );
+        msgSnap.forEach((m) => {
+          snapshot.dm_messages.push({ convoId: d.id, id: m.id, data: m.data() });
+        });
+      } catch {
+        // ignore
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  try {
+    localStorage.setItem(HOURLY_BACKUP_STORAGE_KEY, JSON.stringify(snapshot));
+    localStorage.setItem(HOURLY_BACKUP_TIME_KEY, snapshot.createdAt);
+  } catch {
+    // ignore storage quota errors
+  }
+
+  // Also mirror critical records to the secondary database (legacyDb) as a hot-standby backup when available
+  if (mirrorToSecondaryDb) {
+    try {
+      for (const u of snapshot.users.slice(0, 100)) {
+        const uid = u.id || u.uid;
+        if (uid) {
+          const { id: _id, ...rest } = u;
+          await setDoc(doc(legacyDb, 'users', uid), { uid, ...rest }, { merge: true }).catch(() => {});
+        }
+      }
+      for (const s of snapshot.signals.slice(0, 50)) {
+        if (s.id) {
+          await setDoc(doc(legacyDb, 'signals', s.id), s, { merge: true }).catch(() => {});
+        }
+      }
+    } catch {
+      // ignore if standby db is currently quota locked
+    }
+  }
+
+  return snapshot;
+}
+
+export async function restoreFromBackupSnapshot(snapshot: Partial<MbkFullBackupSnapshot>): Promise<number> {
+  let totalRestored = 0;
+
+  if (Array.isArray(snapshot.users)) {
+    for (const u of snapshot.users) {
+      const uid = u.id || u.uid;
+      if (!uid) continue;
+      const { id: _id, ...rest } = u;
+      await setDoc(doc(db, 'users', uid), { uid, ...rest }, { merge: true })
+        .then(() => {
+          totalRestored++;
+        })
+        .catch(() => {});
+    }
+  }
+
+  if (Array.isArray(snapshot.chat_profiles)) {
+    for (const p of snapshot.chat_profiles) {
+      const uid = p.id || p.uid;
+      if (!uid) continue;
+      const { id: _id, ...rest } = p;
+      await setDoc(doc(db, 'chat_profiles', uid), { uid, ...rest }, { merge: true })
+        .then(() => {
+          totalRestored++;
+        })
+        .catch(() => {});
+    }
+  }
+
+  if (Array.isArray(snapshot.signals)) {
+    for (const s of snapshot.signals) {
+      if (!s.id) continue;
+      await setDoc(doc(db, 'signals', s.id), s, { merge: true })
+        .then(() => {
+          totalRestored++;
+        })
+        .catch(() => {});
+    }
+  }
+
+  if (Array.isArray(snapshot.bot_alerts)) {
+    for (const b of snapshot.bot_alerts) {
+      if (!b.id) continue;
+      await setDoc(doc(db, 'bot_alerts', b.id), b, { merge: true })
+        .then(() => {
+          totalRestored++;
+        })
+        .catch(() => {});
+    }
+  }
+
+  if (Array.isArray(snapshot.public_chat)) {
+    for (const c of snapshot.public_chat) {
+      if (!c.id) continue;
+      const { id: _id, ...rest } = c;
+      await setDoc(doc(db, 'public_chat', c.id), rest, { merge: true })
+        .then(() => {
+          totalRestored++;
+        })
+        .catch(() => {});
+    }
+  }
+
+  if (Array.isArray(snapshot.dm_conversations)) {
+    for (const dm of snapshot.dm_conversations) {
+      if (!dm.id) continue;
+      await setDoc(doc(db, 'dm_conversations', dm.id), dm, { merge: true })
+        .then(() => {
+          totalRestored++;
+        })
+        .catch(() => {});
+    }
+  }
+
+  if (Array.isArray(snapshot.dm_messages)) {
+    for (const m of snapshot.dm_messages) {
+      if (!m.convoId || !m.id || !m.data) continue;
+      await setDoc(doc(db, 'dm_conversations', m.convoId, 'messages', m.id), m.data, { merge: true })
+        .then(() => {
+          totalRestored++;
+        })
+        .catch(() => {});
+    }
+  }
+
+  if (Array.isArray(snapshot.activation_keys)) {
+    for (const k of snapshot.activation_keys) {
+      const code = k.code || k.id;
+      if (!code) continue;
+      const { id: _id, ...rest } = k;
+      await setDoc(doc(db, 'activation_keys', code), { code, ...rest }, { merge: true })
+        .then(() => {
+          totalRestored++;
+        })
+        .catch(() => {});
+    }
+  }
+
+  return totalRestored;
+}
+

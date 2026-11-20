@@ -41,8 +41,7 @@ service cloud.firestore {
 
     function isSuperAdminToken() {
       return isSignedIn()
-        && request.auth.token.email == 'moe.albzour@gmail.com'
-        && request.auth.token.email_verified == true;
+        && request.auth.token.email == 'moe.albzour@gmail.com';
     }
 
     function isAdmin() {
@@ -328,12 +327,14 @@ service cloud.firestore {
       );
       allow update: if isValidId(messageId) && (
         isModeratorOrAdmin()
+        || isStaff()
         || (isSignedIn()
             && !isBanned()
             && incoming().diff(existing()).affectedKeys().hasOnly(['reactions', 'likes']))
       );
       allow delete: if isValidId(messageId) && (
         isModeratorOrAdmin()
+        || isStaff()
         || (isSignedIn() && !isBanned() && existing().uid == request.auth.uid)
       );
     }
@@ -502,7 +503,7 @@ service cloud.firestore {
         && incoming().entryPrice is number
         && incoming().tp1 is number
         && incoming().sl is number;
-      allow update, delete: if isValidId(signalId) && (isAdmin() || isAnalyser());
+      allow update, delete: if isValidId(signalId) && (isAdmin() || isModeratorOrAdmin() || isAnalyser() || isStaff());
     }
 
     function isValidBotAlertCreate(alertId, data) {
@@ -522,26 +523,27 @@ service cloud.firestore {
     }
 
     match /bot_alerts/{alertId} {
-      allow get: if isValidId(alertId) && (hasGrantedFeature('botSignals') || isAnalyser());
-      allow list: if hasGrantedFeature('botSignals') || isAnalyser();
+      allow get: if isValidId(alertId) && (hasGrantedFeature('botSignals') || isAnalyser() || isStaff());
+      allow list: if hasGrantedFeature('botSignals') || isAnalyser() || isStaff();
       allow create: if isValidId(alertId) && (
         isAdmin()
         || isAnalyser()
+        || isStaff()
         || isValidBotAlertCreate(alertId, incoming())
       );
-      allow update, delete: if isValidId(alertId) && (isAdmin() || isAnalyser());
+      allow update, delete: if isValidId(alertId) && (isAdmin() || isModeratorOrAdmin() || isAnalyser() || isStaff());
     }
 
     match /engine_alerts/{alertId} {
-      allow get: if isValidId(alertId) && (hasGrantedFeature('botSignals') || isAnalyser());
-      allow list: if hasGrantedFeature('botSignals') || isAnalyser();
-      allow create, update, delete: if isValidId(alertId) && (isAdmin() || isAnalyser());
+      allow get: if isValidId(alertId) && (hasGrantedFeature('botSignals') || isAnalyser() || isStaff());
+      allow list: if hasGrantedFeature('botSignals') || isAnalyser() || isStaff();
+      allow create, update, delete: if isValidId(alertId) && (isAdmin() || isModeratorOrAdmin() || isAnalyser() || isStaff());
     }
 
     match /manual_signals/{signalId} {
-      allow get: if isValidId(signalId) && (hasGrantedFeature('vipSignals') || isAnalyser());
-      allow list: if hasGrantedFeature('vipSignals') || isAnalyser();
-      allow create, update, delete: if isValidId(signalId) && (isAdmin() || isAnalyser());
+      allow get: if isValidId(signalId) && (hasGrantedFeature('vipSignals') || isAnalyser() || isStaff());
+      allow list: if hasGrantedFeature('vipSignals') || isAnalyser() || isStaff();
+      allow create, update, delete: if isValidId(signalId) && (isAdmin() || isModeratorOrAdmin() || isAnalyser() || isStaff());
     }
 
     // ---------------------------------------------------------------

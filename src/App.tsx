@@ -77,32 +77,11 @@ export default function App() {
     soundManager.setMuted(next);
   };
 
-  // Global background recovery of legacy database & local IndexedDB caches into (default)
+  // One-time merge on login so any new General Chat & DM messages from yesterday's failover DB are merged with the restored original database
   useEffect(() => {
-    if (!currentUser?.uid && !currentUser?.id) return;
-    let cancelled = false;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-
-    const runGlobalRecovery = async () => {
-      if (cancelled) return;
-      try {
-        const stats = await syncAllLegacyDataToDefaultDb();
-        if (!cancelled && stats.legacyDbStatus === 'quota_locked') {
-          timer = setTimeout(runGlobalRecovery, 30000);
-        }
-      } catch {
-        if (!cancelled) {
-          timer = setTimeout(runGlobalRecovery, 45000);
-        }
-      }
-    };
-
-    runGlobalRecovery();
-
-    return () => {
-      cancelled = true;
-      if (timer) clearTimeout(timer);
-    };
+    const uid = currentUser?.uid || currentUser?.id;
+    if (!uid) return;
+    syncAllLegacyDataToDefaultDb(false).catch(() => {});
   }, [currentUser?.uid, currentUser?.id]);
 
   // Remote Force-Update Listener (Admin 1-Click Push Update to all Laptop, Mobile & PWA Shortcut Users)
@@ -242,6 +221,7 @@ export default function App() {
     const unsubscribe = subscribeToAuth((user) => {
       if (user) {
         setCurrentUser(user);
+        syncAllLegacyDataToDefaultDb(false).catch(() => {});
         setPageView((prev) => {
           if (pendingGoogleOnboardingRef.current || prev === 'register') {
             return prev;

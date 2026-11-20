@@ -138,11 +138,10 @@ export const DirectMessagesPanel: React.FC<Props> = ({
     setTimeout(() => setFeedback(null), 4000);
   };
 
-  // Sync own lightweight directory profile so other users can reach us + recover any legacy DMs
+  // Sync own lightweight directory profile so other users can reach us
   useEffect(() => {
     if (!myUid) return;
     syncOwnChatProfile(user).catch(() => {});
-    syncAllLegacyDataToDefaultDb().catch(() => {});
   }, [myUid, user]);
 
   // Subscribe to own DM privacy settings, chat directory, and conversations

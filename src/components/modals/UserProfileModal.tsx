@@ -185,6 +185,7 @@ export const UserProfileModal: React.FC<Props> = ({
   }, []);
 
   useEffect(() => {
+    if (!isOpen) return;
     const targetUid = currentUserAuth?.uid || user.uid || user.id;
     if (!targetUid) return;
 

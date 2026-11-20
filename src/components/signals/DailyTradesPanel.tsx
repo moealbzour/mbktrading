@@ -17,12 +17,13 @@ import {
   Edit3
 } from 'lucide-react';
 import { doc, deleteDoc, updateDoc, collection, getDocs, writeBatch } from 'firebase/firestore';
-import { auth, db } from '../../lib/firebase';
+import { auth, db, legacyDb } from '../../lib/firebase';
 import { DailyTrade, UserProfile } from '../../types/trading';
 import { soundManager } from '../../utils/audio';
 import { useSignalsContext } from '../../context/SignalsContext';
 import { hasFeatureAccess } from '../../utils/entitlements';
 import { OperationType, reportFirestoreError } from '../../utils/firestoreError';
+import { markDocumentDeleted } from '../../utils/legacyDbRecovery';
 
 interface Props {
   user?: UserProfile | null;
@@ -72,7 +73,12 @@ export const DailyTradesPanel: React.FC<Props> = ({
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'RUNNING' | 'CLOSED'>('ALL');
 
   const roleUpper = (userRole || user?.role || 'FREE').toUpperCase();
-  const isRealAdmin = Boolean(isAdmin || user?.isAdmin || ['ADMIN', 'ANALYSER', 'ANALYST'].includes(roleUpper));
+  const isRealAdmin = Boolean(
+    isAdmin ||
+      user?.isAdmin ||
+      ['ADMIN', 'MODERATOR', 'ANALYSER', 'ANALYST'].includes(roleUpper) ||
+      auth.currentUser?.email?.toLowerCase() === 'moe.albzour@gmail.com'
+  );
   const hasVipSignalsAccess = user
     ? hasFeatureAccess(user, 'vipSignals')
     : Boolean(isVIP || isRealAdmin || ['VIP', 'ELITE', 'MODERATOR'].includes(roleUpper));
@@ -189,7 +195,12 @@ export const DailyTradesPanel: React.FC<Props> = ({
     setDeletingTrade(true);
     setDeleteTradeError(null);
     try {
+      markDocumentDeleted(cleanId);
       await deleteDoc(doc(db, targetCollection, cleanId));
+      const altCol = targetCollection === 'bot_alerts' ? 'signals' : 'bot_alerts';
+      await deleteDoc(doc(db, altCol, cleanId)).catch(() => {});
+      await deleteDoc(doc(legacyDb, targetCollection, cleanId)).catch(() => {});
+      await deleteDoc(doc(legacyDb, altCol, cleanId)).catch(() => {});
       soundManager.playProfitChime();
       addToast({
         title: isAr ? 'تم حذف الصفقة بنجاح' : 'Trade Deleted',

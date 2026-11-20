@@ -47,6 +47,7 @@ import {
 import { db, auth, legacyDb } from '../../lib/firebase';
 import { soundManager } from '../../utils/audio';
 import { UserProfile } from '../../types/trading';
+import { markDocumentDeleted, isDocumentDeleted } from '../../utils/legacyDbRecovery';
 
 export interface ChatReplyTo {
   id: string;
@@ -253,12 +254,14 @@ export const PublicTradingChat: React.FC<Props> = ({
     isInitialSnapshotRef.current = true;
 
     try {
-      const cachedRaw = localStorage.getItem('mbk_cached_public_chat_v1');
+      localStorage.removeItem('mbk_cached_public_chat_v1');
+      const cachedRaw = localStorage.getItem('mbk_cached_public_chat_v2');
       if (cachedRaw) {
         const parsed = JSON.parse(cachedRaw);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setMessages(parsed);
-          const pinned = [...parsed].reverse().find((m: ChatMessageItem) => m.isPinned) || null;
+          const validCached = parsed.filter((m: ChatMessageItem) => m && m.id && !isDocumentDeleted(m.id));
+          setMessages(validCached);
+          const pinned = [...validCached].reverse().find((m: ChatMessageItem) => m.isPinned) || null;
           setPinnedMessage(pinned);
         }
       }
@@ -266,11 +269,44 @@ export const PublicTradingChat: React.FC<Props> = ({
       // ignore
     }
 
+    const recentSecondaryMsgsMap = new Map<string, ChatMessageItem>();
+
+    const mapDocToChatItem = (docId: string, d: Record<string, any>): ChatMessageItem => {
+      const roleNormalized = (d.role || 'VIP').toString().toUpperCase();
+      const avatarUrl = d.photoURL || d.avatar || '';
+      const tsMs = typeof d.timestampMs === 'number' ? d.timestampMs : Date.now();
+
+      return {
+        id: docId,
+        uid: d.uid || d.userId || '',
+        user: d.displayName || d.user || 'VIP Trader',
+        avatar: avatarUrl,
+        role: roleNormalized,
+        text: d.text || '',
+        imageUrl: d.imageUrl || undefined,
+        imageCaption: d.imageCaption || undefined,
+        symbolTag: d.symbolTag || undefined,
+        replyTo: d.replyTo || undefined,
+        isPinned: Boolean(d.isPinned),
+        likes: Number(d.likes || 0),
+        reactions: d.reactions || {},
+        timestampMs: tsMs,
+        time: d.createdAt?.toDate
+          ? d.createdAt.toDate().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
+          : new Date(tsMs).toLocaleTimeString('ar-SA', {
+              hour: '2-digit',
+              minute: '2-digit'
+            })
+      };
+    };
+
     const chatQuery = query(
       collection(db, 'public_chat'),
       orderBy('timestampMs', 'asc'),
       limitToLast(80)
     );
+
+    let secondaryChecked = false;
 
     const unsubscribe = onSnapshot(
       chatQuery,
@@ -293,99 +329,69 @@ export const PublicTradingChat: React.FC<Props> = ({
         }
         isInitialSnapshotRef.current = false;
 
-        const list: ChatMessageItem[] = snapshot.docs.map((docSnap) => {
-          const d = docSnap.data();
-          const roleNormalized = (d.role || 'VIP').toString().toUpperCase();
-          const avatarUrl = d.photoURL || d.avatar || '';
-          const tsMs = typeof d.timestampMs === 'number' ? d.timestampMs : Date.now();
+        const primaryList: ChatMessageItem[] = snapshot.docs
+          .filter((docSnap) => !isDocumentDeleted(docSnap.id))
+          .map((docSnap) => mapDocToChatItem(docSnap.id, docSnap.data()));
 
-          return {
-            id: docSnap.id,
-            uid: d.uid || d.userId || '',
-            user: d.displayName || d.user || 'VIP Trader',
-            avatar: avatarUrl,
-            role: roleNormalized,
-            text: d.text || '',
-            imageUrl: d.imageUrl || undefined,
-            imageCaption: d.imageCaption || undefined,
-            symbolTag: d.symbolTag || undefined,
-            replyTo: d.replyTo || undefined,
-            isPinned: Boolean(d.isPinned),
-            likes: Number(d.likes || 0),
-            reactions: d.reactions || {},
-            timestampMs: tsMs,
-            time: d.createdAt?.toDate
-              ? d.createdAt.toDate().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
-              : new Date(tsMs).toLocaleTimeString('ar-SA', {
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })
-          };
-        });
+        // Determine the start timestamp of today's primary General Chat so old yesterday messages from secondary DB are never mixed in
+        const minPrimaryTs =
+          primaryList.length > 0
+            ? Math.min(...primaryList.map((m) => m.timestampMs || Date.now()))
+            : Date.now() - 12 * 60 * 60 * 1000;
 
-        // Merge with any locally cached General Chat messages so history is never wiped
-        const loadedIds = new Set(list.map((m) => m.id));
-        const isSuperAdmin =
-          auth.currentUser?.email?.toLowerCase() === 'moe.albzour@gmail.com' && auth.currentUser?.emailVerified;
-        try {
-          const cachedRaw = localStorage.getItem('mbk_cached_public_chat_v1');
-          if (cachedRaw) {
-            const parsed = JSON.parse(cachedRaw);
-            if (Array.isArray(parsed)) {
-              for (const cachedMsg of parsed) {
-                if (cachedMsg && cachedMsg.id && !loadedIds.has(cachedMsg.id)) {
-                  list.push(cachedMsg);
-                  loadedIds.add(cachedMsg.id);
-                  if (isSuperAdmin || (cachedMsg.uid && cachedMsg.uid === auth.currentUser?.uid)) {
-                    setDoc(doc(db, 'public_chat', cachedMsg.id), {
-                      uid: cachedMsg.uid || auth.currentUser?.uid || 'admin',
-                      displayName: (cachedMsg.user || 'MBK Trader').slice(0, 100),
-                      photoURL: cachedMsg.avatar || '',
-                      role: (cachedMsg.role || 'FREE').toString().toUpperCase(),
-                      text: (cachedMsg.text || '').slice(0, 500),
-                      ...(cachedMsg.imageUrl ? { imageUrl: cachedMsg.imageUrl } : {}),
-                      ...(cachedMsg.imageCaption ? { imageCaption: cachedMsg.imageCaption } : {}),
-                      ...(cachedMsg.symbolTag ? { symbolTag: cachedMsg.symbolTag } : {}),
-                      ...(cachedMsg.replyTo ? { replyTo: cachedMsg.replyTo } : {}),
-                      isPinned: Boolean(cachedMsg.isPinned),
-                      likes: Number(cachedMsg.likes || 0),
-                      reactions: cachedMsg.reactions || {},
-                      timestampMs: Number(cachedMsg.timestampMs || Date.now()),
-                      createdAt: serverTimestamp()
-                    }).catch(() => {});
-                  }
-                }
-              }
-            }
-          }
-        } catch {
-          // ignore
-        }
-
-        // Silent background sync from legacyDb public_chat once per session when readable
-        if (!(window as any).__mbkLegacyPublicChatSynced) {
-          (window as any).__mbkLegacyPublicChatSynced = true;
-          getDocs(query(collection(legacyDb, 'public_chat'), orderBy('timestampMs', 'asc'), limitToLast(80)))
-            .then((legacySnap) => {
-              legacySnap.forEach((legacyDoc) => {
-                if (!loadedIds.has(legacyDoc.id)) {
-                  const d = legacyDoc.data();
-                  if (isSuperAdmin || (d.uid && d.uid === auth.currentUser?.uid)) {
-                    setDoc(doc(db, 'public_chat', legacyDoc.id), d).catch(() => {});
+        if (!secondaryChecked) {
+          secondaryChecked = true;
+          getDocs(query(collection(legacyDb, 'public_chat'), orderBy('timestampMs', 'asc'), limitToLast(40)))
+            .then((secSnap) => {
+              let addedAny = false;
+              secSnap.docs.forEach((sDoc) => {
+                if (isDocumentDeleted(sDoc.id)) return;
+                const d = sDoc.data();
+                const ts = Number(d.timestampMs || 0);
+                // Strictly only include messages sent AFTER today's General Chat started (never yesterday's old chat!)
+                if (ts > minPrimaryTs) {
+                  recentSecondaryMsgsMap.set(sDoc.id, mapDocToChatItem(sDoc.id, d));
+                  addedAny = true;
+                  if (isCurrentAdmin || d.uid === auth.currentUser?.uid) {
+                    setDoc(doc(db, 'public_chat', sDoc.id), d, { merge: true }).catch(() => {});
                   }
                 }
               });
+              if (addedAny) {
+                setMessages((prev) => {
+                  const byId = new Map<string, ChatMessageItem>();
+                  prev.forEach((m) => {
+                    if (!isDocumentDeleted(m.id)) byId.set(m.id, m);
+                  });
+                  recentSecondaryMsgsMap.forEach((m, id) => {
+                    if (!isDocumentDeleted(id) && !byId.has(id)) byId.set(id, m);
+                  });
+                  const merged = Array.from(byId.values()).sort((a, b) => (a.timestampMs || 0) - (b.timestampMs || 0));
+                  try {
+                    localStorage.setItem('mbk_cached_public_chat_v2', JSON.stringify(merged));
+                  } catch {
+                    // ignore
+                  }
+                  return merged;
+                });
+              }
             })
             .catch(() => {});
         }
 
-        list.sort((a, b) => (a.timestampMs || 0) - (b.timestampMs || 0));
+        const combinedById = new Map<string, ChatMessageItem>();
+        primaryList.forEach((m) => combinedById.set(m.id, m));
+        recentSecondaryMsgsMap.forEach((m, id) => {
+          if (!isDocumentDeleted(id) && (m.timestampMs || 0) > minPrimaryTs && !combinedById.has(id)) {
+            combinedById.set(id, m);
+          }
+        });
+
+        const list = Array.from(combinedById.values()).sort((a, b) => (a.timestampMs || 0) - (b.timestampMs || 0));
 
         setMessages(list);
         try {
-          if (list.length > 0) {
-            localStorage.setItem('mbk_cached_public_chat_v1', JSON.stringify(list));
-          }
+          localStorage.setItem('mbk_cached_public_chat_v2', JSON.stringify(list));
         } catch {
           // ignore
         }
@@ -400,7 +406,7 @@ export const PublicTradingChat: React.FC<Props> = ({
     );
 
     return () => unsubscribe();
-  }, [canAccessChat, activeAuthUid]);
+  }, [canAccessChat, activeAuthUid, isCurrentAdmin]);
 
   // 1c. Anti-Spam Auto-Delete Sweep (> 2 identical/repeated messages by non-staff user)
   useEffect(() => {
@@ -699,7 +705,18 @@ export const PublicTradingChat: React.FC<Props> = ({
     if (!isCurrentAdmin) return;
     soundManager.playClick();
     try {
+      markDocumentDeleted(messageId);
       await deleteDoc(doc(db, 'public_chat', messageId));
+      await deleteDoc(doc(legacyDb, 'public_chat', messageId)).catch(() => {});
+      setMessages((prev) => {
+        const next = prev.filter((m) => m.id !== messageId);
+        try {
+          localStorage.setItem('mbk_cached_public_chat_v2', JSON.stringify(next));
+        } catch {
+          // ignore
+        }
+        return next;
+      });
       showToastNotice('success', isAr ? 'تم حذف الرسالة بنجاح' : 'Message deleted');
     } catch (err: any) {
       console.error('Delete message error:', err);

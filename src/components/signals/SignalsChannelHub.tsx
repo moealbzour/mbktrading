@@ -18,10 +18,11 @@ import { soundManager } from '../../utils/audio';
 import confetti from 'canvas-confetti';
 import { MarketTicker, MarketSymbol, UserProfile } from '../../types/trading';
 import { collection, addDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
-import { auth, db } from '../../lib/firebase';
+import { auth, db, legacyDb } from '../../lib/firebase';
 import { useLiveSignals, ChannelSignalItem, BotAlertItem } from '../../hooks/useLiveSignals';
 import { hasFeatureAccess } from '../../utils/entitlements';
 import { OperationType, reportFirestoreError } from '../../utils/firestoreError';
+import { markDocumentDeleted } from '../../utils/legacyDbRecovery';
 
 export type { ChannelSignalItem, BotAlertItem };
 
@@ -86,7 +87,12 @@ export const SignalsChannelHub: React.FC<Props> = ({
 
   const isAr = lang === 'ar';
   const roleUpper = (userRole || user?.role || 'FREE').toUpperCase();
-  const isRealAdmin = Boolean(isAdmin || user?.isAdmin || ['ADMIN', 'ANALYSER', 'ANALYST'].includes(roleUpper));
+  const isRealAdmin = Boolean(
+    isAdmin ||
+      user?.isAdmin ||
+      ['ADMIN', 'MODERATOR', 'ANALYSER', 'ANALYST'].includes(roleUpper) ||
+      auth.currentUser?.email?.toLowerCase() === 'moe.albzour@gmail.com'
+  );
   const hasVipSignalsAccess = user
     ? hasFeatureAccess(user, 'vipSignals')
     : Boolean(isVIP || isRealAdmin || ['VIP', 'ELITE', 'MODERATOR'].includes(roleUpper));
@@ -150,7 +156,12 @@ export const SignalsChannelHub: React.FC<Props> = ({
     setDeletingSignal(true);
     setDeleteSignalError(null);
     try {
+      markDocumentDeleted(cleanId);
       await deleteDoc(doc(db, targetCollection, cleanId));
+      const altCol = targetCollection === 'bot_alerts' ? 'signals' : 'bot_alerts';
+      await deleteDoc(doc(db, altCol, cleanId)).catch(() => {});
+      await deleteDoc(doc(legacyDb, targetCollection, cleanId)).catch(() => {});
+      await deleteDoc(doc(legacyDb, altCol, cleanId)).catch(() => {});
       soundManager.playProfitChime();
       addToast({
         title: isAr ? 'تم حذف الصفقة بنجاح' : 'Trade Deleted',

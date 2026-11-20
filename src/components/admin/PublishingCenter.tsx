@@ -12,6 +12,7 @@ import {
   limit
 } from 'firebase/firestore';
 import { db, legacyDb } from '../../lib/firebase';
+import { markDocumentDeleted } from '../../utils/legacyDbRecovery';
 import {
   Send,
   ShieldAlert,
@@ -152,42 +153,6 @@ export const PublishingCenter: React.FC<Props> = ({
         id: docSnap.id,
         ...docSnap.data()
       }));
-      const loadedIds = new Set(items.map((it) => it.id));
-
-      // Also merge any locally cached signals and sync missing ones to (default)
-      try {
-        const rawCached = localStorage.getItem('mbk_cached_signals_v1');
-        if (rawCached) {
-          const parsedCached = JSON.parse(rawCached);
-          if (Array.isArray(parsedCached)) {
-            for (const cSig of parsedCached) {
-              if (cSig && cSig.id && !loadedIds.has(cSig.id)) {
-                items.push(cSig);
-                loadedIds.add(cSig.id);
-              }
-            }
-          }
-        }
-      } catch {
-        // ignore
-      }
-
-      // Attempt background fetch from legacyDb when readable
-      try {
-        const legacySnap = await getDocs(query(collection(legacyDb, 'signals'), orderBy('timestampMs', 'desc'), limit(30)));
-        legacySnap.forEach((legacyDoc) => {
-          if (!loadedIds.has(legacyDoc.id)) {
-            const d = legacyDoc.data();
-            items.push({ id: legacyDoc.id, ...d });
-            loadedIds.add(legacyDoc.id);
-            if (isAuthorized) {
-              setDoc(doc(db, 'signals', legacyDoc.id), d, { merge: true }).catch(() => {});
-            }
-          }
-        });
-      } catch {
-        // legacyDb still in daily free-tier cooldown
-      }
 
       items.sort((a, b) => (Number(b.timestampMs) || 0) - (Number(a.timestampMs) || 0));
       setPublishedSignals(items);
@@ -311,7 +276,9 @@ export const PublishingCenter: React.FC<Props> = ({
   const handleDeleteSignal = async (id: string) => {
     try {
       soundManager.playClick();
+      markDocumentDeleted(id);
       await deleteDoc(doc(db, 'signals', id));
+      await deleteDoc(doc(legacyDb, 'signals', id)).catch(() => {});
       setPublishedSignals((prev) => prev.filter((s) => s.id !== id));
       setConfirmDeleteId(null);
       showFeedback('info', isAr ? 'تم حذف الإشارة من قاعدة البيانات بنجاح' : 'Signal deleted from Firestore');
