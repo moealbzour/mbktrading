@@ -759,41 +759,68 @@ export function subscribeToAuth(onUserChange: (user: UserProfile | null) => void
       return;
     }
 
+    const isSuperAdmin =
+      Boolean(firebaseUser.emailVerified) &&
+      firebaseUser.email?.toLowerCase() === SUPER_ADMIN_EMAIL;
+
+    // Immediately emit super-admin or cached profile so UI never stalls or loses admin access on quota limits
+    if (isSuperAdmin) {
+      onUserChange(mapUserDocToProfile(firebaseUser, { role: 'admin', tier: 'elite', isVip: true, isElite: true }));
+    } else {
+      try {
+        const cachedRaw = localStorage.getItem('mbk_user');
+        if (cachedRaw) {
+          const cachedUser = JSON.parse(cachedRaw);
+          if (cachedUser && cachedUser.id === firebaseUser.uid) {
+            onUserChange(cachedUser);
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+
     const userDocRef = doc(db, 'users', firebaseUser.uid);
 
-    if (!pendingRegistrationUids.has(firebaseUser.uid)) {
-      try {
-        const initialSnap = await getDoc(userDocRef);
-        if (!initialSnap.exists()) {
-          await fetchOrCreateUserRegistry(firebaseUser);
+    unsubDoc = onSnapshot(
+      userDocRef,
+      async (docSnap) => {
+        if (!docSnap.exists() && !pendingRegistrationUids.has(firebaseUser.uid)) {
+          try {
+            await fetchOrCreateUserRegistry(firebaseUser);
+          } catch (err) {
+            console.warn('Error creating user profile doc:', err);
+          }
         }
-
-        if (
-          firebaseUser.emailVerified &&
-          firebaseUser.email?.toLowerCase() === SUPER_ADMIN_EMAIL &&
-          initialSnap.exists() &&
-          initialSnap.data()?.role !== 'admin'
-        ) {
+        const data = docSnap.exists() ? docSnap.data() : {};
+        if (isSuperAdmin && docSnap.exists() && data.role !== 'admin') {
           try {
             await updateDoc(userDocRef, { role: 'admin', updatedAt: serverTimestamp() });
           } catch {
             // ignore
           }
         }
-      } catch (err) {
-        console.warn('Error ensuring user profile doc:', err);
-      }
-    }
-
-    unsubDoc = onSnapshot(
-      userDocRef,
-      (docSnap) => {
-        const data = docSnap.exists() ? docSnap.data() : {};
         onUserChange(mapUserDocToProfile(firebaseUser, data));
       },
       (err) => {
-        console.warn('Error listening to Firestore user registry:', err);
-        onUserChange(mapUserDocToProfile(firebaseUser, {}));
+        console.warn('Firestore user profile listener notice:', err?.message || err);
+        try {
+          const cachedRaw = localStorage.getItem('mbk_user');
+          if (cachedRaw) {
+            const cachedUser = JSON.parse(cachedRaw);
+            if (cachedUser && cachedUser.id === firebaseUser.uid) {
+              if (isSuperAdmin) {
+                cachedUser.role = 'ADMIN';
+                cachedUser.isAdmin = true;
+              }
+              onUserChange(cachedUser);
+              return;
+            }
+          }
+        } catch {
+          // ignore
+        }
+        onUserChange(mapUserDocToProfile(firebaseUser, isSuperAdmin ? { role: 'admin' } : {}));
       }
     );
   });

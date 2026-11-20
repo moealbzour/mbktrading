@@ -94,7 +94,29 @@ const SignalsContext = createContext<SignalsContextValue>({
 });
 
 const SUPER_ADMIN_EMAIL = 'moe.albzour@gmail.com';
-const LIVE_SIGNALS_LIMIT = 30;
+const LIVE_SIGNALS_LIMIT = 20;
+const CACHED_SIGNALS_KEY = 'mbk_cached_signals_v1';
+const CACHED_TRADES_KEY = 'mbk_cached_trades_v1';
+const CACHED_BOT_ALERTS_KEY = 'mbk_cached_bot_alerts_v1';
+
+function isFirestoreQuotaError(error: any): boolean {
+  const code = String(error?.code || '').toLowerCase();
+  const msg = String(error?.message || error || '').toLowerCase();
+  return code === 'resource-exhausted' || msg.includes('quota') || msg.includes('resource-exhausted');
+}
+
+function readCachedJson<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed as unknown as T;
+    }
+  } catch {
+    // ignore
+  }
+  return fallback;
+}
 
 function mapRawUserToProfile(userData: Record<string, any> | undefined): Partial<UserProfile> | null {
   if (!userData) return null;
@@ -116,9 +138,15 @@ function mapRawUserToProfile(userData: Record<string, any> | undefined): Partial
 }
 
 export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [signals, setSignals] = useState<ChannelSignalItem[]>([]);
-  const [rawTrades, setRawTrades] = useState<DailyTrade[]>([]);
-  const [botAlerts, setBotAlerts] = useState<BotAlertItem[]>([]);
+  const [signals, setSignals] = useState<ChannelSignalItem[]>(() =>
+    readCachedJson<ChannelSignalItem[]>(CACHED_SIGNALS_KEY, [])
+  );
+  const [rawTrades, setRawTrades] = useState<DailyTrade[]>(() =>
+    readCachedJson<DailyTrade[]>(CACHED_TRADES_KEY, [])
+  );
+  const [botAlerts, setBotAlerts] = useState<BotAlertItem[]>(() =>
+    readCachedJson<BotAlertItem[]>(CACHED_BOT_ALERTS_KEY, [])
+  );
   const [loading, setLoading] = useState<boolean>(true);
   const [botAlertsLoading, setBotAlertsLoading] = useState<boolean>(true);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
@@ -463,18 +491,33 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
           liveSignals.sort((a, b) => (b.timestampMs || 0) - (a.timestampMs || 0));
           liveTrades.sort((a, b) => (b.timestampMs || 0) - (a.timestampMs || 0));
 
-          setSignals(() => liveSignals.slice(0, LIVE_SIGNALS_LIMIT));
-          setRawTrades(() => liveTrades.slice(0, LIVE_SIGNALS_LIMIT));
+          const nextSignals = liveSignals.slice(0, LIVE_SIGNALS_LIMIT);
+          const nextTrades = liveTrades.slice(0, LIVE_SIGNALS_LIMIT);
+
+          setSignals(() => nextSignals);
+          setRawTrades(() => nextTrades);
+          try {
+            localStorage.setItem(CACHED_SIGNALS_KEY, JSON.stringify(nextSignals));
+            localStorage.setItem(CACHED_TRADES_KEY, JSON.stringify(nextTrades));
+          } catch {
+            // ignore storage errors
+          }
           isFirstSignalsSnapshot = false;
           setLoading(false);
         } catch (procErr: any) {
-          console.error('[SignalsContext ERROR] Exception in signals snapshot handler:', procErr);
-          setDbError(`[Signals processing error]: ${procErr?.message || String(procErr)}`);
+          console.warn('[SignalsContext] Signals snapshot processing notice:', procErr?.message || procErr);
           setLoading(false);
         }
       },
       (error) => {
-        console.error('[Firestore Signals onSnapshot Error]:', error);
+        if (isFirestoreQuotaError(error)) {
+          console.warn(
+            '[SignalsContext] Firestore daily read quota reached for signals; serving cached signals until quota resets.'
+          );
+          setLoading(false);
+          return;
+        }
+        console.warn('[SignalsContext] Firestore signals listener notice:', error?.message || error);
         const errMsg = error?.message || String(error);
         setDbError(`[Firestore signals collection error]: ${errMsg}`);
         setLoading(false);
@@ -532,22 +575,30 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
             });
 
             rawAlerts.sort((a, b) => (b.timestampMs || 0) - (a.timestampMs || 0));
+            const nextBotAlerts = rawAlerts.slice(0, LIVE_SIGNALS_LIMIT);
 
-            setBotAlerts(() => rawAlerts.slice(0, LIVE_SIGNALS_LIMIT));
+            setBotAlerts(() => nextBotAlerts);
+            try {
+              localStorage.setItem(CACHED_BOT_ALERTS_KEY, JSON.stringify(nextBotAlerts));
+            } catch {
+              // ignore storage errors
+            }
             isFirstBotSnapshot = false;
             setBotAlertsLoading(false);
           } catch (procErr: any) {
-            console.error('[SignalsContext ERROR] Exception in bot_alerts snapshot handler:', procErr);
-            setDbError((prev) =>
-              prev
-                ? `${prev} | [Bot alerts processing error]: ${procErr?.message || String(procErr)}`
-                : `[Bot alerts processing error]: ${procErr?.message || String(procErr)}`
-            );
+            console.warn('[SignalsContext] bot_alerts snapshot processing notice:', procErr?.message || procErr);
             setBotAlertsLoading(false);
           }
         },
         (error) => {
-          console.error('[Firestore Bot Alerts onSnapshot Error]:', error);
+          if (isFirestoreQuotaError(error)) {
+            console.warn(
+              '[SignalsContext] Firestore daily read quota reached for bot_alerts; serving cached bot alerts until quota resets.'
+            );
+            setBotAlertsLoading(false);
+            return;
+          }
+          console.warn('[SignalsContext] Firestore bot_alerts listener notice:', error?.message || error);
           const errMsg = error?.message || String(error);
           setDbError((prev) =>
             prev

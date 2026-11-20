@@ -49,7 +49,7 @@ import {
   Megaphone
 } from 'lucide-react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, setDoc, onSnapshot, collection, updateDoc, deleteDoc, writeBatch, serverTimestamp, getDocs } from 'firebase/firestore';
+import { doc, setDoc, onSnapshot, collection, updateDoc, deleteDoc, writeBatch, serverTimestamp, getDocs, query, limit } from 'firebase/firestore';
 import { auth, db } from '../../lib/firebase';
 import { soundManager } from '../../utils/audio';
 import { formatKeyDurationLabel } from '../../utils/activationKeyService';
@@ -163,7 +163,14 @@ export const AdminDashboard: React.FC<Props> = ({
   onClose
 }) => {
   const isAr = lang === 'ar';
-  const [firestoreRole, setFirestoreRole] = useState<string | null>(null);
+  const [firestoreRole, setFirestoreRole] = useState<string | null>(() => {
+    if (auth.currentUser?.email?.toLowerCase() === 'moe.albzour@gmail.com') {
+      return 'admin';
+    }
+    return null;
+  });
+  const [dbQuotaExceeded, setDbQuotaExceeded] = useState<boolean>(false);
+  const [crmRetryTick, setCrmRetryTick] = useState<number>(0);
 
   // Check logged-in user's role from Firestore 'users' collection
   useEffect(() => {
@@ -172,22 +179,26 @@ export const AdminDashboard: React.FC<Props> = ({
         setFirestoreRole(null);
         return;
       }
+      if (authUser.email?.toLowerCase() === 'moe.albzour@gmail.com') {
+        setFirestoreRole('admin');
+        return;
+      }
       try {
         const userDocRef = doc(db, 'users', authUser.uid);
-        const unsubDoc = onSnapshot(userDocRef, (docSnap) => {
-          if (authUser.email?.toLowerCase() === 'moe.albzour@gmail.com') {
-            setFirestoreRole('admin');
-            return;
+        const unsubDoc = onSnapshot(
+          userDocRef,
+          (docSnap) => {
+            if (docSnap.exists()) {
+              const data = docSnap.data();
+              setFirestoreRole((data.role || 'free').toString().toLowerCase());
+            } else {
+              setFirestoreRole('free');
+            }
+          },
+          (err) => {
+            console.warn('Admin role Firestore check notice:', err);
           }
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            setFirestoreRole((data.role || 'free').toString().toLowerCase());
-          } else {
-            setFirestoreRole('free');
-          }
-        }, (err) => {
-          console.warn('Admin role Firestore check notice:', err);
-        });
+        );
 
         return () => unsubDoc();
       } catch (err) {
@@ -199,7 +210,14 @@ export const AdminDashboard: React.FC<Props> = ({
   }, []);
 
   // Staff roles allowed to access dashboard: admin, moderator, sales, analyser
-  const effectiveRole = (firestoreRole || currentRole || '').toString().toLowerCase();
+  const effectiveRole = (
+    firestoreRole ||
+    (auth.currentUser?.email?.toLowerCase() === 'moe.albzour@gmail.com' ? 'admin' : '') ||
+    currentRole ||
+    ''
+  )
+    .toString()
+    .toLowerCase();
   const isStaff =
     ['admin', 'moderator', 'sales', 'analyser', 'analyst'].includes(effectiveRole) ||
     Boolean(isAdmin);
@@ -217,10 +235,21 @@ export const AdminDashboard: React.FC<Props> = ({
   }, [isAnalyserOnly, activeTab]);
 
   // ================= ACTIVATION KEYS & TRIAL GENERATOR STATE =================
-  const [activationKeys, setActivationKeys] = useState<ActivationKeyRecord[]>([]);
+  const [activationKeys, setActivationKeys] = useState<ActivationKeyRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem('mbk_admin_cached_keys_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {
+      // ignore
+    }
+    return [];
+  });
   const [bulkKeyTier, setBulkKeyTier] = useState<'vip' | 'elite'>('vip');
   const [selectedKeyDays, setSelectedKeyDays] = useState<number>(30);
-  const [bulkKeyQuantity, setBulkKeyQuantity] = useState<number>(200);
+  const [bulkKeyQuantity, setBulkKeyQuantity] = useState<number>(50);
   const [isGeneratingKey, setIsGeneratingKey] = useState<boolean>(false);
   const [copiedKeyCode, setCopiedKeyCode] = useState<string | null>(null);
   const [lastGeneratedBatch, setLastGeneratedBatch] = useState<ActivationKeyRecord[]>([]);
@@ -236,7 +265,18 @@ export const AdminDashboard: React.FC<Props> = ({
   const [lastGeneratedTrialBatch, setLastGeneratedTrialBatch] = useState<ActivationKeyRecord[]>([]);
 
   // ================= USERS & CRM STATE =================
-  const [users, setUsers] = useState<AdminUserRecord[]>([]);
+  const [users, setUsers] = useState<AdminUserRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem('mbk_admin_cached_users_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {
+      // ignore
+    }
+    return [];
+  });
   const [usersLoading, setUsersLoading] = useState(true);
   const [userSearch, setUserSearch] = useState('');
   const [userFilterTab, setUserFilterTab] = useState<'ALL' | 'EXPIRING_SOON' | 'VIP' | 'ELITE' | 'FREE' | 'BANNED' | 'MUTED' | 'STAFF'>('ALL');
@@ -470,41 +510,55 @@ export const AdminDashboard: React.FC<Props> = ({
     }
   };
 
-  // ================= REAL-TIME FIRESTORE ACTIVATION KEYS LISTENER =================
+  // ================= REAL-TIME FIRESTORE ACTIVATION KEYS LISTENER (LAZY-LOADED ON KEYS TAB) =================
   useEffect(() => {
-    if (!isStaff) return;
+    if (!isStaff || activeTab !== 'keys') return;
     try {
-      const unsubKeys = onSnapshot(collection(db, 'activation_keys'), (snapshot) => {
-        const keysList: ActivationKeyRecord[] = [];
-        snapshot.forEach((docSnap) => {
-          const data = docSnap.data();
-          const days = Number(data.durationInDays || 30);
-          keysList.push({
-            id: docSnap.id,
-            code: data.code || docSnap.id,
-            durationInDays: days,
-            durationLabel: data.durationLabel || formatKeyDurationLabel(days),
-            keyType: data.keyType || (data.grantTier === 'elite' ? 'elite' : data.grantTier === 'custom' ? 'trial' : 'vip'),
-            grantTier: data.grantTier || 'vip',
-            grantFeatures: Array.isArray(data.grantFeatures) ? data.grantFeatures : [],
-            status: data.status || 'active',
-            createdAt: data.createdAt || '',
-            createdBy: data.createdBy || '',
-            usedByUserId: data.usedByUserId || '',
-            usedByUserEmail: data.usedByUserEmail || '',
-            usedAt: data.usedAt || ''
+      const keysQuery = query(collection(db, 'activation_keys'), limit(150));
+      const unsubKeys = onSnapshot(
+        keysQuery,
+        (snapshot) => {
+          const keysList: ActivationKeyRecord[] = [];
+          snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            const days = Number(data.durationInDays || 30);
+            keysList.push({
+              id: docSnap.id,
+              code: data.code || docSnap.id,
+              durationInDays: days,
+              durationLabel: data.durationLabel || formatKeyDurationLabel(days),
+              keyType: data.keyType || (data.grantTier === 'elite' ? 'elite' : data.grantTier === 'custom' ? 'trial' : 'vip'),
+              grantTier: data.grantTier || 'vip',
+              grantFeatures: Array.isArray(data.grantFeatures) ? data.grantFeatures : [],
+              status: data.status || 'active',
+              createdAt: data.createdAt || '',
+              createdBy: data.createdBy || '',
+              usedByUserId: data.usedByUserId || '',
+              usedByUserEmail: data.usedByUserEmail || '',
+              usedAt: data.usedAt || ''
+            });
           });
-        });
-        keysList.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-        setActivationKeys(keysList);
-      }, (err) => {
-        console.warn('activation_keys snapshot warning:', err);
-      });
+          keysList.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+          setActivationKeys(keysList);
+          try {
+            localStorage.setItem('mbk_admin_cached_keys_v1', JSON.stringify(keysList));
+          } catch {
+            // ignore
+          }
+        },
+        (err: any) => {
+          const msg = String(err?.message || err || '').toLowerCase();
+          if (err?.code === 'resource-exhausted' || msg.includes('quota')) {
+            setDbQuotaExceeded(true);
+          }
+          console.warn('activation_keys snapshot warning:', err?.message || err);
+        }
+      );
       return () => unsubKeys();
     } catch (err) {
       console.warn('activation_keys listener error:', err);
     }
-  }, [isStaff]);
+  }, [isStaff, activeTab, crmRetryTick]);
 
   const generateSecureRandomCode = (tag: string): string => {
     const charset = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -800,19 +854,69 @@ export const AdminDashboard: React.FC<Props> = ({
           });
         });
 
-        setUsers(loadedUsers);
-        setUsersLoading(false);
-      }, (err) => {
-        console.warn('Firestore CRM users subscription notice:', err);
-        setUsersLoading(false);
-      });
+          setUsers(loadedUsers);
+          setDbQuotaExceeded(false);
+          try {
+            if (loadedUsers.length > 0) {
+              localStorage.setItem('mbk_admin_cached_users_v1', JSON.stringify(loadedUsers));
+            }
+          } catch {
+            // ignore
+          }
+          setUsersLoading(false);
+        },
+        (err: any) => {
+          const msg = String(err?.message || err || '').toLowerCase();
+          if (err?.code === 'resource-exhausted' || msg.includes('quota')) {
+            setDbQuotaExceeded(true);
+          }
+          console.warn('Firestore CRM users subscription notice:', err?.message || err);
+          // Fallback to cached users or current signed-in admin if no cached list exists yet
+          setUsers((prev) => {
+            if (prev.length > 0) return prev;
+            if (auth.currentUser) {
+              return [
+                {
+                  id: auth.currentUser.uid,
+                  uid: auth.currentUser.uid,
+                  username: auth.currentUser.email ? auth.currentUser.email.split('@')[0] : 'admin',
+                  email: auth.currentUser.email || 'moe.albzour@gmail.com',
+                  role: 'ADMIN',
+                  tier: 'elite',
+                  isVip: true,
+                  vipAccess: true,
+                  isElite: true,
+                  vipExpiryDate: null,
+                  eliteExpiryDate: null,
+                  grantedFeatures: {},
+                  displayName: auth.currentUser.displayName || 'MBK Super Admin',
+                  phone: '',
+                  country: 'Global',
+                  dob: '',
+                  experienceLevel: 'Pro',
+                  assetClasses: [],
+                  favoritePairs: '',
+                  totalPaid: 0,
+                  isBanned: false,
+                  isMutedFromChat: false,
+                  subscriptionStatus: 'active',
+                  subscriptionEndDate: null,
+                  createdAt: '2026'
+                }
+              ];
+            }
+            return prev;
+          });
+          setUsersLoading(false);
+        }
+      );
 
       return () => unsub();
     } catch (err) {
       console.warn('CRM setup error:', err);
       setUsersLoading(false);
     }
-  }, [isStaff]);
+  }, [isStaff, crmRetryTick]);
 
   // ================= EXPIRING SOON ALERTS COMPUTATION (Next 72 Hours) =================
   const expiringSoonUsers = users.filter((u) => {
@@ -1300,6 +1404,54 @@ export const AdminDashboard: React.FC<Props> = ({
           <button onClick={() => setFeedback(null)} className="cursor-pointer hover:opacity-80">
             <X className="w-4 h-4" />
           </button>
+        </div>
+      )}
+
+      {/* Firestore Free-Tier Daily Read Quota Warning & 1-Click Console Upgrade Banner */}
+      {dbQuotaExceeded && (
+        <div className="px-4 sm:px-6 py-3.5 bg-amber-500/15 border-b border-amber-500/40 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-start sm:items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5 sm:mt-0" />
+            <div className="space-y-0.5">
+              <div className="text-xs font-extrabold text-amber-300">
+                {isAr
+                  ? 'تنبيه من Google Firebase: وصلت قاعدة البيانات للحد اليومي المجاني للقراءة (50,000 قراءة/يوم)'
+                  : 'Google Firebase Notice: Database reached its Free Daily Read Quota (50,000 reads/day)'}
+              </div>
+              <p className="text-[11px] text-[#d1d4dc] leading-relaxed">
+                {isAr
+                  ? 'يتم حالياً عرض البيانات المخزنة مؤقتاً (Cached Mode). لفتح القراءة المباشرة غير المحدودة لعملائك فوراً دون انتظار إعادة التعيين اليومي، اضغط على زر الترقية أدناه في لوحة Firebase.'
+                  : 'Showing locally cached records. To unlock unlimited live database reads immediately without waiting for tomorrow’s reset, upgrade the database instance in Firebase Console.'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <a
+              href="https://console.firebase.google.com/project/mbktrading-8dc98/firestore/databases/ai-studio-mbktrading-5c717851-cdb4-4a97-a0f4-f006f13d6c7b/data?openUpgradeDialog=true"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs transition-all flex items-center gap-1.5 shadow-md"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>
+                {isAr
+                  ? '🔓 ترقية قاعدة البيانات في Firebase لرفع الحد'
+                  : '🔓 Upgrade Database in Firebase Console'}
+              </span>
+            </a>
+            <button
+              type="button"
+              onClick={() => {
+                soundManager.playClick();
+                setCrmRetryTick((t) => t + 1);
+              }}
+              className="px-3 py-2 rounded-xl bg-[#2a2e39] hover:bg-[#363a45] text-white font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>{isAr ? 'إعادة المحاولة' : 'Retry'}</span>
+            </button>
+          </div>
         </div>
       )}
 

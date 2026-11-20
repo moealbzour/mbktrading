@@ -1,6 +1,14 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import { getFirestore, doc, getDocFromServer } from "firebase/firestore";
+import {
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  doc,
+  getDocFromServer,
+  Firestore
+} from "firebase/firestore";
 import config from "../firebase-applet-config.json";
 
 const firebaseConfig = {
@@ -18,11 +26,29 @@ export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
-export const db = config.firestoreDatabaseId && config.firestoreDatabaseId !== '(default)'
-  ? getFirestore(app, config.firestoreDatabaseId)
-  : getFirestore(app);
+function initDb(): Firestore {
+  const dbId =
+    config.firestoreDatabaseId && config.firestoreDatabaseId !== '(default)'
+      ? config.firestoreDatabaseId
+      : undefined;
+  try {
+    return initializeFirestore(
+      app,
+      {
+        localCache: persistentLocalCache({
+          tabManager: persistentMultipleTabManager()
+        })
+      },
+      dbId
+    );
+  } catch {
+    return dbId ? getFirestore(app, dbId) : getFirestore(app);
+  }
+}
 
-// Connection check to validate Firestore on boot
+export const db = initDb();
+
+// Optional connection check helper
 export async function testConnection() {
   try {
     await getDocFromServer(doc(db, 'signals', 'connection-check'));
@@ -32,4 +58,3 @@ export async function testConnection() {
     }
   }
 }
-testConnection().catch(() => {});

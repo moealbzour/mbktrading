@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { doc, onSnapshot, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from './lib/firebase';
 import {
   MarketSymbol,
@@ -116,7 +116,7 @@ export default function App() {
           // ignore
         }
 
-        // If the user previously had an older version (or never synced this push), purge caches & reload while keeping mbk_user signed in!
+        // Purge caches & reload while keeping mbk_user signed in
         setIsApplyingRemoteUpdate(true);
 
         try {
@@ -165,31 +165,12 @@ export default function App() {
         }
       },
       () => {
-        // ignore snapshot permission/network transient notice
+        // ignore snapshot permission/quota transient notice
       }
     );
 
-    // Also check immediately when a user opens/resumes their installed PWA home screen shortcut
-    const handleVisibilityOrFocus = async () => {
-      if (document.visibilityState === 'visible' && !isReloadingRef.current) {
-        try {
-          const snap = await getDoc(versionRef);
-          if (snap.exists()) {
-            applyRemoteVersionIfNeeded(snap.data());
-          }
-        } catch {
-          // ignore
-        }
-      }
-    };
-
-    window.addEventListener('focus', handleVisibilityOrFocus);
-    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
-
     return () => {
       unsubVersion();
-      window.removeEventListener('focus', handleVisibilityOrFocus);
-      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
     };
   }, []);
 
