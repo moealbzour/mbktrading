@@ -3,7 +3,7 @@
   "appId": "1:517824449905:web:7c51ad7b5008b33a8f7ad0",
   "apiKey": "AIzaSyCgNCyANwJ9CJmTJX0HKH-ssGHlfktF0L8",
   "authDomain": "mbktrading-8dc98.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-mbktrading-5c717851-cdb4-4a97-a0f4-f006f13d6c7b",
+  "firestoreDatabaseId": "(default)",
   "storageBucket": "mbktrading-8dc98.firebasestorage.app",
   "messagingSenderId": "517824449905",
   "measurementId": "",

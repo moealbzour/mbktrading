@@ -47,6 +47,10 @@ function initDb(): Firestore {
 }
 
 export const db = initDb();
+export const legacyDb: Firestore = getFirestore(
+  app,
+  'ai-studio-mbktrading-5c717851-cdb4-4a97-a0f4-f006f13d6c7b'
+);
 
 // Optional connection check helper
 export async function testConnection() {

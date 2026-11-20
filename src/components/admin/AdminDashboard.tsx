@@ -50,7 +50,7 @@ import {
 } from 'lucide-react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, setDoc, onSnapshot, collection, updateDoc, deleteDoc, writeBatch, serverTimestamp, getDocs, query, limit } from 'firebase/firestore';
-import { auth, db } from '../../lib/firebase';
+import { auth, db, legacyDb } from '../../lib/firebase';
 import { soundManager } from '../../utils/audio';
 import { formatKeyDurationLabel } from '../../utils/activationKeyService';
 import {
@@ -854,16 +854,81 @@ export const AdminDashboard: React.FC<Props> = ({
           });
         });
 
-          setUsers(loadedUsers);
+          // Merge with any locally cached users so no client disappears while migrating to (default)
+          const loadedIds = new Set(loadedUsers.map((u) => u.id));
+          let mergedUsers = [...loadedUsers];
+          try {
+            const rawCached = localStorage.getItem('mbk_admin_cached_users_v1');
+            if (rawCached) {
+              const parsedCached = JSON.parse(rawCached);
+              if (Array.isArray(parsedCached)) {
+                for (const cachedUser of parsedCached) {
+                  if (cachedUser && cachedUser.id && !loadedIds.has(cachedUser.id)) {
+                    mergedUsers.push(cachedUser);
+                    loadedIds.add(cachedUser.id);
+                    // Auto-sync missing cached user into the live (default) database
+                    if (isFullAdmin) {
+                      setDoc(doc(db, 'users', cachedUser.id), {
+                        uid: cachedUser.id,
+                        email: cachedUser.email || '',
+                        displayName: cachedUser.displayName || cachedUser.username || 'MBK Member',
+                        role: (cachedUser.role || 'free').toString().toLowerCase(),
+                        tier: cachedUser.tier || 'free',
+                        isVip: Boolean(cachedUser.isVip),
+                        vipAccess: Boolean(cachedUser.vipAccess),
+                        isElite: Boolean(cachedUser.isElite),
+                        vipExpiryDate: cachedUser.vipExpiryDate || null,
+                        eliteExpiryDate: cachedUser.eliteExpiryDate || null,
+                        grantedFeatures: cachedUser.grantedFeatures || {},
+                        phone: cachedUser.phone || '',
+                        country: cachedUser.country || '',
+                        dob: cachedUser.dob || '',
+                        experienceLevel: cachedUser.experienceLevel || '',
+                        assetClasses: Array.isArray(cachedUser.assetClasses) ? cachedUser.assetClasses : [],
+                        favoritePairs: cachedUser.favoritePairs || '',
+                        totalPaid: Number(cachedUser.totalPaid || 0),
+                        isBanned: Boolean(cachedUser.isBanned),
+                        isMutedFromChat: Boolean(cachedUser.isMutedFromChat),
+                        subscription_status: cachedUser.subscriptionStatus || 'none',
+                        subscription_end_date: cachedUser.subscriptionEndDate || null,
+                        createdAt: serverTimestamp(),
+                        updatedAt: serverTimestamp(),
+                      }, { merge: true }).catch(() => {});
+                    }
+                  }
+                }
+              }
+            }
+          } catch {
+            // ignore
+          }
+
+          setUsers(mergedUsers);
           setDbQuotaExceeded(false);
           try {
-            if (loadedUsers.length > 0) {
-              localStorage.setItem('mbk_admin_cached_users_v1', JSON.stringify(loadedUsers));
+            if (mergedUsers.length > 0) {
+              localStorage.setItem('mbk_admin_cached_users_v1', JSON.stringify(mergedUsers));
             }
           } catch {
             // ignore
           }
           setUsersLoading(false);
+
+          // Silent background sync from legacyDb once per session when readable
+          if (isFullAdmin && !(window as any).__mbkLegacyUsersSynced) {
+            (window as any).__mbkLegacyUsersSynced = true;
+            getDocs(query(collection(legacyDb, 'users'), limit(300)))
+              .then((legacySnap) => {
+                legacySnap.forEach((legacyDoc) => {
+                  if (!loadedIds.has(legacyDoc.id)) {
+                    setDoc(doc(db, 'users', legacyDoc.id), legacyDoc.data(), { merge: true }).catch(() => {});
+                  }
+                });
+              })
+              .catch(() => {
+                // legacyDb still in daily free-tier cooldown; active users auto-register in (default) on visit
+              });
+          }
         },
         (err: any) => {
           const msg = String(err?.message || err || '').toLowerCase();

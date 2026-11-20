@@ -841,10 +841,30 @@ export function subscribeToAuth(onUserChange: (user: UserProfile | null) => void
       async (docSnap) => {
         if (!docSnap.exists() && !pendingRegistrationUids.has(firebaseUser.uid)) {
           try {
-            await fetchOrCreateUserRegistry(firebaseUser);
+            let cachedExtra: UserOnboardingData | undefined = undefined;
+            try {
+              const cachedRaw = localStorage.getItem('mbk_user');
+              if (cachedRaw) {
+                const parsed = JSON.parse(cachedRaw);
+                if (parsed && parsed.id === firebaseUser.uid) {
+                  cachedExtra = {
+                    phone: parsed.phone || '',
+                    country: parsed.country || '',
+                    dob: parsed.dob || '',
+                    experienceLevel: parsed.experienceLevel || '',
+                    assetClasses: Array.isArray(parsed.assetClasses) ? parsed.assetClasses : [],
+                    favoritePairs: parsed.favoritePairs || ''
+                  };
+                }
+              }
+            } catch {
+              // ignore
+            }
+            await fetchOrCreateUserRegistry(firebaseUser, isSuperAdmin ? 'admin' : 'free', cachedExtra);
           } catch (err) {
             console.warn('Error creating user profile doc:', err);
           }
+          return;
         }
         const data = docSnap.exists() ? docSnap.data() : {};
         if (isSuperAdmin && docSnap.exists() && data.role !== 'admin') {
