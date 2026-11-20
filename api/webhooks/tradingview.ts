@@ -20,13 +20,15 @@ type Res = ServerResponse & {
 
 const FALLBACK_FIREBASE_CONFIG = {
   projectId: 'mbktrading-8dc98',
-  firestoreDatabaseId: 'ai-studio-mbktrading-5c717851-cdb4-4a97-a0f4-f006f13d6c7b',
+  firestoreDatabaseId: '(default)',
   apiKey: 'AIzaSyCgNCyANwJ9CJmTJX0HKH-ssGHlfktF0L8',
   authDomain: 'mbktrading-8dc98.firebaseapp.com',
   storageBucket: 'mbktrading-8dc98.firebasestorage.app',
   messagingSenderId: '517824449905',
   appId: '1:517824449905:web:7c51ad7b5008b33a8f7ad0'
 };
+
+const LEGACY_DATABASE_ID = 'ai-studio-mbktrading-5c717851-cdb4-4a97-a0f4-f006f13d6c7b';
 
 function loadFirebaseConfig(): typeof FALLBACK_FIREBASE_CONFIG {
   try {
@@ -61,22 +63,15 @@ interface BotAlertDoc {
 }
 
 /**
- * Writes the bot alert to the named Firestore database using the stateless Firestore REST API first
- * (ideal for Vercel serverless functions and guarantees integerValue for timestampMs in firestore.rules),
- * with an automatic fallback to the Firebase Web Client SDK.
+ * Writes the bot alert to the primary (default) Firestore database (and mirrors to legacy database)
+ * using the stateless Firestore REST API first, with an automatic fallback to the Firebase Web Client SDK.
  */
 async function writeBotAlertToFirestore(alertDoc: BotAlertDoc): Promise<void> {
   const config = loadFirebaseConfig();
-  const dbId =
+  const primaryDbId =
     config.firestoreDatabaseId && config.firestoreDatabaseId !== '(default)'
       ? config.firestoreDatabaseId
       : '(default)';
-
-  const restUrl = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(
-    config.projectId
-  )}/databases/${encodeURIComponent(dbId)}/documents/bot_alerts?documentId=${encodeURIComponent(
-    alertDoc.id
-  )}&key=${encodeURIComponent(config.apiKey)}`;
 
   const firestoreFields: Record<string, any> = {
     id: { stringValue: alertDoc.id },
@@ -86,18 +81,33 @@ async function writeBotAlertToFirestore(alertDoc: BotAlertDoc): Promise<void> {
     timestampMs: { integerValue: String(Math.trunc(alertDoc.timestampMs)) }
   };
 
-  try {
+  const postToRestDb = async (targetDbId: string): Promise<boolean> => {
+    const restUrl = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(
+      config.projectId
+    )}/databases/${encodeURIComponent(targetDbId)}/documents/bot_alerts?documentId=${encodeURIComponent(
+      alertDoc.id
+    )}&key=${encodeURIComponent(config.apiKey)}`;
+
     const restRes = await fetch(restUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fields: firestoreFields })
     });
+    return restRes.ok;
+  };
 
-    if (restRes.ok) {
+  // Best-effort mirror to legacy database so both old and new clients receive webhook alerts
+  if (primaryDbId === '(default)') {
+    postToRestDb(LEGACY_DATABASE_ID).catch(() => {});
+  } else {
+    postToRestDb('(default)').catch(() => {});
+  }
+
+  try {
+    const ok = await postToRestDb(primaryDbId);
+    if (ok) {
       return;
     }
-    const errBody = await restRes.text();
-    console.warn('[Vercel Webhook] Firestore REST API response:', restRes.status, errBody);
   } catch (restErr: any) {
     console.warn('[Vercel Webhook] Firestore REST API error, falling back to Client SDK:', restErr?.message);
   }
@@ -115,8 +125,8 @@ async function writeBotAlertToFirestore(alertDoc: BotAlertDoc): Promise<void> {
     : getClientApps()[0];
 
   const clientDb =
-    config.firestoreDatabaseId && config.firestoreDatabaseId !== '(default)'
-      ? getClientFirestore(clientApp, config.firestoreDatabaseId)
+    primaryDbId !== '(default)'
+      ? getClientFirestore(clientApp, primaryDbId)
       : getClientFirestore(clientApp);
 
   await setDoc(doc(clientDb, 'bot_alerts', alertDoc.id), alertDoc);

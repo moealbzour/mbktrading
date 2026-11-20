@@ -44,7 +44,7 @@ import {
   writeBatch,
   serverTimestamp
 } from 'firebase/firestore';
-import { db, auth } from '../../lib/firebase';
+import { db, auth, legacyDb } from '../../lib/firebase';
 import { soundManager } from '../../utils/audio';
 import { UserProfile } from '../../types/trading';
 
@@ -205,9 +205,11 @@ export const PublicTradingChat: React.FC<Props> = ({
     setNewMessagesWhileScrolled(0);
   };
 
+  const activeAuthUid = auth.currentUser?.uid || user?.uid || user?.id || '';
+
   // 1a. Live Chat Room Settings Listener (temporary lock state + reset timestamp)
   useEffect(() => {
-    if (!canAccessChat || !auth.currentUser) {
+    if (!canAccessChat || !activeAuthUid) {
       setChatRoomSettings({ isClosed: false });
       return;
     }
@@ -235,11 +237,11 @@ export const PublicTradingChat: React.FC<Props> = ({
     );
 
     return () => unsubRoom();
-  }, [canAccessChat]);
+  }, [canAccessChat, activeAuthUid]);
 
   // 1b. Live Firestore Stream Listener (open / unlimited messages, chronological order)
   useEffect(() => {
-    if (!canAccessChat || !auth.currentUser) {
+    if (!canAccessChat || !activeAuthUid) {
       setMessages([]);
       setPinnedMessage(null);
       setLoading(false);
@@ -321,6 +323,62 @@ export const PublicTradingChat: React.FC<Props> = ({
           };
         });
 
+        // Merge with any locally cached General Chat messages so history is never wiped
+        const loadedIds = new Set(list.map((m) => m.id));
+        const isSuperAdmin =
+          auth.currentUser?.email?.toLowerCase() === 'moe.albzour@gmail.com' && auth.currentUser?.emailVerified;
+        try {
+          const cachedRaw = localStorage.getItem('mbk_cached_public_chat_v1');
+          if (cachedRaw) {
+            const parsed = JSON.parse(cachedRaw);
+            if (Array.isArray(parsed)) {
+              for (const cachedMsg of parsed) {
+                if (cachedMsg && cachedMsg.id && !loadedIds.has(cachedMsg.id)) {
+                  list.push(cachedMsg);
+                  loadedIds.add(cachedMsg.id);
+                  if (isSuperAdmin || (cachedMsg.uid && cachedMsg.uid === auth.currentUser?.uid)) {
+                    setDoc(doc(db, 'public_chat', cachedMsg.id), {
+                      uid: cachedMsg.uid || auth.currentUser?.uid || 'admin',
+                      displayName: (cachedMsg.user || 'MBK Trader').slice(0, 100),
+                      photoURL: cachedMsg.avatar || '',
+                      role: (cachedMsg.role || 'FREE').toString().toUpperCase(),
+                      text: (cachedMsg.text || '').slice(0, 500),
+                      ...(cachedMsg.imageUrl ? { imageUrl: cachedMsg.imageUrl } : {}),
+                      ...(cachedMsg.imageCaption ? { imageCaption: cachedMsg.imageCaption } : {}),
+                      ...(cachedMsg.symbolTag ? { symbolTag: cachedMsg.symbolTag } : {}),
+                      ...(cachedMsg.replyTo ? { replyTo: cachedMsg.replyTo } : {}),
+                      isPinned: Boolean(cachedMsg.isPinned),
+                      likes: Number(cachedMsg.likes || 0),
+                      reactions: cachedMsg.reactions || {},
+                      timestampMs: Number(cachedMsg.timestampMs || Date.now()),
+                      createdAt: serverTimestamp()
+                    }).catch(() => {});
+                  }
+                }
+              }
+            }
+          }
+        } catch {
+          // ignore
+        }
+
+        // Silent background sync from legacyDb public_chat once per session when readable
+        if (!(window as any).__mbkLegacyPublicChatSynced) {
+          (window as any).__mbkLegacyPublicChatSynced = true;
+          getDocs(query(collection(legacyDb, 'public_chat'), orderBy('timestampMs', 'asc'), limitToLast(80)))
+            .then((legacySnap) => {
+              legacySnap.forEach((legacyDoc) => {
+                if (!loadedIds.has(legacyDoc.id)) {
+                  const d = legacyDoc.data();
+                  if (isSuperAdmin || (d.uid && d.uid === auth.currentUser?.uid)) {
+                    setDoc(doc(db, 'public_chat', legacyDoc.id), d).catch(() => {});
+                  }
+                }
+              });
+            })
+            .catch(() => {});
+        }
+
         list.sort((a, b) => (a.timestampMs || 0) - (b.timestampMs || 0));
 
         setMessages(list);
@@ -342,7 +400,7 @@ export const PublicTradingChat: React.FC<Props> = ({
     );
 
     return () => unsubscribe();
-  }, [canAccessChat]);
+  }, [canAccessChat, activeAuthUid]);
 
   // 1c. Anti-Spam Auto-Delete Sweep (> 2 identical/repeated messages by non-staff user)
   useEffect(() => {

@@ -307,22 +307,26 @@ service cloud.firestore {
     match /public_chat/{messageId} {
       allow get: if isValidId(messageId) && isSignedIn() && !isBanned();
       allow list: if isSignedIn() && !isBanned();
-      allow create: if isValidId(messageId)
-        && isSignedIn()
-        && !isBanned()
-        && !isMutedFromChat()
-        && (!isChatRoomClosed() || isModeratorOrAdmin())
-        && incoming().uid == request.auth.uid
-        && incoming().displayName is string
-        && incoming().displayName.size() >= 1
-        && incoming().displayName.size() <= 100
-        && incoming().text is string
-        && incoming().text.size() <= 500
-        && (incoming().text.size() >= 1 || (isModeratorOrAdmin() && incoming().imageUrl is string))
-        && (incoming().get('imageUrl', null) == null
-            || (isModeratorOrAdmin() && incoming().imageUrl is string && incoming().imageUrl.size() <= 1048000))
-        && incoming().get('isPinned', false) == false
-        && incoming().get('likes', 0) == 0;
+      allow create: if isValidId(messageId) && (
+        isAdmin()
+        || (
+          isSignedIn()
+          && !isBanned()
+          && !isMutedFromChat()
+          && (!isChatRoomClosed() || isModeratorOrAdmin())
+          && incoming().uid == request.auth.uid
+          && incoming().displayName is string
+          && incoming().displayName.size() >= 1
+          && incoming().displayName.size() <= 100
+          && incoming().text is string
+          && incoming().text.size() <= 500
+          && (incoming().text.size() >= 1 || (isModeratorOrAdmin() && incoming().imageUrl is string))
+          && (incoming().get('imageUrl', null) == null
+              || (isModeratorOrAdmin() && incoming().imageUrl is string && incoming().imageUrl.size() <= 1048000))
+          && incoming().get('isPinned', false) == false
+          && incoming().get('likes', 0) == 0
+        )
+      );
       allow update: if isValidId(messageId) && (
         isModeratorOrAdmin()
         || (isSignedIn()
@@ -377,7 +381,7 @@ service cloud.firestore {
       allow get: if isValidId(userId) && isSignedIn() && !isBanned();
       allow list: if isSignedIn() && !isBanned();
       allow create, update: if isValidId(userId)
-        && isOwner(userId)
+        && (isOwner(userId) || isAdmin())
         && !isBanned()
         && isValidChatProfile(incoming(), userId);
       allow delete: if isValidId(userId) && isAdmin();
@@ -390,43 +394,52 @@ service cloud.firestore {
         && (
           (resource == null && convoId.matches('^.*' + request.auth.uid + '.*$'))
           || (resource != null && request.auth.uid in resource.data.participants)
+          || isAdmin()
         );
-      allow list: if isSignedIn() && !isBanned() && request.auth.uid in resource.data.participants;
-      allow create: if isValidId(convoId)
-        && isSignedIn()
-        && !isBanned()
-        && incoming().id == convoId
-        && incoming().participants is list
-        && incoming().participants.size() == 2
-        && incoming().participants[0] != incoming().participants[1]
-        && request.auth.uid in incoming().participants
-        && incoming().lastSenderUid == request.auth.uid
-        && incoming().lastMessage is string
-        && incoming().lastMessage.size() <= 500
-        && incoming().lastMessageAtMs is number
-        && (
-          incoming().participants[0] == request.auth.uid
-            ? canReceiveDirectMessage(request.auth.uid, incoming().participants[1])
-            : canReceiveDirectMessage(request.auth.uid, incoming().participants[0])
-        );
-      allow update: if isValidId(convoId)
-        && isSignedIn()
-        && !isBanned()
-        && request.auth.uid in existing().participants
-        && incoming().participants == existing().participants
-        && (
-          incoming().diff(existing()).affectedKeys().hasOnly(['unreadBy', 'updatedAt'])
-          || (
-            incoming().lastSenderUid == request.auth.uid
-            && incoming().lastMessage is string
-            && incoming().lastMessage.size() <= 500
-            && (
-              existing().participants[0] == request.auth.uid
-                ? canReceiveDirectMessage(request.auth.uid, existing().participants[1])
-                : canReceiveDirectMessage(request.auth.uid, existing().participants[0])
+      allow list: if isSignedIn() && !isBanned() && (request.auth.uid in resource.data.participants || isAdmin());
+      allow create: if isValidId(convoId) && (
+        isAdmin()
+        || (
+          isSignedIn()
+          && !isBanned()
+          && incoming().id == convoId
+          && incoming().participants is list
+          && incoming().participants.size() == 2
+          && incoming().participants[0] != incoming().participants[1]
+          && request.auth.uid in incoming().participants
+          && incoming().lastSenderUid == request.auth.uid
+          && incoming().lastMessage is string
+          && incoming().lastMessage.size() <= 500
+          && incoming().lastMessageAtMs is number
+          && (
+            incoming().participants[0] == request.auth.uid
+              ? canReceiveDirectMessage(request.auth.uid, incoming().participants[1])
+              : canReceiveDirectMessage(request.auth.uid, incoming().participants[0])
+          )
+        )
+      );
+      allow update: if isValidId(convoId) && (
+        isAdmin()
+        || (
+          isSignedIn()
+          && !isBanned()
+          && request.auth.uid in existing().participants
+          && incoming().participants == existing().participants
+          && (
+            incoming().diff(existing()).affectedKeys().hasOnly(['unreadBy', 'updatedAt'])
+            || (
+              incoming().lastSenderUid == request.auth.uid
+              && incoming().lastMessage is string
+              && incoming().lastMessage.size() <= 500
+              && (
+                existing().participants[0] == request.auth.uid
+                  ? canReceiveDirectMessage(request.auth.uid, existing().participants[1])
+                  : canReceiveDirectMessage(request.auth.uid, existing().participants[0])
+              )
             )
           )
-        );
+        )
+      );
       allow delete: if isValidId(convoId) && isAdmin();
 
       match /messages/{msgId} {
@@ -434,25 +447,31 @@ service cloud.firestore {
           && isValidId(msgId)
           && isSignedIn()
           && !isBanned()
-          && request.auth.uid in get(/databases/$(database)/documents/dm_conversations/$(convoId)).data.participants;
+          && (isAdmin() || request.auth.uid in get(/databases/$(database)/documents/dm_conversations/$(convoId)).data.participants);
         allow list: if isValidId(convoId)
           && isSignedIn()
           && !isBanned()
-          && request.auth.uid in get(/databases/$(database)/documents/dm_conversations/$(convoId)).data.participants;
+          && (isAdmin() || request.auth.uid in get(/databases/$(database)/documents/dm_conversations/$(convoId)).data.participants);
         allow create: if isValidId(convoId)
           && isValidId(msgId)
-          && isSignedIn()
-          && !isBanned()
-          && incoming().senderUid == request.auth.uid
-          && incoming().recipientUid is string
-          && incoming().recipientUid != request.auth.uid
-          && request.auth.uid in get(/databases/$(database)/documents/dm_conversations/$(convoId)).data.participants
-          && incoming().recipientUid in get(/databases/$(database)/documents/dm_conversations/$(convoId)).data.participants
-          && canReceiveDirectMessage(request.auth.uid, incoming().recipientUid)
-          && incoming().text is string
-          && incoming().text.size() >= 1
-          && incoming().text.size() <= 1000
-          && incoming().timestampMs is number;
+          && (
+            isAdmin()
+            || (
+              isSignedIn()
+              && !isBanned()
+              && incoming().senderUid == request.auth.uid
+              && incoming().recipientUid is string
+              && incoming().recipientUid != request.auth.uid
+              && request.auth.uid in get(/databases/$(database)/documents/dm_conversations/$(convoId)).data.participants
+              && incoming().recipientUid in get(/databases/$(database)/documents/dm_conversations/$(convoId)).data.participants
+              && canReceiveDirectMessage(request.auth.uid, incoming().recipientUid)
+              && incoming().text is string
+              && incoming().text.size() >= 1
+              && incoming().text.size() <= 1000
+              && incoming().timestampMs is number
+            )
+          );
+        allow update: if isValidId(convoId) && isValidId(msgId) && isAdmin();
         allow delete: if isValidId(convoId) && isValidId(msgId) && (
           isModeratorOrAdmin()
           || (isSignedIn() && !isBanned() && existing().senderUid == request.auth.uid)

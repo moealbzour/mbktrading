@@ -5,12 +5,13 @@ import {
   getDocs,
   deleteDoc,
   updateDoc,
+  setDoc,
   doc,
   query,
   orderBy,
   limit
 } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
+import { db, legacyDb } from '../../lib/firebase';
 import {
   Send,
   ShieldAlert,
@@ -147,10 +148,48 @@ export const PublishingCenter: React.FC<Props> = ({
       setSignalsLoading(true);
       const q = query(collection(db, 'signals'), orderBy('timestampMs', 'desc'), limit(50));
       const snapshot = await getDocs(q);
-      const items = snapshot.docs.map((docSnap) => ({
+      const items: any[] = snapshot.docs.map((docSnap) => ({
         id: docSnap.id,
         ...docSnap.data()
       }));
+      const loadedIds = new Set(items.map((it) => it.id));
+
+      // Also merge any locally cached signals and sync missing ones to (default)
+      try {
+        const rawCached = localStorage.getItem('mbk_cached_signals_v1');
+        if (rawCached) {
+          const parsedCached = JSON.parse(rawCached);
+          if (Array.isArray(parsedCached)) {
+            for (const cSig of parsedCached) {
+              if (cSig && cSig.id && !loadedIds.has(cSig.id)) {
+                items.push(cSig);
+                loadedIds.add(cSig.id);
+              }
+            }
+          }
+        }
+      } catch {
+        // ignore
+      }
+
+      // Attempt background fetch from legacyDb when readable
+      try {
+        const legacySnap = await getDocs(query(collection(legacyDb, 'signals'), orderBy('timestampMs', 'desc'), limit(30)));
+        legacySnap.forEach((legacyDoc) => {
+          if (!loadedIds.has(legacyDoc.id)) {
+            const d = legacyDoc.data();
+            items.push({ id: legacyDoc.id, ...d });
+            loadedIds.add(legacyDoc.id);
+            if (isAuthorized) {
+              setDoc(doc(db, 'signals', legacyDoc.id), d, { merge: true }).catch(() => {});
+            }
+          }
+        });
+      } catch {
+        // legacyDb still in daily free-tier cooldown
+      }
+
+      items.sort((a, b) => (Number(b.timestampMs) || 0) - (Number(a.timestampMs) || 0));
       setPublishedSignals(items);
     } catch (err) {
       console.warn('Error fetching Firestore signals:', err);

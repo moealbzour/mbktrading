@@ -13,6 +13,7 @@ import {
   signOutUser
 } from './services/firebaseAuthService';
 import { KeyRedemptionResult } from './utils/activationKeyService';
+import { syncAllLegacyDataToDefaultDb } from './utils/legacyDbRecovery';
 
 // Pages & Components
 import { MotionSplashScreen } from './components/MotionSplashScreen';
@@ -75,6 +76,34 @@ export default function App() {
     setIsMuted(next);
     soundManager.setMuted(next);
   };
+
+  // Global background recovery of legacy database & local IndexedDB caches into (default)
+  useEffect(() => {
+    if (!currentUser?.uid && !currentUser?.id) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const runGlobalRecovery = async () => {
+      if (cancelled) return;
+      try {
+        const stats = await syncAllLegacyDataToDefaultDb();
+        if (!cancelled && stats.legacyDbStatus === 'quota_locked') {
+          timer = setTimeout(runGlobalRecovery, 30000);
+        }
+      } catch {
+        if (!cancelled) {
+          timer = setTimeout(runGlobalRecovery, 45000);
+        }
+      }
+    };
+
+    runGlobalRecovery();
+
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [currentUser?.uid, currentUser?.id]);
 
   // Remote Force-Update Listener (Admin 1-Click Push Update to all Laptop, Mobile & PWA Shortcut Users)
   useEffect(() => {

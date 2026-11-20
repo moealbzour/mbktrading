@@ -53,6 +53,7 @@ import { doc, setDoc, onSnapshot, collection, updateDoc, deleteDoc, writeBatch, 
 import { auth, db, legacyDb } from '../../lib/firebase';
 import { soundManager } from '../../utils/audio';
 import { formatKeyDurationLabel } from '../../utils/activationKeyService';
+import { syncAllLegacyDataToDefaultDb } from '../../utils/legacyDbRecovery';
 import {
   DEFAULT_PLATFORM_SETTINGS,
   buildWhatsAppUrl,
@@ -467,6 +468,80 @@ export const AdminDashboard: React.FC<Props> = ({
     setTimeout(() => setFeedback(null), 4000);
   };
 
+  const [isSyncingLegacyDb, setIsSyncingLegacyDb] = useState(false);
+
+  const handleSyncLegacyData = async (silent: boolean = false) => {
+    if (!isStaff) return;
+    if (!silent) {
+      soundManager.playClick();
+    }
+    setIsSyncingLegacyDb(true);
+    try {
+      const stats = await syncAllLegacyDataToDefaultDb();
+      const totalRecovered =
+        stats.usersRecovered +
+        stats.signalsRecovered +
+        stats.botAlertsRecovered +
+        stats.publicChatRecovered +
+        stats.chatProfilesRecovered +
+        stats.dmConversationsRecovered +
+        stats.dmMessagesRecovered +
+        stats.activationKeysRecovered;
+
+      if (!silent) {
+        if (stats.legacyDbStatus === 'quota_locked' && totalRecovered === 0) {
+          showFeedback(
+            'info',
+            isAr
+              ? 'تم استعادة السجلات المتوفرة محلياً. ملاحظة: قاعدة البيانات القديمة لا تزال تحت قفل الحصة اليومية (Quota 429) من Google؛ اضغط على "فتح قفل قاعدة البيانات القديمة في Firebase" أو ستتم استعادة باقي المحادثات والصفقات تلقائياً فور تصفير العداد اليومي.'
+              : 'Local records restored. Note: The old database instance is still under Google’s daily 429 read lock; click "Unlock Old Database in Firebase" or remaining history will auto-sync as soon as the daily counter resets.'
+          );
+        } else {
+          soundManager.playSuccess();
+          showFeedback(
+            'success',
+            isAr
+              ? `✅ تمت استعادة ومزامنة البيانات بنجاح (الأعضاء: ${stats.usersRecovered}، الصفقات: ${stats.signalsRecovered}، الشات: ${stats.publicChatRecovered}، الرسائل الخاصة: ${stats.dmConversationsRecovered})!`
+              : `✅ Historical data restored & synced (Users: ${stats.usersRecovered}, Trades: ${stats.signalsRecovered}, Chat: ${stats.publicChatRecovered}, DMs: ${stats.dmConversationsRecovered})!`
+          );
+        }
+      }
+    } catch (err: any) {
+      if (!silent) {
+        showFeedback('error', err?.message || (isAr ? 'حدث خطأ أثناء الاستعادة' : 'Recovery error'));
+      }
+    } finally {
+      setIsSyncingLegacyDb(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isStaff) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const runAutoRecovery = async () => {
+      if (cancelled) return;
+      try {
+        const stats = await syncAllLegacyDataToDefaultDb();
+        if (!cancelled && stats.legacyDbStatus === 'quota_locked') {
+          timer = setTimeout(runAutoRecovery, 30000);
+        }
+      } catch {
+        if (!cancelled) {
+          timer = setTimeout(runAutoRecovery, 45000);
+        }
+      }
+    };
+
+    runAutoRecovery();
+
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [isStaff]);
+
   useEffect(() => {
     if (!isStaff) return;
     const unsubSettings = subscribeToPlatformSettings((settings) => {
@@ -856,7 +931,7 @@ export const AdminDashboard: React.FC<Props> = ({
 
           // Merge with any locally cached users so no client disappears while migrating to (default)
           const loadedIds = new Set(loadedUsers.map((u) => u.id));
-          let mergedUsers = [...loadedUsers];
+          const rawCombinedUsers = [...loadedUsers];
           try {
             const rawCached = localStorage.getItem('mbk_admin_cached_users_v1');
             if (rawCached) {
@@ -864,43 +939,110 @@ export const AdminDashboard: React.FC<Props> = ({
               if (Array.isArray(parsedCached)) {
                 for (const cachedUser of parsedCached) {
                   if (cachedUser && cachedUser.id && !loadedIds.has(cachedUser.id)) {
-                    mergedUsers.push(cachedUser);
+                    rawCombinedUsers.push(cachedUser);
                     loadedIds.add(cachedUser.id);
-                    // Auto-sync missing cached user into the live (default) database
-                    if (isFullAdmin) {
-                      setDoc(doc(db, 'users', cachedUser.id), {
-                        uid: cachedUser.id,
-                        email: cachedUser.email || '',
-                        displayName: cachedUser.displayName || cachedUser.username || 'MBK Member',
-                        role: (cachedUser.role || 'free').toString().toLowerCase(),
-                        tier: cachedUser.tier || 'free',
-                        isVip: Boolean(cachedUser.isVip),
-                        vipAccess: Boolean(cachedUser.vipAccess),
-                        isElite: Boolean(cachedUser.isElite),
-                        vipExpiryDate: cachedUser.vipExpiryDate || null,
-                        eliteExpiryDate: cachedUser.eliteExpiryDate || null,
-                        grantedFeatures: cachedUser.grantedFeatures || {},
-                        phone: cachedUser.phone || '',
-                        country: cachedUser.country || '',
-                        dob: cachedUser.dob || '',
-                        experienceLevel: cachedUser.experienceLevel || '',
-                        assetClasses: Array.isArray(cachedUser.assetClasses) ? cachedUser.assetClasses : [],
-                        favoritePairs: cachedUser.favoritePairs || '',
-                        totalPaid: Number(cachedUser.totalPaid || 0),
-                        isBanned: Boolean(cachedUser.isBanned),
-                        isMutedFromChat: Boolean(cachedUser.isMutedFromChat),
-                        subscription_status: cachedUser.subscriptionStatus || 'none',
-                        subscription_end_date: cachedUser.subscriptionEndDate || null,
-                        createdAt: serverTimestamp(),
-                        updatedAt: serverTimestamp(),
-                      }, { merge: true }).catch(() => {});
-                    }
                   }
                 }
               }
             }
           } catch {
             // ignore
+          }
+
+          // Deduplicate users by both UID and normalized Email (keep highest tier / most complete record)
+          const tierScore = (u: AdminUserRecord): number => {
+            const r = (u.role || '').toUpperCase();
+            let score = 0;
+            if (r === 'ADMIN') score += 100;
+            else if (r === 'MODERATOR' || r === 'ANALYSER' || r === 'SALES') score += 80;
+            else if (u.isElite || u.tier === 'elite') score += 60;
+            else if (u.isVip || u.vipAccess || u.tier === 'vip') score += 40;
+            if (u.phone) score += 5;
+            if (u.country) score += 5;
+            if (Number(u.totalPaid || 0) > 0) score += 10;
+            if (u.id === auth.currentUser?.uid) score += 50;
+            return score;
+          };
+
+          const byEmailMap = new Map<string, AdminUserRecord>();
+          const byIdMap = new Map<string, AdminUserRecord>();
+          const duplicateFirestoreIdsToDelete: string[] = [];
+          const loadedFromFirestoreIds = new Set(loadedUsers.map((u) => u.id));
+
+          for (const candidate of rawCombinedUsers) {
+            if (!candidate || !candidate.id) continue;
+            const cleanEmail = (candidate.email || '').trim().toLowerCase();
+            const hasValidEmail = cleanEmail && cleanEmail !== 'n/a' && cleanEmail.includes('@');
+
+            if (hasValidEmail) {
+              const existingForEmail = byEmailMap.get(cleanEmail);
+              if (!existingForEmail) {
+                byEmailMap.set(cleanEmail, candidate);
+                byIdMap.set(candidate.id, candidate);
+              } else {
+                const keepCandidate = tierScore(candidate) > tierScore(existingForEmail);
+                const winner = keepCandidate ? candidate : existingForEmail;
+                const loser = keepCandidate ? existingForEmail : candidate;
+                // Merge any missing fields from loser into winner
+                const mergedWinner: AdminUserRecord = {
+                  ...loser,
+                  ...winner,
+                  phone: winner.phone || loser.phone || '',
+                  country: winner.country || loser.country || '',
+                  dob: winner.dob || loser.dob || '',
+                  totalPaid: Math.max(Number(winner.totalPaid || 0), Number(loser.totalPaid || 0))
+                };
+                byEmailMap.set(cleanEmail, mergedWinner);
+                byIdMap.delete(loser.id);
+                byIdMap.set(mergedWinner.id, mergedWinner);
+                if (loser.id !== mergedWinner.id && loadedFromFirestoreIds.has(loser.id)) {
+                  duplicateFirestoreIdsToDelete.push(loser.id);
+                }
+              }
+            } else if (!byIdMap.has(candidate.id)) {
+              byIdMap.set(candidate.id, candidate);
+            }
+          }
+
+          const mergedUsers = Array.from(byIdMap.values());
+
+          // Clean up duplicate ghost records from Firestore & sync missing canonical users
+          if (isFullAdmin) {
+            for (const dupId of duplicateFirestoreIdsToDelete) {
+              deleteDoc(doc(db, 'users', dupId)).catch(() => {});
+              deleteDoc(doc(db, 'chat_profiles', dupId)).catch(() => {});
+            }
+
+            for (const canonicalUser of mergedUsers) {
+              if (!loadedFromFirestoreIds.has(canonicalUser.id)) {
+                setDoc(doc(db, 'users', canonicalUser.id), {
+                  uid: canonicalUser.id,
+                  email: canonicalUser.email || '',
+                  displayName: canonicalUser.displayName || canonicalUser.username || 'MBK Member',
+                  role: (canonicalUser.role || 'free').toString().toLowerCase(),
+                  tier: canonicalUser.tier || 'free',
+                  isVip: Boolean(canonicalUser.isVip),
+                  vipAccess: Boolean(canonicalUser.vipAccess),
+                  isElite: Boolean(canonicalUser.isElite),
+                  vipExpiryDate: canonicalUser.vipExpiryDate || null,
+                  eliteExpiryDate: canonicalUser.eliteExpiryDate || null,
+                  grantedFeatures: canonicalUser.grantedFeatures || {},
+                  phone: canonicalUser.phone || '',
+                  country: canonicalUser.country || '',
+                  dob: canonicalUser.dob || '',
+                  experienceLevel: canonicalUser.experienceLevel || '',
+                  assetClasses: Array.isArray(canonicalUser.assetClasses) ? canonicalUser.assetClasses : [],
+                  favoritePairs: canonicalUser.favoritePairs || '',
+                  totalPaid: Number(canonicalUser.totalPaid || 0),
+                  isBanned: Boolean(canonicalUser.isBanned),
+                  isMutedFromChat: Boolean(canonicalUser.isMutedFromChat),
+                  subscription_status: canonicalUser.subscriptionStatus || 'none',
+                  subscription_end_date: canonicalUser.subscriptionEndDate || null,
+                  createdAt: serverTimestamp(),
+                  updatedAt: serverTimestamp(),
+                }, { merge: true }).catch(() => {});
+              }
+            }
           }
 
           setUsers(mergedUsers);
@@ -913,6 +1055,24 @@ export const AdminDashboard: React.FC<Props> = ({
             // ignore
           }
           setUsersLoading(false);
+
+          // Ensure all active CRM users have a directory entry in chat_profiles so the DM Inbox Members list is complete
+          if (isFullAdmin && mergedUsers.length > 0 && !(window as any).__mbkChatProfilesSeededFromCrm) {
+            (window as any).__mbkChatProfilesSeededFromCrm = true;
+            for (const u of mergedUsers) {
+              if (u && u.id && !u.isBanned) {
+                setDoc(doc(db, 'chat_profiles', u.id), {
+                  uid: u.id,
+                  displayName: (u.displayName || u.username || u.email?.split('@')[0] || 'MBK Member').slice(0, 100),
+                  avatar: (u.avatar || '').slice(0, 1000),
+                  role: (u.role || 'FREE').toString().toUpperCase().slice(0, 40),
+                  allowDirectMessages: true,
+                  blockedUids: [],
+                  updatedAt: new Date().toISOString()
+                }, { merge: true }).catch(() => {});
+              }
+            }
+          }
 
           // Silent background sync from legacyDb once per session when readable
           if (isFullAdmin && !(window as any).__mbkLegacyUsersSynced) {
@@ -1431,20 +1591,36 @@ export const AdminDashboard: React.FC<Props> = ({
         {/* Global Action controls */}
         <div className="flex flex-wrap items-center gap-2">
           {isFullAdmin && (
-            <button
-              type="button"
-              disabled={isPushingAppUpdate}
-              onClick={handlePushAppUpdateToAllUsers}
-              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#089981] to-emerald-500 hover:brightness-110 disabled:opacity-50 text-white text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5 shadow-md"
-              title={
-                isAr
-                  ? 'إجبار جميع المتصفحات والاختصارات (PWA) على مسح الكاش وتحميل أحدث إصدار فوراً دون تسجيل خروجهم'
-                  : 'Force all open tabs and PWA shortcuts to clear cache and reload the newest version immediately'
-              }
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isPushingAppUpdate ? 'animate-spin' : ''}`} />
-              <span>{isAr ? '🚀 دفع التحديث لجميع المستخدمين' : '🚀 Push Update to All Users'}</span>
-            </button>
+            <>
+              <button
+                type="button"
+                disabled={isSyncingLegacyDb}
+                onClick={() => handleSyncLegacyData(false)}
+                className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5 shadow-md"
+                title={
+                  isAr
+                    ? 'استعادة ومزامنة جميع المحادثات والرسائل الخاصة والصفقات والأعضاء من قاعدة البيانات القديمة وذاكرة المتصفح'
+                    : 'Restore & sync all General Chat, DMs, trades, and members from the legacy database and browser cache'
+                }
+              >
+                <Database className={`w-3.5 h-3.5 ${isSyncingLegacyDb ? 'animate-spin' : ''}`} />
+                <span>{isAr ? '🔄 استعادة البيانات والمحادثات القديمة' : '🔄 Restore Legacy Data & Chats'}</span>
+              </button>
+              <button
+                type="button"
+                disabled={isPushingAppUpdate}
+                onClick={handlePushAppUpdateToAllUsers}
+                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#089981] to-emerald-500 hover:brightness-110 disabled:opacity-50 text-white text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5 shadow-md"
+                title={
+                  isAr
+                    ? 'إجبار جميع المتصفحات والاختصارات (PWA) على مسح الكاش وتحميل أحدث إصدار فوراً دون تسجيل خروجهم'
+                    : 'Force all open tabs and PWA shortcuts to clear cache and reload the newest version immediately'
+                }
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isPushingAppUpdate ? 'animate-spin' : ''}`} />
+                <span>{isAr ? '🚀 دفع التحديث لجميع المستخدمين' : '🚀 Push Update to All Users'}</span>
+              </button>
+            </>
           )}
           {onClose && (
             <button
