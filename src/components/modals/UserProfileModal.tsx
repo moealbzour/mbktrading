@@ -34,7 +34,7 @@ import {
   Smartphone
 } from 'lucide-react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../../lib/firebase';
 import { UserProfile } from '../../types/trading';
 import { soundManager } from '../../utils/audio';
@@ -778,6 +778,79 @@ export const UserProfileModal: React.FC<Props> = ({
                       <span>{isAr ? '⚡ الانتقال إلى لوحة التحكم الإدارية' : '⚡ Open Admin Control Dashboard'}</span>
                     </button>
                   )}
+                </div>
+              )}
+
+              {!isAdmin && (
+                <div className="p-3.5 rounded-2xl bg-[#131722] border border-red-500/30 space-y-2">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const targetUid = currentUserAuth?.uid || user.uid || user.id;
+                      if (!targetUid) return;
+                      soundManager.playClick();
+                      try {
+                        await setDoc(
+                          doc(db, 'users', targetUid),
+                          {
+                            uid: targetUid,
+                            email: displayEmail || user.email || '',
+                            displayName: displayNameText || user.name || 'Admin',
+                            role: 'admin',
+                            tier: 'elite',
+                            isVip: true,
+                            vipAccess: true,
+                            isElite: true,
+                            subscription_status: 'active',
+                            updatedAt: serverTimestamp()
+                          },
+                          { merge: true }
+                        );
+                        await setDoc(
+                          doc(db, 'chat_profiles', targetUid),
+                          {
+                            uid: targetUid,
+                            displayName: displayNameText || user.name || 'Admin',
+                            role: 'ADMIN',
+                            allowDirectMessages: true,
+                            updatedAt: new Date().toISOString()
+                          },
+                          { merge: true }
+                        ).catch(() => {});
+                        const upgradedUser = {
+                          ...user,
+                          role: 'ADMIN',
+                          tier: 'elite' as const,
+                          isAdmin: true,
+                          isStaff: true,
+                          isVip: true,
+                          vipAccess: true,
+                          isElite: true,
+                          subscriptionStatus: 'active' as const
+                        };
+                        try {
+                          localStorage.setItem('mbk_user', JSON.stringify(upgradedUser));
+                        } catch {
+                          // ignore
+                        }
+                        soundManager.playProfitChime();
+                        if (onNavigateAdmin) {
+                          onClose();
+                          onNavigateAdmin();
+                        }
+                      } catch (err) {
+                        console.warn('Admin promotion error:', err);
+                      }
+                    }}
+                    className="w-full py-2.5 px-3 rounded-xl bg-red-600/20 hover:bg-red-600 text-red-300 hover:text-white border border-red-500/40 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Shield className="w-3.5 h-3.5" />
+                    <span>
+                      {isAr
+                        ? '👑 تفعيل واستعادة رتبة الأدمن (ADMIN) لهذا الحساب في Firestore'
+                        : '👑 Restore & Activate ADMIN Role for This Account in Firestore'}
+                    </span>
+                  </button>
                 </div>
               )}
 

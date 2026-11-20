@@ -1,4 +1,4 @@
-import { collection, doc, getDocs, limit, orderBy, query, setDoc, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, limit, orderBy, query, setDoc, where } from 'firebase/firestore';
 import { auth, db, legacyDb } from '../lib/firebase';
 
 const SUPER_ADMIN_EMAIL = 'moe.albzour@gmail.com';
@@ -222,12 +222,40 @@ export async function syncAllLegacyDataToDefaultDb(): Promise<RecoveryStats> {
   // Step 1: Recover everything available in local IndexedDB cache from legacyDb right now
   const localCache = await extractDocsFromLegacyIndexedDb();
 
+  const rolePriority = (r?: string): number => {
+    const up = (r || 'FREE').toString().toUpperCase();
+    if (up === 'ADMIN') return 6;
+    if (up === 'MODERATOR' || up === 'ANALYSER' || up === 'ANALYST' || up === 'SALES') return 5;
+    if (up === 'ELITE') return 4;
+    if (up === 'VIP') return 3;
+    return 1;
+  };
+
   const writeUserDoc = async (u: Record<string, any>) => {
     const uid = u.id || u.uid;
     if (!uid) return;
     if (!isSuperAdmin && uid !== currentUser.uid) return;
+
+    const existingRef = doc(db, 'users', uid);
+    const existingSnap = await getDoc(existingRef);
+    if (existingSnap.exists()) {
+      const exData = existingSnap.data();
+      // NEVER overwrite or downgrade an existing user document in (default) that already has an equal or higher role!
+      if (rolePriority(exData.role) >= rolePriority(u.role)) {
+        // Only fill in missing non-role contact fields if blank in (default)
+        const patch: Record<string, any> = {};
+        if (!exData.phone && u.phone) patch.phone = u.phone;
+        if (!exData.country && u.country) patch.country = u.country;
+        if (!exData.dob && u.dob) patch.dob = u.dob;
+        if (Object.keys(patch).length > 0) {
+          await setDoc(existingRef, patch, { merge: true });
+        }
+        return;
+      }
+    }
+
     const { id: _id, ...data } = u;
-    await setDoc(doc(db, 'users', uid), { uid, ...data }, { merge: true });
+    await setDoc(existingRef, { uid, ...data }, { merge: true });
     stats.usersRecovered++;
     if (!u.isBanned) {
       await setDoc(
@@ -437,9 +465,11 @@ export async function syncAllLegacyDataToDefaultDb(): Promise<RecoveryStats> {
       }
     }
 
-    const legacyDmSnap = await getDocs(
-      query(collection(legacyDb, 'dm_conversations'), where('participants', 'array-contains', currentUser.uid))
-    );
+    const legacyDmSnap = isSuperAdmin
+      ? await getDocs(query(collection(legacyDb, 'dm_conversations'), limit(200)))
+      : await getDocs(
+          query(collection(legacyDb, 'dm_conversations'), where('participants', 'array-contains', currentUser.uid))
+        );
     for (const dmDoc of legacyDmSnap.docs) {
       const d = dmDoc.data();
       await setDoc(doc(db, 'dm_conversations', dmDoc.id), { id: dmDoc.id, ...d }, { merge: true })

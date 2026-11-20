@@ -268,17 +268,23 @@ export async function fetchOrCreateUserRegistry(
     const safePhone = (extraData?.phone || '').slice(0, 40);
     const safeCountry = (extraData?.country || '').slice(0, 80);
 
+    const normFallback = fallbackRole.toLowerCase();
+    const isAdminOrEliteFallback = isSuperAdmin || normFallback === 'admin' || normFallback === 'elite';
+    const isStaffOrVipFallback =
+      isAdminOrEliteFallback ||
+      ['vip', 'moderator', 'analyser', 'analyst', 'sales'].includes(normFallback);
+
     const newRegistryDoc = {
       email: safeEmail,
       role: fallbackRole,
-      tier: isSuperAdmin ? 'elite' : 'free',
-      isVip: isSuperAdmin,
-      vipAccess: isSuperAdmin,
+      tier: isAdminOrEliteFallback ? 'elite' : isStaffOrVipFallback ? 'vip' : 'free',
+      isVip: isStaffOrVipFallback,
+      vipAccess: isStaffOrVipFallback,
       vipExpiryDate: null,
-      isElite: isSuperAdmin,
+      isElite: isAdminOrEliteFallback,
       eliteExpiryDate: null,
       grantedFeatures: {},
-      subscription_status: isSuperAdmin ? 'active' : 'none',
+      subscription_status: isStaffOrVipFallback ? 'active' : 'none',
       subscription_end_date: null,
       isBanned: false,
       isMutedFromChat: false,
@@ -836,42 +842,97 @@ export function subscribeToAuth(onUserChange: (user: UserProfile | null) => void
 
     const userDocRef = doc(db, 'users', firebaseUser.uid);
 
+    const roleWeight = (r?: string): number => {
+      const up = (r || 'FREE').toString().toUpperCase();
+      if (up === 'ADMIN') return 6;
+      if (up === 'MODERATOR' || up === 'ANALYSER' || up === 'ANALYST' || up === 'SALES') return 5;
+      if (up === 'ELITE') return 4;
+      if (up === 'VIP') return 3;
+      return 1;
+    };
+
     unsubDoc = onSnapshot(
       userDocRef,
       async (docSnap) => {
+        let cachedProfile: any = null;
+        try {
+          const cachedRaw = localStorage.getItem('mbk_user');
+          if (cachedRaw) {
+            const parsed = JSON.parse(cachedRaw);
+            if (parsed && (parsed.id === firebaseUser.uid || parsed.uid === firebaseUser.uid)) {
+              cachedProfile = parsed;
+            }
+          }
+        } catch {
+          // ignore
+        }
+
+        const cachedRoleLower = cachedProfile?.role ? String(cachedProfile.role).toLowerCase() : 'free';
+        const effectiveInitialRole = isSuperAdmin
+          ? 'admin'
+          : roleWeight(cachedRoleLower) > 1
+          ? cachedRoleLower
+          : 'free';
+
         if (!docSnap.exists() && !pendingRegistrationUids.has(firebaseUser.uid)) {
           try {
-            let cachedExtra: UserOnboardingData | undefined = undefined;
-            try {
-              const cachedRaw = localStorage.getItem('mbk_user');
-              if (cachedRaw) {
-                const parsed = JSON.parse(cachedRaw);
-                if (parsed && parsed.id === firebaseUser.uid) {
-                  cachedExtra = {
-                    phone: parsed.phone || '',
-                    country: parsed.country || '',
-                    dob: parsed.dob || '',
-                    experienceLevel: parsed.experienceLevel || '',
-                    assetClasses: Array.isArray(parsed.assetClasses) ? parsed.assetClasses : [],
-                    favoritePairs: parsed.favoritePairs || ''
-                  };
+            const cachedExtra: UserOnboardingData | undefined = cachedProfile
+              ? {
+                  phone: cachedProfile.phone || '',
+                  country: cachedProfile.country || '',
+                  dob: cachedProfile.dob || '',
+                  experienceLevel: cachedProfile.experienceLevel || '',
+                  assetClasses: Array.isArray(cachedProfile.assetClasses) ? cachedProfile.assetClasses : [],
+                  favoritePairs: cachedProfile.favoritePairs || ''
                 }
-              }
-            } catch {
-              // ignore
+              : undefined;
+            await fetchOrCreateUserRegistry(firebaseUser, effectiveInitialRole, cachedExtra);
+            if (roleWeight(effectiveInitialRole) > 1) {
+              const isStaffOrElite = ['admin', 'moderator', 'analyser', 'analyst', 'sales', 'elite'].includes(effectiveInitialRole);
+              await updateDoc(userDocRef, {
+                role: effectiveInitialRole === 'elite' ? 'vip' : effectiveInitialRole,
+                tier: isStaffOrElite ? 'elite' : 'vip',
+                isVip: true,
+                vipAccess: true,
+                isElite: isStaffOrElite,
+                subscription_status: 'active',
+                updatedAt: serverTimestamp()
+              }).catch(() => {});
             }
-            await fetchOrCreateUserRegistry(firebaseUser, isSuperAdmin ? 'admin' : 'free', cachedExtra);
           } catch (err) {
             console.warn('Error creating user profile doc:', err);
           }
           return;
         }
         const data = docSnap.exists() ? docSnap.data() : {};
-        if (isSuperAdmin && docSnap.exists() && data.role !== 'admin') {
-          try {
-            await updateDoc(userDocRef, { role: 'admin', updatedAt: serverTimestamp() });
-          } catch {
-            // ignore
+        if (docSnap.exists()) {
+          if (isSuperAdmin && data.role !== 'admin') {
+            try {
+              await updateDoc(userDocRef, { role: 'admin', updatedAt: serverTimestamp() });
+              data.role = 'admin';
+            } catch {
+              // ignore
+            }
+          } else if (roleWeight(cachedRoleLower) > roleWeight(data.role)) {
+            const isStaffOrElite = ['admin', 'moderator', 'analyser', 'analyst', 'sales', 'elite'].includes(cachedRoleLower);
+            try {
+              await updateDoc(userDocRef, {
+                role: cachedRoleLower === 'elite' ? 'vip' : cachedRoleLower,
+                tier: isStaffOrElite ? 'elite' : 'vip',
+                isVip: true,
+                vipAccess: true,
+                isElite: isStaffOrElite,
+                subscription_status: 'active',
+                updatedAt: serverTimestamp()
+              });
+              data.role = cachedRoleLower === 'elite' ? 'vip' : cachedRoleLower;
+              data.tier = isStaffOrElite ? 'elite' : 'vip';
+              data.isVip = true;
+              data.vipAccess = true;
+              data.isElite = isStaffOrElite;
+            } catch {
+              // ignore
+            }
           }
         }
         onUserChange(mapUserDocToProfile(firebaseUser, data));

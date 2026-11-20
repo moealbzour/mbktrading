@@ -29,7 +29,9 @@ import {
   syncOwnChatProfile,
   updateDmPrivacySettings
 } from '../../services/directMessageService';
+import { auth } from '../../lib/firebase';
 import { soundManager } from '../../utils/audio';
+import { syncAllLegacyDataToDefaultDb } from '../../utils/legacyDbRecovery';
 
 export interface DmTargetUser {
   uid: string;
@@ -99,7 +101,7 @@ export const DirectMessagesPanel: React.FC<Props> = ({
   isCompact = false
 }) => {
   const isAr = lang === 'ar';
-  const myUid = user.uid || user.id || '';
+  const myUid = auth.currentUser?.uid || user.uid || user.id || '';
   const myDisplayName = (user.name || user.email?.split('@')[0] || 'MBK Trader').trim();
 
   const [ownChatProfile, setOwnChatProfile] = useState<ChatProfile | null>(null);
@@ -136,10 +138,11 @@ export const DirectMessagesPanel: React.FC<Props> = ({
     setTimeout(() => setFeedback(null), 4000);
   };
 
-  // Sync own lightweight directory profile so other users can reach us
+  // Sync own lightweight directory profile so other users can reach us + recover any legacy DMs
   useEffect(() => {
     if (!myUid) return;
     syncOwnChatProfile(user).catch(() => {});
+    syncAllLegacyDataToDefaultDb().catch(() => {});
   }, [myUid, user]);
 
   // Subscribe to own DM privacy settings, chat directory, and conversations

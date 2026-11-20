@@ -929,7 +929,7 @@ export const AdminDashboard: React.FC<Props> = ({
           });
         });
 
-          // Merge with any locally cached users so no client disappears while migrating to (default)
+          // Merge with any locally cached users ONLY for UIDs that do NOT yet exist in live Firestore
           const loadedIds = new Set(loadedUsers.map((u) => u.id));
           const rawCombinedUsers = [...loadedUsers];
           try {
@@ -949,12 +949,15 @@ export const AdminDashboard: React.FC<Props> = ({
             // ignore
           }
 
-          // Deduplicate users by both UID and normalized Email (keep highest tier / most complete record)
+          // Deduplicate users by both UID and normalized Email (live Firestore record or higher tier wins)
+          const loadedFromFirestoreIds = new Set(loadedUsers.map((u) => u.id));
           const tierScore = (u: AdminUserRecord): number => {
             const r = (u.role || '').toUpperCase();
             let score = 0;
+            // Live Firestore document gets priority over stale localStorage cache
+            if (loadedFromFirestoreIds.has(u.id)) score += 20;
             if (r === 'ADMIN') score += 100;
-            else if (r === 'MODERATOR' || r === 'ANALYSER' || r === 'SALES') score += 80;
+            else if (r === 'MODERATOR' || r === 'ANALYSER' || r === 'ANALYST' || r === 'SALES') score += 80;
             else if (u.isElite || u.tier === 'elite') score += 60;
             else if (u.isVip || u.vipAccess || u.tier === 'vip') score += 40;
             if (u.phone) score += 5;
@@ -967,7 +970,6 @@ export const AdminDashboard: React.FC<Props> = ({
           const byEmailMap = new Map<string, AdminUserRecord>();
           const byIdMap = new Map<string, AdminUserRecord>();
           const duplicateFirestoreIdsToDelete: string[] = [];
-          const loadedFromFirestoreIds = new Set(loadedUsers.map((u) => u.id));
 
           for (const candidate of rawCombinedUsers) {
             if (!candidate || !candidate.id) continue;
@@ -1164,7 +1166,16 @@ export const AdminDashboard: React.FC<Props> = ({
 
     try {
       const userRef = doc(db, 'users', targetUser.id);
-      await updateDoc(userRef, { isBanned: nextBanned });
+      await setDoc(userRef, { uid: targetUser.id, isBanned: nextBanned, updatedAt: serverTimestamp() }, { merge: true });
+      setUsers((prev) => {
+        const nextList = prev.map((u) => (u.id === targetUser.id ? { ...u, isBanned: nextBanned } : u));
+        try {
+          localStorage.setItem('mbk_admin_cached_users_v1', JSON.stringify(nextList));
+        } catch {
+          // ignore
+        }
+        return nextList;
+      });
       soundManager.playProfitChime();
       showFeedback(
         'success',
@@ -1183,7 +1194,16 @@ export const AdminDashboard: React.FC<Props> = ({
 
     try {
       const userRef = doc(db, 'users', targetUser.id);
-      await updateDoc(userRef, { isMutedFromChat: nextMuted });
+      await setDoc(userRef, { uid: targetUser.id, isMutedFromChat: nextMuted, updatedAt: serverTimestamp() }, { merge: true });
+      setUsers((prev) => {
+        const nextList = prev.map((u) => (u.id === targetUser.id ? { ...u, isMutedFromChat: nextMuted } : u));
+        try {
+          localStorage.setItem('mbk_admin_cached_users_v1', JSON.stringify(nextList));
+        } catch {
+          // ignore
+        }
+        return nextList;
+      });
       soundManager.playProfitChime();
       showFeedback(
         'success',
@@ -1205,11 +1225,22 @@ export const AdminDashboard: React.FC<Props> = ({
 
     try {
       const lowerRole = newRole.toLowerCase();
+      const upperRole = newRole.toUpperCase();
       const userRef = doc(db, 'users', targetUserId);
+      const isStaffOrVip = ['vip', 'elite', 'admin', 'moderator', 'analyser', 'analyst', 'sales'].includes(lowerRole);
+      const computedTier =
+        lowerRole === 'elite' || lowerRole === 'admin'
+          ? 'elite'
+          : isStaffOrVip
+          ? 'vip'
+          : 'free';
+
       const rolePayload: Record<string, any> = {
+        uid: targetUserId,
         role: lowerRole === 'elite' ? 'vip' : lowerRole,
-        isVip: lowerRole === 'vip' || lowerRole === 'elite' || lowerRole === 'admin',
-        vipAccess: lowerRole === 'vip' || lowerRole === 'elite' || lowerRole === 'admin',
+        tier: computedTier,
+        isVip: isStaffOrVip,
+        vipAccess: isStaffOrVip,
         updatedAt: serverTimestamp()
       };
       if (lowerRole === 'free') {
@@ -1223,18 +1254,59 @@ export const AdminDashboard: React.FC<Props> = ({
         rolePayload.tier = 'vip';
         rolePayload.isElite = false;
         rolePayload.subscription_status = 'active';
-      } else if (lowerRole === 'elite') {
+      } else if (lowerRole === 'elite' || lowerRole === 'admin') {
         rolePayload.tier = 'elite';
         rolePayload.isElite = true;
         rolePayload.subscription_status = 'active';
+      } else if (isStaffOrVip) {
+        rolePayload.subscription_status = 'active';
       }
-      await updateDoc(userRef, rolePayload);
+
+      // Use setDoc with merge: true so it succeeds even if the user doc was only in cache
+      await setDoc(userRef, rolePayload, { merge: true });
+
+      // Also sync the user's role badge in chat_profiles so General Chat & DM Inbox reflect ADMIN/STAFF immediately
+      await setDoc(
+        doc(db, 'chat_profiles', targetUserId),
+        {
+          uid: targetUserId,
+          role: upperRole === 'ELITE' ? 'VIP' : upperRole,
+          updatedAt: new Date().toISOString()
+        },
+        { merge: true }
+      ).catch(() => {});
+
+      const nextDisplayRole = upperRole === 'ELITE' ? 'VIP' : upperRole;
+
+      // Immediately update local users state and localStorage cache so background sync never reverts it
+      setUsers((prev) => {
+        const nextList = prev.map((u) =>
+          u.id === targetUserId
+            ? {
+                ...u,
+                role: nextDisplayRole,
+                tier: computedTier as any,
+                isVip: rolePayload.isVip,
+                vipAccess: rolePayload.vipAccess,
+                isElite: Boolean(rolePayload.isElite),
+                subscriptionStatus: (rolePayload.subscription_status || u.subscriptionStatus) as any
+              }
+            : u
+        );
+        try {
+          localStorage.setItem('mbk_admin_cached_users_v1', JSON.stringify(nextList));
+        } catch {
+          // ignore
+        }
+        return nextList;
+      });
+
       setInspectUser((prev) =>
         prev && prev.id === targetUserId
           ? {
               ...prev,
-              role: newRole === 'ELITE' ? 'VIP' : newRole,
-              tier: lowerRole === 'elite' ? 'elite' : lowerRole === 'vip' ? 'vip' : lowerRole === 'admin' ? 'elite' : 'free',
+              role: nextDisplayRole,
+              tier: computedTier as any,
               isVip: rolePayload.isVip,
               vipAccess: rolePayload.vipAccess,
               isElite: Boolean(rolePayload.isElite),
@@ -1272,6 +1344,7 @@ export const AdminDashboard: React.FC<Props> = ({
       const isEliteTarget = directTierTarget === 'elite';
 
       const payload: Record<string, any> = {
+        uid: inspectUser.id,
         role: nextRoleLower,
         tier: directTierTarget,
         isVip: true,
@@ -1284,7 +1357,31 @@ export const AdminDashboard: React.FC<Props> = ({
         updatedAt: serverTimestamp()
       };
 
-      await updateDoc(doc(db, 'users', inspectUser.id), payload);
+      await setDoc(doc(db, 'users', inspectUser.id), payload, { merge: true });
+      setUsers((prev) => {
+        const nextList = prev.map((u) =>
+          u.id === inspectUser.id
+            ? {
+                ...u,
+                role: isStaffTarget ? u.role : 'VIP',
+                tier: directTierTarget,
+                isVip: true,
+                vipAccess: true,
+                isElite: isEliteTarget,
+                vipExpiryDate: expiryIso,
+                eliteExpiryDate: isEliteTarget ? expiryIso : null,
+                subscriptionStatus: 'active' as any,
+                subscriptionEndDate: expiryIso
+              }
+            : u
+        );
+        try {
+          localStorage.setItem('mbk_admin_cached_users_v1', JSON.stringify(nextList));
+        } catch {
+          // ignore
+        }
+        return nextList;
+      });
       setInspectUser((prev) =>
         prev
           ? {
@@ -1322,6 +1419,7 @@ export const AdminDashboard: React.FC<Props> = ({
     try {
       const isStaffTarget = ['ADMIN', 'MODERATOR', 'SALES'].includes(inspectUser.role.toUpperCase());
       const payload: Record<string, any> = {
+        uid: inspectUser.id,
         role: isStaffTarget ? inspectUser.role.toLowerCase() : 'free',
         tier: 'free',
         isVip: false,
@@ -1334,7 +1432,31 @@ export const AdminDashboard: React.FC<Props> = ({
         updatedAt: serverTimestamp()
       };
 
-      await updateDoc(doc(db, 'users', inspectUser.id), payload);
+      await setDoc(doc(db, 'users', inspectUser.id), payload, { merge: true });
+      setUsers((prev) => {
+        const nextList: AdminUserRecord[] = prev.map((u) =>
+          u.id === inspectUser.id
+            ? {
+                ...u,
+                role: isStaffTarget ? u.role : 'FREE',
+                tier: 'free' as const,
+                isVip: false,
+                vipAccess: false,
+                isElite: false,
+                vipExpiryDate: null,
+                eliteExpiryDate: null,
+                subscriptionStatus: 'none' as any,
+                subscriptionEndDate: null
+              }
+            : u
+        );
+        try {
+          localStorage.setItem('mbk_admin_cached_users_v1', JSON.stringify(nextList));
+        } catch {
+          // ignore
+        }
+        return nextList;
+      });
       setInspectUser((prev) =>
         prev
           ? {
@@ -1511,26 +1633,28 @@ export const AdminDashboard: React.FC<Props> = ({
 
     const effTier = getEffectiveTier(u);
 
+    const isStaffRole = ['ADMIN', 'MODERATOR', 'SALES', 'ANALYSER', 'ANALYST'].includes((u.role || '').toUpperCase());
+
     if (userFilterTab === 'EXPIRING_SOON') {
       if (!u.subscriptionEndDate) return false;
       const endDate = new Date(u.subscriptionEndDate);
       const diffHours = (endDate.getTime() - new Date().getTime()) / (1000 * 60 * 60);
       return diffHours >= -24 && diffHours <= 72;
     }
-    if (userFilterTab === 'VIP') return effTier === 'vip' && !['ADMIN', 'MODERATOR', 'SALES'].includes(u.role);
-    if (userFilterTab === 'ELITE') return effTier === 'elite' && !['ADMIN', 'MODERATOR', 'SALES'].includes(u.role);
-    if (userFilterTab === 'FREE') return effTier === 'free' && !['ADMIN', 'MODERATOR', 'SALES'].includes(u.role);
+    if (userFilterTab === 'VIP') return effTier === 'vip' && !isStaffRole;
+    if (userFilterTab === 'ELITE') return effTier === 'elite' && !isStaffRole;
+    if (userFilterTab === 'FREE') return effTier === 'free' && !isStaffRole;
     if (userFilterTab === 'BANNED') return u.isBanned;
     if (userFilterTab === 'MUTED') return u.isMutedFromChat;
-    if (userFilterTab === 'STAFF') return ['ADMIN', 'MODERATOR', 'SALES'].includes(u.role);
+    if (userFilterTab === 'STAFF') return isStaffRole;
 
     return true;
   });
 
   // Calculate Metrics
   const totalRevenueAll = users.reduce((acc, curr) => acc + (curr.totalPaid || 0), 0);
-  const totalVipCount = users.filter((u) => getEffectiveTier(u) === 'vip' && !['ADMIN', 'MODERATOR', 'SALES'].includes(u.role)).length;
-  const totalEliteCount = users.filter((u) => getEffectiveTier(u) === 'elite' && !['ADMIN', 'MODERATOR', 'SALES'].includes(u.role)).length;
+  const totalVipCount = users.filter((u) => getEffectiveTier(u) === 'vip' && !['ADMIN', 'MODERATOR', 'SALES', 'ANALYSER', 'ANALYST'].includes((u.role || '').toUpperCase())).length;
+  const totalEliteCount = users.filter((u) => getEffectiveTier(u) === 'elite' && !['ADMIN', 'MODERATOR', 'SALES', 'ANALYSER', 'ANALYST'].includes((u.role || '').toUpperCase())).length;
   const totalBannedCount = users.filter((u) => u.isBanned).length;
 
   // ACCESS DENIED VIEW IF NOT STAFF
@@ -1550,6 +1674,50 @@ export const AdminDashboard: React.FC<Props> = ({
               ? 'لوحة التحكم وإدارة العملاء مقتصرة فقط على رتب (ADMIN, MODERATOR, SALES, ANALYSER).'
               : 'This CRM Dashboard is strictly reserved for Admin, Moderator, Sales, and Analyser roles.'}
           </p>
+          {auth.currentUser && (
+            <button
+              onClick={async () => {
+                const curr = auth.currentUser;
+                if (!curr) return;
+                try {
+                  soundManager.playClick();
+                  await setDoc(
+                    doc(db, 'users', curr.uid),
+                    {
+                      uid: curr.uid,
+                      email: curr.email || '',
+                      displayName: curr.displayName || curr.email?.split('@')[0] || 'Admin',
+                      role: 'admin',
+                      tier: 'elite',
+                      isVip: true,
+                      vipAccess: true,
+                      isElite: true,
+                      subscription_status: 'active',
+                      updatedAt: serverTimestamp()
+                    },
+                    { merge: true }
+                  );
+                  await setDoc(
+                    doc(db, 'chat_profiles', curr.uid),
+                    {
+                      uid: curr.uid,
+                      displayName: curr.displayName || curr.email?.split('@')[0] || 'Admin',
+                      role: 'ADMIN',
+                      allowDirectMessages: true,
+                      updatedAt: new Date().toISOString()
+                    },
+                    { merge: true }
+                  ).catch(() => {});
+                  soundManager.playProfitChime();
+                } catch (e) {
+                  console.warn(e);
+                }
+              }}
+              className="w-full mb-3 py-3 px-4 rounded-xl bg-[#089981] hover:bg-[#089981]/90 text-white font-bold text-xs transition-colors cursor-pointer"
+            >
+              {isAr ? '👑 استعادة صلاحية الأدمن (ADMIN) لهذا الحساب المفتوح الآن' : '👑 Restore ADMIN Access for Current Account'}
+            </button>
+          )}
           {onClose && (
             <button
               onClick={onClose}
@@ -2054,15 +2222,26 @@ export const AdminDashboard: React.FC<Props> = ({
 
                         {/* Actions */}
                         <td className="py-3 px-3 text-end">
-                          <button
-                            onClick={() => {
-                              soundManager.playClick();
-                              setInspectUser(u);
-                            }}
-                            className="px-3 py-1.5 rounded-lg bg-[#089981]/20 hover:bg-[#089981] text-[#089981] hover:text-white font-bold text-xs transition-all cursor-pointer"
-                          >
-                            {isAr ? 'فحص الملف' : 'Inspect'}
-                          </button>
+                          <div className="flex items-center justify-end gap-1.5">
+                            {u.role !== 'ADMIN' && isFullAdmin && (
+                              <button
+                                onClick={() => handleSetRole(u.id, 'ADMIN')}
+                                className="px-2.5 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500 text-red-300 hover:text-white border border-red-500/40 font-bold text-[11px] transition-all cursor-pointer"
+                                title={isAr ? 'ترقية مباشرة إلى ADMIN في Firestore' : 'Promote directly to ADMIN in Firestore'}
+                              >
+                                {isAr ? '👑 تعيين أدمن' : '👑 Make Admin'}
+                              </button>
+                            )}
+                            <button
+                              onClick={() => {
+                                soundManager.playClick();
+                                setInspectUser(u);
+                              }}
+                              className="px-3 py-1.5 rounded-lg bg-[#089981]/20 hover:bg-[#089981] text-[#089981] hover:text-white font-bold text-xs transition-all cursor-pointer"
+                            >
+                              {isAr ? 'فحص الملف' : 'Inspect'}
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
