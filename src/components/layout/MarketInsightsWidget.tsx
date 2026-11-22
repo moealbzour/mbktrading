@@ -51,17 +51,55 @@ const getTVSymbol = (sym: MarketSymbol | string): string => {
   return TRADINGVIEW_TICKERS[clean as MarketSymbol] || clean || 'CAPITALCOM:US100';
 };
 
-// Subcomponent for TradingView Symbol Info Widget with Dynamic Injection
+// Shared hook to lazy-load heavy TradingView embeds only when scrolled within 200px of viewport
+const useLazyWidgetVisible = (ref: React.RefObject<HTMLDivElement | null>): boolean => {
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    if (isVisible) return;
+    const el = ref.current;
+    if (!el) return;
+
+    if (typeof IntersectionObserver === 'undefined') {
+      setIsVisible(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting || entry.intersectionRatio > 0) {
+            setIsVisible(true);
+            observer.disconnect();
+            break;
+          }
+        }
+      },
+      { rootMargin: '200px' }
+    );
+
+    observer.observe(el);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [ref, isVisible]);
+
+  return isVisible;
+};
+
+// Subcomponent for TradingView Symbol Info Widget with Dynamic Lazy Injection
 const TradingViewSymbolInfoWidget: React.FC<{
   symbol: MarketSymbol;
   lang?: 'ar' | 'en';
 }> = ({ symbol, lang = 'ar' }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const isVisible = useLazyWidgetVisible(containerRef);
   const tvSymbol = getTVSymbol(symbol);
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container || !isVisible) return;
     container.innerHTML = '';
 
     const widgetContainer = document.createElement('div');
@@ -95,7 +133,7 @@ const TradingViewSymbolInfoWidget: React.FC<{
         container.innerHTML = '';
       }
     };
-  }, [symbol, tvSymbol, lang]);
+  }, [symbol, tvSymbol, lang, isVisible]);
 
   return (
     <div
@@ -105,17 +143,18 @@ const TradingViewSymbolInfoWidget: React.FC<{
   );
 };
 
-// Subcomponent for TradingView Technical Analysis Widget with Dynamic Injection
+// Subcomponent for TradingView Technical Analysis Widget with Dynamic Lazy Injection
 const TradingViewTechnicalAnalysisWidget: React.FC<{
   symbol: MarketSymbol;
   lang?: 'ar' | 'en';
 }> = ({ symbol, lang = 'ar' }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const isVisible = useLazyWidgetVisible(containerRef);
   const tvSymbol = getTVSymbol(symbol);
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container || !isVisible) return;
     container.innerHTML = '';
 
     const widgetContainer = document.createElement('div');
@@ -153,7 +192,7 @@ const TradingViewTechnicalAnalysisWidget: React.FC<{
         container.innerHTML = '';
       }
     };
-  }, [symbol, tvSymbol, lang]);
+  }, [symbol, tvSymbol, lang, isVisible]);
 
   return (
     <div
@@ -163,17 +202,18 @@ const TradingViewTechnicalAnalysisWidget: React.FC<{
   );
 };
 
-// Subcomponent for TradingView Timeline / Top Stories Widget
+// Subcomponent for TradingView Timeline / Top Stories Widget with Dynamic Lazy Injection
 const TradingViewTimelineWidget: React.FC<{
   symbol: MarketSymbol;
   lang?: 'ar' | 'en';
 }> = ({ symbol, lang = 'ar' }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const isVisible = useLazyWidgetVisible(containerRef);
   const tvSymbol = getTVSymbol(symbol);
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container || !isVisible) return;
     container.innerHTML = '';
 
     const widgetContainer = document.createElement('div');
@@ -210,7 +250,7 @@ const TradingViewTimelineWidget: React.FC<{
         container.innerHTML = '';
       }
     };
-  }, [symbol, tvSymbol, lang]);
+  }, [symbol, tvSymbol, lang, isVisible]);
 
   return (
     <div
@@ -220,13 +260,14 @@ const TradingViewTimelineWidget: React.FC<{
   );
 };
 
-// Live TradingView Economic Events Widget
+// Live TradingView Economic Events Widget with Dynamic Lazy Injection
 const TradingViewLiveEventsPanel: React.FC<{ lang?: 'ar' | 'en' }> = ({ lang = 'ar' }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const isVisible = useLazyWidgetVisible(containerRef);
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container || !isVisible) return;
     container.innerHTML = '';
 
     const widgetContainer = document.createElement('div');
@@ -262,7 +303,7 @@ const TradingViewLiveEventsPanel: React.FC<{ lang?: 'ar' | 'en' }> = ({ lang = '
         container.innerHTML = '';
       }
     };
-  }, [lang]);
+  }, [lang, isVisible]);
 
   return (
     <div

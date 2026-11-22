@@ -288,25 +288,20 @@ function sendJson(res: ServerResponse, statusCode: number, body: Record<string, 
   res.end(JSON.stringify(body));
 }
 
-export default async function handler(req: Req, res: ServerResponse) {
-  const method = (req.method || 'GET').toUpperCase();
-
-  if (method === 'OPTIONS') {
-    return sendJson(res, 200, { ok: true });
-  }
-
-  if (method !== 'GET') {
-    return sendJson(res, 405, { error: 'Method not allowed' });
-  }
-
+async function loadCalendarWithCache(): Promise<{
+  status: 'ok' | 'unavailable';
+  source?: string;
+  events: EconomicCalendarApiEvent[];
+  cachedAt: string;
+}> {
   const nowMs = Date.now();
   if (calendarCache && calendarCache.expiresAtMs > nowMs && calendarCache.events.length > 0) {
-    return sendJson(res, 200, {
+    return {
       status: 'ok',
       source: calendarCache.source,
       events: calendarCache.events,
       cachedAt: calendarCache.cachedAt
-    });
+    };
   }
 
   const fromDate = formatDateYMD(nowMs - 2 * 24 * 60 * 60 * 1000);
@@ -327,12 +322,12 @@ export default async function handler(req: Req, res: ServerResponse) {
         cachedAt,
         expiresAtMs: nowMs + CACHE_TTL_MS
       };
-      return sendJson(res, 200, {
+      return {
         status: 'ok',
         source: 'biquote',
         events: primaryEvents,
         cachedAt
-      });
+      };
     }
   } catch (primaryErr: any) {
     console.warn('[/api/market/calendar] Primary source failover notice:', primaryErr?.message || primaryErr);
@@ -350,12 +345,12 @@ export default async function handler(req: Req, res: ServerResponse) {
         cachedAt,
         expiresAtMs: nowMs + CACHE_TTL_MS
       };
-      return sendJson(res, 200, {
+      return {
         status: 'ok',
         source: 'faireconomy',
         events: fallbackEvents,
         cachedAt
-      });
+      };
     }
   } catch (fallbackErr: any) {
     console.warn('[/api/market/calendar] Fallback source notice:', fallbackErr?.message || fallbackErr);
@@ -363,17 +358,37 @@ export default async function handler(req: Req, res: ServerResponse) {
 
   // 3. Stale cache recovery if available
   if (calendarCache && calendarCache.events.length > 0) {
-    return sendJson(res, 200, {
+    return {
       status: 'ok',
       source: calendarCache.source,
       events: calendarCache.events,
       cachedAt: calendarCache.cachedAt
-    });
+    };
   }
 
-  return sendJson(res, 200, {
+  return {
     status: 'unavailable',
     events: [],
     cachedAt: new Date(nowMs).toISOString()
-  });
+  };
+}
+
+export async function getCachedCalendarEvents(): Promise<EconomicCalendarApiEvent[]> {
+  const result = await loadCalendarWithCache();
+  return result.events;
+}
+
+export default async function handler(req: Req, res: ServerResponse) {
+  const method = (req.method || 'GET').toUpperCase();
+
+  if (method === 'OPTIONS') {
+    return sendJson(res, 200, { ok: true });
+  }
+
+  if (method !== 'GET') {
+    return sendJson(res, 405, { error: 'Method not allowed' });
+  }
+
+  const result = await loadCalendarWithCache();
+  return sendJson(res, 200, result);
 }

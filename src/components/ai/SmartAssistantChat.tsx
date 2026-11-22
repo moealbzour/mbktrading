@@ -32,7 +32,7 @@ export const SmartAssistantChat: React.FC<SmartAssistantChatProps> = ({
   onOpenPlansModal,
   lang = 'ar',
   activeSymbol = 'US100',
-  currentPrice = 20892.4
+  currentPrice = 0
 }) => {
   const isAr = lang === 'ar';
 
@@ -69,6 +69,14 @@ export const SmartAssistantChat: React.FC<SmartAssistantChatProps> = ({
     if (!trimmed || loading || !canUseStandardAi) return;
 
     soundManager.playClick();
+    const recentHistory = messages
+      .filter((m) => !m.isError && m.id !== 'welcome')
+      .slice(-6)
+      .map((m) => ({
+        role: m.role,
+        text: m.text
+      }));
+
     const userMsg: ChatMessage = {
       id: `u-${Date.now()}`,
       role: 'user',
@@ -94,11 +102,57 @@ export const SmartAssistantChat: React.FC<SmartAssistantChatProps> = ({
         body: JSON.stringify({
           query: trimmed,
           activeSymbol,
-          currentPrice
+          currentPrice,
+          lang,
+          history: recentHistory
         })
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+
+      if (res.status === 401) {
+        const authErrText = isAr
+          ? 'انتهت صلاحية الجلسة، يرجى تحديث الصفحة أو إعادة تسجيل الدخول للمتابعة.'
+          : 'Your session has expired. Please refresh the page or sign in again.';
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `err-${Date.now()}`,
+            role: 'model',
+            text: authErrText,
+            time: new Date().toLocaleTimeString(isAr ? 'ar-SA' : 'en-US', {
+              hour: '2-digit',
+              minute: '2-digit'
+            }),
+            isError: true
+          }
+        ]);
+        return;
+      }
+
+      if (res.status === 429) {
+        const rateErrText =
+          typeof data?.error === 'string' && data.error.trim()
+            ? data.error.trim()
+            : isAr
+            ? 'تم الوصول إلى حد الرسائل المسموح به مؤقتاً. يرجى الانتظار قليلاً ثم المحاولة مرة أخرى.'
+            : 'Rate limit or cooldown reached. Please wait a moment and try again.';
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `err-${Date.now()}`,
+            role: 'model',
+            text: rateErrText,
+            time: new Date().toLocaleTimeString(isAr ? 'ar-SA' : 'en-US', {
+              hour: '2-digit',
+              minute: '2-digit'
+            }),
+            isError: true
+          }
+        ]);
+        return;
+      }
+
       if (!res.ok || !data?.reply) {
         throw new Error(data?.error || 'AI generation failed');
       }

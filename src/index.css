@@ -7,35 +7,54 @@
     --sab: env(safe-area-inset-bottom, 0px);
     --sal: env(safe-area-inset-left, 0px);
 
-    /* Carbon Obsidian Institutional Dark Theme (Default) */
-    --bg-canvas: #0a0d12;
-    --bg-panel: #10141c;
-    --bg-elevated: #161c26;
-    --bg-hover: #1c2430;
-    --border-subtle: #1e2633;
-    --border-strong: #2a3446;
+    /* Original MBK Deep Obsidian Dark Palette (Default) */
+    --bg-canvas: #06080c;
+    --bg-panel: #0b0e14;
+    --bg-elevated: #0f141e;
+    --bg-hover: #161d2b;
+    --border-subtle: rgba(255, 255, 255, 0.08);
+    --border-strong: #1e2536;
     --text-primary: #f1f5f9;
     --text-secondary: #8b95a5;
-    --text-muted: #5e6878;
-    --accent-primary: #c5a059;
+    --text-muted: #64748b;
+    --accent-primary: #10b981;
+    --accent-hover: #059669;
     --color-bull: #10b981;
-    --color-bear: #e11d48;
+    --color-bear: #ef4444;
+  }
+
+  .theme-dark,
+  html[data-theme="dark"] {
+    --bg-canvas: #06080c;
+    --bg-panel: #0b0e14;
+    --bg-elevated: #0f141e;
+    --bg-hover: #161d2b;
+    --border-subtle: rgba(255, 255, 255, 0.08);
+    --border-strong: #1e2536;
+    --text-primary: #f1f5f9;
+    --text-secondary: #8b95a5;
+    --text-muted: #64748b;
+    --accent-primary: #10b981;
+    --accent-hover: #059669;
+    --color-bull: #10b981;
+    --color-bear: #ef4444;
   }
 
   html[data-theme="light"] {
-    /* Swiss Daylight Institutional Light Theme */
-    --bg-canvas: #f3f5f8;
-    --bg-panel: #ffffff;
-    --bg-elevated: #f8fafc;
-    --bg-hover: #edf1f7;
-    --border-subtle: #dce2ec;
-    --border-strong: #c4cddb;
+    /* Institutional Light Theme */
+    --bg-canvas: #F0F3FA;
+    --bg-panel: #FFFFFF;
+    --bg-elevated: #F8FAFD;
+    --bg-hover: #E0E3EB;
+    --border-subtle: #E0E3EB;
+    --border-strong: #B2B5BE;
     --text-primary: #0f172a;
-    --text-secondary: #475569;
-    --text-muted: #64748b;
-    --accent-primary: #9a7b38;
-    --color-bull: #059669;
-    --color-bear: #dc2626;
+    --text-secondary: #64748b;
+    --text-muted: #94a3b8;
+    --accent-primary: #10b981;
+    --accent-hover: #059669;
+    --color-bull: #10b981;
+    --color-bear: #ef4444;
   }
 
   html {
@@ -56,68 +75,25 @@
   }
 
   .pb-safe {
-    padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
   .pt-safe {
-    padding-top: max(0.5rem, env(safe-area-inset-top, 0px));
+    padding-top: env(safe-area-inset-top, 0px);
   }
 }
 
 /* ============================================================================
-   ARCHITECTURAL GEOMETRY & ANTI-SLOP INSTITUTIONAL OVERRIDES
-   Enforces crisp 3px-4px terminal edges instead of bubbly AI rounded-2xl/3xl
-   ============================================================================ */
-.rounded-xl,
-.rounded-2xl,
-.rounded-3xl {
-  border-radius: 4px !important;
-}
-
-.rounded-lg {
-  border-radius: 3px !important;
-}
-
-/* ============================================================================
-   CARBON OBSIDIAN DARK-MODE SURFACE REFINEMENT
-   Replaces legacy washed-out blue-grey (#131722 / #1e222d) with pure carbon
-   ============================================================================ */
-html:not([data-theme="light"]) .bg-\[\#131722\],
-html:not([data-theme="light"]) .bg-\[\#06080C\],
-html:not([data-theme="light"]) .bg-\[\#0b0e14\],
-html:not([data-theme="light"]) .bg-\[\#0d1017\],
-html:not([data-theme="light"]) .bg-\[\#090D16\] {
-  background-color: var(--bg-canvas) !important;
-}
-
-html:not([data-theme="light"]) .bg-\[\#1e222d\],
-html:not([data-theme="light"]) .bg-\[\#171b26\],
-html:not([data-theme="light"]) .bg-\[\#181c27\],
-html:not([data-theme="light"]) .bg-\[\#1a1e28\],
-html:not([data-theme="light"]) .bg-\[\#1a1e29\],
-html:not([data-theme="light"]) .bg-\[\#111726\] {
-  background-color: var(--bg-panel) !important;
-}
-
-html:not([data-theme="light"]) .bg-\[\#2a2e39\],
-html:not([data-theme="light"]) .bg-\[\#182034\] {
-  background-color: var(--bg-elevated) !important;
-}
-
-html:not([data-theme="light"]) .border-\[\#2a2e39\],
-html:not([data-theme="light"]) .border-\[\#363a45\],
-html:not([data-theme="light"]) .border-\[\#1E293B\] {
-  border-color: var(--border-subtle) !important;
-}
-
-/* ============================================================================
-   SWISS DAYLIGHT LIGHT-MODE ADAPTATION LAYER
+   TRADINGVIEW SLATE-WHITE LIGHT-MODE ADAPTATION LAYER
    ============================================================================ */
 html[data-theme="light"] .bg-\[\#131722\],
+html[data-theme="light"] .bg-\[\#06080c\],
 html[data-theme="light"] .bg-\[\#06080C\],
+html[data-theme="light"] .bg-\[\#0a0d12\],
+html[data-theme="light"] .bg-\[\#0a0d14\],
 html[data-theme="light"] .bg-\[\#0b0e14\],
 html[data-theme="light"] .bg-\[\#0d1017\],
-html[data-theme="light"] .bg-\[\#090D16\],
-html[data-theme="light"] .bg-\[\#0a0d12\] {
+html[data-theme="light"] .bg-\[\#0d1117\],
+html[data-theme="light"] .bg-\[\#090D16\] {
   background-color: var(--bg-canvas) !important;
 }
 
@@ -128,37 +104,50 @@ html[data-theme="light"] .bg-\[\#131722\]\/70,
 html[data-theme="light"] .bg-\[\#131722\]\/60,
 html[data-theme="light"] .bg-\[\#131722\]\/50,
 html[data-theme="light"] .bg-\[\#0a0d12\]\/95 {
-  background-color: rgba(243, 245, 248, 0.96) !important;
+  background-color: rgba(240, 243, 250, 0.96) !important;
 }
 
 html[data-theme="light"] .bg-\[\#1e222d\],
+html[data-theme="light"] .bg-\[\#1E222D\],
 html[data-theme="light"] .bg-\[\#1e222d\]\/95,
 html[data-theme="light"] .bg-\[\#1e222d\]\/90,
 html[data-theme="light"] .bg-\[\#1e222d\]\/70,
 html[data-theme="light"] .bg-\[\#1e222d\]\/60,
+html[data-theme="light"] .bg-\[\#0f141e\],
+html[data-theme="light"] .bg-\[\#0f141e\]\/90,
+html[data-theme="light"] .bg-\[\#0f141e\]\/80,
+html[data-theme="light"] .bg-\[\#10141c\],
+html[data-theme="light"] .bg-\[\#111622\],
+html[data-theme="light"] .bg-\[\#111726\],
+html[data-theme="light"] .bg-\[\#151924\],
+html[data-theme="light"] .bg-\[\#161b26\],
 html[data-theme="light"] .bg-\[\#171b26\],
 html[data-theme="light"] .bg-\[\#181c27\],
 html[data-theme="light"] .bg-\[\#1a1e28\],
-html[data-theme="light"] .bg-\[\#1a1e29\],
-html[data-theme="light"] .bg-\[\#111726\],
-html[data-theme="light"] .bg-\[\#10141c\] {
+html[data-theme="light"] .bg-\[\#1a1e29\] {
   background-color: var(--bg-panel) !important;
 }
 
+html[data-theme="light"] .bg-\[\#242834\],
 html[data-theme="light"] .bg-\[\#2a2e39\],
+html[data-theme="light"] .bg-\[\#2A2E39\],
 html[data-theme="light"] .bg-\[\#2a2e39\]\/60,
+html[data-theme="light"] .bg-\[\#161d2b\],
 html[data-theme="light"] .bg-\[\#182034\],
 html[data-theme="light"] .bg-\[\#161c26\] {
-  background-color: #e8edf5 !important;
+  background-color: #E0E3EB !important;
 }
 
 html[data-theme="light"] .border-\[\#2a2e39\],
+html[data-theme="light"] .border-\[\#2A2E39\],
 html[data-theme="light"] .border-\[\#2a2e39\]\/60,
 html[data-theme="light"] .border-\[\#2a2e39\]\/70,
 html[data-theme="light"] .border-\[\#2a2e39\]\/80,
 html[data-theme="light"] .border-\[\#363a45\],
+html[data-theme="light"] .border-\[\#1e2536\],
 html[data-theme="light"] .border-\[\#1E293B\],
 html[data-theme="light"] .border-\[\#1e2633\],
+html[data-theme="light"] .border-\[\#2a3446\],
 html[data-theme="light"] .border-white\/10,
 html[data-theme="light"] .border-white\/5 {
   border-color: var(--border-subtle) !important;
@@ -167,6 +156,7 @@ html[data-theme="light"] .border-white\/5 {
 html[data-theme="light"] .text-white,
 html[data-theme="light"] .text-\[\#f1f5f9\],
 html[data-theme="light"] .text-\[\#d1d4dc\],
+html[data-theme="light"] .text-\[\#D1D4DC\],
 html[data-theme="light"] .text-\[\#e1e4ea\],
 html[data-theme="light"] .text-slate-100,
 html[data-theme="light"] .text-slate-200 {
@@ -174,6 +164,10 @@ html[data-theme="light"] .text-slate-200 {
 }
 
 /* Preserve white text on solid primary/semantic buttons in Light Mode */
+html[data-theme="light"] .bg-\[\#2962ff\] .text-white,
+html[data-theme="light"] .bg-\[\#2962ff\].text-white,
+html[data-theme="light"] .bg-\[\#2962FF\] .text-white,
+html[data-theme="light"] .bg-\[\#2962FF\].text-white,
 html[data-theme="light"] .bg-\[\#089981\] .text-white,
 html[data-theme="light"] .bg-\[\#089981\].text-white,
 html[data-theme="light"] .bg-\[\#10b981\].text-white,
@@ -181,6 +175,7 @@ html[data-theme="light"] .bg-\[\#0f172a\].text-white,
 html[data-theme="light"] .bg-emerald-600.text-white,
 html[data-theme="light"] .bg-rose-600.text-white,
 html[data-theme="light"] .bg-\[\#f23645\].text-white,
+html[data-theme="light"] .bg-\[\#F23645\].text-white,
 html[data-theme="light"] .bg-\[\#e11d48\].text-white,
 html[data-theme="light"] .bg-blue-600.text-white,
 html[data-theme="light"] .bg-red-600.text-white {
@@ -188,6 +183,7 @@ html[data-theme="light"] .bg-red-600.text-white {
 }
 
 html[data-theme="light"] .text-\[\#787b86\],
+html[data-theme="light"] .text-\[\#787B86\],
 html[data-theme="light"] .text-\[\#8b95a5\],
 html[data-theme="light"] .text-\[\#9db2c6\],
 html[data-theme="light"] .text-\[\#8a93a6\],
@@ -195,7 +191,7 @@ html[data-theme="light"] .text-slate-400 {
   color: var(--text-secondary) !important;
 }
 
-/* Custom precision scrollbars */
+/* Custom precision slim dark scrollbars */
 ::-webkit-scrollbar {
   width: 4px;
   height: 4px;
@@ -206,15 +202,16 @@ html[data-theme="light"] .text-slate-400 {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border-strong);
+  background: var(--border-subtle);
   border-radius: 2px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
+  background: #434651;
 }
 
 /* Tabular numbers for financial digits */
+.tv-num,
 .tabular-nums,
 .font-mono {
   font-variant-numeric: tabular-nums;
@@ -225,8 +222,8 @@ html[data-theme="light"] .text-slate-400 {
 .tv-grid-bg {
   background-size: 28px 28px;
   background-image: 
-    linear-gradient(to right, rgba(148, 163, 184, 0.08) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
+    linear-gradient(to right, rgba(120, 123, 134, 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(120, 123, 134, 0.08) 1px, transparent 1px);
 }
 
 .smooth-scroll-x {

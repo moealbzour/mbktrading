@@ -77,12 +77,11 @@ import { DailyTradesPanel } from '../signals/DailyTradesPanel';
 import { AdminDashboard } from '../admin/AdminDashboard';
 import { QuickSignalDrawer } from '../admin/QuickSignalDrawer';
 import { MarketHeatmap } from '../insights/MarketHeatmap';
-import { PaperTrading } from '../tic/PaperTrading';
 import { EconomicCalendarPanel } from '../EconomicCalendarPanel';
 import { TradingAcademyPanel } from '../tic/TradingAcademyPanel';
 import { CopyTradingPanel } from '../CopyTradingPanel';
 import { AutoBotPanel } from '../AutoBotPanel';
-import { IndicatorsStorePanel } from '../IndicatorsStorePanel';
+import { IndicatorsStorePanel } from '../store/IndicatorsStorePanel';
 import { EliteLockedModule } from '../common/EliteLockedModule';
 import { MacroEventAndAnnouncementPopup } from '../common/MacroEventAndAnnouncementPopup';
 
@@ -723,12 +722,12 @@ export const TradingViewWorkspace: React.FC<Props> = ({
     },
     {
       id: 'paper' as WorkspaceView | 'heatmap',
-      labelAr: 'التداول التجريبي',
-      labelEn: 'Paper Trading',
-      shortAr: 'تجريبي',
-      shortEn: 'Paper',
-      topicAr: 'محفظة تدريب بدون مخاطرة',
-      topicEn: 'Risk-Free Practice Desk',
+      labelAr: 'المتجر',
+      labelEn: 'Store',
+      shortAr: 'المتجر',
+      shortEn: 'Store',
+      topicAr: 'متجر المؤشرات وروبوتات التداول',
+      topicEn: 'Indicators & Algo Bots Store',
       icon: Wallet
     },
     {
@@ -1269,12 +1268,13 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                   </div>
                 )}
 
-                {/* FREE TIER BASIC TOOL: PAPER TRADING */}
+                {/* MBK INDICATORS & ALGO BOTS STORE */}
                 {activeView === 'paper' && (
-                  <PaperTrading
-                    tickers={tickers}
-                    selectedSymbol={selectedSymbol}
-                    onSelectSymbol={onSelectSymbol}
+                  <IndicatorsStorePanel
+                    lang={lang}
+                    userProfile={user}
+                    isAdmin={Boolean(user.isAdmin || roleUpperForAdmin === 'ADMIN')}
+                    onOpenPlans={() => setPlansModalOpen(true)}
                   />
                 )}
 
@@ -1365,7 +1365,12 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                       />
                     )}
                     {activeEliteTab === 'indicatorsStore' && (
-                      <IndicatorsStorePanel lang={lang} onViewPlans={() => setPlansModalOpen(true)} />
+                      <IndicatorsStorePanel
+                        lang={lang}
+                        userProfile={user}
+                        isAdmin={Boolean(user.isAdmin || roleUpperForAdmin === 'ADMIN')}
+                        onOpenPlans={() => setPlansModalOpen(true)}
+                      />
                     )}
                   </div>
                 )}
@@ -1937,6 +1942,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
         onClose={() => setCalculatorModalOpen(false)}
         lang={lang}
         defaultSymbol={selectedSymbol}
+        tickers={tickers}
       />
 
       <MarketSessionsModal

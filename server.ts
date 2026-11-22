@@ -18,6 +18,7 @@ import { getSignalsFromFirestore, saveBotAlertToFirestore } from './server/fireb
 import marketNewsHandler from './api/market/news.js';
 import marketCalendarHandler from './api/market/calendar.js';
 import marketQuotesHandler from './api/market/quotes.js';
+import geminiChatHandler from './api/gemini/chat.js';
 
 dotenv.config();
 
@@ -329,65 +330,9 @@ app.get(['/api/signals', '/api/trades'], async (_req, res) => {
 });
 
 // ==========================================
-// 5. SERVER-SIDE GEMINI ASSISTANT (@google/genai)
+// 5. SERVER-SIDE GEMINI ASSISTANT (@google/genai — shared with Vercel api/gemini/chat.ts)
 // ==========================================
-app.post(['/api/gemini/chat', '/api/gemini/agent'], async (req, res) => {
-  try {
-    const { query = '', activeSymbol = 'US100', currentPrice = 20892.4 } = req.body || {};
-
-    const cleanQuery = typeof query === 'string' ? query.trim() : '';
-    if (!cleanQuery) {
-      return res.status(400).json({ error: 'Query message is required.' });
-    }
-
-    const serverKey = process.env.GEMINI_API_KEY;
-    const client =
-      googleGenAIClient ||
-      (serverKey
-        ? new GoogleGenAI({
-            apiKey: serverKey,
-            httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
-          })
-        : null);
-
-    if (!client) {
-      return res.status(503).json({
-        error: 'Gemini API key is not configured on the server.'
-      });
-    }
-
-    const systemInstruction = `You are the MBK Trading Assistant. Answer the user's specific questions conversationally, naturally, and concisely in the language they speak. Do not force market analysis unless explicitly asked. Do not provide personalized financial advice. Context if relevant: Active chart symbol is ${activeSymbol} at price ${currentPrice}.`;
-
-    const response = await client.models.generateContent({
-      model: 'gemini-4-hydrogen',
-      contents: cleanQuery,
-      config: {
-        systemInstruction
-      }
-    });
-
-    const text = (response.text || '').trim();
-    if (!text) {
-      return res.status(502).json({
-        error: 'Empty response received from Gemini model.'
-      });
-    }
-
-    return res.json({
-      reply: text,
-      sources: [],
-      modelUsed: 'gemini-4-hydrogen',
-      activeSymbol,
-      currentPrice,
-      timestamp: new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
-    });
-  } catch (err: any) {
-    console.error('[/api/gemini/chat ERROR]:', err?.message || err);
-    return res.status(502).json({
-      error: err?.message || 'Failed to generate AI response.'
-    });
-  }
-});
+app.post(['/api/gemini/chat', '/api/gemini/agent'], (req, res) => geminiChatHandler(req, res));
 
 // Setup Vite or static serving
 async function startServer() {

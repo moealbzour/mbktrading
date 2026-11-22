@@ -664,5 +664,13 @@ service cloud.firestore {
       allow create, update: if isValidId(announcementId) && isAdmin() && isValidAnnouncement(incoming(), announcementId);
       allow delete: if isValidId(announcementId) && isAdmin();
     }
+
+    // ---------------------------------------------------------------
+    // 8. MBK STORE PRODUCTS (Signed-In Reads, Admin Writes)
+    // ---------------------------------------------------------------
+    match /store_products/{productId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
   }
 }

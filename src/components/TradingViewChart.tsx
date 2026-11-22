@@ -58,20 +58,20 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
   const currentTickerInfo = TRADINGVIEW_TICKERS[symbol] || TRADINGVIEW_TICKERS.US100;
   const { resolvedTheme } = useTheme();
   const isLight = resolvedTheme === 'light';
-  const toolbarBgParam = isLight ? 'F8FAFC' : '131722';
+  const toolbarBgParam = isLight ? 'F8FAFC' : '0b0e14';
 
   const iframeSrc = `https://www.tradingview.com/widgetembed/?symbol=${encodeURIComponent(
     currentTickerInfo.tvSymbol
   )}&interval=15&theme=${isLight ? 'light' : 'dark'}&style=1&timezone=Asia%2FRiyadh&toolbarbg=${toolbarBgParam}&hide_side_toolbar=0&allow_symbol_change=1&locale=ar&utm_source=mbktrading.live`;
 
   return (
-    <div className="w-full h-full flex flex-col overflow-hidden relative select-none bg-[#131722]">
+    <div className="w-full h-full flex flex-col overflow-hidden relative select-none bg-[#0b0e14]">
       {/* PURE 100% FULL HEIGHT CHART CONTAINER */}
-      <div className="w-full h-full flex-1 relative overflow-hidden bg-[#131722]">
+      <div className="w-full h-full flex-1 relative overflow-hidden bg-[#0b0e14]">
         <iframe
           title="TradingView Advanced Chart"
           src={iframeSrc}
-          className="w-full h-full border-0 absolute inset-0 bg-[#131722]"
+          className="w-full h-full border-0 absolute inset-0 bg-[#0b0e14]"
           allow="fullscreen"
         />
 

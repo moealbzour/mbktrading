@@ -150,24 +150,16 @@ function sendJson(res: ServerResponse, statusCode: number, body: Record<string, 
   res.end(JSON.stringify(body));
 }
 
-export default async function handler(req: Req, res: ServerResponse) {
-  const method = (req.method || 'GET').toUpperCase();
-
-  if (method === 'OPTIONS') {
-    return sendJson(res, 200, { ok: true });
-  }
-
-  if (method !== 'GET') {
-    return sendJson(res, 405, { error: 'Method not allowed' });
-  }
-
+async function loadQuotesWithCache(): Promise<{
+  quotes: LiveMarketQuote[];
+  cachedAt: string;
+}> {
   const nowMs = Date.now();
   if (quotesCache && quotesCache.expiresAtMs > nowMs && quotesCache.quotes.length > 0) {
-    return sendJson(res, 200, {
+    return {
       quotes: quotesCache.quotes,
-      source: 'live',
       cachedAt: quotesCache.cachedAt
-    });
+    };
   }
 
   const tasks: Array<Promise<LiveMarketQuote | null>> = [
@@ -204,24 +196,43 @@ export default async function handler(req: Req, res: ServerResponse) {
       expiresAtMs: nowMs + CACHE_TTL_MS
     };
 
-    return sendJson(res, 200, {
-      quotes,
-      source: 'live',
-      cachedAt
-    });
+    return { quotes, cachedAt };
   }
 
   if (quotesCache && quotesCache.quotes.length > 0) {
-    return sendJson(res, 200, {
+    return {
       quotes: quotesCache.quotes,
-      source: 'live',
       cachedAt: quotesCache.cachedAt
-    });
+    };
   }
 
-  return sendJson(res, 200, {
+  return {
     quotes: [],
-    source: 'live',
     cachedAt: new Date(nowMs).toISOString()
+  };
+}
+
+export async function getCachedLiveQuotes(): Promise<LiveMarketQuote[]> {
+  const result = await loadQuotesWithCache();
+  return result.quotes;
+}
+
+export default async function handler(req: Req, res: ServerResponse) {
+  const method = (req.method || 'GET').toUpperCase();
+
+  if (method === 'OPTIONS') {
+    return sendJson(res, 200, { ok: true });
+  }
+
+  if (method !== 'GET') {
+    return sendJson(res, 405, { error: 'Method not allowed' });
+  }
+
+  const { quotes, cachedAt } = await loadQuotesWithCache();
+
+  return sendJson(res, 200, {
+    quotes,
+    source: 'live',
+    cachedAt
   });
 }

@@ -67,7 +67,7 @@ function ImpactBars({ impact }: { impact: 'HIGH' | 'MEDIUM' | 'LOW' }) {
 
   return (
     <div
-      className="inline-flex items-end gap-[2px] h-3.5 px-1.5 py-0.5 rounded-[3px] bg-[#131722] border border-[#2A2E39]"
+      className="inline-flex items-end gap-[2px] h-3.5 px-1.5 py-0.5 rounded-[3px] bg-[#06080c] border border-white/10"
       title={impact}
     >
       {[1, 2, 3].map((bar) => (
@@ -75,7 +75,7 @@ function ImpactBars({ impact }: { impact: 'HIGH' | 'MEDIUM' | 'LOW' }) {
           key={bar}
           className={`w-[3px] rounded-[1px] ${
             bar === 1 ? 'h-1.5' : bar === 2 ? 'h-2' : 'h-2.5'
-          } ${bar <= activeCount ? activeColor : 'bg-[#2A2E39]'}`}
+          } ${bar <= activeCount ? activeColor : 'bg-white/10'}`}
         />
       ))}
     </div>
@@ -249,10 +249,10 @@ export const EconomicCalendarPanel: React.FC<Props> = ({ lang = 'ar' }) => {
   };
 
   return (
-    <div className="space-y-4 bg-[#131722] text-[#D1D4DC]" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="space-y-4 bg-[#06080c] text-[#D1D4DC]" dir={isAr ? 'rtl' : 'ltr'}>
       {/* 1. HIGH-IMPACT UPCOMING RADAR WITH 1-HOUR POPUP ALERT SYSTEM */}
-      <div className="bg-[#1E222D] border border-[#2A2E39] rounded-md overflow-hidden">
-        <div className="px-4 py-3 bg-[#131722] border-b border-[#2A2E39] flex flex-wrap items-center justify-between gap-3">
+      <div className="bg-[#0b0e14] border border-white/10 rounded-md overflow-hidden">
+        <div className="px-4 py-3 bg-[#06080c] border-b border-white/10 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded bg-[#F23645]/15 border border-[#F23645]/40 flex items-center justify-center text-[#F23645] shrink-0">
               <Flame className="w-4 h-4" />
@@ -280,9 +280,9 @@ export const EconomicCalendarPanel: React.FC<Props> = ({ lang = 'ar' }) => {
             type="button"
             onClick={handleManualRefresh}
             disabled={isRefreshing}
-            className="px-2.5 py-1 rounded-[3px] bg-[#1E222D] hover:bg-[#2A2E39] border border-[#2A2E39] text-[11px] font-semibold text-[#D1D4DC] flex items-center gap-1.5 cursor-pointer transition-colors"
+            className="px-2.5 py-1 rounded-[3px] bg-[#0b0e14] hover:bg-[#0f141e] border border-white/10 text-[11px] font-semibold text-[#D1D4DC] flex items-center gap-1.5 cursor-pointer transition-colors"
           >
-            <RefreshCw className={`w-3.5 h-3.5 text-[#2962FF] ${isRefreshing ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 text-[#10b981] ${isRefreshing ? 'animate-spin' : ''}`} />
             <span>{isAr ? 'تحديث البيانات' : 'Refresh'}</span>
           </button>
         </div>
@@ -318,7 +318,7 @@ export const EconomicCalendarPanel: React.FC<Props> = ({ lang = 'ar' }) => {
                   className={`p-3 rounded-[4px] border transition-colors flex flex-col justify-between gap-2 cursor-pointer ${
                     isWithinHour
                       ? 'bg-[#F23645]/10 border-[#F23645]'
-                      : 'bg-[#131722] border-[#2A2E39] hover:border-[#2962FF]/60'
+                      : 'bg-[#06080c] border-white/10 hover:border-[#10b981]/60'
                   }`}
                 >
                   <div className="space-y-1.5">
@@ -327,7 +327,7 @@ export const EconomicCalendarPanel: React.FC<Props> = ({ lang = 'ar' }) => {
                         <span className="px-1.5 py-0.5 rounded-[3px] bg-[#F23645]/15 border border-[#F23645]/30 text-[#F23645] text-[10px] font-mono font-bold">
                           {ev.code}
                         </span>
-                        <span className="px-1.5 py-0.5 rounded-[3px] bg-[#1E222D] border border-[#2A2E39] text-[#D1D4DC] text-[10px] font-mono font-bold">
+                        <span className="px-1.5 py-0.5 rounded-[3px] bg-[#0b0e14] border border-white/10 text-[#D1D4DC] text-[10px] font-mono font-bold">
                           {CURRENCY_FLAGS[ev.currency] || ''} {ev.currency}
                         </span>
                         <ImpactBars impact={ev.impact} />
@@ -337,10 +337,10 @@ export const EconomicCalendarPanel: React.FC<Props> = ({ lang = 'ar' }) => {
                         className={`px-1.5 py-0.5 rounded-[3px] text-[10px] font-mono tabular-nums font-bold flex items-center gap-1 ${
                           isWithinHour
                             ? 'bg-[#F23645] text-white animate-pulse'
-                            : 'bg-[#1E222D] text-[#D1D4DC] border border-[#2A2E39]'
+                            : 'bg-[#0b0e14] text-[#D1D4DC] border border-white/10'
                         }`}
                       >
-                        <Clock className="w-3 h-3 text-[#2962FF]" />
+                        <Clock className="w-3 h-3 text-[#10b981]" />
                         <span>{formatRemainingCountdown(ev.releaseTimeMs)}</span>
                       </span>
                     </div>
@@ -354,21 +354,21 @@ export const EconomicCalendarPanel: React.FC<Props> = ({ lang = 'ar' }) => {
                     </p>
                   </div>
 
-                  <div className="space-y-2 pt-2 border-t border-[#2A2E39]">
+                  <div className="space-y-2 pt-2 border-t border-white/10">
                     <div className="grid grid-cols-3 gap-1.5 font-mono tabular-nums text-[10px] text-center">
-                      <div className="p-1 rounded-[3px] bg-[#1E222D] border border-[#2A2E39]">
+                      <div className="p-1 rounded-[3px] bg-[#0b0e14] border border-white/10">
                         <span className="text-[#787B86] block text-[9px]">
                           {dateShort}
                         </span>
                         <span className="text-[#D1D4DC] font-bold">{timeFormatted}</span>
                       </div>
-                      <div className="p-1 rounded-[3px] bg-[#1E222D] border border-[#2A2E39]">
+                      <div className="p-1 rounded-[3px] bg-[#0b0e14] border border-white/10">
                         <span className="text-[#787B86] block text-[9px]">
                           {isAr ? 'المتوقع' : 'Forecast'}
                         </span>
                         <span className="text-[#D1D4DC] font-bold">{ev.forecast || '—'}</span>
                       </div>
-                      <div className="p-1 rounded-[3px] bg-[#1E222D] border border-[#2A2E39]">
+                      <div className="p-1 rounded-[3px] bg-[#0b0e14] border border-white/10">
                         <span className="text-[#787B86] block text-[9px]">
                           {isAr ? 'السابق' : 'Previous'}
                         </span>
@@ -384,7 +384,7 @@ export const EconomicCalendarPanel: React.FC<Props> = ({ lang = 'ar' }) => {
                         {ev.affectedAssets.map((asset) => (
                           <span
                             key={asset}
-                            className="px-1.5 py-0.5 rounded-[3px] bg-[#2962FF]/15 text-[#2962FF] border border-[#2962FF]/30 font-bold text-[9px]"
+                            className="px-1.5 py-0.5 rounded-[3px] bg-[#10b981]/15 text-[#10b981] border border-[#10b981]/30 font-bold text-[9px]"
                           >
                             {asset}
                           </span>
@@ -400,12 +400,12 @@ export const EconomicCalendarPanel: React.FC<Props> = ({ lang = 'ar' }) => {
       </div>
 
       {/* 2. NATIVE BILINGUAL MBK INSTITUTIONAL ECONOMIC CALENDAR (14-DAY WINDOW + EXPANDABLE IMPACT GUIDE) */}
-      <div className="bg-[#1E222D] border border-[#2A2E39] rounded-md overflow-hidden">
+      <div className="bg-[#0b0e14] border border-white/10 rounded-md overflow-hidden">
         {/* Header & Filter Bar */}
-        <div className="p-3 sm:p-4 bg-[#131722] border-b border-[#2A2E39] space-y-3">
+        <div className="p-3 sm:p-4 bg-[#06080c] border-b border-white/10 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded bg-[#2962FF]/15 border border-[#2962FF]/40 flex items-center justify-center text-[#2962FF] shrink-0">
+              <div className="w-8 h-8 rounded bg-[#10b981]/15 border border-[#10b981]/40 flex items-center justify-center text-[#10b981] shrink-0">
                 <Calendar className="w-4 h-4" />
               </div>
               <div>
@@ -436,7 +436,7 @@ export const EconomicCalendarPanel: React.FC<Props> = ({ lang = 'ar' }) => {
           </div>
 
           {/* Filter Pills Row */}
-          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#2A2E39]">
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-white/10">
             {/* Time Filter */}
             <div className="flex items-center gap-1 flex-wrap">
               <span className="text-[10px] text-[#787B86] font-semibold me-1 flex items-center gap-1">
@@ -456,8 +456,8 @@ export const EconomicCalendarPanel: React.FC<Props> = ({ lang = 'ar' }) => {
                   onClick={() => setTimeFilter(tab.id)}
                   className={`px-2.5 py-1 rounded-[3px] text-[11px] font-semibold transition-colors cursor-pointer border ${
                     timeFilter === tab.id
-                      ? 'bg-[#2962FF] text-white border-[#2962FF]'
-                      : 'bg-[#1E222D] text-[#787B86] hover:text-[#D1D4DC] border-[#2A2E39]'
+                      ? 'bg-[#10b981] text-white border-[#10b981]'
+                      : 'bg-[#0b0e14] text-[#787B86] hover:text-[#D1D4DC] border-white/10'
                   }`}
                 >
                   {isAr ? tab.labelAr : tab.labelEn}
@@ -477,8 +477,8 @@ export const EconomicCalendarPanel: React.FC<Props> = ({ lang = 'ar' }) => {
                   onClick={() => setImpactFilter('all')}
                   className={`px-2 py-1 rounded-[3px] text-[11px] font-semibold transition-colors cursor-pointer border ${
                     impactFilter === 'all'
-                      ? 'bg-[#2962FF] text-white border-[#2962FF]'
-                      : 'bg-[#1E222D] text-[#787B86] hover:text-[#D1D4DC] border-[#2A2E39]'
+                      ? 'bg-[#10b981] text-white border-[#10b981]'
+                      : 'bg-[#0b0e14] text-[#787B86] hover:text-[#D1D4DC] border-white/10'
                   }`}
                 >
                   {isAr ? 'الكل' : 'All'}
@@ -489,7 +489,7 @@ export const EconomicCalendarPanel: React.FC<Props> = ({ lang = 'ar' }) => {
                   className={`px-2 py-1 rounded-[3px] text-[11px] font-semibold transition-colors cursor-pointer border flex items-center gap-1 ${
                     impactFilter === 'high'
                       ? 'bg-[#F23645] text-white border-[#F23645]'
-                      : 'bg-[#1E222D] text-[#787B86] hover:text-[#D1D4DC] border-[#2A2E39]'
+                      : 'bg-[#0b0e14] text-[#787B86] hover:text-[#D1D4DC] border-white/10'
                   }`}
                 >
                   <Flame className="w-3 h-3" />
@@ -505,8 +505,8 @@ export const EconomicCalendarPanel: React.FC<Props> = ({ lang = 'ar' }) => {
                     onClick={() => setCurrencyFilter(cur)}
                     className={`px-2 py-1 rounded-[3px] text-[11px] font-mono font-bold transition-colors cursor-pointer border ${
                       currencyFilter === cur
-                        ? 'bg-[#2962FF] text-white border-[#2962FF]'
-                        : 'bg-[#1E222D] text-[#787B86] hover:text-[#D1D4DC] border-[#2A2E39]'
+                        ? 'bg-[#10b981] text-white border-[#10b981]'
+                        : 'bg-[#0b0e14] text-[#787B86] hover:text-[#D1D4DC] border-white/10'
                     }`}
                   >
                     {cur === 'ALL' ? (isAr ? 'الكل' : 'ALL') : `${CURRENCY_FLAGS[cur] || ''} ${cur}`}
@@ -518,7 +518,7 @@ export const EconomicCalendarPanel: React.FC<Props> = ({ lang = 'ar' }) => {
         </div>
 
         {/* Column Headers (Desktop) */}
-        <div className="hidden md:grid md:grid-cols-12 gap-2 px-4 py-2 bg-[#131722] border-b border-[#2A2E39] text-[10px] font-bold text-[#787B86] uppercase tracking-wider">
+        <div className="hidden md:grid md:grid-cols-12 gap-2 px-4 py-2 bg-[#06080c] border-b border-white/10 text-[10px] font-bold text-[#787B86] uppercase tracking-wider">
           <div className="col-span-2">{isAr ? 'التوقيت المحلي' : 'Local Time'}</div>
           <div className="col-span-1 text-center">{isAr ? 'العملة' : 'Currency'}</div>
           <div className="col-span-1 text-center">{isAr ? 'التأثير' : 'Impact'}</div>
@@ -548,20 +548,20 @@ export const EconomicCalendarPanel: React.FC<Props> = ({ lang = 'ar' }) => {
                   setImpactFilter('all');
                   setCurrencyFilter('ALL');
                 }}
-                className="px-3 py-1.5 rounded-[3px] bg-[#2962FF] text-white text-xs font-semibold cursor-pointer"
+                className="px-3 py-1.5 rounded-[3px] bg-[#10b981] text-white text-xs font-semibold cursor-pointer"
               >
                 {isAr ? 'عرض جميع الأحداث القادمة' : 'Show All Upcoming Events'}
               </button>
             )}
           </div>
         ) : (
-          <div className="divide-y divide-[#2A2E39]">
+          <div className="divide-y divide-white/10">
             {groupedDays.map((group) => (
-              <div key={group.dateKey} className="bg-[#1E222D]">
+              <div key={group.dateKey} className="bg-[#0b0e14]">
                 {/* Day Header */}
-                <div className="px-4 py-2 bg-[#131722]/90 border-b border-[#2A2E39] flex items-center justify-between">
+                <div className="px-4 py-2 bg-[#06080c]/90 border-b border-white/10 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Calendar className="w-3.5 h-3.5 text-[#2962FF]" />
+                    <Calendar className="w-3.5 h-3.5 text-[#10b981]" />
                     <span className="text-xs font-bold text-[#D1D4DC]">
                       {formatDayHeader(group.dayTimestampMs)}
                     </span>
@@ -572,7 +572,7 @@ export const EconomicCalendarPanel: React.FC<Props> = ({ lang = 'ar' }) => {
                 </div>
 
                 {/* Day Events Rows */}
-                <div className="divide-y divide-[#2A2E39]">
+                <div className="divide-y divide-white/10">
                   {group.events.map((ev) => {
                     const isExpanded = expandedIds.has(ev.id);
                     const isUpcoming = ev.releaseTimeMs > nowMs;
@@ -589,8 +589,8 @@ export const EconomicCalendarPanel: React.FC<Props> = ({ lang = 'ar' }) => {
                         {/* Main Row */}
                         <div
                           onClick={() => toggleExpand(ev.id)}
-                          className={`px-3 sm:px-4 py-2.5 cursor-pointer transition-colors hover:bg-[#131722]/60 ${
-                            isExpanded ? 'bg-[#131722]/80' : ''
+                          className={`px-3 sm:px-4 py-2.5 cursor-pointer transition-colors hover:bg-[#06080c]/60 ${
+                            isExpanded ? 'bg-[#06080c]/80' : ''
                           } ${isWithinHour && ev.impact === 'HIGH' ? 'border-s-2 border-s-[#F23645]' : ''}`}
                         >
                           {/* Desktop 12-Col Layout */}
@@ -605,8 +605,8 @@ export const EconomicCalendarPanel: React.FC<Props> = ({ lang = 'ar' }) => {
                                   isWithinHour
                                     ? 'bg-[#F23645] text-white'
                                     : isUpcoming
-                                    ? 'bg-[#131722] text-[#2962FF] border border-[#2A2E39]'
-                                    : 'bg-[#131722] text-[#787B86] border border-[#2A2E39]'
+                                    ? 'bg-[#06080c] text-[#10b981] border border-white/10'
+                                    : 'bg-[#06080c] text-[#787B86] border border-white/10'
                                 }`}
                               >
                                 {formatRemainingCountdown(ev.releaseTimeMs)}
@@ -615,7 +615,7 @@ export const EconomicCalendarPanel: React.FC<Props> = ({ lang = 'ar' }) => {
 
                             {/* Currency */}
                             <div className="col-span-1 text-center">
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[3px] bg-[#131722] border border-[#2A2E39] text-[11px] font-mono font-bold text-[#D1D4DC]">
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[3px] bg-[#06080c] border border-white/10 text-[11px] font-mono font-bold text-[#D1D4DC]">
                                 <span>{CURRENCY_FLAGS[ev.currency] || ''}</span>
                                 <span>{ev.currency}</span>
                               </span>
@@ -652,7 +652,7 @@ export const EconomicCalendarPanel: React.FC<Props> = ({ lang = 'ar' }) => {
                             <div className="col-span-1 flex items-center justify-end gap-1.5 font-mono tabular-nums text-xs text-[#787B86]">
                               <span>{ev.previous || '—'}</span>
                               {isExpanded ? (
-                                <ChevronUp className="w-3.5 h-3.5 text-[#2962FF] shrink-0" />
+                                <ChevronUp className="w-3.5 h-3.5 text-[#10b981] shrink-0" />
                               ) : (
                                 <ChevronDown className="w-3.5 h-3.5 text-[#787B86] shrink-0" />
                               )}
@@ -666,7 +666,7 @@ export const EconomicCalendarPanel: React.FC<Props> = ({ lang = 'ar' }) => {
                                 <span className="text-xs font-bold text-[#D1D4DC]">
                                   {localTimeStr}
                                 </span>
-                                <span className="px-1.5 py-0.5 rounded-[3px] bg-[#131722] border border-[#2A2E39] text-[10px] font-bold text-[#D1D4DC]">
+                                <span className="px-1.5 py-0.5 rounded-[3px] bg-[#06080c] border border-white/10 text-[10px] font-bold text-[#D1D4DC]">
                                   {CURRENCY_FLAGS[ev.currency] || ''} {ev.currency}
                                 </span>
                                 <ImpactBars impact={ev.impact} />
@@ -678,14 +678,14 @@ export const EconomicCalendarPanel: React.FC<Props> = ({ lang = 'ar' }) => {
                                     isWithinHour
                                       ? 'bg-[#F23645] text-white'
                                       : isUpcoming
-                                      ? 'bg-[#131722] text-[#2962FF] border border-[#2A2E39]'
-                                      : 'bg-[#131722] text-[#787B86] border border-[#2A2E39]'
+                                      ? 'bg-[#06080c] text-[#10b981] border border-white/10'
+                                      : 'bg-[#06080c] text-[#787B86] border border-white/10'
                                   }`}
                                 >
                                   {formatRemainingCountdown(ev.releaseTimeMs)}
                                 </span>
                                 {isExpanded ? (
-                                  <ChevronUp className="w-4 h-4 text-[#2962FF]" />
+                                  <ChevronUp className="w-4 h-4 text-[#10b981]" />
                                 ) : (
                                   <ChevronDown className="w-4 h-4 text-[#787B86]" />
                                 )}
@@ -704,19 +704,19 @@ export const EconomicCalendarPanel: React.FC<Props> = ({ lang = 'ar' }) => {
                             </div>
 
                             <div className="grid grid-cols-3 gap-1.5 font-mono tabular-nums text-[10px] text-center">
-                              <div className="py-1 px-1.5 rounded-[3px] bg-[#131722] border border-[#2A2E39]">
+                              <div className="py-1 px-1.5 rounded-[3px] bg-[#06080c] border border-white/10">
                                 <span className="text-[#787B86] block text-[9px]">
                                   {isAr ? 'الحالي' : 'Actual'}
                                 </span>
                                 <span className={actualColor}>{ev.actual || '—'}</span>
                               </div>
-                              <div className="py-1 px-1.5 rounded-[3px] bg-[#131722] border border-[#2A2E39]">
+                              <div className="py-1 px-1.5 rounded-[3px] bg-[#06080c] border border-white/10">
                                 <span className="text-[#787B86] block text-[9px]">
                                   {isAr ? 'المتوقع' : 'Forecast'}
                                 </span>
                                 <span className="text-[#D1D4DC] font-bold">{ev.forecast || '—'}</span>
                               </div>
-                              <div className="py-1 px-1.5 rounded-[3px] bg-[#131722] border border-[#2A2E39]">
+                              <div className="py-1 px-1.5 rounded-[3px] bg-[#06080c] border border-white/10">
                                 <span className="text-[#787B86] block text-[9px]">
                                   {isAr ? 'السابق' : 'Previous'}
                                 </span>
@@ -728,11 +728,11 @@ export const EconomicCalendarPanel: React.FC<Props> = ({ lang = 'ar' }) => {
 
                         {/* Expandable Details & XAUUSD / US100 Impact Panel */}
                         {isExpanded && (
-                          <div className="px-4 py-3 bg-[#131722] border-t border-[#2A2E39] space-y-2.5 text-xs">
+                          <div className="px-4 py-3 bg-[#06080c] border-t border-white/10 space-y-2.5 text-xs">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                               {/* Summary: What it measures */}
-                              <div className="p-2.5 rounded-[4px] bg-[#1E222D] border border-[#2A2E39] space-y-1">
-                                <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#2962FF]">
+                              <div className="p-2.5 rounded-[4px] bg-[#0b0e14] border border-white/10 space-y-1">
+                                <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#10b981]">
                                   <Info className="w-3.5 h-3.5" />
                                   <span>
                                     {isAr
@@ -746,7 +746,7 @@ export const EconomicCalendarPanel: React.FC<Props> = ({ lang = 'ar' }) => {
                               </div>
 
                               {/* Gold & Nasdaq Reaction Guide */}
-                              <div className="p-2.5 rounded-[4px] bg-[#1E222D] border border-[#2A2E39] space-y-1">
+                              <div className="p-2.5 rounded-[4px] bg-[#0b0e14] border border-white/10 space-y-1">
                                 <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#089981]">
                                   <TrendingUp className="w-3.5 h-3.5" />
                                   <span>
@@ -770,7 +770,7 @@ export const EconomicCalendarPanel: React.FC<Props> = ({ lang = 'ar' }) => {
                                 {ev.affectedAssets.map((asset) => (
                                   <span
                                     key={asset}
-                                    className="px-2 py-0.5 rounded-[3px] bg-[#2962FF]/15 text-[#2962FF] border border-[#2962FF]/30 font-mono font-bold text-[10px]"
+                                    className="px-2 py-0.5 rounded-[3px] bg-[#10b981]/15 text-[#10b981] border border-[#10b981]/30 font-mono font-bold text-[10px]"
                                   >
                                     {asset}
                                   </span>
