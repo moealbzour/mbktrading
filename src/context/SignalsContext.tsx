@@ -176,6 +176,7 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [dbError, setDbError] = useState<string | null>(null);
   const [authResolved, setAuthResolved] = useState<boolean>(false);
   const [currentUserUid, setCurrentUserUid] = useState<string | null>(null);
+  const [isAdminUser, setIsAdminUser] = useState<boolean>(false);
   const [canReadVipSignals, setCanReadVipSignals] = useState<boolean>(false);
   const [canReadBotAlerts, setCanReadBotAlerts] = useState<boolean>(false);
   const [canReadVipChat, setCanReadVipChat] = useState<boolean>(false);
@@ -395,6 +396,7 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const unsubscribe = subscribeToAuth((profile) => {
       if (!profile) {
         setCurrentUserUid(null);
+        setIsAdminUser(false);
         setCanReadVipSignals(false);
         setCanReadBotAlerts(false);
         setCanReadVipChat(false);
@@ -407,7 +409,13 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const uid = profile.uid || profile.id || null;
       setCurrentUserUid(uid);
 
-      const isSuperAdmin = profile.email?.toLowerCase() === SUPER_ADMIN_EMAIL || profile.isAdmin;
+      const roleUpper = (profile.role || '').toString().toUpperCase();
+      const isSuperAdmin =
+        profile.email?.toLowerCase() === SUPER_ADMIN_EMAIL ||
+        Boolean(profile.isAdmin) ||
+        roleUpper === 'ADMIN';
+      setIsAdminUser(isSuperAdmin);
+
       if (isSuperAdmin) {
         setCanReadVipSignals(true);
         setCanReadBotAlerts(true);
@@ -712,7 +720,42 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (!authResolved || !currentUserUid) return;
 
     let isFirstDmSnapshot = true;
+    let isFirstPlatformSnapshot = true;
     const lastSeenConvoMsgMs = new Map<string, number>();
+    let personalConvos: DmConversation[] = [];
+    let platformConvos: DmConversation[] = [];
+
+    const syncMergedConvos = (cacheKey: string) => {
+      const mergedMap = new Map<string, DmConversation>();
+      for (const c of personalConvos) {
+        mergedMap.set(c.id, c);
+      }
+      for (const c of platformConvos) {
+        mergedMap.set(c.id, c);
+      }
+      const mergedList = Array.from(mergedMap.values()).sort(
+        (a, b) => b.lastMessageAtMs - a.lastMessageAtMs
+      );
+      setDmConversations(mergedList);
+
+      let totalUnread = 0;
+      for (const c of mergedList) {
+        const unreadMap = c.unreadBy || {};
+        totalUnread += Number(unreadMap[currentUserUid] || 0);
+        if (isAdminUser && c.participants.includes('mbktrading')) {
+          totalUnread += Number(unreadMap['mbktrading'] || 0);
+        }
+      }
+      setUnreadDmCount(totalUnread);
+
+      try {
+        if (mergedList.length > 0) {
+          localStorage.setItem(cacheKey, JSON.stringify(mergedList));
+        }
+      } catch {
+        // ignore
+      }
+    };
 
     const dmQuery = query(
       collection(db, 'dm_conversations'),
@@ -736,13 +779,11 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const unsubDm = onSnapshot(
       dmQuery,
       (snap) => {
-        let totalUnread = 0;
         const convosList: DmConversation[] = [];
 
         snap.docs.forEach((docSnap) => {
           const d = docSnap.data();
           const unreadMap = d.unreadBy || {};
-          totalUnread += Number(unreadMap[currentUserUid] || 0);
 
           convosList.push({
             id: docSnap.id,
@@ -768,7 +809,10 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
             d.lastSenderUid !== currentUserUid &&
             d.lastMessage
           ) {
-            const senderName = d.participantNames?.[d.lastSenderUid] || 'متداول MBK';
+            const senderName =
+              d.lastSenderUid === 'mbktrading'
+                ? 'mbktrading'
+                : d.participantNames?.[d.lastSenderUid] || 'متداول MBK';
             const preview = String(d.lastMessage).slice(0, 120);
 
             triggerAudioAlert();
@@ -782,23 +826,82 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
           }
         });
 
-        convosList.sort((a, b) => b.lastMessageAtMs - a.lastMessageAtMs);
-        setDmConversations(convosList);
-        try {
-          if (convosList.length > 0) {
-            localStorage.setItem(cacheKey, JSON.stringify(convosList));
-          }
-        } catch {
-          // ignore
-        }
-
-        setUnreadDmCount(totalUnread);
+        personalConvos = convosList;
+        syncMergedConvos(cacheKey);
         isFirstDmSnapshot = false;
       },
       (err) => {
         console.warn('[SignalsContext] DM listener notice:', err?.message || err);
       }
     );
+
+    let unsubPlatformDm: (() => void) | null = null;
+    if (isAdminUser) {
+      const platformDmQuery = query(
+        collection(db, 'dm_conversations'),
+        where('participants', 'array-contains', 'mbktrading'),
+        limit(40)
+      );
+
+      unsubPlatformDm = onSnapshot(
+        platformDmQuery,
+        (snap) => {
+          const convosList: DmConversation[] = [];
+          snap.docs.forEach((docSnap) => {
+            const d = docSnap.data();
+            const unreadMap = d.unreadBy || {};
+            convosList.push({
+              id: docSnap.id,
+              participants: Array.isArray(d.participants) ? d.participants : [],
+              participantNames: d.participantNames || {},
+              participantAvatars: d.participantAvatars || {},
+              participantRoles: d.participantRoles || {},
+              lastMessage: d.lastMessage || '',
+              lastSenderUid: d.lastSenderUid || '',
+              lastMessageAtMs: Number(d.lastMessageAtMs || 0),
+              unreadBy: unreadMap,
+              updatedAt: d.updatedAt
+            });
+
+            const msgMs = Number(d.lastMessageAtMs || 0);
+            const prevMs = lastSeenConvoMsgMs.get(`platform_${docSnap.id}`) || 0;
+            lastSeenConvoMsgMs.set(`platform_${docSnap.id}`, msgMs);
+
+            if (
+              !isFirstPlatformSnapshot &&
+              msgMs > prevMs &&
+              d.lastSenderUid &&
+              d.lastSenderUid !== 'mbktrading' &&
+              d.lastSenderUid !== currentUserUid &&
+              d.lastMessage
+            ) {
+              const senderName = d.participantNames?.[d.lastSenderUid] || 'متداول MBK';
+              const preview = String(d.lastMessage).slice(0, 120);
+
+              triggerAudioAlert();
+              addToast({
+                title: `بريد المنصة (mbktrading) • ${senderName} 📩`,
+                message: preview,
+                type: 'info',
+                timestamp: 'الآن'
+              });
+              sendBrowserNotification(
+                `بريد المنصة (mbktrading) • ${senderName}`,
+                preview,
+                `platform-dm-${docSnap.id}`
+              );
+            }
+          });
+
+          platformConvos = convosList;
+          syncMergedConvos(cacheKey);
+          isFirstPlatformSnapshot = false;
+        },
+        (err) => {
+          console.warn('[SignalsContext] Platform mbktrading DM listener notice:', err?.message || err);
+        }
+      );
+    }
 
     let unsubChat: (() => void) | null = null;
     if (canReadVipChat) {
@@ -843,9 +946,10 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     return () => {
       unsubDm();
+      if (unsubPlatformDm) unsubPlatformDm();
       if (unsubChat) unsubChat();
     };
-  }, [authResolved, currentUserUid, canReadVipChat, addToast, sendBrowserNotification, triggerAudioAlert]);
+  }, [authResolved, currentUserUid, isAdminUser, canReadVipChat, addToast, sendBrowserNotification, triggerAudioAlert]);
 
   // Merge raw bot_alerts into trades array, capped at latest 30 signals
   const mergedTrades: DailyTrade[] = rawTrades.filter((t) => !isSignalIdDeleted(t.id));

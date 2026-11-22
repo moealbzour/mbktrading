@@ -21,6 +21,50 @@ const CACHED_DM_CONVOS_KEY_PREFIX = 'mbk_cached_dm_convos_v1_';
 const CACHED_DM_MSGS_KEY_PREFIX = 'mbk_cached_dm_msgs_v1_';
 const SUPER_ADMIN_EMAIL = 'moe.albzour@gmail.com';
 
+export const OFFICIAL_PLATFORM_UID = 'mbktrading';
+export const OFFICIAL_PLATFORM_USERNAME = 'mbktrading';
+
+export type PlatformInboxTopic = 'support' | 'suggestion' | 'question';
+
+export const PLATFORM_INBOX_TOPICS: Array<{
+  id: PlatformInboxTopic;
+  labelAr: string;
+  labelEn: string;
+  tagAr: string;
+  tagEn: string;
+}> = [
+  {
+    id: 'support',
+    labelAr: '🛠️ دعم فني',
+    labelEn: '🛠️ Support',
+    tagAr: '[دعم فني 🛠️]',
+    tagEn: '[Support 🛠️]'
+  },
+  {
+    id: 'suggestion',
+    labelAr: '💡 اقتراح',
+    labelEn: '💡 Suggestion',
+    tagAr: '[اقتراح 💡]',
+    tagEn: '[Suggestion 💡]'
+  },
+  {
+    id: 'question',
+    labelAr: '❓ سؤال / استفسار',
+    labelEn: '❓ Question',
+    tagAr: '[سؤال ❓]',
+    tagEn: '[Question ❓]'
+  }
+];
+
+export const OFFICIAL_PLATFORM_PROFILE: ChatProfile = {
+  uid: OFFICIAL_PLATFORM_UID,
+  displayName: OFFICIAL_PLATFORM_USERNAME,
+  avatar: '',
+  role: 'ADMIN',
+  allowDirectMessages: true,
+  blockedUids: []
+};
+
 function readCachedArray<T>(key: string): T[] {
   try {
     const raw = localStorage.getItem(key);
@@ -278,6 +322,53 @@ export function subscribeToDmConversations(
   );
 }
 
+/**
+ * Subscribes all Admins to the shared official platform inbox (`mbktrading`)
+ * so every Admin can view and reply to Support, Suggestions, and Questions as `mbktrading`.
+ */
+export function subscribeToPlatformInboxConversations(
+  onChange: (conversations: DmConversation[]) => void
+): () => void {
+  const cacheKey = `${CACHED_DM_CONVOS_KEY_PREFIX}${OFFICIAL_PLATFORM_UID}`;
+  const initialCached = readCachedArray<DmConversation>(cacheKey);
+  if (initialCached.length > 0) {
+    onChange(initialCached);
+  }
+
+  const mapDocToConvo = (docId: string, d: Record<string, any>): DmConversation => ({
+    id: docId,
+    participants: Array.isArray(d.participants) ? d.participants : [],
+    participantNames: d.participantNames || {},
+    participantAvatars: d.participantAvatars || {},
+    participantRoles: d.participantRoles || {},
+    lastMessage: d.lastMessage || '',
+    lastSenderUid: d.lastSenderUid || '',
+    lastMessageAtMs: Number(d.lastMessageAtMs || 0),
+    unreadBy: d.unreadBy || {},
+    updatedAt: d.updatedAt
+  });
+
+  const q = query(
+    collection(db, 'dm_conversations'),
+    where('participants', 'array-contains', OFFICIAL_PLATFORM_UID),
+    limit(50)
+  );
+
+  return onSnapshot(
+    q,
+    (snap) => {
+      const list = snap.docs.map((docSnap) => mapDocToConvo(docSnap.id, docSnap.data()));
+      list.sort((a, b) => b.lastMessageAtMs - a.lastMessageAtMs);
+      writeCachedArray(cacheKey, list);
+      onChange(list);
+    },
+    (err) => {
+      console.warn('[DirectMessages] subscribeToPlatformInboxConversations notice:', err?.message || err);
+      onChange(readCachedArray<DmConversation>(cacheKey));
+    }
+  );
+}
+
 export function subscribeToDmMessages(
   convoId: string,
   onChange: (messages: DmMessage[]) => void
@@ -344,59 +435,82 @@ export async function sendDirectMessage(params: {
   sender: { uid: string; displayName: string; avatar?: string; role: string };
   recipient: { uid: string; displayName: string; avatar?: string; role: string };
   text: string;
+  replyAsPlatformDesk?: boolean;
 }): Promise<string> {
-  const { sender, recipient, text } = params;
+  const { sender, recipient, text, replyAsPlatformDesk = false } = params;
   const cleanText = text.trim().slice(0, 1000);
   if (!cleanText) {
     throw new Error('لا يمكن إرسال رسالة فارغة.');
   }
-  if (!sender.uid || !recipient.uid || sender.uid === recipient.uid) {
+
+  const effectiveSender = replyAsPlatformDesk
+    ? {
+        uid: OFFICIAL_PLATFORM_UID,
+        displayName: OFFICIAL_PLATFORM_USERNAME,
+        avatar: '',
+        role: 'ADMIN'
+      }
+    : sender;
+
+  const effectiveRecipient =
+    recipient.uid === OFFICIAL_PLATFORM_UID
+      ? {
+          uid: OFFICIAL_PLATFORM_UID,
+          displayName: OFFICIAL_PLATFORM_USERNAME,
+          avatar: '',
+          role: 'ADMIN'
+        }
+      : recipient;
+
+  if (!effectiveSender.uid || !effectiveRecipient.uid || effectiveSender.uid === effectiveRecipient.uid) {
     throw new Error('معرف المستلم غير صالح.');
   }
 
-  // Verify recipient DM preference and block list before writing
-  const recipientProfileSnap = await getDoc(doc(db, 'chat_profiles', recipient.uid));
-  if (recipientProfileSnap.exists()) {
-    const rData = recipientProfileSnap.data();
-    if (rData.allowDirectMessages === false) {
-      throw new Error('قام هذا المستخدم بإيقاف استقبال الرسائل الخاصة.');
-    }
-    if (Array.isArray(rData.blockedUids) && rData.blockedUids.includes(sender.uid)) {
-      throw new Error('لا يمكنك إرسال رسائل خاصة إلى هذا المستخدم.');
+  // Verify recipient DM preference and block list before writing (official mbktrading inbox is always open)
+  if (effectiveRecipient.uid !== OFFICIAL_PLATFORM_UID && !replyAsPlatformDesk) {
+    const recipientProfileSnap = await getDoc(doc(db, 'chat_profiles', effectiveRecipient.uid));
+    if (recipientProfileSnap.exists()) {
+      const rData = recipientProfileSnap.data();
+      if (rData.allowDirectMessages === false) {
+        throw new Error('قام هذا المستخدم بإيقاف استقبال الرسائل الخاصة.');
+      }
+      if (Array.isArray(rData.blockedUids) && rData.blockedUids.includes(effectiveSender.uid)) {
+        throw new Error('لا يمكنك إرسال رسائل خاصة إلى هذا المستخدم.');
+      }
     }
   }
 
-  const convoId = getDmConversationId(sender.uid, recipient.uid);
-  const participants = [sender.uid, recipient.uid].sort();
+  const convoId = getDmConversationId(effectiveSender.uid, effectiveRecipient.uid);
+  const participants = [effectiveSender.uid, effectiveRecipient.uid].sort();
   const convoRef = doc(db, 'dm_conversations', convoId);
   const existingSnap = await getDoc(convoRef);
   const nowMs = Date.now();
   const nowIso = new Date(nowMs).toISOString();
 
   const existingUnread = existingSnap.exists() ? existingSnap.data().unreadBy || {} : {};
-  const nextRecipientUnread = Number(existingUnread[recipient.uid] || 0) + 1;
+  const nextRecipientUnread = Number(existingUnread[effectiveRecipient.uid] || 0) + 1;
 
   const convoPayload: Record<string, any> = {
     id: convoId,
     participants,
     participantNames: {
-      [sender.uid]: sender.displayName.slice(0, 100),
-      [recipient.uid]: recipient.displayName.slice(0, 100)
+      [effectiveSender.uid]: effectiveSender.displayName.slice(0, 100),
+      [effectiveRecipient.uid]: effectiveRecipient.displayName.slice(0, 100)
     },
     participantAvatars: {
-      [sender.uid]: (sender.avatar || '').slice(0, 1000),
-      [recipient.uid]: (recipient.avatar || '').slice(0, 1000)
+      [effectiveSender.uid]: (effectiveSender.avatar || '').slice(0, 1000),
+      [effectiveRecipient.uid]: (effectiveRecipient.avatar || '').slice(0, 1000)
     },
     participantRoles: {
-      [sender.uid]: (sender.role || 'FREE').toUpperCase().slice(0, 40),
-      [recipient.uid]: (recipient.role || 'FREE').toUpperCase().slice(0, 40)
+      [effectiveSender.uid]: (effectiveSender.role || 'FREE').toUpperCase().slice(0, 40),
+      [effectiveRecipient.uid]: (effectiveRecipient.role || 'FREE').toUpperCase().slice(0, 40)
     },
     lastMessage: cleanText.slice(0, 500),
-    lastSenderUid: sender.uid,
+    lastSenderUid: effectiveSender.uid,
     lastMessageAtMs: nowMs,
     unreadBy: {
-      [sender.uid]: 0,
-      [recipient.uid]: nextRecipientUnread
+      [effectiveSender.uid]: 0,
+      [effectiveRecipient.uid]: nextRecipientUnread
     },
     updatedAt: nowIso
   };
@@ -408,9 +522,9 @@ export async function sendDirectMessage(params: {
   }
 
   await addDoc(collection(db, 'dm_conversations', convoId, 'messages'), {
-    senderUid: sender.uid,
-    recipientUid: recipient.uid,
-    senderName: sender.displayName.slice(0, 100),
+    senderUid: effectiveSender.uid,
+    recipientUid: effectiveRecipient.uid,
+    senderName: effectiveSender.displayName.slice(0, 100),
     text: cleanText,
     timestampMs: nowMs,
     createdAt: nowIso

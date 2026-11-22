@@ -1935,6 +1935,20 @@ export const TradingViewWorkspace: React.FC<Props> = ({
         lang={lang}
         isVIP={isVIP}
         userName={user.name || user.email.split('@')[0]}
+        user={user}
+        onOpenFullInbox={(topic, targetUid, targetName) => {
+          setDmTargetUser({
+            uid: targetUid || 'mbktrading',
+            displayName: targetName || 'mbktrading',
+            role: 'ADMIN',
+            initialTopic: topic || 'support',
+            isPlatformTicket: true
+          });
+          setMessengerSubTab('dm');
+          setActiveMainView('chart');
+          setActiveView('chat');
+          markDmAsRead();
+        }}
       />
 
       <RiskCalculatorModal

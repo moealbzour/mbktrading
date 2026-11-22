@@ -5,6 +5,7 @@ import {
   Ban,
   CheckCheck,
   Crown,
+  Headphones,
   Lock,
   Mail,
   MessageCircle,
@@ -13,18 +14,23 @@ import {
   ShieldCheck,
   Sparkles,
   Unlock,
-  UserCheck,
-  Users
+  UserCheck
 } from 'lucide-react';
 import { ChatProfile, DmConversation, DmMessage, UserProfile } from '../../types/trading';
 import {
   getDmConversationId,
   getOtherParticipantUid,
   markDmConversationRead,
+  OFFICIAL_PLATFORM_PROFILE,
+  OFFICIAL_PLATFORM_UID,
+  OFFICIAL_PLATFORM_USERNAME,
+  PLATFORM_INBOX_TOPICS,
+  PlatformInboxTopic,
   sendDirectMessage,
   subscribeToDmConversations,
   subscribeToDmMessages,
   subscribeToOwnChatProfile,
+  subscribeToPlatformInboxConversations,
   syncOwnChatProfile,
   updateDmPrivacySettings
 } from '../../services/directMessageService';
@@ -38,6 +44,8 @@ export interface DmTargetUser {
   displayName: string;
   avatar?: string;
   role?: string;
+  initialTopic?: PlatformInboxTopic;
+  isPlatformTicket?: boolean;
 }
 
 interface Props {
@@ -60,7 +68,15 @@ function formatMessageTime(tsMs: number, isAr: boolean): string {
   }
 }
 
-function renderRoleBadge(role?: string) {
+function renderRoleBadge(role?: string, isOfficialPlatform?: boolean) {
+  if (isOfficialPlatform) {
+    return (
+      <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-black bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/40 inline-flex items-center gap-0.5 shrink-0">
+        <Headphones className="w-2.5 h-2.5 text-[#10b981]" />
+        <span>OFFICIAL DESK</span>
+      </span>
+    );
+  }
   const r = (role || 'FREE').toUpperCase();
   if (r === 'ADMIN') {
     return (
@@ -113,8 +129,13 @@ export const DirectMessagesPanel: React.FC<Props> = ({
   const [ownChatProfile, setOwnChatProfile] = useState<ChatProfile | null>(null);
   const [adminOversightMode, setAdminOversightMode] = useState<boolean>(false);
   const [adminConversations, setAdminConversations] = useState<DmConversation[]>([]);
-  const conversations = isAdminUser && adminOversightMode ? adminConversations : dmConversations;
+  const [platformInboxConversations, setPlatformInboxConversations] = useState<DmConversation[]>([]);
+  const [adminInboxFilter, setAdminInboxFilter] = useState<'ALL' | 'PLATFORM' | 'PERSONAL'>('ALL');
+  const [selectedTopic, setSelectedTopic] = useState<PlatformInboxTopic>('support');
+
+  // Track both the selected partner UID and whether this thread is an official @mbktrading platform ticket
   const [selectedRecipientUid, setSelectedRecipientUid] = useState<string | null>(null);
+  const [isViewingPlatformTicket, setIsViewingPlatformTicket] = useState<boolean>(false);
   const [selectedFallbackRecipient, setSelectedFallbackRecipient] = useState<DmTargetUser | null>(null);
   const [selectedRecipientProfile, setSelectedRecipientProfile] = useState<ChatProfile | null>(null);
   const [messages, setMessages] = useState<DmMessage[]>([]);
@@ -145,13 +166,27 @@ export const DirectMessagesPanel: React.FC<Props> = ({
     setTimeout(() => setFeedback(null), 4000);
   };
 
+  // Combine personal DMs + shared @mbktrading Platform Inbox conversations for Admins
+  const conversations = useMemo(() => {
+    const baseList = isAdminUser && adminOversightMode ? adminConversations : dmConversations;
+    if (!isAdminUser) return baseList;
+    const map = new Map<string, DmConversation>();
+    for (const c of baseList) {
+      map.set(c.id, c);
+    }
+    for (const c of platformInboxConversations) {
+      map.set(c.id, c);
+    }
+    return Array.from(map.values()).sort((a, b) => b.lastMessageAtMs - a.lastMessageAtMs);
+  }, [isAdminUser, adminOversightMode, adminConversations, dmConversations, platformInboxConversations]);
+
   // Sync own lightweight DM privacy profile so other users can message us if allowed
   useEffect(() => {
     if (!myUid) return;
     syncOwnChatProfile(user).catch(() => {});
   }, [myUid, user]);
 
-  // Subscribe to own DM privacy settings; non-admin users share dmConversations from SignalsContext (0 duplicate listeners)
+  // Subscribe to own DM privacy settings
   useEffect(() => {
     if (!myUid) return;
     const unsubOwn = subscribeToOwnChatProfile(myUid, setOwnChatProfile);
@@ -159,6 +194,18 @@ export const DirectMessagesPanel: React.FC<Props> = ({
       unsubOwn();
     };
   }, [myUid]);
+
+  // Subscribe all Admins to the shared @mbktrading Platform Support/Suggestions/Questions Inbox
+  useEffect(() => {
+    if (!myUid || !isAdminUser) {
+      setPlatformInboxConversations([]);
+      return;
+    }
+    const unsubPlatform = subscribeToPlatformInboxConversations(setPlatformInboxConversations);
+    return () => {
+      unsubPlatform();
+    };
+  }, [myUid, isAdminUser]);
 
   // Separate limit(50) listener ONLY when an Admin explicitly toggles Admin Oversight mode
   useEffect(() => {
@@ -172,18 +219,30 @@ export const DirectMessagesPanel: React.FC<Props> = ({
     };
   }, [myUid, isAdminUser, adminOversightMode]);
 
-  // Handle jump-to-DM from PublicTradingChat or Admin CRM
+  // Handle jump-to-DM from SupportDeskModal, PublicTradingChat, or Admin CRM
   useEffect(() => {
-    if (!initialTargetUser?.uid || initialTargetUser.uid === myUid) return;
+    if (!initialTargetUser?.uid) return;
+    if (initialTargetUser.uid === myUid && initialTargetUser.uid !== OFFICIAL_PLATFORM_UID) return;
+
+    const isOfficialTarget =
+      initialTargetUser.uid === OFFICIAL_PLATFORM_UID || Boolean(initialTargetUser.isPlatformTicket);
     setSelectedRecipientUid(initialTargetUser.uid);
+    setIsViewingPlatformTicket(isOfficialTarget);
+    if (initialTargetUser.initialTopic) {
+      setSelectedTopic(initialTargetUser.initialTopic);
+    }
     setSelectedFallbackRecipient(initialTargetUser);
     onClearInitialTarget?.();
   }, [initialTargetUser, myUid, onClearInitialTarget]);
 
-  // Fetch single selected recipient's DM privacy settings on demand (1 single doc read instead of listing all users)
+  // Fetch single selected recipient's DM privacy settings on demand
   useEffect(() => {
     if (!selectedRecipientUid) {
       setSelectedRecipientProfile(null);
+      return;
+    }
+    if (selectedRecipientUid === OFFICIAL_PLATFORM_UID) {
+      setSelectedRecipientProfile(OFFICIAL_PLATFORM_PROFILE);
       return;
     }
     let cancelled = false;
@@ -213,10 +272,20 @@ export const DirectMessagesPanel: React.FC<Props> = ({
     };
   }, [selectedRecipientUid]);
 
+  // Determine the conversation ID:
+  // - If user is messaging @mbktrading -> getDmConversationId(myUid, 'mbktrading')
+  // - If Admin is viewing a user's @mbktrading ticket -> getDmConversationId(selectedRecipientUid, 'mbktrading')
+  // - Otherwise standard 1-to-1 DM -> getDmConversationId(myUid, selectedRecipientUid)
   const activeConvoId = useMemo(() => {
     if (!myUid || !selectedRecipientUid) return '';
+    if (selectedRecipientUid === OFFICIAL_PLATFORM_UID) {
+      return getDmConversationId(myUid, OFFICIAL_PLATFORM_UID);
+    }
+    if (isAdminUser && isViewingPlatformTicket) {
+      return getDmConversationId(selectedRecipientUid, OFFICIAL_PLATFORM_UID);
+    }
     return getDmConversationId(myUid, selectedRecipientUid);
-  }, [myUid, selectedRecipientUid]);
+  }, [myUid, selectedRecipientUid, isAdminUser, isViewingPlatformTicket]);
 
   // Subscribe to active thread messages
   useEffect(() => {
@@ -232,10 +301,17 @@ export const DirectMessagesPanel: React.FC<Props> = ({
   useEffect(() => {
     if (!activeConvoId || !myUid) return;
     const activeConvo = conversations.find((c) => c.id === activeConvoId);
-    if (activeConvo && Number(activeConvo.unreadBy?.[myUid] || 0) > 0) {
+    if (!activeConvo) return;
+
+    if (isAdminUser && isViewingPlatformTicket && activeConvo.participants.includes(OFFICIAL_PLATFORM_UID)) {
+      if (Number(activeConvo.unreadBy?.[OFFICIAL_PLATFORM_UID] || 0) > 0) {
+        markDmConversationRead(activeConvoId, OFFICIAL_PLATFORM_UID).catch(() => {});
+      }
+    }
+    if (Number(activeConvo.unreadBy?.[myUid] || 0) > 0) {
       markDmConversationRead(activeConvoId, myUid).catch(() => {});
     }
-  }, [activeConvoId, myUid, conversations, messages.length]);
+  }, [activeConvoId, myUid, isAdminUser, isViewingPlatformTicket, conversations, messages.length]);
 
   useEffect(() => {
     scrollDmToBottom();
@@ -243,6 +319,9 @@ export const DirectMessagesPanel: React.FC<Props> = ({
 
   const activeRecipient = useMemo(() => {
     if (!selectedRecipientUid) return null;
+    if (selectedRecipientUid === OFFICIAL_PLATFORM_UID) {
+      return OFFICIAL_PLATFORM_PROFILE;
+    }
     if (selectedRecipientProfile && selectedRecipientProfile.uid === selectedRecipientUid) {
       return selectedRecipientProfile;
     }
@@ -276,34 +355,90 @@ export const DirectMessagesPanel: React.FC<Props> = ({
   const myAllowDm = ownChatProfile ? ownChatProfile.allowDirectMessages !== false : true;
   const myBlockedUids = useMemo(() => ownChatProfile?.blockedUids || [], [ownChatProfile]);
 
-  const isRecipientBlockedByMe = Boolean(
-    selectedRecipientUid && myBlockedUids.includes(selectedRecipientUid)
+  const isOfficialThreadForUser = selectedRecipientUid === OFFICIAL_PLATFORM_UID;
+  const isOfficialTicketForAdmin = Boolean(
+    isAdminUser && isViewingPlatformTicket && selectedRecipientUid && selectedRecipientUid !== OFFICIAL_PLATFORM_UID
   );
-  const recipientAllowsDm = activeRecipient ? activeRecipient.allowDirectMessages !== false : true;
+
+  const isRecipientBlockedByMe = Boolean(
+    !isOfficialThreadForUser &&
+      !isOfficialTicketForAdmin &&
+      selectedRecipientUid &&
+      myBlockedUids.includes(selectedRecipientUid)
+  );
+  const recipientAllowsDm =
+    isOfficialThreadForUser || isOfficialTicketForAdmin
+      ? true
+      : activeRecipient
+      ? activeRecipient.allowDirectMessages !== false
+      : true;
   const hasRecipientBlockedMe = Boolean(
-    activeRecipient && Array.isArray(activeRecipient.blockedUids) && activeRecipient.blockedUids.includes(myUid)
+    !isOfficialThreadForUser &&
+      !isOfficialTicketForAdmin &&
+      activeRecipient &&
+      Array.isArray(activeRecipient.blockedUids) &&
+      activeRecipient.blockedUids.includes(myUid)
   );
 
   const canSendMessage = Boolean(
     selectedRecipientUid && !isRecipientBlockedByMe && recipientAllowsDm && !hasRecipientBlockedMe
   );
 
+  // User's existing conversation with @mbktrading (if any)
+  const myOfficialConvo = useMemo(() => {
+    if (!myUid) return null;
+    const officialConvoId = getDmConversationId(myUid, OFFICIAL_PLATFORM_UID);
+    return conversations.find((c) => c.id === officialConvoId) || null;
+  }, [conversations, myUid]);
+
+  const platformUnreadForAdmin = useMemo(() => {
+    if (!isAdminUser) return 0;
+    return conversations.reduce((sum, c) => {
+      if (c.participants.includes(OFFICIAL_PLATFORM_UID)) {
+        return sum + Number(c.unreadBy?.[OFFICIAL_PLATFORM_UID] || 0);
+      }
+      return sum;
+    }, 0);
+  }, [conversations, isAdminUser]);
+
   const filteredConversations = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return conversations.filter((convo) => {
-      const otherUid = getOtherParticipantUid(convo.participants, myUid);
-      const otherName = convo.participantNames?.[otherUid] || 'Trader';
+      const isPlatformTicket = convo.participants.includes(OFFICIAL_PLATFORM_UID);
+
+      // Hide the user's own @mbktrading conversation from the regular list because it's pinned at the very top for non-admins
+      if (!isAdminUser && isPlatformTicket) {
+        return false;
+      }
+
+      if (isAdminUser) {
+        if (adminInboxFilter === 'PLATFORM' && !isPlatformTicket) return false;
+        if (adminInboxFilter === 'PERSONAL' && isPlatformTicket) return false;
+      }
+
+      const partnerUid = isPlatformTicket
+        ? getOtherParticipantUid(convo.participants, OFFICIAL_PLATFORM_UID)
+        : getOtherParticipantUid(convo.participants, myUid);
+      const partnerName = convo.participantNames?.[partnerUid] || 'Trader';
+
       if (!q) return true;
       return (
-        otherName.toLowerCase().includes(q) ||
-        convo.lastMessage.toLowerCase().includes(q)
+        partnerName.toLowerCase().includes(q) ||
+        convo.lastMessage.toLowerCase().includes(q) ||
+        (isPlatformTicket && OFFICIAL_PLATFORM_USERNAME.includes(q))
       );
     });
-  }, [conversations, myUid, searchQuery]);
+  }, [conversations, myUid, searchQuery, isAdminUser, adminInboxFilter]);
 
   const totalUnread = useMemo(() => {
-    return conversations.reduce((sum, c) => sum + Number(c.unreadBy?.[myUid] || 0), 0);
-  }, [conversations, myUid]);
+    return conversations.reduce((sum, c) => {
+      let count = Number(c.unreadBy?.[myUid] || 0);
+      if (isAdminUser && c.participants.includes(OFFICIAL_PLATFORM_UID)) {
+        count += Number(c.unreadBy?.[OFFICIAL_PLATFORM_UID] || 0);
+      }
+      return sum + count;
+    }, 0);
+  }, [conversations, myUid, isAdminUser]);
 
   const handleToggleGlobalDm = async () => {
     if (!myUid || updatingPrivacy) return;
@@ -331,7 +466,8 @@ export const DirectMessagesPanel: React.FC<Props> = ({
   };
 
   const handleToggleBlockRecipient = async () => {
-    if (!myUid || !selectedRecipientUid || updatingPrivacy) return;
+    if (!myUid || !selectedRecipientUid || isOfficialThreadForUser || isOfficialTicketForAdmin || updatingPrivacy)
+      return;
     soundManager.playClick();
     setUpdatingPrivacy(true);
     try {
@@ -360,8 +496,16 @@ export const DirectMessagesPanel: React.FC<Props> = ({
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!myUid || !activeRecipient || !canSendMessage || sending) return;
-    const text = messageInput.trim().slice(0, 1000);
-    if (!text) return;
+    const rawText = messageInput.trim().slice(0, 950);
+    if (!rawText) return;
+
+    // If a regular user is messaging @mbktrading, attach the selected Support/Suggestion/Question topic tag
+    let finalText = rawText;
+    if (isOfficialThreadForUser && !rawText.startsWith('[')) {
+      const topicObj = PLATFORM_INBOX_TOPICS.find((t) => t.id === selectedTopic) || PLATFORM_INBOX_TOPICS[0];
+      const tag = isAr ? topicObj.tagAr : topicObj.tagEn;
+      finalText = `${tag} ${rawText}`.slice(0, 1000);
+    }
 
     setSending(true);
     soundManager.playClick();
@@ -379,7 +523,8 @@ export const DirectMessagesPanel: React.FC<Props> = ({
           avatar: activeRecipient.avatar || '',
           role: activeRecipient.role || 'FREE'
         },
-        text
+        text: finalText,
+        replyAsPlatformDesk: isOfficialTicketForAdmin
       });
       setMessageInput('');
       soundManager.playSuccess();
@@ -400,7 +545,11 @@ export const DirectMessagesPanel: React.FC<Props> = ({
       dir={isAr ? 'rtl' : 'ltr'}
     >
       {/* Top Bar: Header & Global DM Privacy Toggle */}
-      <div className={`${isCompact ? 'px-2.5 py-2' : 'px-4 py-3'} bg-[#131722] border-b border-[#2a2e39] flex flex-wrap items-center justify-between gap-2 shrink-0`}>
+      <div
+        className={`${
+          isCompact ? 'px-2.5 py-2' : 'px-4 py-3'
+        } bg-[#131722] border-b border-[#2a2e39] flex flex-wrap items-center justify-between gap-2 shrink-0`}
+      >
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-xl bg-[#089981]/15 border border-[#089981]/40 flex items-center justify-center text-[#089981]">
             <Mail className="w-4 h-4" />
@@ -408,7 +557,7 @@ export const DirectMessagesPanel: React.FC<Props> = ({
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-xs sm:text-sm font-black text-white">
-                {isAr ? 'صندوق الوارد (Inbox)' : 'Direct Inbox'}
+                {isAr ? 'صندوق الوارد ودعم المنصة (Inbox)' : 'Platform & Direct Inbox'}
               </h2>
               {totalUnread > 0 && (
                 <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-[#f23645] text-white">
@@ -417,7 +566,13 @@ export const DirectMessagesPanel: React.FC<Props> = ({
               )}
             </div>
             <p className="text-[11px] text-[#787b86]">
-              {isAr ? 'محادثاتك الخاصة المباشرة' : 'Your Private Direct Conversations'}
+              {isAdminUser
+                ? isAr
+                  ? 'بريد المنصة الموحد (@mbktrading) للدعم والاقتراحات والأسئلة + محادثاتك'
+                  : 'Shared @mbktrading Support/Suggestions/Questions Desk + Direct Messages'
+                : isAr
+                ? 'تواصل مباشرة مع إدارة المنصة (@mbktrading) للدعم والاقتراحات والأسئلة'
+                : 'Message @mbktrading for Support, Suggestions & Questions or chat with traders'}
             </p>
           </div>
         </div>
@@ -456,11 +611,7 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                 ? 'bg-[#089981]/15 border-[#089981]/40 text-[#089981] hover:bg-[#089981]/25'
                 : 'bg-rose-500/15 border-rose-500/40 text-rose-400 hover:bg-rose-500/25'
             }`}
-            title={
-              isAr
-                ? 'تبديل استقبال الرسائل الخاصة'
-                : 'Toggle receiving direct messages'
-            }
+            title={isAr ? 'تبديل استقبال الرسائل الخاصة' : 'Toggle receiving direct messages'}
           >
             {myAllowDm ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
             <span>
@@ -499,17 +650,70 @@ export const DirectMessagesPanel: React.FC<Props> = ({
             selectedRecipientUid ? (isCompact ? 'hidden' : 'hidden md:flex') : 'flex'
           }`}
         >
-          {/* Inbox Header + Search Input */}
+          {/* Inbox Header + Admin Filter + Search Input */}
           <div className="p-2.5 border-b border-[#2a2e39] space-y-2">
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-1.5 text-xs font-bold text-white">
                 <MessageCircle className="w-3.5 h-3.5 text-[#089981]" />
-                <span>{isAr ? 'المحادثات الخاصة' : 'Conversations'}</span>
+                <span>{isAr ? 'المحادثات وبريد المنصة' : 'Inbox & Support Desk'}</span>
               </div>
               <span className="text-[10px] font-mono text-[#787b86]">
-                {filteredConversations.length}
+                {filteredConversations.length + (!isAdminUser ? 1 : 0)}
               </span>
             </div>
+
+            {/* Admin Inbox Filter Tabs (All / @mbktrading Platform Desk / Personal) */}
+            {isAdminUser && (
+              <div className="grid grid-cols-3 gap-1 bg-[#131722] p-1 rounded-xl border border-[#2a2e39] text-[10px] font-bold">
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundManager.playClick();
+                    setAdminInboxFilter('ALL');
+                  }}
+                  className={`py-1 rounded-lg cursor-pointer transition-colors ${
+                    adminInboxFilter === 'ALL'
+                      ? 'bg-[#1c2432] text-white border border-[#2a3446]'
+                      : 'text-[#787b86] hover:text-white'
+                  }`}
+                >
+                  {isAr ? 'الكل' : 'All'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundManager.playClick();
+                    setAdminInboxFilter('PLATFORM');
+                  }}
+                  className={`py-1 rounded-lg cursor-pointer transition-colors flex items-center justify-center gap-1 ${
+                    adminInboxFilter === 'PLATFORM'
+                      ? 'bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/40'
+                      : 'text-[#787b86] hover:text-white'
+                  }`}
+                >
+                  <span>@mbktrading</span>
+                  {platformUnreadForAdmin > 0 && (
+                    <span className="px-1 rounded-full bg-[#e11d48] text-white text-[9px] font-mono">
+                      {platformUnreadForAdmin}
+                    </span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundManager.playClick();
+                    setAdminInboxFilter('PERSONAL');
+                  }}
+                  className={`py-1 rounded-lg cursor-pointer transition-colors ${
+                    adminInboxFilter === 'PERSONAL'
+                      ? 'bg-[#1c2432] text-white border border-[#2a3446]'
+                      : 'text-[#787b86] hover:text-white'
+                  }`}
+                >
+                  {isAr ? 'خاصتي' : 'My DMs'}
+                </button>
+              </div>
+            )}
 
             {/* Search Input */}
             <div className="relative">
@@ -518,7 +722,7 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={isAr ? 'ابحث في رسائلك الخاصة...' : 'Search your inbox...'}
+                placeholder={isAr ? 'ابحث في الرسائل أو التذاكر...' : 'Search inbox or tickets...'}
                 className="w-full ps-8 pe-3 py-1.5 rounded-xl bg-[#131722] border border-[#2a2e39] focus:border-[#089981] text-xs text-white placeholder-[#787b86] focus:outline-none"
               />
             </div>
@@ -526,26 +730,108 @@ export const DirectMessagesPanel: React.FC<Props> = ({
 
           {/* Conversations List Body */}
           <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-[#2a2e39]/60">
+            {/* PINNED TOP ROW FOR ALL TRADERS: Official @mbktrading Support, Suggestions & Questions Inbox */}
+            {!isAdminUser && (
+              <button
+                type="button"
+                onClick={() => {
+                  soundManager.playClick();
+                  setSelectedRecipientUid(OFFICIAL_PLATFORM_UID);
+                  setIsViewingPlatformTicket(true);
+                  setSelectedFallbackRecipient({
+                    uid: OFFICIAL_PLATFORM_UID,
+                    displayName: OFFICIAL_PLATFORM_USERNAME,
+                    role: 'ADMIN',
+                    isPlatformTicket: true
+                  });
+                }}
+                className={`w-full p-3 flex items-center gap-2.5 text-start transition-colors cursor-pointer ${
+                  selectedRecipientUid === OFFICIAL_PLATFORM_UID
+                    ? 'bg-[#10b981]/15 border-s-2 border-[#10b981]'
+                    : 'bg-[#10b981]/5 hover:bg-[#1e222d]'
+                }`}
+              >
+                <div className="w-10 h-10 rounded-xl bg-[#10b981]/20 border border-[#10b981]/40 flex items-center justify-center font-black text-xs text-[#10b981] shrink-0 shadow-sm">
+                  <Headphones className="w-5 h-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-1.5">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-xs font-black text-white truncate">
+                        @{OFFICIAL_PLATFORM_USERNAME}
+                      </span>
+                      {renderRoleBadge('ADMIN', true)}
+                    </div>
+                    {myOfficialConvo?.lastMessageAtMs ? (
+                      <span className="text-[10px] font-mono text-[#787b86] shrink-0">
+                        {formatMessageTime(myOfficialConvo.lastMessageAtMs, isAr)}
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="flex items-center justify-between gap-2 mt-0.5">
+                    <span className="text-[11px] text-[#9db2c6] truncate">
+                      {myOfficialConvo?.lastMessage
+                        ? `${
+                            myOfficialConvo.lastSenderUid === myUid
+                              ? isAr
+                                ? 'أنت: '
+                                : 'You: '
+                              : '@mbktrading: '
+                          }${myOfficialConvo.lastMessage}`
+                        : isAr
+                        ? 'الدعم الفني • الاقتراحات • الأسئلة والاستفسارات'
+                        : 'Support • Suggestions • Questions Desk'}
+                    </span>
+                    {Number(myOfficialConvo?.unreadBy?.[myUid] || 0) > 0 && (
+                      <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-[#f23645] text-white text-[10px] font-mono font-bold flex items-center justify-center shrink-0">
+                        {Number(myOfficialConvo?.unreadBy?.[myUid] || 0)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </button>
+            )}
+
             {filteredConversations.length === 0 ? (
               <div className="p-6 text-center space-y-2.5 text-[#787b86]">
                 <MessageCircle className="w-8 h-8 mx-auto opacity-40 text-[#089981]" />
                 <p className="text-xs font-bold text-white">
-                  {isAr ? 'صندوق الوارد فارغ حالياً' : 'Your inbox is empty'}
+                  {isAdminUser
+                    ? isAr
+                      ? 'لا توجد رسائل أو تذاكر دعم حالياً'
+                      : 'No support tickets or messages yet'
+                    : isAr
+                    ? 'اضغط على @mbktrading أعلاه لمراسلة الدعم والاقتراحات'
+                    : 'Click @mbktrading above for Support, Suggestions & Questions'}
                 </p>
                 <p className="text-[11px] leading-relaxed">
-                  {isAr
-                    ? 'ستظهر هنا محادثاتك الخاصة المباشرة. يمكنك بدء مراسلة أي متداول بالضغط على اسمه في الشات العام.'
-                    : 'Your private conversations appear here. Click any trader’s name in General Chat to send them a direct message.'}
+                  {isAdminUser
+                    ? isAr
+                      ? 'جميع رسائل المتداولين المرسلة إلى حساب المنصة (@mbktrading) تظهر هنا لجميع المشرفين للرد عليها باسم mbktrading.'
+                      : 'All trader messages sent to @mbktrading appear here so any admin can reply under the official mbktrading username.'
+                    : isAr
+                    ? 'يمكنك إرسال استفساراتك، اقتراحاتك، أو طلبات الدعم الفني مباشرة إلى فريق @mbktrading.'
+                    : 'Send your support requests, platform suggestions, or trading questions directly to @mbktrading.'}
                 </p>
               </div>
             ) : (
               filteredConversations.map((convo) => {
-                const otherUid = getOtherParticipantUid(convo.participants, myUid);
-                const otherName = convo.participantNames?.[otherUid] || 'Trader';
+                const isPlatformTicket = convo.participants.includes(OFFICIAL_PLATFORM_UID);
+                const otherUid = isPlatformTicket
+                  ? getOtherParticipantUid(convo.participants, OFFICIAL_PLATFORM_UID)
+                  : getOtherParticipantUid(convo.participants, myUid);
+                const otherName =
+                  otherUid === OFFICIAL_PLATFORM_UID
+                    ? OFFICIAL_PLATFORM_USERNAME
+                    : convo.participantNames?.[otherUid] || 'Trader';
                 const otherAvatar = convo.participantAvatars?.[otherUid] || '';
                 const otherRole = convo.participantRoles?.[otherUid] || 'FREE';
-                const unread = Number(convo.unreadBy?.[myUid] || 0);
-                const isActive = selectedRecipientUid === otherUid;
+                const unread = isPlatformTicket && isAdminUser
+                  ? Number(convo.unreadBy?.[OFFICIAL_PLATFORM_UID] || 0)
+                  : Number(convo.unreadBy?.[myUid] || 0);
+                const isActive =
+                  selectedRecipientUid === otherUid &&
+                  Boolean(isViewingPlatformTicket) === Boolean(isPlatformTicket);
 
                 return (
                   <button
@@ -554,11 +840,13 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                     onClick={() => {
                       soundManager.playClick();
                       setSelectedRecipientUid(otherUid);
+                      setIsViewingPlatformTicket(isPlatformTicket);
                       setSelectedFallbackRecipient({
                         uid: otherUid,
                         displayName: otherName,
                         avatar: otherAvatar,
-                        role: otherRole
+                        role: otherRole,
+                        isPlatformTicket
                       });
                     }}
                     className={`w-full p-3 flex items-center gap-2.5 text-start transition-colors cursor-pointer ${
@@ -574,9 +862,14 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-1.5">
-                        <div className="flex items-center gap-1.5 min-w-0">
+                        <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                           <span className="text-xs font-bold text-white truncate">{otherName}</span>
-                          {renderRoleBadge(otherRole)}
+                          {renderRoleBadge(otherRole, otherUid === OFFICIAL_PLATFORM_UID)}
+                          {isAdminUser && isPlatformTicket && (
+                            <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-bold bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/40 shrink-0">
+                              @mbktrading
+                            </span>
+                          )}
                         </div>
                         <span className="text-[10px] font-mono text-[#787b86] shrink-0">
                           {formatMessageTime(convo.lastMessageAtMs, isAr)}
@@ -584,7 +877,13 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                       </div>
                       <div className="flex items-center justify-between gap-2 mt-0.5">
                         <span className="text-[11px] text-[#9db2c6] truncate">
-                          {convo.lastSenderUid === myUid ? (isAr ? 'أنت: ' : 'You: ') : ''}
+                          {convo.lastSenderUid === OFFICIAL_PLATFORM_UID
+                            ? '@mbktrading: '
+                            : convo.lastSenderUid === myUid
+                            ? isAr
+                              ? 'أنت: '
+                              : 'You: '
+                            : ''}
                           {convo.lastMessage}
                         </span>
                         {unread > 0 && (
@@ -610,16 +909,36 @@ export const DirectMessagesPanel: React.FC<Props> = ({
           {!activeRecipient ? (
             <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-3">
               <div className="w-14 h-14 rounded-2xl bg-[#1e222d] border border-[#2a2e39] flex items-center justify-center text-[#089981]">
-                <Mail className="w-7 h-7" />
+                <Headphones className="w-7 h-7" />
               </div>
               <h3 className="text-sm font-bold text-white">
-                {isAr ? 'اختر محادثة من صندوق الوارد لعرض الرسائل' : 'Select an inbox conversation to view messages'}
+                {isAr
+                  ? 'بريد المنصة المباشر (@mbktrading) للدعم والاقتراحات والأسئلة'
+                  : 'Official @mbktrading Inbox for Support, Suggestions & Questions'}
               </h3>
               <p className="text-xs text-[#787b86] max-w-sm leading-relaxed">
-                {isAr
-                  ? 'يمكنك إرسال رسائل خاصة فورية مع إشعارات صوتية وتنبيهات مباشرة، كما يمكنك إغلاق استقبال الرسائل أو حظر أي مرسل في أي وقت.'
-                  : 'Send instant 1-to-1 messages with live sound & notification alerts, or toggle DM privacy / block any sender at any time.'}
+                {isAdminUser
+                  ? isAr
+                    ? 'اختر أي تذكرة من القائمة للرد عليها مباشرة باسم الحساب الرسمي (mbktrading)، حيث يشترك جميع المشرفين في رؤية الرسائل والرد عليها.'
+                    : 'Select any platform ticket to reply under the official mbktrading username. All admins can view and reply to platform inbox threads.'
+                  : isAr
+                  ? 'اضغط على @mbktrading في القائمة لإرسال طلب دعم فني، اقتراح لتطوير المنصة، أو أي سؤال لفريق الإدارة.'
+                  : 'Select @mbktrading in the sidebar to submit a support request, platform suggestion, or trading question.'}
               </p>
+              {!isAdminUser && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundManager.playClick();
+                    setSelectedRecipientUid(OFFICIAL_PLATFORM_UID);
+                    setIsViewingPlatformTicket(true);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-[#10b981] hover:bg-[#059669] text-[#06080c] font-bold text-xs cursor-pointer transition-all flex items-center gap-1.5"
+                >
+                  <Headphones className="w-4 h-4" />
+                  <span>{isAr ? 'مراسلة @mbktrading الآن' : 'Message @mbktrading Now'}</span>
+                </button>
+              )}
             </div>
           ) : (
             <>
@@ -629,14 +948,24 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                   <button
                     type="button"
                     onClick={() => setSelectedRecipientUid(null)}
-                    className={`${isCompact ? 'flex' : 'md:hidden'} p-1.5 rounded-lg bg-[#131722] border border-[#2a2e39] text-[#d1d4dc] hover:text-white cursor-pointer shrink-0`}
+                    className={`${
+                      isCompact ? 'flex' : 'md:hidden'
+                    } p-1.5 rounded-lg bg-[#131722] border border-[#2a2e39] text-[#d1d4dc] hover:text-white cursor-pointer shrink-0`}
                     aria-label="Back"
                   >
                     {isAr ? <ArrowRight className="w-4 h-4" /> : <ArrowLeft className="w-4 h-4" />}
                   </button>
 
-                  <div className="w-9 h-9 rounded-full bg-[#2a2e39] border border-[#363a45] flex items-center justify-center font-bold text-xs text-white overflow-hidden shrink-0">
-                    {activeRecipient.avatar ? (
+                  <div
+                    className={`w-9 h-9 rounded-full border flex items-center justify-center font-bold text-xs overflow-hidden shrink-0 ${
+                      isOfficialThreadForUser
+                        ? 'bg-[#10b981]/20 border-[#10b981]/40 text-[#10b981]'
+                        : 'bg-[#2a2e39] border-[#363a45] text-white'
+                    }`}
+                  >
+                    {isOfficialThreadForUser ? (
+                      <Headphones className="w-4 h-4" />
+                    ) : activeRecipient.avatar ? (
                       <img
                         src={activeRecipient.avatar}
                         alt={activeRecipient.displayName}
@@ -648,14 +977,29 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                   </div>
 
                   <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="text-xs sm:text-sm font-bold text-white truncate">
-                        {activeRecipient.displayName}
+                        {isOfficialThreadForUser
+                          ? `@${OFFICIAL_PLATFORM_USERNAME}`
+                          : activeRecipient.displayName}
                       </span>
-                      {renderRoleBadge(activeRecipient.role)}
+                      {renderRoleBadge(activeRecipient.role, isOfficialThreadForUser)}
+                      {isOfficialTicketForAdmin && (
+                        <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/40">
+                          {isAr ? 'تذكرة @mbktrading (يرد باسم mbktrading)' : 'Replying as @mbktrading'}
+                        </span>
+                      )}
                     </div>
                     <span className="text-[10px] text-[#787b86] block">
-                      {!recipientAllowsDm
+                      {isOfficialThreadForUser
+                        ? isAr
+                          ? 'الدعم الفني • الاقتراحات • الأسئلة (يرد عليك جميع مشرفي المنصة باسم mbktrading)'
+                          : 'Official Support, Suggestions & Questions Desk (Admins reply as @mbktrading)'
+                        : isOfficialTicketForAdmin
+                        ? isAr
+                          ? 'بريد المنصة الموحد — ردك سيظهر للمستخدم باسم mbktrading'
+                          : 'Shared Platform Inbox — your reply appears as mbktrading'
+                        : !recipientAllowsDm
                         ? isAr
                           ? 'أغلق استقبال الرسائل الخاصة'
                           : 'DMs turned off by user'
@@ -670,54 +1014,87 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                   </div>
                 </div>
 
-                {/* Per-User Block / Unblock Button */}
-                <button
-                  type="button"
-                  disabled={updatingPrivacy}
-                  onClick={handleToggleBlockRecipient}
-                  className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-all shrink-0 ${
-                    isRecipientBlockedByMe
-                      ? 'bg-[#089981]/15 border-[#089981]/40 text-[#089981] hover:bg-[#089981]/25'
-                      : 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20'
-                  }`}
-                >
-                  {isRecipientBlockedByMe ? (
-                    <>
-                      <UserCheck className="w-3.5 h-3.5" />
-                      <span>{isAr ? 'إلغاء الحظر' : 'Unblock'}</span>
-                    </>
-                  ) : (
-                    <>
-                      <Ban className="w-3.5 h-3.5" />
-                      <span>{isAr ? 'حظر من الخاص' : 'Block DM'}</span>
-                    </>
-                  )}
-                </button>
+                {/* Per-User Block / Unblock Button (hidden for official @mbktrading threads) */}
+                {!isOfficialThreadForUser && !isOfficialTicketForAdmin && (
+                  <button
+                    type="button"
+                    disabled={updatingPrivacy}
+                    onClick={handleToggleBlockRecipient}
+                    className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-all shrink-0 ${
+                      isRecipientBlockedByMe
+                        ? 'bg-[#089981]/15 border-[#089981]/40 text-[#089981] hover:bg-[#089981]/25'
+                        : 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20'
+                    }`}
+                  >
+                    {isRecipientBlockedByMe ? (
+                      <>
+                        <UserCheck className="w-3.5 h-3.5" />
+                        <span>{isAr ? 'إلغاء الحظر' : 'Unblock'}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Ban className="w-3.5 h-3.5" />
+                        <span>{isAr ? 'حظر من الخاص' : 'Block DM'}</span>
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
 
               {/* Messages Feed */}
               <div ref={messagesContainerRef} className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 space-y-2.5">
                 {messages.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-center text-[#787b86] text-xs space-y-1">
-                    <MessageCircle className="w-7 h-7 opacity-40 text-[#089981]" />
-                    <p>
-                      {isAr
-                        ? `ابدأ محادثة خاصة مع ${activeRecipient.displayName}`
-                        : `Start a private chat with ${activeRecipient.displayName}`}
+                  <div className="h-full flex flex-col items-center justify-center text-center text-[#787b86] text-xs space-y-2 max-w-md mx-auto">
+                    <Headphones className="w-8 h-8 opacity-50 text-[#10b981]" />
+                    <p className="font-bold text-white">
+                      {isOfficialThreadForUser
+                        ? isAr
+                          ? 'مرحباً بك في صندوق بريد المنصة الرسمي (@mbktrading)'
+                          : 'Welcome to the Official @mbktrading Platform Inbox'
+                        : isAr
+                        ? `ابدأ محادثة مع ${activeRecipient.displayName}`
+                        : `Start a chat with ${activeRecipient.displayName}`}
                     </p>
+                    {isOfficialThreadForUser && (
+                      <p className="text-[11px] text-[#787b86] leading-relaxed">
+                        {isAr
+                          ? 'اختر نوع الرسالة بالأسفل (دعم فني، اقتراح، أو سؤال) واكتب رسالتك. سيقوم فريق المشرفين بالرد عليك هنا مباشرة باسم mbktrading.'
+                          : 'Choose a category below (Support, Suggestion, or Question) and send your message. Our admin team will reply directly here under @mbktrading.'}
+                      </p>
+                    )}
                   </div>
                 ) : (
                   messages.map((msg) => {
-                    const isMine = msg.senderUid === myUid;
+                    const isFromPlatformDesk = msg.senderUid === OFFICIAL_PLATFORM_UID;
+                    const isMine = isOfficialTicketForAdmin
+                      ? isFromPlatformDesk
+                      : msg.senderUid === myUid;
+
                     return (
                       <div key={msg.id} className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
                         <div
                           className={`max-w-[85%] sm:max-w-[70%] rounded-2xl px-3 py-2 text-xs leading-relaxed shadow ${
                             isMine
                               ? 'bg-gradient-to-br from-[#089981]/30 to-[#065f46]/30 border border-[#089981]/40 text-white rounded-ee-sm'
+                              : isFromPlatformDesk
+                              ? 'bg-[#10b981]/15 border border-[#10b981]/40 text-white rounded-es-sm'
                               : 'bg-[#1e222d] border border-[#2a2e39] text-[#e1e4ea] rounded-es-sm'
                           }`}
                         >
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <span
+                              className={`text-[10px] font-mono font-bold ${
+                                isFromPlatformDesk ? 'text-[#10b981]' : 'text-[#8492a6]'
+                              }`}
+                            >
+                              {isFromPlatformDesk ? `@${OFFICIAL_PLATFORM_USERNAME}` : msg.senderName}
+                            </span>
+                            {isFromPlatformDesk && (
+                              <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-black bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/40">
+                                OFFICIAL
+                              </span>
+                            )}
+                          </div>
                           <p className="break-words whitespace-pre-wrap">{msg.text}</p>
                           <div className="mt-1 flex items-center justify-end gap-1 text-[9px] font-mono text-[#787b86]">
                             <span>{formatMessageTime(msg.timestampMs, isAr)}</span>
@@ -730,6 +1107,32 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                 )}
                 <div ref={messagesEndRef} />
               </div>
+
+              {/* Topic Selector Bar when messaging @mbktrading (Support / Suggestion / Question) */}
+              {isOfficialThreadForUser && (
+                <div className="px-3 py-1.5 bg-[#171b26] border-t border-[#2a2e39] flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0">
+                  <span className="text-[10px] text-[#787b86] font-bold shrink-0">
+                    {isAr ? 'الموضوع:' : 'Topic:'}
+                  </span>
+                  {PLATFORM_INBOX_TOPICS.map((topic) => (
+                    <button
+                      key={topic.id}
+                      type="button"
+                      onClick={() => {
+                        soundManager.playClick();
+                        setSelectedTopic(topic.id);
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer shrink-0 ${
+                        selectedTopic === topic.id
+                          ? 'bg-[#10b981]/20 text-[#10b981] border-[#10b981]/50'
+                          : 'bg-[#131722] text-[#787b86] border-[#2a2e39] hover:text-white'
+                      }`}
+                    >
+                      {isAr ? topic.labelAr : topic.labelEn}
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {/* Composer or Privacy Lock Notice */}
               {!canSendMessage ? (
@@ -752,11 +1155,19 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                 >
                   <input
                     type="text"
-                    maxLength={1000}
+                    maxLength={950}
                     value={messageInput}
-                    onChange={(e) => setMessageInput(e.target.value.slice(0, 1000))}
+                    onChange={(e) => setMessageInput(e.target.value.slice(0, 950))}
                     placeholder={
-                      isAr
+                      isOfficialTicketForAdmin
+                        ? isAr
+                          ? `اكتب ردك الرسمي باسم @mbktrading إلى ${activeRecipient.displayName}...`
+                          : `Reply as @mbktrading to ${activeRecipient.displayName}...`
+                        : isOfficialThreadForUser
+                        ? isAr
+                          ? 'اكتب رسالتك للدعم الفني أو اقتراحك أو سؤالك إلى @mbktrading...'
+                          : 'Write your support request, suggestion, or question to @mbktrading...'
+                        : isAr
                         ? `اكتب رسالة خاصة إلى ${activeRecipient.displayName}...`
                         : `Message ${activeRecipient.displayName}...`
                     }
@@ -768,7 +1179,15 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                     className="px-3.5 py-2 rounded-xl bg-[#089981] hover:bg-[#07846f] disabled:opacity-40 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shrink-0 transition-all"
                   >
                     <Send className={`w-3.5 h-3.5 ${sending ? 'animate-pulse' : ''}`} />
-                    <span className="hidden sm:inline">{isAr ? 'إرسال' : 'Send'}</span>
+                    <span className="hidden sm:inline">
+                      {isOfficialTicketForAdmin
+                        ? isAr
+                          ? 'رد باسم mbktrading'
+                          : 'Reply as mbktrading'
+                        : isAr
+                        ? 'إرسال'
+                        : 'Send'}
+                    </span>
                   </button>
                 </form>
               )}
