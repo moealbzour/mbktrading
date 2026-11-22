@@ -16,10 +16,17 @@ import {
 } from 'lucide-react';
 import { soundManager } from '../../utils/audio';
 import confetti from 'canvas-confetti';
-import { MarketTicker, MarketSymbol, UserProfile } from '../../types/trading';
+import { MarketTicker, MarketSymbol, UserProfile, DailyTradeStatus } from '../../types/trading';
 import { collection, addDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../../lib/firebase';
 import { useLiveSignals, ChannelSignalItem, BotAlertItem } from '../../hooks/useLiveSignals';
+import {
+  isTradeActiveStatus,
+  isTradeTpHitStatus,
+  isTradeSlHitStatus,
+  isTradeClosedStatus,
+  getTradeStatusLabelAr
+} from '../../context/SignalsContext';
 import { hasFeatureAccess } from '../../utils/entitlements';
 import { OperationType, reportFirestoreError } from '../../utils/firestoreError';
 import { markDocumentDeleted } from '../../utils/legacyDbRecovery';
@@ -63,7 +70,15 @@ export const SignalsChannelHub: React.FC<Props> = ({
     }
   };
 
-  const { signals, botAlerts, loading, botAlertsLoading, addToast, removeSignalLocally } = useLiveSignals();
+  const {
+    signals,
+    botAlerts,
+    loading,
+    botAlertsLoading,
+    addToast,
+    removeSignalLocally,
+    updateSignalStatusLocally
+  } = useLiveSignals();
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [pendingDeleteSignal, setPendingDeleteSignal] = useState<{
     id: string;
@@ -111,6 +126,7 @@ export const SignalsChannelHub: React.FC<Props> = ({
     tp1: number;
     tp2?: number;
     notes: string;
+    status?: DailyTradeStatus;
     isBot?: boolean;
   } | null>(null);
 
@@ -121,6 +137,7 @@ export const SignalsChannelHub: React.FC<Props> = ({
   const [editSigTp1, setEditSigTp1] = useState('');
   const [editSigTp2, setEditSigTp2] = useState('');
   const [editSigNotes, setEditSigNotes] = useState('');
+  const [editSigStatus, setEditSigStatus] = useState<DailyTradeStatus>('RUNNING');
 
   const handleDeleteSignal = (
     id: string,
@@ -198,6 +215,7 @@ export const SignalsChannelHub: React.FC<Props> = ({
     tp1: number;
     tp2?: number;
     notes: string;
+    status?: DailyTradeStatus;
     isBot?: boolean;
   }) => {
     if (!isRealAdmin) return;
@@ -210,6 +228,62 @@ export const SignalsChannelHub: React.FC<Props> = ({
     setEditSigTp1(String(item.tp1 || ''));
     setEditSigTp2(String(item.tp2 || ''));
     setEditSigNotes(item.notes || '');
+    setEditSigStatus(item.status || 'RUNNING');
+  };
+
+  const handleQuickUpdateSignalStatus = async (
+    signal: ChannelSignalItem,
+    newStatus: DailyTradeStatus
+  ) => {
+    if (!isRealAdmin) return;
+    soundManager.playClick();
+    const cleanId = signal.id.replace(/^bot-/, '');
+    const statusLabelAr = getTradeStatusLabelAr(newStatus);
+
+    let nextPips = Number(signal.pips || 0);
+    if (isTradeTpHitStatus(newStatus)) {
+      const diff = Math.abs((signal.tp1 || 0) - (signal.entryPrice || 0));
+      const calcPips = signal.symbol === 'EURUSD' || signal.symbol === 'GBPUSD'
+        ? Math.round(diff * 10000)
+        : Math.round(diff * 10);
+      nextPips = Math.abs(nextPips) > 0 ? Math.abs(nextPips) : Math.max(calcPips, 100);
+    } else if (isTradeSlHitStatus(newStatus)) {
+      const diff = Math.abs((signal.entryPrice || 0) - (signal.sl || 0));
+      const calcPips = signal.symbol === 'EURUSD' || signal.symbol === 'GBPUSD'
+        ? Math.round(diff * 10000)
+        : Math.round(diff * 10);
+      nextPips = -Math.max(Math.abs(nextPips) > 0 ? Math.abs(nextPips) : calcPips, 40);
+    } else if (isTradeClosedStatus(newStatus) || isTradeActiveStatus(newStatus)) {
+      nextPips = isTradeActiveStatus(newStatus) ? Math.max(0, nextPips) : nextPips;
+    }
+
+    // Immediate optimistic local update across Signals & Trades tabs
+    updateSignalStatusLocally(cleanId, newStatus, nextPips);
+
+    try {
+      await updateDoc(doc(db, 'signals', cleanId), {
+        status: newStatus,
+        statusLabelAr,
+        pips: nextPips
+      });
+      soundManager.playProfitChime();
+      addToast({
+        title: isAr ? 'تم تحديث حالة الصفقة' : 'Trade Status Updated',
+        message: `${signal.symbol} (${signal.action}) → ${isAr ? statusLabelAr : newStatus}`,
+        type: 'signal',
+        symbol: signal.symbol,
+        action: signal.action,
+        timestamp: isAr ? 'الآن' : 'Now'
+      });
+    } catch (err: any) {
+      const { message } = reportFirestoreError(err, OperationType.UPDATE, `signals/${cleanId}`);
+      addToast({
+        title: isAr ? 'تعذر تحديث الحالة' : 'Status Update Failed',
+        message,
+        type: 'bot',
+        timestamp: isAr ? 'الآن' : 'Now'
+      });
+    }
   };
 
   const handleSaveEditSignal = async (e: React.FormEvent) => {
@@ -225,6 +299,8 @@ export const SignalsChannelHub: React.FC<Props> = ({
           text: editSigNotes
         });
       } else {
+        const statusLabelAr = getTradeStatusLabelAr(editSigStatus);
+        updateSignalStatusLocally(cleanId, editSigStatus);
         const updatePayload = {
           symbol: editSigSymbol,
           action: editSigAction,
@@ -232,6 +308,8 @@ export const SignalsChannelHub: React.FC<Props> = ({
           sl: Number(editSigSl || 0),
           tp1: Number(editSigTp1 || 0),
           tp2: Number(editSigTp2 || 0),
+          status: editSigStatus,
+          statusLabelAr,
           notesAr: editSigNotes,
           notesEn: editSigNotes,
           instructionsAr: editSigNotes,
@@ -686,14 +764,60 @@ export const SignalsChannelHub: React.FC<Props> = ({
             channelSignals.map((signal) => {
               const isLocked = signal.channel !== 'free' && !hasFullAccess;
               const isBuy = signal.action === 'BUY';
+              const isActive = isTradeActiveStatus(signal.status);
+              const isTpHit = isTradeTpHitStatus(signal.status);
+              const isSlHit = isTradeSlHitStatus(signal.status);
+              const isClosed = isTradeClosedStatus(signal.status);
+              const isEnded = !isActive;
 
               return (
                 <div
                   key={signal.id}
-                  className={`bg-[#10141c] border border-[#1e2633] hover:border-[#2a3446] rounded-[3px] p-3.5 flex flex-col justify-between relative overflow-hidden transition-colors border-s-2 ${
-                    isBuy ? 'border-s-[#10b981]' : 'border-s-[#e11d48]'
+                  className={`rounded-[4px] p-3.5 flex flex-col justify-between relative overflow-hidden transition-all border ${
+                    isActive
+                      ? isBuy
+                        ? 'bg-[#10141c] border-[#10b981]/35 trade-card-active-buy'
+                        : 'bg-[#10141c] border-[#e11d48]/35 trade-card-active-sell'
+                      : 'bg-[#0b0e14]/90 border-[#1e2633] opacity-60 hover:opacity-90 saturate-[0.75]'
                   }`}
                 >
+                  {/* Animated moving Buy/Sell border around all 4 sides when ACTIVE */}
+                  {isActive && <div className="trade-perimeter-glow" aria-hidden="true" />}
+
+                  {/* Big Angled Stamp Overlay when ENDED (TP HIT / SL HIT / ENDED) */}
+                  {isEnded && (
+                    <div className="absolute inset-0 z-20 pointer-events-none select-none flex items-center justify-center">
+                      {isTpHit ? (
+                        <div className="-rotate-12 px-5 py-2 rounded-[4px] border-[3px] border-double border-[#10b981] bg-[#06080c]/95 text-[#10b981] shadow-[0_0_28px_rgba(16,185,129,0.45)] flex flex-col items-center justify-center">
+                          <span className="text-base sm:text-lg font-black font-mono tracking-widest uppercase leading-none">
+                            🎯 TP HIT
+                          </span>
+                          <span className="text-[10px] font-bold tracking-wider mt-0.5">
+                            {isAr ? 'هدف محقق بنجاح' : 'TARGET ACHIEVED'}
+                          </span>
+                        </div>
+                      ) : isSlHit ? (
+                        <div className="-rotate-12 px-5 py-2 rounded-[4px] border-[3px] border-double border-[#e11d48] bg-[#06080c]/95 text-[#e11d48] shadow-[0_0_28px_rgba(225,29,72,0.45)] flex flex-col items-center justify-center">
+                          <span className="text-base sm:text-lg font-black font-mono tracking-widest uppercase leading-none">
+                            🛑 SL HIT
+                          </span>
+                          <span className="text-[10px] font-bold tracking-wider mt-0.5">
+                            {isAr ? 'ضرب وقف الخسارة' : 'STOP LOSS HIT'}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="-rotate-12 px-5 py-2 rounded-[4px] border-[3px] border-double border-amber-400/90 bg-[#06080c]/95 text-amber-300 shadow-[0_0_24px_rgba(245,158,11,0.3)] flex flex-col items-center justify-center">
+                          <span className="text-base sm:text-lg font-black font-mono tracking-widest uppercase leading-none">
+                            ⏹ ENDED
+                          </span>
+                          <span className="text-[10px] font-bold tracking-wider mt-0.5">
+                            {isAr ? 'صفقة منتهية' : 'TRADE ENDED'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div>
                     {/* Order Ticket Top Header */}
                     <div className="flex items-center justify-between mb-2.5">
@@ -716,15 +840,39 @@ export const SignalsChannelHub: React.FC<Props> = ({
                       </div>
 
                       <div className="flex items-center gap-1.5 text-[11px] font-mono">
-                        {signal.status === 'TP2_HIT' ? (
-                          <span className="px-2 py-0.5 rounded-[2px] bg-[#10b981]/12 text-[#10b981] font-semibold border border-[#10b981]/30 flex items-center gap-1">
+                        {isTpHit ? (
+                          <span className="px-2 py-0.5 rounded-[2px] bg-[#10b981]/15 text-[#10b981] font-bold border border-[#10b981]/40 flex items-center gap-1">
                             <CheckCircle2 className="w-3 h-3" />
-                            <span>TP2 (+{signal.pips}p)</span>
+                            <span>
+                              {isAr ? 'هدف محقق' : 'TP HIT'}
+                              {signal.pips ? ` (+${Math.abs(signal.pips)}p)` : ''}
+                            </span>
+                          </span>
+                        ) : isSlHit ? (
+                          <span className="px-2 py-0.5 rounded-[2px] bg-[#e11d48]/15 text-[#e11d48] font-bold border border-[#e11d48]/40 flex items-center gap-1">
+                            <span>
+                              🛑 {isAr ? 'ضرب الوقف' : 'SL HIT'}
+                              {signal.pips ? ` (-${Math.abs(signal.pips)}p)` : ''}
+                            </span>
+                          </span>
+                        ) : isClosed ? (
+                          <span className="px-2 py-0.5 rounded-[2px] bg-amber-500/15 text-amber-300 font-bold border border-amber-500/40 flex items-center gap-1">
+                            <span>⏹ {isAr ? 'منتهية' : 'ENDED'}</span>
                           </span>
                         ) : (
-                          <span className="px-2 py-0.5 rounded-[2px] bg-[#0a0d12] text-[#edf0f5] font-medium border border-[#1e2633] flex items-center gap-1.5">
-                            <span className="w-1.5 h-1.5 rounded-[1px] bg-[#10b981]" />
-                            <span>ACTIVE</span>
+                          <span
+                            className={`px-2 py-0.5 rounded-[2px] font-bold border flex items-center gap-1.5 ${
+                              isBuy
+                                ? 'bg-[#10b981]/12 text-[#10b981] border-[#10b981]/35'
+                                : 'bg-[#e11d48]/12 text-[#e11d48] border-[#e11d48]/35'
+                            }`}
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full animate-pulse ${
+                                isBuy ? 'bg-[#10b981]' : 'bg-[#e11d48]'
+                              }`}
+                            />
+                            <span>{isAr ? 'نشط' : 'ACTIVE'}</span>
                           </span>
                         )}
                       </div>
@@ -801,8 +949,61 @@ export const SignalsChannelHub: React.FC<Props> = ({
                     </p>
                   </div>
 
+                  {/* Admin 1-Click Status Stamp Controls */}
+                  {isRealAdmin && (
+                    <div className="relative z-30 mb-2 pt-2 border-t border-[#1e2633]/80 flex flex-wrap items-center justify-between gap-1.5">
+                      <span className="text-[10px] font-mono text-[#8492a6]">
+                        {isAr ? 'تحديد النتيجة:' : 'Mark Status:'}
+                      </span>
+                      <div className="flex flex-wrap items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleQuickUpdateSignalStatus(signal, 'TP_HIT')}
+                          className={`px-2 py-0.5 rounded-[2px] text-[10px] font-mono font-bold border transition-all cursor-pointer ${
+                            isTpHit
+                              ? 'bg-[#10b981] text-[#06080c] border-[#10b981]'
+                              : 'bg-[#10b981]/15 hover:bg-[#10b981]/30 text-[#10b981] border-[#10b981]/40'
+                          }`}
+                        >
+                          🎯 TP Hit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleQuickUpdateSignalStatus(signal, 'SL_HIT')}
+                          className={`px-2 py-0.5 rounded-[2px] text-[10px] font-mono font-bold border transition-all cursor-pointer ${
+                            isSlHit
+                              ? 'bg-[#e11d48] text-white border-[#e11d48]'
+                              : 'bg-[#e11d48]/15 hover:bg-[#e11d48]/30 text-[#e11d48] border-[#e11d48]/40'
+                          }`}
+                        >
+                          🛑 SL Hit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleQuickUpdateSignalStatus(signal, 'CLOSED')}
+                          className={`px-2 py-0.5 rounded-[2px] text-[10px] font-mono font-bold border transition-all cursor-pointer ${
+                            isClosed
+                              ? 'bg-amber-400 text-[#06080c] border-amber-400'
+                              : 'bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 border-amber-500/40'
+                          }`}
+                        >
+                          ⏹ {isAr ? 'إنهاء' : 'Ended'}
+                        </button>
+                        {!isActive && (
+                          <button
+                            type="button"
+                            onClick={() => handleQuickUpdateSignalStatus(signal, 'RUNNING')}
+                            className="px-2 py-0.5 rounded-[2px] text-[10px] font-mono font-bold bg-[#161c26] hover:bg-[#1c2432] text-[#edf0f5] border border-[#2a3446] transition-all cursor-pointer"
+                          >
+                            ⚡ {isAr ? 'إعادة تنشيط' : 'Set Active'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Order Ticket Footer Actions */}
-                  <div className="pt-2 border-t border-[#1e2633] flex items-center justify-between gap-2">
+                  <div className="relative z-30 pt-2 border-t border-[#1e2633] flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => onSelectSymbol(signal.symbol as MarketSymbol)}
@@ -824,6 +1025,7 @@ export const SignalsChannelHub: React.FC<Props> = ({
                                 tp1: signal.tp1,
                                 tp2: signal.tp2,
                                 notes: signal.instructionsAr || signal.instructionsEn || '',
+                                status: signal.status,
                                 isBot: signal.channel === 'bot'
                               })
                             }
@@ -1172,6 +1374,58 @@ export const SignalsChannelHub: React.FC<Props> = ({
                       onChange={(e) => setEditSigTp2(e.target.value)}
                       className="w-full px-3 py-1.5 rounded-lg bg-[#131722] border border-[#2a2e39] text-[#089981] font-mono"
                     />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[#787b86] block mb-1">
+                    {isAr ? 'حالة الصفقة (Status):' : 'Trade Status:'}
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 font-mono">
+                    <button
+                      type="button"
+                      onClick={() => setEditSigStatus('RUNNING')}
+                      className={`py-1.5 px-2 rounded-lg text-[11px] font-bold border cursor-pointer transition-all ${
+                        isTradeActiveStatus(editSigStatus)
+                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500'
+                          : 'bg-[#131722] text-[#787b86] border-[#2a2e39]'
+                      }`}
+                    >
+                      ⚡ ACTIVE
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditSigStatus('TP_HIT')}
+                      className={`py-1.5 px-2 rounded-lg text-[11px] font-bold border cursor-pointer transition-all ${
+                        isTradeTpHitStatus(editSigStatus)
+                          ? 'bg-[#10b981] text-[#06080c] border-[#10b981]'
+                          : 'bg-[#131722] text-[#10b981] border-[#2a2e39]'
+                      }`}
+                    >
+                      🎯 TP HIT
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditSigStatus('SL_HIT')}
+                      className={`py-1.5 px-2 rounded-lg text-[11px] font-bold border cursor-pointer transition-all ${
+                        isTradeSlHitStatus(editSigStatus)
+                          ? 'bg-[#e11d48] text-white border-[#e11d48]'
+                          : 'bg-[#131722] text-[#e11d48] border-[#2a2e39]'
+                      }`}
+                    >
+                      🛑 SL HIT
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditSigStatus('CLOSED')}
+                      className={`py-1.5 px-2 rounded-lg text-[11px] font-bold border cursor-pointer transition-all ${
+                        isTradeClosedStatus(editSigStatus)
+                          ? 'bg-amber-400 text-[#06080c] border-amber-400'
+                          : 'bg-[#131722] text-amber-300 border-[#2a2e39]'
+                      }`}
+                    >
+                      ⏹ ENDED
+                    </button>
                   </div>
                 </div>
                 </>

@@ -30,8 +30,15 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { soundManager } from '../../utils/audio';
-import { MarketSymbol } from '../../types/trading';
-import { useSignalsContext } from '../../context/SignalsContext';
+import { MarketSymbol, DailyTradeStatus } from '../../types/trading';
+import {
+  useSignalsContext,
+  isTradeActiveStatus,
+  isTradeTpHitStatus,
+  isTradeSlHitStatus,
+  isTradeClosedStatus,
+  getTradeStatusLabelAr
+} from '../../context/SignalsContext';
 
 interface Props {
   currentUserRole?: string;
@@ -46,7 +53,7 @@ export const PublishingCenter: React.FC<Props> = ({
   lang = 'ar',
   onClose
 }) => {
-  const { setDbError, removeSignalLocally } = useSignalsContext();
+  const { setDbError, removeSignalLocally, updateSignalStatusLocally } = useSignalsContext();
   const isAr = lang === 'ar';
   const roleUpper = (currentUserRole || '').toUpperCase();
   const isAuthorized = roleUpper === 'ADMIN' || roleUpper === 'ANALYSER' || roleUpper === 'ANALYST';
@@ -290,18 +297,28 @@ export const PublishingCenter: React.FC<Props> = ({
     }
   };
 
-  const handleUpdateStatus = async (id: string, newStatus: string, pips?: number) => {
+  const handleUpdateStatus = async (id: string, newStatus: DailyTradeStatus, pips?: number) => {
     try {
       soundManager.playClick();
-      const updatePayload: Record<string, any> = { status: newStatus };
+      const statusLabelAr = getTradeStatusLabelAr(newStatus);
+      const updatePayload: Record<string, any> = {
+        status: newStatus,
+        statusLabelAr
+      };
       if (pips !== undefined) {
         updatePayload.pips = pips;
       }
-      await updateDoc(doc(db, 'signals', id), updatePayload);
+      // Optimistically update SignalsContext so Trades & Signals tabs update immediately
+      updateSignalStatusLocally(id, newStatus, pips);
       setPublishedSignals((prev) =>
-        prev.map((s) => (s.id === id ? { ...s, status: newStatus, pips: pips !== undefined ? pips : s.pips } : s))
+        prev.map((s) =>
+          s.id === id
+            ? { ...s, status: newStatus, statusLabelAr, pips: pips !== undefined ? pips : s.pips }
+            : s
+        )
       );
-      showFeedback('success', isAr ? `تم تحديث حالة الصفقة إلى ${newStatus}` : `Status updated to ${newStatus}`);
+      await updateDoc(doc(db, 'signals', id), updatePayload);
+      showFeedback('success', isAr ? `تم تحديث حالة الصفقة إلى ${statusLabelAr}` : `Status updated to ${newStatus}`);
     } catch (err: any) {
       console.error('[PublishingCenter] Status update failed:', err);
       showFeedback('error', err?.message || (isAr ? 'فشل تحديث الحالة' : 'Failed to update status'));
@@ -825,14 +842,22 @@ export const PublishingCenter: React.FC<Props> = ({
                             <div className="flex items-center gap-1.5 font-sans">
                               <span
                                 className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                  sig.status === 'RUNNING'
-                                    ? 'bg-amber-500/20 text-amber-400'
-                                    : sig.status?.includes('TP')
-                                    ? 'bg-[#089981]/20 text-[#089981]'
-                                    : 'bg-[#f23645]/20 text-[#f23645]'
+                                  isTradeActiveStatus(sig.status)
+                                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                    : isTradeTpHitStatus(sig.status)
+                                    ? 'bg-[#089981]/20 text-[#089981] border border-[#089981]/30'
+                                    : isTradeSlHitStatus(sig.status)
+                                    ? 'bg-[#f23645]/20 text-[#f23645] border border-[#f23645]/30'
+                                    : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
                                 }`}
                               >
-                                {sig.status}
+                                {isTradeActiveStatus(sig.status)
+                                  ? 'ACTIVE'
+                                  : isTradeTpHitStatus(sig.status)
+                                  ? '🎯 TP HIT'
+                                  : isTradeSlHitStatus(sig.status)
+                                  ? '🛑 SL HIT'
+                                  : '⏹ ENDED'}
                               </span>
                               <span className="text-white font-bold font-mono text-[11px]">
                                 {Number(sig.pips || 0) >= 0 ? `+${Number(sig.pips || 0)}p` : `${Number(sig.pips || 0)}p`}
@@ -845,24 +870,60 @@ export const PublishingCenter: React.FC<Props> = ({
                           </td>
 
                           <td className="py-3 px-3 text-end">
-                            <div className="flex items-center justify-end gap-1.5 font-sans">
-                              {sig.status === 'RUNNING' && (
-                                <>
-                                  <button
-                                    onClick={() => handleUpdateStatus(sig.id, 'TP1_HIT', Number(sig.pips || 0) > 0 ? Number(sig.pips) : 150)}
-                                    className="px-2 py-1 rounded bg-[#089981]/20 hover:bg-[#089981]/30 text-[#089981] text-[10px] font-bold transition-all cursor-pointer"
-                                    title={isAr ? 'تسجيل تحقيق الهدف' : 'Mark TP Hit'}
-                                  >
-                                    🎯 TP Hit
-                                  </button>
-                                  <button
-                                    onClick={() => handleUpdateStatus(sig.id, 'SL_HIT', -Math.abs(Number(sig.pips || 50)))}
-                                    className="px-2 py-1 rounded bg-[#f23645]/20 hover:bg-[#f23645]/30 text-[#f23645] text-[10px] font-bold transition-all cursor-pointer"
-                                    title={isAr ? 'تسجيل ضرب الوقف' : 'Mark SL Hit'}
-                                  >
-                                    🛑 SL Hit
-                                  </button>
-                                </>
+                            <div className="flex items-center justify-end gap-1.5 font-sans flex-wrap">
+                              <button
+                                onClick={() =>
+                                  handleUpdateStatus(
+                                    sig.id,
+                                    'TP_HIT',
+                                    Math.abs(Number(sig.pips || 0)) > 0 ? Math.abs(Number(sig.pips)) : 150
+                                  )
+                                }
+                                className={`px-2 py-1 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                                  isTradeTpHitStatus(sig.status)
+                                    ? 'bg-[#10b981] text-[#06080c]'
+                                    : 'bg-[#089981]/20 hover:bg-[#089981]/30 text-[#089981]'
+                                }`}
+                                title={isAr ? 'تسجيل تحقيق الهدف' : 'Mark TP Hit'}
+                              >
+                                🎯 TP Hit
+                              </button>
+                              <button
+                                onClick={() =>
+                                  handleUpdateStatus(
+                                    sig.id,
+                                    'SL_HIT',
+                                    -Math.max(Math.abs(Number(sig.pips || 0)), 50)
+                                  )
+                                }
+                                className={`px-2 py-1 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                                  isTradeSlHitStatus(sig.status)
+                                    ? 'bg-[#e11d48] text-white'
+                                    : 'bg-[#f23645]/20 hover:bg-[#f23645]/30 text-[#f23645]'
+                                }`}
+                                title={isAr ? 'تسجيل ضرب الوقف' : 'Mark SL Hit'}
+                              >
+                                🛑 SL Hit
+                              </button>
+                              <button
+                                onClick={() => handleUpdateStatus(sig.id, 'CLOSED', 0)}
+                                className={`px-2 py-1 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                                  isTradeClosedStatus(sig.status)
+                                    ? 'bg-amber-400 text-[#06080c]'
+                                    : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300'
+                                }`}
+                                title={isAr ? 'إنهاء الصفقة' : 'Mark Ended'}
+                              >
+                                ⏹ Ended
+                              </button>
+                              {!isTradeActiveStatus(sig.status) && (
+                                <button
+                                  onClick={() => handleUpdateStatus(sig.id, 'RUNNING', Math.max(0, Number(sig.pips || 0)))}
+                                  className="px-2 py-1 rounded bg-[#161c26] hover:bg-[#1c2432] text-white border border-[#2a3446] text-[10px] font-bold transition-all cursor-pointer"
+                                  title={isAr ? 'إعادة تنشيط الصفقة' : 'Set Active'}
+                                >
+                                  ⚡ Active
+                                </button>
                               )}
 
                               {confirmDeleteId === sig.id ? (

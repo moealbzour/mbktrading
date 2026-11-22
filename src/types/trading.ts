@@ -152,7 +152,7 @@ export interface MarketTicker {
 
 export type SignalType = 'BUY' | 'SELL';
 export type ManualSignalAction = 'BUY' | 'SELL' | 'BUY LIMIT' | 'SELL LIMIT';
-export type SignalStatus = 'ACTIVE' | 'TP1_HIT' | 'TP2_HIT' | 'SL_HIT' | 'CLOSED';
+export type SignalStatus = 'ACTIVE' | 'RUNNING' | 'TP_HIT' | 'TP1_HIT' | 'TP2_HIT' | 'SL_HIT' | 'CLOSED' | 'BREAKEVEN';
 export type RiskLevel = 'Low' | 'Medium' | 'High';
 
 // TAB 1: Real-time automated algorithmic alert (Firestore collection `engine_alerts`)
@@ -238,7 +238,7 @@ export interface MarketAnalysis {
 }
 
 export type TradeSource = 'BOT_WEBHOOK' | 'VIP_MANUAL' | 'FREE_PUBLIC';
-export type DailyTradeStatus = 'RUNNING' | 'TP_HIT' | 'SL_HIT' | 'BREAKEVEN';
+export type DailyTradeStatus = 'ACTIVE' | 'RUNNING' | 'TP_HIT' | 'TP1_HIT' | 'TP2_HIT' | 'SL_HIT' | 'CLOSED' | 'BREAKEVEN';
 
 export interface DailyTrade {
   id: string;

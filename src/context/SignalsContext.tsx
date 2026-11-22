@@ -27,7 +27,7 @@ export interface ChannelSignalItem {
   pips: number;
   strategy: string;
   timeframe: string;
-  status: 'ACTIVE' | 'RUNNING' | 'TP1_HIT' | 'TP2_HIT' | 'SL_HIT' | 'CLOSED' | 'TP_HIT';
+  status: DailyTradeStatus;
   instructionsAr: string;
   instructionsEn: string;
   timeAgo: string;
@@ -42,6 +42,33 @@ export interface ChannelSignalItem {
   authorRole?: string;
   originCollection?: 'signals' | 'bot_alerts';
   timestampMs?: number;
+}
+
+export function isTradeActiveStatus(status?: string | null): boolean {
+  const s = (status || 'RUNNING').toUpperCase();
+  return s === 'RUNNING' || s === 'ACTIVE';
+}
+
+export function isTradeTpHitStatus(status?: string | null): boolean {
+  const s = (status || '').toUpperCase();
+  return s === 'TP_HIT' || s === 'TP1_HIT' || s === 'TP2_HIT';
+}
+
+export function isTradeSlHitStatus(status?: string | null): boolean {
+  const s = (status || '').toUpperCase();
+  return s === 'SL_HIT';
+}
+
+export function isTradeClosedStatus(status?: string | null): boolean {
+  const s = (status || '').toUpperCase();
+  return s === 'CLOSED' || s === 'BREAKEVEN' || s === 'ENDED';
+}
+
+export function getTradeStatusLabelAr(status?: string | null): string {
+  if (isTradeTpHitStatus(status)) return 'هدف محقق 🎯';
+  if (isTradeSlHitStatus(status)) return 'ضرب الوقف 🛑';
+  if (isTradeClosedStatus(status)) return 'صفقة منتهية ⏹️';
+  return 'صفقة جارية الآن ⚡';
 }
 
 export interface BotAlertItem {
@@ -69,6 +96,7 @@ export interface SignalsContextValue {
   addToast: (toast: Omit<ToastItem, 'id'>) => void;
   removeToast: (id: string) => void;
   removeSignalLocally: (id: string) => void;
+  updateSignalStatusLocally: (id: string, newStatus: DailyTradeStatus, pips?: number) => void;
   requestNotificationPermission: () => Promise<AppNotificationPermission>;
   markChatAsRead: () => void;
   markTradesAsRead: () => void;
@@ -92,6 +120,7 @@ const SignalsContext = createContext<SignalsContextValue>({
   addToast: () => {},
   removeToast: () => {},
   removeSignalLocally: () => {},
+  updateSignalStatusLocally: () => {},
   requestNotificationPermission: async () => 'default',
   markChatAsRead: () => {},
   markTradesAsRead: () => {},
@@ -250,6 +279,52 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return next;
     });
   }, []);
+
+  const updateSignalStatusLocally = useCallback(
+    (rawId: string, newStatus: DailyTradeStatus, pips?: number) => {
+      if (!rawId) return;
+      const cleanId = rawId.replace(/^bot-/, '');
+      const statusLabelAr = getTradeStatusLabelAr(newStatus);
+
+      setSignals((prev) => {
+        const next = prev.map((s) =>
+          s.id === cleanId || s.id === rawId
+            ? {
+                ...s,
+                status: newStatus,
+                pips: pips !== undefined ? pips : s.pips
+              }
+            : s
+        );
+        try {
+          localStorage.setItem(CACHED_SIGNALS_KEY, JSON.stringify(next));
+        } catch {
+          // ignore
+        }
+        return next;
+      });
+
+      setRawTrades((prev) => {
+        const next = prev.map((t) =>
+          t.id === cleanId || t.id === rawId
+            ? {
+                ...t,
+                status: newStatus,
+                statusLabelAr,
+                pips: pips !== undefined ? pips : t.pips
+              }
+            : t
+        );
+        try {
+          localStorage.setItem(CACHED_TRADES_KEY, JSON.stringify(next));
+        } catch {
+          // ignore
+        }
+        return next;
+      });
+    },
+    []
+  );
 
   const addToast = useCallback(
     (toastData: Omit<ToastItem, 'id'>) => {
@@ -475,7 +550,7 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
               sourceLabelAr: data.sourceLabelAr || (isBot ? 'بوت MBK' : isVip ? 'توصية VIP' : 'عام'),
               sourceLabelEn: data.sourceLabelEn || (isBot ? 'MBK Bot' : isVip ? 'VIP Signal' : 'Free'),
               status: status as DailyTradeStatus,
-              statusLabelAr: data.statusLabelAr || (status === 'RUNNING' ? 'صفقة جارية الآن ⚡' : 'هدف محقق 🎯'),
+              statusLabelAr: getTradeStatusLabelAr(status),
               openTime: data.openTime || 'الآن',
               duration: data.duration || 'الآن',
               pips,
@@ -839,6 +914,7 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         addToast,
         removeToast,
         removeSignalLocally,
+        updateSignalStatusLocally,
         requestNotificationPermission,
         markChatAsRead,
         markTradesAsRead,

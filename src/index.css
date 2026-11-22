@@ -288,3 +288,86 @@ html[data-theme="light"] .text-slate-400 {
 .ticker-speed-slow {
   animation-duration: 90s !important;
 }
+
+/* ============================================================================
+   ACTIVE MANUAL TRADE — MOVING BUY / SELL PERIMETER BORDER AROUND ENTIRE BOX
+   ============================================================================ */
+@keyframes trade-perimeter-orbit {
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+.trade-card-active-buy,
+.trade-card-active-sell {
+  position: relative;
+  isolation: isolate;
+}
+
+.trade-card-active-buy {
+  box-shadow: 0 0 18px -4px rgba(16, 185, 129, 0.28);
+}
+
+.trade-card-active-sell {
+  box-shadow: 0 0 18px -4px rgba(225, 29, 72, 0.28);
+}
+
+.trade-card-active-buy .trade-perimeter-glow,
+.trade-card-active-sell .trade-perimeter-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  pointer-events: none;
+  z-index: 15;
+  overflow: hidden;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+.trade-card-active-buy .trade-perimeter-glow::before,
+.trade-card-active-sell .trade-perimeter-glow::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 260%;
+  height: 260%;
+  animation: trade-perimeter-orbit 3.6s linear infinite;
+  will-change: transform;
+}
+
+.trade-card-active-buy .trade-perimeter-glow::before {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(16, 185, 129, 0.15) 60deg,
+    #10b981 140deg,
+    #34d399 175deg,
+    transparent 200deg,
+    rgba(16, 185, 129, 0.2) 300deg,
+    #10b981 350deg,
+    transparent 360deg
+  );
+}
+
+.trade-card-active-sell .trade-perimeter-glow::before {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(225, 29, 72, 0.15) 60deg,
+    #e11d48 140deg,
+    #fb7185 175deg,
+    transparent 200deg,
+    rgba(225, 29, 72, 0.2) 300deg,
+    #e11d48 350deg,
+    transparent 360deg
+  );
+}
+

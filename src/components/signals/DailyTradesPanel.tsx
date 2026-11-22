@@ -18,9 +18,16 @@ import {
 } from 'lucide-react';
 import { doc, deleteDoc, updateDoc, collection, getDocs, writeBatch } from 'firebase/firestore';
 import { auth, db } from '../../lib/firebase';
-import { DailyTrade, UserProfile } from '../../types/trading';
+import { DailyTrade, DailyTradeStatus, UserProfile } from '../../types/trading';
 import { soundManager } from '../../utils/audio';
-import { useSignalsContext } from '../../context/SignalsContext';
+import {
+  useSignalsContext,
+  isTradeActiveStatus,
+  isTradeTpHitStatus,
+  isTradeSlHitStatus,
+  isTradeClosedStatus,
+  getTradeStatusLabelAr
+} from '../../context/SignalsContext';
 import { hasFeatureAccess } from '../../utils/entitlements';
 import { OperationType, reportFirestoreError } from '../../utils/firestoreError';
 import { markDocumentDeleted } from '../../utils/legacyDbRecovery';
@@ -57,7 +64,8 @@ export const DailyTradesPanel: React.FC<Props> = ({
     dbError,
     setDbError,
     addToast,
-    removeSignalLocally
+    removeSignalLocally,
+    updateSignalStatusLocally
   } = useSignalsContext();
 
   const rawTrades = tradesProp && tradesProp.length > 0 ? tradesProp : contextTrades;
@@ -125,6 +133,7 @@ export const DailyTradesPanel: React.FC<Props> = ({
   const [editNotes, setEditNotes] = useState('');
   const [editSymbol, setEditSymbol] = useState('US100');
   const [editAction, setEditAction] = useState<'BUY' | 'SELL'>('BUY');
+  const [editStatus, setEditStatus] = useState<DailyTradeStatus>('RUNNING');
 
   // Admin Delete Modal State
   const [pendingDeleteTrade, setPendingDeleteTrade] = useState<{
@@ -243,6 +252,57 @@ export const DailyTradesPanel: React.FC<Props> = ({
     setEditNotes(trade.textMsg || trade.notesAr || '');
     setEditSymbol(trade.symbol || 'US100');
     setEditAction(trade.action || 'BUY');
+    setEditStatus(trade.status || 'RUNNING');
+  };
+
+  const handleQuickUpdateTradeStatus = async (
+    trade: DailyTrade,
+    newStatus: DailyTradeStatus
+  ) => {
+    if (!isRealAdmin) return;
+    soundManager.playClick();
+    const cleanId = trade.id.replace(/^bot-/, '');
+    const statusLabelAr = getTradeStatusLabelAr(newStatus);
+
+    let nextPips = Number(trade.pips || 0);
+    if (isTradeTpHitStatus(newStatus)) {
+      const diff = Math.abs((trade.tp1 || 0) - (trade.entryPrice || 0));
+      const calcPips = trade.symbol === 'EURUSD' || trade.symbol === 'GBPUSD'
+        ? Math.round(diff * 10000)
+        : Math.round(diff * 10);
+      nextPips = Math.abs(nextPips) > 0 ? Math.abs(nextPips) : Math.max(calcPips, 100);
+    } else if (isTradeSlHitStatus(newStatus)) {
+      const diff = Math.abs((trade.entryPrice || 0) - (trade.sl || 0));
+      const calcPips = trade.symbol === 'EURUSD' || trade.symbol === 'GBPUSD'
+        ? Math.round(diff * 10000)
+        : Math.round(diff * 10);
+      nextPips = -Math.max(Math.abs(nextPips) > 0 ? Math.abs(nextPips) : calcPips, 40);
+    } else if (isTradeClosedStatus(newStatus) || isTradeActiveStatus(newStatus)) {
+      nextPips = isTradeActiveStatus(newStatus) ? Math.max(0, nextPips) : nextPips;
+    }
+
+    // Immediate optimistic local update across Trades & Signals tabs
+    updateSignalStatusLocally(cleanId, newStatus, nextPips);
+
+    try {
+      await updateDoc(doc(db, 'signals', cleanId), {
+        status: newStatus,
+        statusLabelAr,
+        pips: nextPips
+      });
+      soundManager.playProfitChime();
+      addToast({
+        title: isAr ? 'تم تحديث حالة الصفقة' : 'Trade Status Updated',
+        message: `${trade.symbol} (${trade.action}) → ${isAr ? statusLabelAr : newStatus}`,
+        type: 'signal',
+        symbol: trade.symbol,
+        action: trade.action,
+        timestamp: isAr ? 'الآن' : 'Now'
+      });
+    } catch (err: any) {
+      const { message } = reportFirestoreError(err, OperationType.UPDATE, `signals/${cleanId}`);
+      setDbError(`[Status Update Error]: ${message}`);
+    }
   };
 
   const handleSaveEditTrade = async (e: React.FormEvent) => {
@@ -262,6 +322,8 @@ export const DailyTradesPanel: React.FC<Props> = ({
           text: editNotes
         });
       } else {
+        const statusLabelAr = getTradeStatusLabelAr(editStatus);
+        updateSignalStatusLocally(cleanId, editStatus);
         const updatePayload = {
           symbol: editSymbol,
           action: editAction,
@@ -269,6 +331,8 @@ export const DailyTradesPanel: React.FC<Props> = ({
           sl: Number(editSl || 0),
           tp1: Number(editTp1 || 0),
           tp2: Number(editTp2 || 0),
+          status: editStatus,
+          statusLabelAr,
           notesAr: editNotes,
           notesEn: editNotes,
           instructionsAr: editNotes,
@@ -300,8 +364,9 @@ export const DailyTradesPanel: React.FC<Props> = ({
 
   const displayedTrades = liveFeed.filter((t) => {
     if (sourceFilter !== 'ALL' && t.source !== sourceFilter) return false;
-    if (statusFilter === 'RUNNING' && t.status !== 'RUNNING') return false;
-    if (statusFilter === 'CLOSED' && t.status === 'RUNNING') return false;
+    const active = isTradeActiveStatus(t.status);
+    if (statusFilter === 'RUNNING' && !active) return false;
+    if (statusFilter === 'CLOSED' && active) return false;
     return true;
   });
 
@@ -471,6 +536,15 @@ export const DailyTradesPanel: React.FC<Props> = ({
           >
             {isAr ? 'نشط' : 'ACTIVE'}
           </button>
+          <button
+            onClick={() => setStatusFilter('CLOSED')}
+            className={`px-1.5 py-0.5 rounded-[2px] cursor-pointer transition-colors font-semibold ${
+              statusFilter === 'CLOSED' ? 'bg-[#1c2432] text-amber-300' : 'text-[#8492a6] hover:text-[#edf0f5]'
+            }`}
+            title={isAr ? 'الصفقات المنتهية' : 'Ended Trades'}
+          >
+            {isAr ? 'منتهية' : 'ENDED'}
+          </button>
         </div>
       </div>
 
@@ -496,18 +570,64 @@ export const DailyTradesPanel: React.FC<Props> = ({
               : isVipManual
               ? !hasVipSignalsAccess
               : false;
-            const isRunning = trade.status === 'RUNNING';
-            const isWin = trade.pips > 0;
+            const isRunning = isTradeActiveStatus(trade.status);
+            const isTpHit = isTradeTpHitStatus(trade.status);
+            const isSlHit = isTradeSlHitStatus(trade.status);
+            const isClosed = isTradeClosedStatus(trade.status);
+            const isEnded = !isBot && !isRunning;
             const isExpanded = expandedId === trade.id;
             const isBuy = trade.action === 'BUY';
 
             return (
               <div
                 key={trade.id}
-                className={`rounded-[3px] border bg-[#10141c] border-[#1e2633] hover:border-[#2a3446] p-2 space-y-1.5 transition-colors text-xs ${
-                  !isBot ? (isBuy ? 'border-s-2 border-s-[#10b981]' : 'border-s-2 border-s-[#e11d48]') : ''
+                className={`rounded-[4px] border p-2.5 space-y-1.5 transition-all text-xs relative overflow-hidden ${
+                  isBot
+                    ? 'bg-[#10141c] border-[#1e2633] hover:border-[#2a3446]'
+                    : isRunning
+                    ? isBuy
+                      ? 'bg-[#10141c] border-[#10b981]/35 trade-card-active-buy'
+                      : 'bg-[#10141c] border-[#e11d48]/35 trade-card-active-sell'
+                    : 'bg-[#0b0e14]/90 border-[#1e2633] opacity-60 hover:opacity-90 saturate-[0.75]'
                 }`}
               >
+                {/* Moving Buy/Sell border around all 4 sides when ACTIVE */}
+                {!isBot && isRunning && <div className="trade-perimeter-glow" aria-hidden="true" />}
+
+                {/* Big Angled Stamp Overlay when ENDED (TP HIT / SL HIT / ENDED) */}
+                {isEnded && (
+                  <div className="absolute inset-0 z-20 pointer-events-none select-none flex items-center justify-center">
+                    {isTpHit ? (
+                      <div className="-rotate-12 px-3.5 py-1 rounded-[4px] border-2 border-double border-[#10b981] bg-[#06080c]/95 text-[#10b981] shadow-[0_0_20px_rgba(16,185,129,0.45)] flex flex-col items-center justify-center">
+                        <span className="text-xs sm:text-sm font-black font-mono tracking-widest uppercase leading-none">
+                          🎯 TP HIT
+                        </span>
+                        <span className="text-[9px] font-bold tracking-wider mt-0.5">
+                          {isAr ? 'هدف محقق' : 'TARGET HIT'}
+                        </span>
+                      </div>
+                    ) : isSlHit ? (
+                      <div className="-rotate-12 px-3.5 py-1 rounded-[4px] border-2 border-double border-[#e11d48] bg-[#06080c]/95 text-[#e11d48] shadow-[0_0_20px_rgba(225,29,72,0.45)] flex flex-col items-center justify-center">
+                        <span className="text-xs sm:text-sm font-black font-mono tracking-widest uppercase leading-none">
+                          🛑 SL HIT
+                        </span>
+                        <span className="text-[9px] font-bold tracking-wider mt-0.5">
+                          {isAr ? 'ضرب الوقف' : 'STOP LOSS HIT'}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="-rotate-12 px-3.5 py-1 rounded-[4px] border-2 border-double border-amber-400/90 bg-[#06080c]/95 text-amber-300 shadow-[0_0_18px_rgba(245,158,11,0.3)] flex flex-col items-center justify-center">
+                        <span className="text-xs sm:text-sm font-black font-mono tracking-widest uppercase leading-none">
+                          ⏹ ENDED
+                        </span>
+                        <span className="text-[9px] font-bold tracking-wider mt-0.5">
+                          {isAr ? 'صفقة منتهية' : 'TRADE ENDED'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between">
                   {isBot ? (
                     <>
@@ -539,16 +659,34 @@ export const DailyTradesPanel: React.FC<Props> = ({
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-1 font-mono font-bold text-[11px] tabular-nums">
-                        {isRunning ? (
-                          <span className="text-[#edf0f5] flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-[1px] bg-[#10b981]" />
-                            <span>{trade.pips >= 0 ? `+${trade.pips}p` : `${trade.pips}p`}</span>
+                      <div className="flex items-center gap-1 font-mono font-bold text-[10px] tabular-nums">
+                        {isTpHit ? (
+                          <span className="px-1.5 py-0.5 rounded-[2px] bg-[#10b981]/15 text-[#10b981] border border-[#10b981]/40">
+                            🎯 TP {trade.pips ? `+${Math.abs(trade.pips)}p` : 'HIT'}
                           </span>
-                        ) : isWin ? (
-                          <span className="text-[#10b981]">TP +{trade.pips}p</span>
+                        ) : isSlHit ? (
+                          <span className="px-1.5 py-0.5 rounded-[2px] bg-[#e11d48]/15 text-[#e11d48] border border-[#e11d48]/40">
+                            🛑 SL {trade.pips ? `-${Math.abs(trade.pips)}p` : 'HIT'}
+                          </span>
+                        ) : isClosed ? (
+                          <span className="px-1.5 py-0.5 rounded-[2px] bg-amber-500/15 text-amber-300 border border-amber-500/40">
+                            ⏹ {isAr ? 'منتهية' : 'ENDED'}
+                          </span>
                         ) : (
-                          <span className="text-[#e11d48]">SL {trade.pips}p</span>
+                          <span
+                            className={`px-1.5 py-0.5 rounded-[2px] border flex items-center gap-1 ${
+                              isBuy
+                                ? 'bg-[#10b981]/12 text-[#10b981] border-[#10b981]/35'
+                                : 'bg-[#e11d48]/12 text-[#e11d48] border-[#e11d48]/35'
+                            }`}
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full animate-pulse ${
+                                isBuy ? 'bg-[#10b981]' : 'bg-[#e11d48]'
+                              }`}
+                            />
+                            <span>{isAr ? 'نشط' : 'ACTIVE'}</span>
+                          </span>
                         )}
                       </div>
                     </>
@@ -609,8 +747,61 @@ export const DailyTradesPanel: React.FC<Props> = ({
                   )}
                 </div>
 
+                {/* Admin 1-Click Status Stamp Bar */}
+                {isRealAdmin && !isBot && (
+                  <div className="relative z-30 pt-1 border-t border-[#1e2633]/80 flex flex-wrap items-center justify-between gap-1">
+                    <span className="text-[9px] font-mono text-[#8492a6]">
+                      {isAr ? 'الحالة:' : 'Status:'}
+                    </span>
+                    <div className="flex flex-wrap items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleQuickUpdateTradeStatus(trade, 'TP_HIT')}
+                        className={`px-1.5 py-0.5 rounded-[2px] text-[9px] font-mono font-bold border transition-all cursor-pointer ${
+                          isTpHit
+                            ? 'bg-[#10b981] text-[#06080c] border-[#10b981]'
+                            : 'bg-[#10b981]/15 hover:bg-[#10b981]/30 text-[#10b981] border-[#10b981]/40'
+                        }`}
+                      >
+                        🎯 TP
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleQuickUpdateTradeStatus(trade, 'SL_HIT')}
+                        className={`px-1.5 py-0.5 rounded-[2px] text-[9px] font-mono font-bold border transition-all cursor-pointer ${
+                          isSlHit
+                            ? 'bg-[#e11d48] text-white border-[#e11d48]'
+                            : 'bg-[#e11d48]/15 hover:bg-[#e11d48]/30 text-[#e11d48] border-[#e11d48]/40'
+                        }`}
+                      >
+                        🛑 SL
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleQuickUpdateTradeStatus(trade, 'CLOSED')}
+                        className={`px-1.5 py-0.5 rounded-[2px] text-[9px] font-mono font-bold border transition-all cursor-pointer ${
+                          isClosed
+                            ? 'bg-amber-400 text-[#06080c] border-amber-400'
+                            : 'bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 border-amber-500/40'
+                        }`}
+                      >
+                        ⏹ {isAr ? 'إنهاء' : 'End'}
+                      </button>
+                      {!isRunning && (
+                        <button
+                          type="button"
+                          onClick={() => handleQuickUpdateTradeStatus(trade, 'RUNNING')}
+                          className="px-1.5 py-0.5 rounded-[2px] text-[9px] font-mono font-bold bg-[#161c26] hover:bg-[#1c2432] text-[#edf0f5] border border-[#2a3446] transition-all cursor-pointer"
+                        >
+                          ⚡ {isAr ? 'نشط' : 'Active'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Collapsible details & Verified Admin-only Edit/Delete */}
-                <div className="flex items-center justify-between text-[10px] text-[#8492a6] pt-0.5">
+                <div className="relative z-30 flex items-center justify-between text-[10px] text-[#8492a6] pt-0.5">
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => setExpandedId(isExpanded ? null : trade.id)}
@@ -788,6 +979,58 @@ export const DailyTradesPanel: React.FC<Props> = ({
                         onChange={(e) => setEditTp2(e.target.value)}
                         className="w-full px-3 py-1.5 rounded-lg bg-[#131722] border border-[#2a2e39] text-[#089981] font-mono"
                       />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[#787b86] block mb-1">
+                      {isAr ? 'حالة الصفقة (Status):' : 'Trade Status:'}
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 font-mono">
+                      <button
+                        type="button"
+                        onClick={() => setEditStatus('RUNNING')}
+                        className={`py-1.5 px-2 rounded-lg text-[11px] font-bold border cursor-pointer transition-all ${
+                          isTradeActiveStatus(editStatus)
+                            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500'
+                            : 'bg-[#131722] text-[#787b86] border-[#2a2e39]'
+                        }`}
+                      >
+                        ⚡ ACTIVE
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditStatus('TP_HIT')}
+                        className={`py-1.5 px-2 rounded-lg text-[11px] font-bold border cursor-pointer transition-all ${
+                          isTradeTpHitStatus(editStatus)
+                            ? 'bg-[#10b981] text-[#06080c] border-[#10b981]'
+                            : 'bg-[#131722] text-[#10b981] border-[#2a2e39]'
+                        }`}
+                      >
+                        🎯 TP HIT
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditStatus('SL_HIT')}
+                        className={`py-1.5 px-2 rounded-lg text-[11px] font-bold border cursor-pointer transition-all ${
+                          isTradeSlHitStatus(editStatus)
+                            ? 'bg-[#e11d48] text-white border-[#e11d48]'
+                            : 'bg-[#131722] text-[#e11d48] border-[#2a2e39]'
+                        }`}
+                      >
+                        🛑 SL HIT
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditStatus('CLOSED')}
+                        className={`py-1.5 px-2 rounded-lg text-[11px] font-bold border cursor-pointer transition-all ${
+                          isTradeClosedStatus(editStatus)
+                            ? 'bg-amber-400 text-[#06080c] border-amber-400'
+                            : 'bg-[#131722] text-amber-300 border-[#2a2e39]'
+                        }`}
+                      >
+                        ⏹ ENDED
+                      </button>
                     </div>
                   </div>
                 </>
