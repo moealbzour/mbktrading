@@ -37,10 +37,6 @@ import {
 } from 'lucide-react';
 import {
   collection,
-  query,
-  orderBy,
-  limitToLast,
-  onSnapshot,
   addDoc,
   doc,
   getDoc,
@@ -54,8 +50,9 @@ import {
 import { db, auth } from '../../lib/firebase';
 import { soundManager } from '../../utils/audio';
 import { UserProfile, MarketSymbol } from '../../types/trading';
-import { markDocumentDeleted, isDocumentDeleted } from '../../utils/legacyDbRecovery';
+import { markDocumentDeleted } from '../../utils/legacyDbRecovery';
 import { useSignalsContext } from '../../context/SignalsContext';
+import { useCommunityChat } from '../../context/CommunityChatContext';
 
 export interface ChatReplyTo {
   id: string;
@@ -152,12 +149,19 @@ export const PublicTradingChat: React.FC<Props> = ({
 }) => {
   const isAr = lang === 'ar';
   const { signals: liveSignals } = useSignalsContext();
+  const {
+    messages,
+    pinnedMessage,
+    chatRoomSettings,
+    loading,
+    acquireChatStream,
+    releaseChatStream,
+    removeMessageLocally,
+    clearPinnedMessageLocally
+  } = useCommunityChat();
 
-  const [messages, setMessages] = useState<ChatMessageItem[]>([]);
-  const [pinnedMessage, setPinnedMessage] = useState<ChatMessageItem | null>(null);
   const [inputText, setInputText] = useState('');
   const [activeSymbolFilter, setActiveSymbolFilter] = useState<string>('ALL');
-  const [loading, setLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [chatFeedback, setChatFeedback] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
   const [moderatedUsers, setModeratedUsers] = useState<
@@ -236,14 +240,12 @@ export const PublicTradingChat: React.FC<Props> = ({
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [imageCaption, setImageCaption] = useState<string>('');
   const [pendingBanTarget, setPendingBanTarget] = useState<{ uid: string; name: string } | null>(null);
-  const [chatRoomSettings, setChatRoomSettings] = useState<ChatRoomSettingsState>({ isClosed: false });
   const [togglingChatLock, setTogglingChatLock] = useState(false);
   const [pendingResetConfirm, setPendingResetConfirm] = useState(false);
   const [resettingChat, setResettingChat] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const popupTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [isTypePopupOpen, setIsTypePopupOpen] = useState<boolean>(false);
-  const isInitialSnapshotRef = useRef<boolean>(true);
   const autoDeletedSpamIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
@@ -296,151 +298,13 @@ export const PublicTradingChat: React.FC<Props> = ({
     setNewMessagesWhileScrolled(0);
   };
 
-  const activeAuthUid = auth.currentUser?.uid || user?.uid || user?.id || '';
-
-  // 1a. Live Chat Room Settings Listener (temporary lock state + reset timestamp)
+  // 1a & 1b. Acquire shared ref-counted public_chat & settings/chat_room stream from CommunityChatContext
   useEffect(() => {
-    if (!canAccessChat || !activeAuthUid) {
-      setChatRoomSettings({ isClosed: false });
-      return;
-    }
-
-    const roomRef = doc(db, 'settings', 'chat_room');
-    const unsubRoom = onSnapshot(
-      roomRef,
-      (snap) => {
-        if (snap.exists()) {
-          const data = snap.data();
-          setChatRoomSettings({
-            isClosed: Boolean(data.isClosed),
-            closedReason: data.closedReason || null,
-            closedBy: data.closedBy || null,
-            closedAt: data.closedAt || null,
-            resetAtMs: typeof data.resetAtMs === 'number' ? data.resetAtMs : null
-          });
-        } else {
-          setChatRoomSettings({ isClosed: false });
-        }
-      },
-      (err) => {
-        console.warn('Chat room settings listener notice:', err?.message || err);
-      }
-    );
-
-    return () => unsubRoom();
-  }, [canAccessChat, activeAuthUid]);
-
-  // 1b. Live Firestore Stream Listener (open / unlimited messages, chronological order)
-  useEffect(() => {
-    if (!canAccessChat || !activeAuthUid) {
-      setMessages([]);
-      setPinnedMessage(null);
-      setLoading(false);
-      isInitialSnapshotRef.current = true;
-      return;
-    }
-
-    setLoading(true);
-    isInitialSnapshotRef.current = true;
-
-    try {
-      localStorage.removeItem('mbk_cached_public_chat_v1');
-      const cachedRaw = localStorage.getItem('mbk_cached_public_chat_v2');
-      if (cachedRaw) {
-        const parsed = JSON.parse(cachedRaw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const validCached = parsed.filter((m: ChatMessageItem) => m && m.id && !isDocumentDeleted(m.id));
-          setMessages(validCached);
-          const pinned = [...validCached].reverse().find((m: ChatMessageItem) => m.isPinned) || null;
-          setPinnedMessage(pinned);
-        }
-      }
-    } catch {
-      // ignore
-    }
-
-    const mapDocToChatItem = (docId: string, d: Record<string, any>): ChatMessageItem => {
-      const roleNormalized = (d.role || 'VIP').toString().toUpperCase();
-      const avatarUrl = d.photoURL || d.avatar || '';
-      const tsMs = typeof d.timestampMs === 'number' ? d.timestampMs : Date.now();
-
-      return {
-        id: docId,
-        uid: d.uid || d.userId || '',
-        user: d.displayName || d.user || 'VIP Trader',
-        avatar: avatarUrl,
-        role: roleNormalized,
-        text: d.text || '',
-        imageUrl: d.imageUrl || undefined,
-        imageCaption: d.imageCaption || undefined,
-        audioUrl: d.audioUrl || undefined,
-        audioDurationSec: typeof d.audioDurationSec === 'number' ? d.audioDurationSec : undefined,
-        tradeCard: d.tradeCard && typeof d.tradeCard === 'object' ? d.tradeCard : undefined,
-        symbolTag: d.symbolTag || d.tradeCard?.symbol || undefined,
-        replyTo: d.replyTo || undefined,
-        isPinned: Boolean(d.isPinned),
-        likes: Number(d.likes || 0),
-        reactions: d.reactions || {},
-        timestampMs: tsMs,
-        time: d.createdAt?.toDate
-          ? d.createdAt.toDate().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
-          : new Date(tsMs).toLocaleTimeString('ar-SA', {
-              hour: '2-digit',
-              minute: '2-digit'
-            })
-      };
+    acquireChatStream();
+    return () => {
+      releaseChatStream();
     };
-
-    const chatQuery = query(
-      collection(db, 'public_chat'),
-      orderBy('timestampMs', 'asc'),
-      limitToLast(60)
-    );
-
-    const unsubscribe = onSnapshot(
-      chatQuery,
-      (snapshot) => {
-        // Play incoming message audio chime for new messages from other users
-        if (!isInitialSnapshotRef.current) {
-          const myUid = auth.currentUser?.uid;
-          const hasNewForeignMsg = snapshot.docChanges().some((change) => {
-            if (change.type !== 'added') return false;
-            const d = change.doc.data();
-            return d.uid && d.uid !== myUid;
-          });
-          if (hasNewForeignMsg) {
-            try {
-              soundManager.playSignalPing();
-            } catch (audioErr) {
-              console.warn('Chat audio chime notice:', audioErr);
-            }
-          }
-        }
-        isInitialSnapshotRef.current = false;
-
-        const list: ChatMessageItem[] = snapshot.docs
-          .filter((docSnap) => !isDocumentDeleted(docSnap.id))
-          .map((docSnap) => mapDocToChatItem(docSnap.id, docSnap.data()))
-          .sort((a, b) => (a.timestampMs || 0) - (b.timestampMs || 0));
-
-        setMessages(list);
-        try {
-          localStorage.setItem('mbk_cached_public_chat_v2', JSON.stringify(list));
-        } catch {
-          // ignore
-        }
-        const pinned = [...list].reverse().find((m) => m.isPinned) || null;
-        setPinnedMessage(pinned);
-        setLoading(false);
-      },
-      (err) => {
-        console.warn('Firestore public_chat listener notice:', err?.message || err);
-        setLoading(false);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [canAccessChat, activeAuthUid, isCurrentAdmin]);
+  }, [acquireChatStream, releaseChatStream]);
 
   // 1c. Anti-Spam Auto-Delete Sweep (> 2 identical/repeated messages by non-staff user)
   useEffect(() => {
@@ -861,15 +725,7 @@ export const PublicTradingChat: React.FC<Props> = ({
     try {
       markDocumentDeleted(messageId);
       await deleteDoc(doc(db, 'public_chat', messageId));
-      setMessages((prev) => {
-        const next = prev.filter((m) => m.id !== messageId);
-        try {
-          localStorage.setItem('mbk_cached_public_chat_v2', JSON.stringify(next));
-        } catch {
-          // ignore
-        }
-        return next;
-      });
+      removeMessageLocally(messageId);
       showToastNotice('success', isAr ? 'تم حذف الرسالة بنجاح' : 'Message deleted');
     } catch (err: any) {
       console.error('Delete message error:', err);
@@ -934,7 +790,7 @@ export const PublicTradingChat: React.FC<Props> = ({
       });
 
       autoDeletedSpamIdsRef.current.clear();
-      setPinnedMessage(null);
+      clearPinnedMessageLocally();
       setPendingResetConfirm(false);
       soundManager.playSuccess();
       showToastNotice(

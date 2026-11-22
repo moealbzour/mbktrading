@@ -19,7 +19,8 @@ import {
 import { soundManager } from '../../utils/audio';
 import { RSSNewsItem, NewsImpact } from '../../types/trading';
 import {
-  getUpcomingMacroEvents,
+  MacroEconomicEvent,
+  subscribeToUpcomingMacroEvents,
   translateFinancialHeadlineToArabic
 } from '../../services/macroEventsAndAnnouncementsService';
 
@@ -82,90 +83,6 @@ const TradingViewEconomicEventsWidget: React.FC<{
   );
 };
 
-// Browser-side Native Fallback News if rss2json is unavailable or blocked
-const FALLBACK_NATIVE_NEWS: RSSNewsItem[] = [
-  {
-    id: 'news-native-1',
-    title: 'US100 Nasdaq Rally Accelerates as Tech Earnings Exceed Expectations Ahead of FOMC',
-    titleAr: 'مؤشر ناسداك US100 يواصل الصعود القوي متأثراً بأرباح شركات التكنولوجيا الإيجابية وقرب اجتماع الفيدرالي',
-    link: 'https://sa.investing.com/news/stock-market-news',
-    pubDate: new Date().toISOString(),
-    timeAgo: 'Live',
-    timeAgoAr: 'منذ 5 دقائق',
-    source: 'MBK Research / Cointelegraph',
-    category: 'مؤشرات وأسهم',
-    sentiment: 'BULLISH',
-    impact: 'HIGH',
-    impactLabelAr: 'تأثير قوي',
-    impactLabelEn: 'High Impact',
-    impactScore: 3
-  },
-  {
-    id: 'news-native-2',
-    title: 'Spot Gold Holds $2,680 Support Zone Following Institutional Order Block Demand Surge',
-    titleAr: 'أسعار الذهب الفوري تحافظ على مستوى الدعم 2,680$ وسط تدفقات شرائية مؤسسية مكثفة',
-    link: 'https://sa.investing.com/news/commodities-news',
-    pubDate: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-    timeAgo: '15m ago',
-    timeAgoAr: 'منذ 15 دقيقة',
-    source: 'TradingView / Investing',
-    category: 'سلع ومعادن',
-    sentiment: 'BULLISH',
-    impact: 'HIGH',
-    impactLabelAr: 'تأثير قوي',
-    impactLabelEn: 'High Impact',
-    impactScore: 3
-  },
-  {
-    id: 'news-native-3',
-    title: 'Bitcoin Consolidates Near $68,000 as Institutional Spot ETF Inflows Reach Weekly Record',
-    titleAr: 'البيتكوين يتماسك قرب 68,000$ مع استمرار صافي تدفقات صناديق الاستثمار ETF القياسية',
-    link: 'https://cointelegraph.com',
-    pubDate: new Date(Date.now() - 35 * 60 * 1000).toISOString(),
-    timeAgo: '35m ago',
-    timeAgoAr: 'منذ 35 دقيقة',
-    source: 'Cointelegraph',
-    category: 'عملات رقمية',
-    sentiment: 'BULLISH',
-    impact: 'MEDIUM',
-    impactLabelAr: 'تأثير متوسط',
-    impactLabelEn: 'Med Impact',
-    impactScore: 2
-  },
-  {
-    id: 'news-native-4',
-    title: 'EURUSD Trades Neutral Near 1.0840 Ahead of ECB Policy Statement and US Retail Sales Data',
-    titleAr: 'زوج اليورو/دولار يتداول بنطاق جانبي عند 1.0840 ترقباً لبيانات المبيعات الأمريكية وتقرير البنك الأوروبي',
-    link: 'https://sa.investing.com/news/forex-news',
-    pubDate: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
-    timeAgo: '1h ago',
-    timeAgoAr: 'منذ ساعة',
-    source: 'FXStreet',
-    category: 'فوركس ومعادن',
-    sentiment: 'NEUTRAL',
-    impact: 'MEDIUM',
-    impactLabelAr: 'تأثير متوسط',
-    impactLabelEn: 'Med Impact',
-    impactScore: 2
-  },
-  {
-    id: 'news-native-5',
-    title: 'WTI Crude Oil Stabilizes Around $70.50 Following Inventory Drawdown Reports',
-    titleAr: 'النفط الخام WTI يستقر قرب 70.50$ للبرميل عقب تقارير انخفاض مخزونات الطاقة الأمريكية',
-    link: 'https://sa.investing.com/news/commodities-news',
-    pubDate: new Date(Date.now() - 90 * 60 * 1000).toISOString(),
-    timeAgo: '1h 30m ago',
-    timeAgoAr: 'منذ ساعة و30 دقيقة',
-    source: 'Bloomberg Energy',
-    category: 'طاقة وسلع',
-    sentiment: 'BULLISH',
-    impact: 'LOW',
-    impactLabelAr: 'تأثير منخفض',
-    impactLabelEn: 'Low Impact',
-    impactScore: 1
-  }
-];
-
 function calculateTimeAgoStr(pubDateStr: string, isAr: boolean) {
   try {
     const pub = new Date(pubDateStr).getTime();
@@ -224,7 +141,8 @@ function classifySentimentAndImpactInBrowser(title: string, content: string = ''
 }
 
 export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = false }) => {
-  const [news, setNews] = useState<RSSNewsItem[]>(FALLBACK_NATIVE_NEWS);
+  const [news, setNews] = useState<RSSNewsItem[]>([]);
+  const [upcomingMacroEvents, setUpcomingMacroEvents] = useState<MacroEconomicEvent[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [lastRefreshed, setLastRefreshed] = useState<string>('');
@@ -234,84 +152,79 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
 
   const isAr = lang === 'ar';
 
-  const fetchNewsClientSide = async () => {
+  const fetchLiveMarketNews = async () => {
     try {
       setLoading(true);
-
-      const urls = [
-        'https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Far.cointelegraph.com%2Frss',
-        'https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fcointelegraph.com%2Frss',
-        'https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.tradingview.com%2Ffeed%2F'
-      ];
-
-      const results = await Promise.allSettled(
-        urls.map((url) =>
-          fetch(url).then((r) => {
-            if (!r.ok) throw new Error(`HTTP ${r.status}`);
-            return r.json();
-          })
-        )
-      );
-
-      const parsedItems: RSSNewsItem[] = [];
-
-      results.forEach((res, index) => {
-        if (res.status === 'fulfilled' && res.value && res.value.status === 'ok' && Array.isArray(res.value.items)) {
-          const sourceName =
-            index === 0 ? 'Cointelegraph عربي' : index === 1 ? 'Cointelegraph' : 'TradingView Feed';
-          const defaultCategory = index <= 1 ? 'عملات رقمية' : 'تحليل الأسواق';
-
-          res.value.items.forEach((raw: any, i: number) => {
-            const title = (raw.title || '').trim();
-            if (!title) return;
-            const content = raw.description || raw.content || '';
-            const { sentiment, impact, impactScore } = classifySentimentAndImpactInBrowser(title, content);
-
-            const timeAgoAr = calculateTimeAgoStr(raw.pubDate, true);
-            const timeAgoEn = calculateTimeAgoStr(raw.pubDate, false);
-            const arabicTitle = translateFinancialHeadlineToArabic(title);
-
-            parsedItems.push({
-              id: `rss-${index}-${i}-${Date.now()}`,
-              title,
-              titleAr: arabicTitle,
-              link: raw.link || 'https://sa.investing.com/news',
-              pubDate: raw.pubDate || new Date().toISOString(),
-              timeAgo: timeAgoEn,
-              timeAgoAr,
-              source: sourceName,
-              category: defaultCategory,
-              sentiment,
-              impact,
-              impactLabelAr: impact === 'HIGH' ? 'تأثير قوي' : impact === 'MEDIUM' ? 'تأثير متوسط' : 'تأثير منخفض',
-              impactLabelEn: impact === 'HIGH' ? 'High Impact' : impact === 'MEDIUM' ? 'Med Impact' : 'Low Impact',
-              impactScore
-            });
-          });
-        }
+      const res = await fetch(`/api/market/news?lang=${encodeURIComponent(lang)}&type=news`, {
+        method: 'GET',
+        headers: { Accept: 'application/json' }
       });
 
-      if (parsedItems.length > 0) {
-        setNews([...FALLBACK_NATIVE_NEWS.slice(0, 2), ...parsedItems]);
-      } else {
-        setNews(FALLBACK_NATIVE_NEWS);
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
       }
+
+      const data = await res.json();
+      const rawItems = Array.isArray(data?.items) ? data.items : [];
+
+      const parsedItems: RSSNewsItem[] = rawItems.map((raw: any, i: number) => {
+        const title = String(raw.title || '').trim();
+        const publishedAt = raw.publishedAt || new Date().toISOString();
+        const { sentiment, impact, impactScore } = classifySentimentAndImpactInBrowser(title, '');
+        const timeAgoAr = calculateTimeAgoStr(publishedAt, true);
+        const timeAgoEn = calculateTimeAgoStr(publishedAt, false);
+        const arabicTitle = /[\u0600-\u06FF]/.test(title)
+          ? title
+          : translateFinancialHeadlineToArabic(title);
+
+        return {
+          id: raw.id || `api-news-${i}-${raw.timestampMs || Date.now()}`,
+          title,
+          titleAr: arabicTitle,
+          link: raw.link || 'https://sa.investing.com/news',
+          pubDate: publishedAt,
+          timeAgo: timeAgoEn,
+          timeAgoAr,
+          source: raw.source || 'Market Wire',
+          category: raw.category || (isAr ? 'أخبار الأسواق' : 'Market News'),
+          sentiment,
+          impact,
+          impactLabelAr:
+            impact === 'HIGH' ? 'تأثير قوي' : impact === 'MEDIUM' ? 'تأثير متوسط' : 'تأثير منخفض',
+          impactLabelEn:
+            impact === 'HIGH' ? 'High Impact' : impact === 'MEDIUM' ? 'Med Impact' : 'Low Impact',
+          impactScore
+        };
+      });
+
+      setNews(parsedItems);
       setLastRefreshed(new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }));
     } catch (err) {
-      console.error('Client-side RSS fetch error:', err);
-      setNews(FALLBACK_NATIVE_NEWS);
+      console.warn('[/api/market/news] fetch notice:', err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchNewsClientSide();
+    fetchLiveMarketNews();
 
-    const interval = setInterval(fetchNewsClientSide, 120000); // 2 minutes auto polling
+    const interval = setInterval(() => {
+      if (typeof document === 'undefined' || document.visibilityState === 'visible') {
+        fetchLiveMarketNews();
+      }
+    }, 5 * 60 * 1000); // 5 minutes auto polling only when tab is visible
+
     return () => {
       clearInterval(interval);
     };
+  }, [lang]);
+
+  useEffect(() => {
+    const unsub = subscribeToUpcomingMacroEvents((events) => {
+      setUpcomingMacroEvents(events);
+    });
+    return () => unsub();
   }, []);
 
   // Filtered items for expanded drawer
@@ -431,10 +344,10 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
           <div className="absolute left-0 top-0 bottom-0 w-4 bg-gradient-to-r from-[#0d1017] to-transparent z-1 pointer-events-none" />
           <div className="absolute right-0 top-0 bottom-0 w-4 bg-gradient-to-l from-[#0d1017] to-transparent z-1 pointer-events-none" />
 
-          {loading && news.length === 0 ? (
-            <div className="flex items-center gap-2 text-[#787b86] text-[11px] font-mono animate-pulse px-2">
+          {news.length === 0 ? (
+            <div className="flex items-center gap-2 text-[#787b86] text-[11px] font-mono px-2">
               <span className="w-1.5 h-1.5 rounded-full bg-[#2962ff] animate-ping" />
-              <span>{isAr ? 'جاري جلب أحدث الأخبار الاقتصادية والعملات باللغة العربية...' : 'Streaming live financial news...'}</span>
+              <span>{isAr ? 'جاري تحديث الأخبار الحية...' : 'Refreshing live market wire...'}</span>
             </div>
           ) : (
             <div
@@ -494,7 +407,7 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
           <button
             onClick={() => {
               soundManager.playClick();
-              fetchNewsClientSide();
+              fetchLiveMarketNews();
             }}
             disabled={loading}
             title={isAr ? 'تحديث الأخبار الآن' : 'Refresh live news'}
@@ -613,7 +526,7 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
               <div className="space-y-2.5 max-h-[580px] overflow-y-auto pr-1.5 scrollbar-thin scrollbar-thumb-[#2a2e39]">
                 {drawerItems.length === 0 ? (
                   <div className="text-center py-12 text-[#787b86] text-xs font-mono">
-                    {isAr ? 'لا توجد أخبار بهذا المستوى من التأثير حالياً.' : 'No news found matching this impact filter.'}
+                    {isAr ? 'جاري تحديث الأخبار الحية...' : 'Refreshing live market wire...'}
                   </div>
                 ) : (
                   drawerItems.map((item) => (
@@ -688,32 +601,40 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
 
               {/* Native Arabic/English Upcoming Major Events List */}
               <div className="space-y-2">
-                {getUpcomingMacroEvents().slice(0, 3).map((ev) => (
-                  <div
-                    key={ev.id}
-                    className="p-2.5 rounded-xl bg-[#131722] border border-[#2a2e39] flex items-center justify-between gap-2"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-400 text-[9px] font-mono font-bold">
-                          {ev.code}
-                        </span>
-                        <span className="text-[11px] font-bold text-white truncate">
-                          {isAr ? ev.titleAr : ev.titleEn}
+                {upcomingMacroEvents.length === 0 ? (
+                  <div className="p-3 rounded-xl bg-[#131722] border border-[#2a2e39] text-center text-[11px] text-[#787b86]">
+                    {isAr
+                      ? 'لا توجد بيانات اقتصادية عالية التأثير قادمة حالياً'
+                      : 'No high-impact macro releases scheduled right now'}
+                  </div>
+                ) : (
+                  upcomingMacroEvents.slice(0, 3).map((ev) => (
+                    <div
+                      key={ev.id}
+                      className="p-2.5 rounded-xl bg-[#131722] border border-[#2a2e39] flex items-center justify-between gap-2"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-400 text-[9px] font-mono font-bold">
+                            {ev.currency}
+                          </span>
+                          <span className="text-[11px] font-bold text-white truncate">
+                            {isAr ? ev.titleAr : ev.titleEn}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-[#787b86] font-mono">
+                          {isAr ? `المتوقع: ${ev.forecast} | السابق: ${ev.previous}` : `Forecast: ${ev.forecast} | Prev: ${ev.previous}`}
                         </span>
                       </div>
-                      <span className="text-[10px] text-[#787b86] font-mono">
-                        {isAr ? `المتوقع: ${ev.forecast} | السابق: ${ev.previous}` : `Forecast: ${ev.forecast} | Prev: ${ev.previous}`}
+                      <span className="px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-mono font-bold shrink-0">
+                        {new Date(ev.releaseTimeMs).toLocaleTimeString(isAr ? 'ar-SA' : 'en-US', {
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
                       </span>
                     </div>
-                    <span className="px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-mono font-bold shrink-0">
-                      {new Date(ev.releaseTimeMs).toLocaleTimeString(isAr ? 'ar-SA' : 'en-US', {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </span>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
 
               {/* TRADINGVIEW EMBEDDED EVENTS WIDGET */}

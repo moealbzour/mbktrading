@@ -17,8 +17,8 @@ import {
 import { soundManager } from '../../utils/audio';
 import confetti from 'canvas-confetti';
 import { MarketTicker, MarketSymbol, UserProfile } from '../../types/trading';
-import { collection, addDoc, doc, deleteDoc, updateDoc, setDoc } from 'firebase/firestore';
-import { auth, db, legacyDb } from '../../lib/firebase';
+import { collection, addDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { auth, db } from '../../lib/firebase';
 import { useLiveSignals, ChannelSignalItem, BotAlertItem } from '../../hooks/useLiveSignals';
 import { hasFeatureAccess } from '../../utils/entitlements';
 import { OperationType, reportFirestoreError } from '../../utils/firestoreError';
@@ -161,8 +161,6 @@ export const SignalsChannelHub: React.FC<Props> = ({
       await deleteDoc(doc(db, targetCollection, cleanId)).catch(() => {});
       const altCol = targetCollection === 'bot_alerts' ? 'signals' : 'bot_alerts';
       await deleteDoc(doc(db, altCol, cleanId)).catch(() => {});
-      await deleteDoc(doc(legacyDb, targetCollection, cleanId)).catch(() => {});
-      await deleteDoc(doc(legacyDb, altCol, cleanId)).catch(() => {});
       soundManager.playProfitChime();
       addToast({
         title: isAr ? 'تم حذف الصفقة بنجاح' : 'Trade Deleted',
@@ -226,9 +224,6 @@ export const SignalsChannelHub: React.FC<Props> = ({
         await updateDoc(doc(db, 'bot_alerts', cleanId), {
           text: editSigNotes
         });
-        updateDoc(doc(legacyDb, 'bot_alerts', cleanId), {
-          text: editSigNotes
-        }).catch(() => {});
       } else {
         const updatePayload = {
           symbol: editSigSymbol,
@@ -244,7 +239,6 @@ export const SignalsChannelHub: React.FC<Props> = ({
           textMsg: editSigNotes
         };
         await updateDoc(doc(db, 'signals', cleanId), updatePayload);
-        updateDoc(doc(legacyDb, 'signals', cleanId), updatePayload).catch(() => {});
       }
 
       soundManager.playProfitChime();
@@ -310,8 +304,7 @@ export const SignalsChannelHub: React.FC<Props> = ({
         createdAt: new Date().toISOString()
       };
 
-      const docRef = await addDoc(collection(db, 'signals'), payload);
-      setDoc(doc(legacyDb, 'signals', docRef.id), payload).catch(() => {});
+      await addDoc(collection(db, 'signals'), payload);
 
       soundManager.playProfitChime();
       confetti({ particleCount: 80, spread: 70 });

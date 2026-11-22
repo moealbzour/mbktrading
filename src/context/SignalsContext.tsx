@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { collection, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { soundManager } from '../utils/audio';
-import { DailyTrade, TradeSource, DailyTradeStatus } from '../types/trading';
+import { DailyTrade, TradeSource, DailyTradeStatus, DmConversation } from '../types/trading';
 import { ToastContainer, ToastItem } from '../components/common/ToastContainer';
 import { hasFeatureAccess } from '../utils/entitlements';
 import { subscribeToAuth } from '../services/firebaseAuthService';
@@ -60,6 +60,7 @@ export interface SignalsContextValue {
   botAlertsLoading: boolean;
   toasts: ToastItem[];
   dbError: string | null;
+  dmConversations: DmConversation[];
   unreadDmCount: number;
   unreadChatCount: number;
   unreadTradesCount: number;
@@ -82,6 +83,7 @@ const SignalsContext = createContext<SignalsContextValue>({
   botAlertsLoading: true,
   toasts: [],
   dbError: null,
+  dmConversations: [],
   unreadDmCount: 0,
   unreadChatCount: 0,
   unreadTradesCount: 0,
@@ -148,6 +150,7 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [canReadVipSignals, setCanReadVipSignals] = useState<boolean>(false);
   const [canReadBotAlerts, setCanReadBotAlerts] = useState<boolean>(false);
   const [canReadVipChat, setCanReadVipChat] = useState<boolean>(false);
+  const [dmConversations, setDmConversations] = useState<DmConversation[]>([]);
   const [unreadDmCount, setUnreadDmCount] = useState<number>(0);
   const [unreadChatCount, setUnreadChatCount] = useState<number>(0);
   const [unreadTradesCount, setUnreadTradesCount] = useState<number>(0);
@@ -320,6 +323,7 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setCanReadVipSignals(false);
         setCanReadBotAlerts(false);
         setCanReadVipChat(false);
+        setDmConversations([]);
         setUnreadDmCount(0);
         setAuthResolved(true);
         return;
@@ -641,15 +645,42 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       limit(30)
     );
 
+    const cacheKey = `mbk_cached_dm_convos_v1_${currentUserUid}`;
+    try {
+      const rawCached = localStorage.getItem(cacheKey);
+      if (rawCached) {
+        const parsedCached = JSON.parse(rawCached);
+        if (Array.isArray(parsedCached) && parsedCached.length > 0) {
+          setDmConversations(parsedCached);
+        }
+      }
+    } catch {
+      // ignore
+    }
+
     const unsubDm = onSnapshot(
       dmQuery,
       (snap) => {
         let totalUnread = 0;
+        const convosList: DmConversation[] = [];
 
         snap.docs.forEach((docSnap) => {
           const d = docSnap.data();
           const unreadMap = d.unreadBy || {};
           totalUnread += Number(unreadMap[currentUserUid] || 0);
+
+          convosList.push({
+            id: docSnap.id,
+            participants: Array.isArray(d.participants) ? d.participants : [],
+            participantNames: d.participantNames || {},
+            participantAvatars: d.participantAvatars || {},
+            participantRoles: d.participantRoles || {},
+            lastMessage: d.lastMessage || '',
+            lastSenderUid: d.lastSenderUid || '',
+            lastMessageAtMs: Number(d.lastMessageAtMs || 0),
+            unreadBy: unreadMap,
+            updatedAt: d.updatedAt
+          });
 
           const msgMs = Number(d.lastMessageAtMs || 0);
           const prevMs = lastSeenConvoMsgMs.get(docSnap.id) || 0;
@@ -675,6 +706,16 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
             sendBrowserNotification(`رسالة خاصة • ${senderName}`, preview, `dm-${docSnap.id}`);
           }
         });
+
+        convosList.sort((a, b) => b.lastMessageAtMs - a.lastMessageAtMs);
+        setDmConversations(convosList);
+        try {
+          if (convosList.length > 0) {
+            localStorage.setItem(cacheKey, JSON.stringify(convosList));
+          }
+        } catch {
+          // ignore
+        }
 
         setUnreadDmCount(totalUnread);
         isFirstDmSnapshot = false;
@@ -789,6 +830,7 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         botAlertsLoading,
         toasts,
         dbError,
+        dmConversations,
         unreadDmCount,
         unreadChatCount,
         unreadTradesCount,

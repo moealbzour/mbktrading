@@ -19,8 +19,8 @@ export const TRADINGVIEW_TICKERS: Record<
   { tvSymbol: string; label: string; nameAr: string }
 > = {
   US100: {
-    tvSymbol: 'NASDAQ:QQQ',
-    label: 'NASDAQ:QQQ',
+    tvSymbol: 'CAPITALCOM:US100',
+    label: 'CAPITALCOM:US100',
     nameAr: 'ناسداك 100 (US100)'
   },
   XAUUSD: {
@@ -29,8 +29,8 @@ export const TRADINGVIEW_TICKERS: Record<
     nameAr: 'الذهب مقابل الدولار'
   },
   EURUSD: {
-    tvSymbol: 'OANDA:EURUSD',
-    label: 'OANDA:EURUSD',
+    tvSymbol: 'FX:EURUSD',
+    label: 'FX:EURUSD',
     nameAr: 'اليورو مقابل الدولار'
   },
   BTCUSD: {
@@ -44,8 +44,8 @@ export const TRADINGVIEW_TICKERS: Record<
     nameAr: 'النفط الخام'
   },
   GBPUSD: {
-    tvSymbol: 'OANDA:GBPUSD',
-    label: 'OANDA:GBPUSD',
+    tvSymbol: 'FX:GBPUSD',
+    label: 'FX:GBPUSD',
     nameAr: 'الجنيه الإسترليني'
   }
 };

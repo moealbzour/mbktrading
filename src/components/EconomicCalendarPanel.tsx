@@ -1,19 +1,98 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { BellRing, Calendar, Clock, Flame, Globe, Sparkles } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  Calendar,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  Flame,
+  Filter,
+  Globe,
+  Info,
+  RefreshCw,
+  TrendingUp
+} from 'lucide-react';
 import {
   MacroEconomicEvent,
-  getUpcomingMacroEvents
+  fetchCalendarEvents,
+  getUpcomingHighImpactEvents,
+  subscribeToCalendarEvents
 } from '../services/macroEventsAndAnnouncementsService';
-import { soundManager } from '../utils/audio';
 
 interface Props {
   lang?: 'ar' | 'en';
 }
 
+type TimeFilter = 'upcoming' | 'next7d' | 'recent';
+type ImpactFilter = 'all' | 'high';
+type CurrencyFilter = 'ALL' | 'USD' | 'EUR' | 'GBP' | 'CAD';
+
+const CURRENCY_FLAGS: Record<string, string> = {
+  USD: '🇺🇸',
+  EUR: '🇪🇺',
+  GBP: '🇬🇧',
+  CAD: '🇨🇦',
+  JPY: '🇯🇵',
+  AUD: '🇦🇺',
+  CHF: '🇨🇭',
+  NZD: '🇳🇿',
+  CNY: '🇨🇳'
+};
+
+function parseNumericValue(val: string): number | null {
+  if (!val || val === '—' || val === '-') return null;
+  const cleaned = val.replace(/[^0-9.+-]/g, '');
+  if (!cleaned) return null;
+  const num = Number(cleaned);
+  return Number.isFinite(num) ? num : null;
+}
+
+function getActualColorClass(actual: string, forecast: string, previous: string): string {
+  const actNum = parseNumericValue(actual);
+  if (actNum === null) return 'text-[#787B86]';
+  const refNum = parseNumericValue(forecast) ?? parseNumericValue(previous);
+  if (refNum === null) return 'text-[#D1D4DC] font-bold';
+  if (actNum > refNum) return 'text-[#089981] font-bold';
+  if (actNum < refNum) return 'text-[#F23645] font-bold';
+  return 'text-[#D1D4DC] font-bold';
+}
+
+function ImpactBars({ impact }: { impact: 'HIGH' | 'MEDIUM' | 'LOW' }) {
+  const activeCount = impact === 'HIGH' ? 3 : impact === 'MEDIUM' ? 2 : 1;
+  const activeColor =
+    impact === 'HIGH'
+      ? 'bg-[#F23645]'
+      : impact === 'MEDIUM'
+      ? 'bg-[#F59E0B]'
+      : 'bg-[#787B86]';
+
+  return (
+    <div
+      className="inline-flex items-end gap-[2px] h-3.5 px-1.5 py-0.5 rounded-[3px] bg-[#131722] border border-[#2A2E39]"
+      title={impact}
+    >
+      {[1, 2, 3].map((bar) => (
+        <span
+          key={bar}
+          className={`w-[3px] rounded-[1px] ${
+            bar === 1 ? 'h-1.5' : bar === 2 ? 'h-2' : 'h-2.5'
+          } ${bar <= activeCount ? activeColor : 'bg-[#2A2E39]'}`}
+        />
+      ))}
+    </div>
+  );
+}
+
 export const EconomicCalendarPanel: React.FC<Props> = ({ lang = 'ar' }) => {
   const isAr = lang === 'ar';
-  const containerRef = useRef<HTMLDivElement>(null);
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
+  const [allEvents, setAllEvents] = useState<MacroEconomicEvent[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>('upcoming');
+  const [impactFilter, setImpactFilter] = useState<ImpactFilter>('all');
+  const [currencyFilter, setCurrencyFilter] = useState<CurrencyFilter>('ALL');
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -22,246 +101,696 @@ export const EconomicCalendarPanel: React.FC<Props> = ({ lang = 'ar' }) => {
     return () => clearInterval(timer);
   }, []);
 
-  const upcomingEvents: MacroEconomicEvent[] = getUpcomingMacroEvents(nowMs);
-
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    container.innerHTML = '';
-
-    const widgetContainer = document.createElement('div');
-    widgetContainer.className = 'tradingview-widget-container__widget';
-    widgetContainer.style.height = '100%';
-    widgetContainer.style.width = '100%';
-
-    const script = document.createElement('script');
-    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-events.js';
-    script.type = 'text/javascript';
-    script.async = true;
-    script.innerHTML = JSON.stringify({
-      colorTheme: 'dark',
-      isTransparent: true,
-      width: '100%',
-      height: '100%',
-      locale: isAr ? 'ar_AE' : 'en',
-      importanceFilter: '-1,0,1',
-      currencyFilter: 'USD,EUR,GBP,JPY,CAD,AUD,CHF'
+    let mounted = true;
+    const unsub = subscribeToCalendarEvents((events) => {
+      if (!mounted) return;
+      setAllEvents(events);
+      if (events.length > 0) {
+        setIsLoading(false);
+      }
     });
 
-    const wrapper = document.createElement('div');
-    wrapper.className = 'tradingview-widget-container';
-    wrapper.style.height = '100%';
-    wrapper.style.width = '100%';
-    wrapper.appendChild(widgetContainer);
-    wrapper.appendChild(script);
-
-    container.appendChild(wrapper);
+    fetchCalendarEvents(false)
+      .then((events) => {
+        if (!mounted) return;
+        setAllEvents(events);
+        setIsLoading(false);
+      })
+      .catch(() => {
+        if (mounted) setIsLoading(false);
+      });
 
     return () => {
-      if (container) {
-        container.innerHTML = '';
-      }
+      mounted = false;
+      unsub();
     };
-  }, [isAr]);
+  }, []);
+
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      const fresh = await fetchCalendarEvents(true);
+      setAllEvents(fresh);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const toggleExpand = (id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  // Top radar: upcoming High-impact events
+  const upcomingHighEvents = useMemo(() => {
+    const fromState = allEvents
+      .filter((ev) => ev.impact === 'HIGH' && ev.releaseTimeMs > nowMs)
+      .sort((a, b) => a.releaseTimeMs - b.releaseTimeMs);
+    if (fromState.length > 0) return fromState.slice(0, 6);
+    return getUpcomingHighImpactEvents(nowMs).slice(0, 6);
+  }, [allEvents, nowMs]);
+
+  // Filtered calendar table events
+  const filteredEvents = useMemo(() => {
+    const sevenDaysAheadMs = nowMs + 7 * 24 * 60 * 60 * 1000;
+    const recentGraceMs = nowMs - 15 * 60 * 1000;
+
+    return allEvents.filter((ev) => {
+      if (impactFilter === 'high' && ev.impact !== 'HIGH') {
+        return false;
+      }
+      if (currencyFilter !== 'ALL' && ev.currency.toUpperCase() !== currencyFilter) {
+        return false;
+      }
+
+      if (timeFilter === 'upcoming') {
+        return ev.releaseTimeMs >= recentGraceMs;
+      }
+      if (timeFilter === 'next7d') {
+        return ev.releaseTimeMs >= recentGraceMs && ev.releaseTimeMs <= sevenDaysAheadMs;
+      }
+      if (timeFilter === 'recent') {
+        return ev.releaseTimeMs < nowMs || Boolean(ev.actual);
+      }
+      return true;
+    });
+  }, [allEvents, timeFilter, impactFilter, currencyFilter, nowMs]);
+
+  // Group filtered events by local calendar day (YYYY-MM-DD)
+  const groupedDays = useMemo(() => {
+    const groupsMap = new Map<string, { dateKey: string; dayTimestampMs: number; events: MacroEconomicEvent[] }>();
+
+    const sorted = [...filteredEvents].sort((a, b) =>
+      timeFilter === 'recent'
+        ? b.releaseTimeMs - a.releaseTimeMs
+        : a.releaseTimeMs - b.releaseTimeMs
+    );
+
+    for (const ev of sorted) {
+      const d = new Date(ev.releaseTimeMs);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const dateKey = `${year}-${month}-${day}`;
+
+      let group = groupsMap.get(dateKey);
+      if (!group) {
+        group = {
+          dateKey,
+          dayTimestampMs: ev.releaseTimeMs,
+          events: []
+        };
+        groupsMap.set(dateKey, group);
+      }
+      group.events.push(ev);
+    }
+
+    return Array.from(groupsMap.values());
+  }, [filteredEvents, timeFilter]);
 
   const formatRemainingCountdown = (releaseTimeMs: number): string => {
-    const diffMs = Math.max(0, releaseTimeMs - nowMs);
+    const diffMs = releaseTimeMs - nowMs;
+    if (diffMs <= 0) {
+      return isAr ? 'صدر' : 'Released';
+    }
     const totalMinutes = Math.ceil(diffMs / (60 * 1000));
     if (totalMinutes <= 60) {
-      return isAr ? `بعد ${totalMinutes} دقيقة ⚡` : `In ${totalMinutes}m ⚡`;
+      return isAr ? `بعد ${totalMinutes} د ⚡` : `In ${totalMinutes}m ⚡`;
     }
     const hours = Math.floor(totalMinutes / 60);
     const mins = totalMinutes % 60;
     if (hours < 24) {
-      return isAr
-        ? `بعد ${hours} ساعة و ${mins} د`
-        : `In ${hours}h ${mins}m`;
+      return isAr ? `بعد ${hours}س ${mins}د` : `In ${hours}h ${mins}m`;
     }
     const days = Math.floor(hours / 24);
     const remHours = hours % 24;
-    return isAr
-      ? `بعد ${days} يوم و ${remHours} ساعة`
-      : `In ${days}d ${remHours}h`;
+    return isAr ? `بعد ${days}ي ${remHours}س` : `In ${days}d ${remHours}h`;
   };
 
-  const triggerTestMacroWarning = (code: 'CPI' | 'FOMC') => {
-    soundManager.playClick();
-    window.dispatchEvent(new CustomEvent('mbk-trigger-macro-warning', { detail: { code } }));
+  const formatDayHeader = (timestampMs: number): string => {
+    try {
+      return new Date(timestampMs).toLocaleDateString(isAr ? 'ar-AE' : 'en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch {
+      return new Date(timestampMs).toDateString();
+    }
   };
 
   return (
-    <div className="space-y-4" dir={isAr ? 'rtl' : 'ltr'}>
-      {/* 1. BILINGUAL (ARABIC / ENGLISH) MAJOR UPCOMING EVENTS RADAR WITH 1-HOUR POPUP ALERT SYSTEM */}
-      <div className="bg-[#1e222d] border border-[#2a2e39] rounded-2xl overflow-hidden shadow-2xl">
-        <div className="p-4 sm:p-5 bg-[#131722] border-b border-[#2a2e39] flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400">
-              <Flame className="w-5 h-5 animate-pulse" />
+    <div className="space-y-4 bg-[#131722] text-[#D1D4DC]" dir={isAr ? 'rtl' : 'ltr'}>
+      {/* 1. HIGH-IMPACT UPCOMING RADAR WITH 1-HOUR POPUP ALERT SYSTEM */}
+      <div className="bg-[#1E222D] border border-[#2A2E39] rounded-md overflow-hidden">
+        <div className="px-4 py-3 bg-[#131722] border-b border-[#2A2E39] flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded bg-[#F23645]/15 border border-[#F23645]/40 flex items-center justify-center text-[#F23645] shrink-0">
+              <Flame className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-sm sm:text-base font-extrabold text-white flex items-center gap-2 flex-wrap">
-                <span>{isAr ? 'الأحداث الاقتصادية القادمة' : 'Upcoming Events'}</span>
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">
-                  {isAr ? 'تنبيه قبل ساعة' : '1H ALERT'}
+              <h2 className="text-xs sm:text-sm font-bold text-[#D1D4DC] flex items-center gap-2 flex-wrap">
+                <span>
+                  {isAr
+                    ? 'رادار الأخبار الاقتصادية عالية التأثير'
+                    : 'High-Impact Macro Radar'}
+                </span>
+                <span className="px-1.5 py-0.5 rounded-[3px] text-[10px] font-mono font-bold bg-[#F23645]/15 text-[#F23645] border border-[#F23645]/30">
+                  {isAr ? 'تنبيه قبل ساعة' : '1H POPUP ALERT'}
                 </span>
               </h2>
-              <p className="text-xs text-[#8a93a6] mt-0.5">
+              <p className="text-[11px] text-[#787B86]">
                 {isAr
-                  ? 'تنبيه منبثق قبل ساعة من صدور CPI والفيدرالي والوظائف'
-                  : '1-hour popup warning before CPI, FOMC & NFP'}
+                  ? 'أهم البيانات القادمة المؤثرة مباشرة على الذهب (XAUUSD) والناسداك (US100) ومؤشر الدولار'
+                  : 'Upcoming high-impact releases driving Gold (XAUUSD), Nasdaq (US100), and USD volatility'}
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => triggerTestMacroWarning('CPI')}
-              className="px-3 py-1.5 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/40 text-rose-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all"
-              title={isAr ? 'معاينة نافذة تحذير الـ 60 دقيقة لبيانات CPI' : 'Preview 1-hour CPI warning popup'}
-            >
-              <BellRing className="w-3.5 h-3.5 text-rose-400" />
-              <span>{isAr ? 'تجربة تنبيه CPI (قبل ساعة)' : 'Test 1h CPI Popup'}</span>
-            </button>
+          <button
+            type="button"
+            onClick={handleManualRefresh}
+            disabled={isRefreshing}
+            className="px-2.5 py-1 rounded-[3px] bg-[#1E222D] hover:bg-[#2A2E39] border border-[#2A2E39] text-[11px] font-semibold text-[#D1D4DC] flex items-center gap-1.5 cursor-pointer transition-colors"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-[#2962FF] ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span>{isAr ? 'تحديث البيانات' : 'Refresh'}</span>
+          </button>
+        </div>
 
-            <button
-              type="button"
-              onClick={() => triggerTestMacroWarning('FOMC')}
-              className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all"
-              title={isAr ? 'معاينة نافذة تحذير الـ 60 دقيقة لقرار الفيدرالي' : 'Preview 1-hour Fed warning popup'}
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span>{isAr ? 'تجربة تنبيه الفيدرالي FOMC' : 'Test 1h Fed Popup'}</span>
-            </button>
+        {upcomingHighEvents.length === 0 ? (
+          <div className="p-6 text-center text-xs text-[#787B86] font-mono">
+            {isLoading
+              ? isAr
+                ? 'جاري تحميل التقويم الاقتصادي المباشر...'
+                : 'Loading live economic calendar...'
+              : isAr
+              ? 'لا توجد بيانات عالية التأثير مجدولة في الساعات القادمة'
+              : 'No high-impact macro releases scheduled in the immediate window'}
           </div>
-        </div>
+        ) : (
+          <div className="p-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+            {upcomingHighEvents.map((ev) => {
+              const diffMs = ev.releaseTimeMs - nowMs;
+              const isWithinHour = diffMs > 0 && diffMs <= 60 * 60 * 1000;
+              const timeFormatted = new Date(ev.releaseTimeMs).toLocaleTimeString(
+                isAr ? 'ar-AE' : 'en-US',
+                { hour: '2-digit', minute: '2-digit' }
+              );
+              const dateShort = new Date(ev.releaseTimeMs).toLocaleDateString(
+                isAr ? 'ar-AE' : 'en-US',
+                { weekday: 'short', month: 'short', day: 'numeric' }
+              );
 
-        <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {upcomingEvents.map((ev) => {
-            const diffMs = ev.releaseTimeMs - nowMs;
-            const isWithinHour = diffMs > 0 && diffMs <= 60 * 60 * 1000;
-            const timeFormatted = new Date(ev.releaseTimeMs).toLocaleTimeString(
-              isAr ? 'ar-SA' : 'en-US',
-              { hour: '2-digit', minute: '2-digit' }
-            );
-
-            return (
-              <div
-                key={ev.id}
-                className={`p-3.5 rounded-xl border transition-all flex flex-col justify-between gap-2.5 ${
-                  isWithinHour
-                    ? 'bg-rose-500/10 border-rose-500/60 shadow-lg shadow-rose-500/10'
-                    : 'bg-[#131722] border-[#2a2e39] hover:border-[#363a45]'
-                }`}
-              >
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5">
-                      <span className="px-2 py-0.5 rounded bg-rose-500/20 border border-rose-500/40 text-rose-400 text-[10px] font-mono font-extrabold">
-                        {ev.code}
-                      </span>
-                      <span className="px-1.5 py-0.5 rounded bg-[#1e222d] border border-[#2a2e39] text-[#d1d4dc] text-[10px] font-mono font-bold">
-                        {ev.currency}
-                      </span>
-                      <span className="text-[10px] text-rose-400 font-bold flex items-center gap-0.5">
-                        <Flame className="w-3 h-3" />
-                        <span>{isAr ? 'تأثير قوي جداً' : 'High Impact'}</span>
-                      </span>
-                    </div>
-
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold flex items-center gap-1 ${
-                        isWithinHour
-                          ? 'bg-rose-600 text-white animate-pulse'
-                          : 'bg-[#1e222d] text-amber-400 border border-amber-500/30'
-                      }`}
-                    >
-                      <Clock className="w-3 h-3" />
-                      <span>{formatRemainingCountdown(ev.releaseTimeMs)}</span>
-                    </span>
-                  </div>
-
-                  <h3 className="text-xs sm:text-sm font-bold text-white leading-snug">
-                    {isAr ? ev.titleAr : ev.titleEn}
-                  </h3>
-
-                  <p className="text-[11px] text-[#8a93a6] leading-relaxed">
-                    {isAr ? ev.descriptionAr : ev.descriptionEn}
-                  </p>
-                </div>
-
-                <div className="space-y-2 pt-2 border-t border-[#2a2e39]/80">
-                  <div className="grid grid-cols-3 gap-1.5 font-mono text-[10px] text-center">
-                    <div className="p-1.5 rounded bg-[#1e222d] border border-[#2a2e39]">
-                      <span className="text-[#787b86] block text-[9px]">
-                        {isAr ? 'التوقيت' : 'Time'}
-                      </span>
-                      <span className="text-white font-bold">{timeFormatted}</span>
-                    </div>
-                    <div className="p-1.5 rounded bg-[#1e222d] border border-[#2a2e39]">
-                      <span className="text-[#787b86] block text-[9px]">
-                        {isAr ? 'المتوقع' : 'Forecast'}
-                      </span>
-                      <span className="text-amber-400 font-bold">{ev.forecast}</span>
-                    </div>
-                    <div className="p-1.5 rounded bg-[#1e222d] border border-[#2a2e39]">
-                      <span className="text-[#787b86] block text-[9px]">
-                        {isAr ? 'السابق' : 'Previous'}
-                      </span>
-                      <span className="text-[#d1d4dc] font-bold">{ev.previous}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between text-[10px]">
-                    <span className="text-[#787b86]">
-                      {isAr ? 'الأزواج المتأثرة:' : 'Affected:'}
-                    </span>
-                    <div className="flex items-center gap-1 font-mono">
-                      {ev.affectedPairs.map((pair) => (
-                        <span
-                          key={pair}
-                          className="px-1.5 py-0.2 rounded bg-[#089981]/15 text-[#089981] border border-[#089981]/30 font-bold"
-                        >
-                          {pair}
+              return (
+                <div
+                  key={ev.id}
+                  onClick={() => toggleExpand(ev.id)}
+                  className={`p-3 rounded-[4px] border transition-colors flex flex-col justify-between gap-2 cursor-pointer ${
+                    isWithinHour
+                      ? 'bg-[#F23645]/10 border-[#F23645]'
+                      : 'bg-[#131722] border-[#2A2E39] hover:border-[#2962FF]/60'
+                  }`}
+                >
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="px-1.5 py-0.5 rounded-[3px] bg-[#F23645]/15 border border-[#F23645]/30 text-[#F23645] text-[10px] font-mono font-bold">
+                          {ev.code}
                         </span>
-                      ))}
+                        <span className="px-1.5 py-0.5 rounded-[3px] bg-[#1E222D] border border-[#2A2E39] text-[#D1D4DC] text-[10px] font-mono font-bold">
+                          {CURRENCY_FLAGS[ev.currency] || ''} {ev.currency}
+                        </span>
+                        <ImpactBars impact={ev.impact} />
+                      </div>
+
+                      <span
+                        className={`px-1.5 py-0.5 rounded-[3px] text-[10px] font-mono tabular-nums font-bold flex items-center gap-1 ${
+                          isWithinHour
+                            ? 'bg-[#F23645] text-white animate-pulse'
+                            : 'bg-[#1E222D] text-[#D1D4DC] border border-[#2A2E39]'
+                        }`}
+                      >
+                        <Clock className="w-3 h-3 text-[#2962FF]" />
+                        <span>{formatRemainingCountdown(ev.releaseTimeMs)}</span>
+                      </span>
+                    </div>
+
+                    <h3 className="text-xs font-bold text-[#D1D4DC] leading-snug">
+                      {isAr ? ev.titleAr : ev.titleEn}
+                    </h3>
+
+                    <p className="text-[11px] text-[#787B86] leading-relaxed line-clamp-2">
+                      {isAr ? ev.goldNasdaqImpactAr : ev.goldNasdaqImpactEn}
+                    </p>
+                  </div>
+
+                  <div className="space-y-2 pt-2 border-t border-[#2A2E39]">
+                    <div className="grid grid-cols-3 gap-1.5 font-mono tabular-nums text-[10px] text-center">
+                      <div className="p-1 rounded-[3px] bg-[#1E222D] border border-[#2A2E39]">
+                        <span className="text-[#787B86] block text-[9px]">
+                          {dateShort}
+                        </span>
+                        <span className="text-[#D1D4DC] font-bold">{timeFormatted}</span>
+                      </div>
+                      <div className="p-1 rounded-[3px] bg-[#1E222D] border border-[#2A2E39]">
+                        <span className="text-[#787B86] block text-[9px]">
+                          {isAr ? 'المتوقع' : 'Forecast'}
+                        </span>
+                        <span className="text-[#D1D4DC] font-bold">{ev.forecast || '—'}</span>
+                      </div>
+                      <div className="p-1 rounded-[3px] bg-[#1E222D] border border-[#2A2E39]">
+                        <span className="text-[#787B86] block text-[9px]">
+                          {isAr ? 'السابق' : 'Previous'}
+                        </span>
+                        <span className="text-[#787B86] font-bold">{ev.previous || '—'}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[10px]">
+                      <span className="text-[#787B86]">
+                        {isAr ? 'الأصول المتأثرة:' : 'Affected:'}
+                      </span>
+                      <div className="flex items-center gap-1 font-mono">
+                        {ev.affectedAssets.map((asset) => (
+                          <span
+                            key={asset}
+                            className="px-1.5 py-0.5 rounded-[3px] bg-[#2962FF]/15 text-[#2962FF] border border-[#2962FF]/30 font-bold text-[9px]"
+                          >
+                            {asset}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      {/* 2. OFFICIAL TRADINGVIEW LIVE ECONOMIC CALENDAR EMBED */}
-      <div className="bg-[#1e222d] border border-[#2a2e39] rounded-2xl overflow-hidden shadow-2xl">
-        <div className="p-4 bg-[#131722] border-b border-[#2a2e39] flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
-              <Calendar className="w-5 h-5" />
+      {/* 2. NATIVE BILINGUAL MBK INSTITUTIONAL ECONOMIC CALENDAR (14-DAY WINDOW + EXPANDABLE IMPACT GUIDE) */}
+      <div className="bg-[#1E222D] border border-[#2A2E39] rounded-md overflow-hidden">
+        {/* Header & Filter Bar */}
+        <div className="p-3 sm:p-4 bg-[#131722] border-b border-[#2A2E39] space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded bg-[#2962FF]/15 border border-[#2962FF]/40 flex items-center justify-center text-[#2962FF] shrink-0">
+                <Calendar className="w-4 h-4" />
+              </div>
+              <div>
+                <h2 className="text-xs sm:text-sm font-bold text-[#D1D4DC] flex items-center gap-2">
+                  <span>
+                    {isAr
+                      ? 'التقويم الاقتصادي المؤسسي (شرح التأثير على الذهب والناسداك)'
+                      : 'Institutional Economic Calendar (XAUUSD & US100 Impact Guide)'}
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded-[3px] text-[10px] font-mono font-bold bg-[#089981]/15 text-[#089981] border border-[#089981]/30 flex items-center gap-1">
+                    <Globe className="w-3 h-3" />
+                    <span>{isAr ? 'مباشر' : 'LIVE'}</span>
+                  </span>
+                </h2>
+                <p className="text-[11px] text-[#787B86]">
+                  {isAr
+                    ? 'اضغط على أي خبر اقتصادي لعرض شرح المؤشر وتأثيره المباشر على الذهب (XAUUSD) والناسداك (US100)'
+                    : 'Click any economic event row to expand its macro explanation and XAUUSD / US100 reaction guide'}
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-sm sm:text-base font-bold text-slate-100 flex items-center gap-2">
-                <span>{isAr ? 'التقويم الاقتصادي' : 'Economic Calendar'}</span>
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
-                  <Globe className="w-3 h-3" />
-                  <span>{isAr ? 'مباشر' : 'LIVE'}</span>
+
+            <div className="text-[11px] font-mono tabular-nums text-[#787B86]">
+              {isAr
+                ? `إجمالي الأحداث المعروضة: ${filteredEvents.length}`
+                : `Showing ${filteredEvents.length} events`}
+            </div>
+          </div>
+
+          {/* Filter Pills Row */}
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#2A2E39]">
+            {/* Time Filter */}
+            <div className="flex items-center gap-1 flex-wrap">
+              <span className="text-[10px] text-[#787B86] font-semibold me-1 flex items-center gap-1">
+                <Clock className="w-3 h-3" />
+                <span>{isAr ? 'الفترة:' : 'Window:'}</span>
+              </span>
+              {(
+                [
+                  { id: 'upcoming', labelAr: 'القادم (14 يوم)', labelEn: 'Upcoming (14d)' },
+                  { id: 'next7d', labelAr: 'الأسبوع القادم', labelEn: 'Next 7 Days' },
+                  { id: 'recent', labelAr: 'نتائج حديثة', labelEn: 'Recent Results' }
+                ] as Array<{ id: TimeFilter; labelAr: string; labelEn: string }>
+              ).map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setTimeFilter(tab.id)}
+                  className={`px-2.5 py-1 rounded-[3px] text-[11px] font-semibold transition-colors cursor-pointer border ${
+                    timeFilter === tab.id
+                      ? 'bg-[#2962FF] text-white border-[#2962FF]'
+                      : 'bg-[#1E222D] text-[#787B86] hover:text-[#D1D4DC] border-[#2A2E39]'
+                  }`}
+                >
+                  {isAr ? tab.labelAr : tab.labelEn}
+                </button>
+              ))}
+            </div>
+
+            {/* Impact & Currency Filters */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] text-[#787B86] font-semibold me-0.5 flex items-center gap-1">
+                  <Filter className="w-3 h-3" />
+                  <span>{isAr ? 'الأهمية:' : 'Impact:'}</span>
                 </span>
-              </h2>
-              <p className="text-xs text-slate-400">
-                {isAr ? 'البيانات الاقتصادية المباشرة' : 'Live economic releases'}
-              </p>
+                <button
+                  type="button"
+                  onClick={() => setImpactFilter('all')}
+                  className={`px-2 py-1 rounded-[3px] text-[11px] font-semibold transition-colors cursor-pointer border ${
+                    impactFilter === 'all'
+                      ? 'bg-[#2962FF] text-white border-[#2962FF]'
+                      : 'bg-[#1E222D] text-[#787B86] hover:text-[#D1D4DC] border-[#2A2E39]'
+                  }`}
+                >
+                  {isAr ? 'الكل' : 'All'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setImpactFilter('high')}
+                  className={`px-2 py-1 rounded-[3px] text-[11px] font-semibold transition-colors cursor-pointer border flex items-center gap-1 ${
+                    impactFilter === 'high'
+                      ? 'bg-[#F23645] text-white border-[#F23645]'
+                      : 'bg-[#1E222D] text-[#787B86] hover:text-[#D1D4DC] border-[#2A2E39]'
+                  }`}
+                >
+                  <Flame className="w-3 h-3" />
+                  <span>{isAr ? 'عالي التأثير' : 'High Only'}</span>
+                </button>
+              </div>
+
+              <div className="flex items-center gap-1">
+                {(['ALL', 'USD', 'EUR', 'GBP', 'CAD'] as CurrencyFilter[]).map((cur) => (
+                  <button
+                    key={cur}
+                    type="button"
+                    onClick={() => setCurrencyFilter(cur)}
+                    className={`px-2 py-1 rounded-[3px] text-[11px] font-mono font-bold transition-colors cursor-pointer border ${
+                      currencyFilter === cur
+                        ? 'bg-[#2962FF] text-white border-[#2962FF]'
+                        : 'bg-[#1E222D] text-[#787B86] hover:text-[#D1D4DC] border-[#2A2E39]'
+                    }`}
+                  >
+                    {cur === 'ALL' ? (isAr ? 'الكل' : 'ALL') : `${CURRENCY_FLAGS[cur] || ''} ${cur}`}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="p-4">
-          <div
-            ref={containerRef}
-            className="w-full h-[640px] rounded-xl overflow-hidden bg-[#131722] border border-[#2a2e39]"
-          />
+        {/* Column Headers (Desktop) */}
+        <div className="hidden md:grid md:grid-cols-12 gap-2 px-4 py-2 bg-[#131722] border-b border-[#2A2E39] text-[10px] font-bold text-[#787B86] uppercase tracking-wider">
+          <div className="col-span-2">{isAr ? 'التوقيت المحلي' : 'Local Time'}</div>
+          <div className="col-span-1 text-center">{isAr ? 'العملة' : 'Currency'}</div>
+          <div className="col-span-1 text-center">{isAr ? 'التأثير' : 'Impact'}</div>
+          <div className="col-span-5">{isAr ? 'الحدث الاقتصادي' : 'Economic Release'}</div>
+          <div className="col-span-1 text-center">{isAr ? 'الحالي' : 'Actual'}</div>
+          <div className="col-span-1 text-center">{isAr ? 'المتوقع' : 'Forecast'}</div>
+          <div className="col-span-1 text-center">{isAr ? 'السابق' : 'Previous'}</div>
         </div>
+
+        {/* Grouped Events by Day */}
+        {groupedDays.length === 0 ? (
+          <div className="p-10 text-center space-y-2">
+            <p className="text-xs text-[#787B86] font-mono">
+              {isLoading
+                ? isAr
+                  ? 'جاري جلب بيانات التقويم الاقتصادي...'
+                  : 'Fetching live economic calendar data...'
+                : isAr
+                ? 'لا توجد أحداث مطابقة للفلتر المحدد في هذه الفترة.'
+                : 'No economic releases match the selected filter in this window.'}
+            </p>
+            {!isLoading && (timeFilter !== 'upcoming' || impactFilter !== 'all' || currencyFilter !== 'ALL') && (
+              <button
+                type="button"
+                onClick={() => {
+                  setTimeFilter('upcoming');
+                  setImpactFilter('all');
+                  setCurrencyFilter('ALL');
+                }}
+                className="px-3 py-1.5 rounded-[3px] bg-[#2962FF] text-white text-xs font-semibold cursor-pointer"
+              >
+                {isAr ? 'عرض جميع الأحداث القادمة' : 'Show All Upcoming Events'}
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="divide-y divide-[#2A2E39]">
+            {groupedDays.map((group) => (
+              <div key={group.dateKey} className="bg-[#1E222D]">
+                {/* Day Header */}
+                <div className="px-4 py-2 bg-[#131722]/90 border-b border-[#2A2E39] flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-3.5 h-3.5 text-[#2962FF]" />
+                    <span className="text-xs font-bold text-[#D1D4DC]">
+                      {formatDayHeader(group.dayTimestampMs)}
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono tabular-nums text-[#787B86]">
+                    {isAr ? `${group.events.length} حدث` : `${group.events.length} events`}
+                  </span>
+                </div>
+
+                {/* Day Events Rows */}
+                <div className="divide-y divide-[#2A2E39]">
+                  {group.events.map((ev) => {
+                    const isExpanded = expandedIds.has(ev.id);
+                    const isUpcoming = ev.releaseTimeMs > nowMs;
+                    const isWithinHour =
+                      isUpcoming && ev.releaseTimeMs - nowMs <= 60 * 60 * 1000;
+                    const localTimeStr = new Date(ev.releaseTimeMs).toLocaleTimeString(
+                      isAr ? 'ar-AE' : 'en-US',
+                      { hour: '2-digit', minute: '2-digit' }
+                    );
+                    const actualColor = getActualColorClass(ev.actual, ev.forecast, ev.previous);
+
+                    return (
+                      <div key={ev.id} className="transition-colors">
+                        {/* Main Row */}
+                        <div
+                          onClick={() => toggleExpand(ev.id)}
+                          className={`px-3 sm:px-4 py-2.5 cursor-pointer transition-colors hover:bg-[#131722]/60 ${
+                            isExpanded ? 'bg-[#131722]/80' : ''
+                          } ${isWithinHour && ev.impact === 'HIGH' ? 'border-s-2 border-s-[#F23645]' : ''}`}
+                        >
+                          {/* Desktop 12-Col Layout */}
+                          <div className="hidden md:grid md:grid-cols-12 gap-2 items-center">
+                            {/* Local Time + Countdown */}
+                            <div className="col-span-2 flex items-center gap-1.5 font-mono tabular-nums">
+                              <span className="text-xs font-bold text-[#D1D4DC]">
+                                {localTimeStr}
+                              </span>
+                              <span
+                                className={`px-1.5 py-0.5 rounded-[3px] text-[9px] font-bold ${
+                                  isWithinHour
+                                    ? 'bg-[#F23645] text-white'
+                                    : isUpcoming
+                                    ? 'bg-[#131722] text-[#2962FF] border border-[#2A2E39]'
+                                    : 'bg-[#131722] text-[#787B86] border border-[#2A2E39]'
+                                }`}
+                              >
+                                {formatRemainingCountdown(ev.releaseTimeMs)}
+                              </span>
+                            </div>
+
+                            {/* Currency */}
+                            <div className="col-span-1 text-center">
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[3px] bg-[#131722] border border-[#2A2E39] text-[11px] font-mono font-bold text-[#D1D4DC]">
+                                <span>{CURRENCY_FLAGS[ev.currency] || ''}</span>
+                                <span>{ev.currency}</span>
+                              </span>
+                            </div>
+
+                            {/* Impact */}
+                            <div className="col-span-1 flex justify-center">
+                              <ImpactBars impact={ev.impact} />
+                            </div>
+
+                            {/* Title */}
+                            <div className="col-span-5 min-w-0 pe-2">
+                              <div className="text-xs font-bold text-[#D1D4DC] truncate">
+                                {isAr ? ev.titleAr : ev.titleEn}
+                              </div>
+                              {isAr && (
+                                <div className="text-[10px] font-mono text-[#787B86] truncate">
+                                  {ev.titleEn}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Actual */}
+                            <div className={`col-span-1 text-center font-mono tabular-nums text-xs ${actualColor}`}>
+                              {ev.actual || '—'}
+                            </div>
+
+                            {/* Forecast */}
+                            <div className="col-span-1 text-center font-mono tabular-nums text-xs text-[#D1D4DC]">
+                              {ev.forecast || '—'}
+                            </div>
+
+                            {/* Previous + Expand Icon */}
+                            <div className="col-span-1 flex items-center justify-end gap-1.5 font-mono tabular-nums text-xs text-[#787B86]">
+                              <span>{ev.previous || '—'}</span>
+                              {isExpanded ? (
+                                <ChevronUp className="w-3.5 h-3.5 text-[#2962FF] shrink-0" />
+                              ) : (
+                                <ChevronDown className="w-3.5 h-3.5 text-[#787B86] shrink-0" />
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Mobile Stacked Layout */}
+                          <div className="md:hidden space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5 font-mono tabular-nums">
+                                <span className="text-xs font-bold text-[#D1D4DC]">
+                                  {localTimeStr}
+                                </span>
+                                <span className="px-1.5 py-0.5 rounded-[3px] bg-[#131722] border border-[#2A2E39] text-[10px] font-bold text-[#D1D4DC]">
+                                  {CURRENCY_FLAGS[ev.currency] || ''} {ev.currency}
+                                </span>
+                                <ImpactBars impact={ev.impact} />
+                              </div>
+
+                              <div className="flex items-center gap-1.5">
+                                <span
+                                  className={`px-1.5 py-0.5 rounded-[3px] text-[9px] font-mono tabular-nums font-bold ${
+                                    isWithinHour
+                                      ? 'bg-[#F23645] text-white'
+                                      : isUpcoming
+                                      ? 'bg-[#131722] text-[#2962FF] border border-[#2A2E39]'
+                                      : 'bg-[#131722] text-[#787B86] border border-[#2A2E39]'
+                                  }`}
+                                >
+                                  {formatRemainingCountdown(ev.releaseTimeMs)}
+                                </span>
+                                {isExpanded ? (
+                                  <ChevronUp className="w-4 h-4 text-[#2962FF]" />
+                                ) : (
+                                  <ChevronDown className="w-4 h-4 text-[#787B86]" />
+                                )}
+                              </div>
+                            </div>
+
+                            <div>
+                              <div className="text-xs font-bold text-[#D1D4DC] leading-snug">
+                                {isAr ? ev.titleAr : ev.titleEn}
+                              </div>
+                              {isAr && (
+                                <div className="text-[10px] font-mono text-[#787B86]">
+                                  {ev.titleEn}
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-1.5 font-mono tabular-nums text-[10px] text-center">
+                              <div className="py-1 px-1.5 rounded-[3px] bg-[#131722] border border-[#2A2E39]">
+                                <span className="text-[#787B86] block text-[9px]">
+                                  {isAr ? 'الحالي' : 'Actual'}
+                                </span>
+                                <span className={actualColor}>{ev.actual || '—'}</span>
+                              </div>
+                              <div className="py-1 px-1.5 rounded-[3px] bg-[#131722] border border-[#2A2E39]">
+                                <span className="text-[#787B86] block text-[9px]">
+                                  {isAr ? 'المتوقع' : 'Forecast'}
+                                </span>
+                                <span className="text-[#D1D4DC] font-bold">{ev.forecast || '—'}</span>
+                              </div>
+                              <div className="py-1 px-1.5 rounded-[3px] bg-[#131722] border border-[#2A2E39]">
+                                <span className="text-[#787B86] block text-[9px]">
+                                  {isAr ? 'السابق' : 'Previous'}
+                                </span>
+                                <span className="text-[#787B86]">{ev.previous || '—'}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Expandable Details & XAUUSD / US100 Impact Panel */}
+                        {isExpanded && (
+                          <div className="px-4 py-3 bg-[#131722] border-t border-[#2A2E39] space-y-2.5 text-xs">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {/* Summary: What it measures */}
+                              <div className="p-2.5 rounded-[4px] bg-[#1E222D] border border-[#2A2E39] space-y-1">
+                                <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#2962FF]">
+                                  <Info className="w-3.5 h-3.5" />
+                                  <span>
+                                    {isAr
+                                      ? 'ما هو هذا المؤشر ولماذا تراقبه المؤسسات؟'
+                                      : 'What This Indicator Measures'}
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-[#D1D4DC] leading-relaxed">
+                                  {isAr ? ev.summaryAr : ev.summaryEn}
+                                </p>
+                              </div>
+
+                              {/* Gold & Nasdaq Reaction Guide */}
+                              <div className="p-2.5 rounded-[4px] bg-[#1E222D] border border-[#2A2E39] space-y-1">
+                                <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#089981]">
+                                  <TrendingUp className="w-3.5 h-3.5" />
+                                  <span>
+                                    {isAr
+                                      ? 'دليل التفاعل على الذهب (XAUUSD) والناسداك (US100)'
+                                      : 'Gold (XAUUSD) & Nasdaq (US100) Reaction Guide'}
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-[#D1D4DC] leading-relaxed">
+                                  {isAr ? ev.goldNasdaqImpactAr : ev.goldNasdaqImpactEn}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Affected Assets Bar */}
+                            <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-[10px] text-[#787B86] font-semibold">
+                                  {isAr ? 'الأزواج والأصول الأكثر تأثراً:' : 'Primary Affected Assets:'}
+                                </span>
+                                {ev.affectedAssets.map((asset) => (
+                                  <span
+                                    key={asset}
+                                    className="px-2 py-0.5 rounded-[3px] bg-[#2962FF]/15 text-[#2962FF] border border-[#2962FF]/30 font-mono font-bold text-[10px]"
+                                  >
+                                    {asset}
+                                  </span>
+                                ))}
+                              </div>
+
+                              <span className="text-[10px] font-mono text-[#787B86]">
+                                {ev.titleEn} ({ev.currency})
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

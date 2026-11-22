@@ -6,7 +6,6 @@ import {
   MarketTicker,
   UserProfile
 } from './types/trading';
-import { INITIAL_TICKERS } from './data/mockTradingData';
 import { soundManager } from './utils/audio';
 import {
   subscribeToAuth,
@@ -29,6 +28,87 @@ import { ExitConfirmationModal } from './components/common/ExitConfirmationModal
 import { ThemeProvider } from './context/ThemeContext';
 
 const REMOTE_VERSION_STORAGE_KEY = 'mbk_synced_remote_version';
+
+const BASE_TICKER_METADATA: MarketTicker[] = [
+  {
+    symbol: 'US100',
+    nameAr: 'ناسداك 100 (عقود مؤشرات)',
+    price: 0,
+    changePercent: 0,
+    changeValue: 0,
+    high: 0,
+    low: 0,
+    spread: 0.8,
+    digits: 2,
+    isUp: true,
+    category: 'INDICES'
+  },
+  {
+    symbol: 'XAUUSD',
+    nameAr: 'الذهب مقابل الدولار (أونصة)',
+    price: 0,
+    changePercent: 0,
+    changeValue: 0,
+    high: 0,
+    low: 0,
+    spread: 0.15,
+    digits: 2,
+    isUp: true,
+    category: 'COMMODITIES'
+  },
+  {
+    symbol: 'EURUSD',
+    nameAr: 'اليورو مقابل الدولار',
+    price: 0,
+    changePercent: 0,
+    changeValue: 0,
+    high: 0,
+    low: 0,
+    spread: 0.1,
+    digits: 5,
+    isUp: true,
+    category: 'FOREX'
+  },
+  {
+    symbol: 'BTCUSD',
+    nameAr: 'البيتكوين مقابل الدولار',
+    price: 0,
+    changePercent: 0,
+    changeValue: 0,
+    high: 0,
+    low: 0,
+    spread: 2.0,
+    digits: 2,
+    isUp: true,
+    category: 'CRYPTO'
+  },
+  {
+    symbol: 'WTI',
+    nameAr: 'نفط خام تكساس الخفيف',
+    price: 0,
+    changePercent: 0,
+    changeValue: 0,
+    high: 0,
+    low: 0,
+    spread: 0.03,
+    digits: 2,
+    isUp: true,
+    category: 'COMMODITIES'
+  },
+  {
+    symbol: 'GBPUSD',
+    nameAr: 'الجنيه الإسترليني مقابل الدولار',
+    price: 0,
+    changePercent: 0,
+    changeValue: 0,
+    high: 0,
+    low: 0,
+    spread: 0.2,
+    digits: 5,
+    isUp: true,
+    category: 'FOREX'
+  }
+];
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
@@ -66,11 +146,74 @@ export default function App() {
     displayName: string;
   } | null>(null);
 
-  // Market & Trading State
-  const [tickers] = useState<MarketTicker[]>(INITIAL_TICKERS);
+  // Market & Trading State (Real live server-cached quotes from /api/market/quotes)
+  const [tickers, setTickers] = useState<MarketTicker[]>(BASE_TICKER_METADATA);
   const [selectedSymbol, setSelectedSymbol] = useState<MarketSymbol>('US100');
   const [isMuted, setIsMuted] = useState(false);
   const [lang, setLang] = useState<'ar' | 'en'>('ar');
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchLiveQuotes = async () => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
+        return;
+      }
+      try {
+        const res = await fetch('/api/market/quotes', {
+          method: 'GET',
+          headers: { Accept: 'application/json' }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const quotesList = Array.isArray(data?.quotes) ? data.quotes : [];
+        if (!isMounted || quotesList.length === 0) return;
+
+        const quotesBySymbol = new Map<string, any>();
+        for (const q of quotesList) {
+          if (q && q.symbol && typeof q.price === 'number' && q.price > 0) {
+            quotesBySymbol.set(String(q.symbol).toUpperCase(), q);
+          }
+        }
+
+        setTickers((prev) =>
+          prev.map((item) => {
+            const live = quotesBySymbol.get(item.symbol);
+            if (!live) return item;
+            const changeVal = typeof live.change === 'number' ? live.change : 0;
+            const changePct = typeof live.changePercent === 'number' ? live.changePercent : 0;
+            return {
+              ...item,
+              price: live.price,
+              changeValue: changeVal,
+              changePercent: changePct,
+              high: typeof live.high === 'number' && live.high > 0 ? live.high : live.price,
+              low: typeof live.low === 'number' && live.low > 0 ? live.low : live.price,
+              isUp: changeVal >= 0
+            };
+          })
+        );
+      } catch {
+        // ignore transient network error
+      }
+    };
+
+    fetchLiveQuotes();
+
+    const intervalId = setInterval(fetchLiveQuotes, 60000);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchLiveQuotes();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   const handleToggleMute = () => {
     const next = !isMuted;

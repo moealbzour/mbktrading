@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
 import { MarketSymbol } from '../../types/trading';
 import { Lightbulb, ExternalLink, User, Clock, Radio, Sparkles } from 'lucide-react';
 
@@ -14,7 +16,17 @@ interface TradingViewIdea {
   author: string;
   link: string;
   pubDate: string;
+  symbolTag?: string;
 }
+
+const SYMBOL_KEYWORDS: Record<MarketSymbol, RegExp> = {
+  XAUUSD: /\b(gold|xau|xauusd|bullion|precious|fed|dollar|usd)\b|ذهب|الذهب|أونصة|الدولار|الفيدرالي/i,
+  US100: /\b(nasdaq|us100|ndx|nq|wall street|tech|s&p|stocks|equities|fed)\b|ناسداك|الأسهم|وول ستريت|تكنولوجيا/i,
+  EURUSD: /\b(eur|eurusd|euro|ecb|lagarde|dollar|usd|forex)\b|يورو|اليورو|المركزي الأوروبي/i,
+  GBPUSD: /\b(gbp|gbpusd|pound|sterling|boe|uk|dollar|usd)\b|إسترليني|الجنيه|بنك إنجلترا|بريطانيا/i,
+  WTI: /\b(oil|wti|crude|brent|opec|energy)\b|نفط|النفط|خام|أوبك|الطاقة/i,
+  BTCUSD: /\b(btc|btcusd|bitcoin|crypto|ethereum|etf)\b|بيتكوين|البيتكوين|عملات رقمية|كريبتو/i
+};
 
 export const TradingIdeasFeed: React.FC<TradingIdeasFeedProps> = ({ symbol, lang = 'ar' }) => {
   const isAr = lang === 'ar';
@@ -25,27 +37,119 @@ export const TradingIdeasFeed: React.FC<TradingIdeasFeedProps> = ({ symbol, lang
     let isMounted = true;
     setIsLoading(true);
 
-    fetch(`/api/ideas/${symbol}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (isMounted && data.success && Array.isArray(data.ideas)) {
-          setIdeas(data.ideas);
+    const loadRealIdeasAndAnalysis = async () => {
+      const collected: TradingViewIdea[] = [];
+      const seenLinksOrTitles = new Set<string>();
+
+      // 1. Load real analyst posts from Firestore market_ideas (if any)
+      try {
+        const q = query(
+          collection(db, 'market_ideas'),
+          orderBy('timestampMs', 'desc'),
+          limit(12)
+        );
+        const snap = await getDocs(q);
+        snap.forEach((docSnap) => {
+          const d = docSnap.data();
+          if (!d) return;
+          const docSym = String(d.symbol || '').toUpperCase();
+          if (symbol && docSym && docSym !== 'ALL' && !docSym.includes(symbol) && !symbol.includes(docSym)) {
+            return;
+          }
+          const title = String(d.titleEn || d.title || d.titleAr || '').trim();
+          const titleAr = String(d.titleAr || d.title || d.titleEn || '').trim();
+          if (!title && !titleAr) return;
+
+          const key = (title || titleAr).toLowerCase();
+          if (seenLinksOrTitles.has(key)) return;
+          seenLinksOrTitles.add(key);
+
+          collected.push({
+            id: `fs-idea-${docSnap.id}`,
+            title: title || titleAr,
+            titleAr: titleAr || title,
+            author: String(d.author || d.authorName || 'MBK Analyst'),
+            link: String(
+              d.link ||
+                d.chartUrl ||
+                `https://www.tradingview.com/symbols/${symbol}/ideas/`
+            ),
+            pubDate: String(d.createdAt || d.pubDate || new Date().toISOString()),
+            symbolTag: docSym || symbol
+          });
+        });
+      } catch {
+        // Ignore if market_ideas collection is empty or not accessible
+      }
+
+      // 2. Supplement with real live analysis articles from /api/market/news?lang=${lang}&type=analysis
+      try {
+        const res = await fetch(
+          `/api/market/news?lang=${encodeURIComponent(lang)}&type=analysis`,
+          {
+            method: 'GET',
+            headers: { Accept: 'application/json' }
+          }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          const rawItems = Array.isArray(data?.items) ? data.items : [];
+          const matcher = SYMBOL_KEYWORDS[symbol];
+
+          const symbolMatched: TradingViewIdea[] = [];
+          const generalMacro: TradingViewIdea[] = [];
+
+          for (let i = 0; i < rawItems.length; i++) {
+            const item = rawItems[i];
+            if (!item || typeof item !== 'object') continue;
+            const title = String(item.title || '').trim();
+            const link = String(item.link || '').trim();
+            if (!title || !link) continue;
+
+            const dedupeKey = link.toLowerCase() || title.toLowerCase();
+            if (seenLinksOrTitles.has(dedupeKey)) continue;
+            seenLinksOrTitles.add(dedupeKey);
+
+            const entry: TradingViewIdea = {
+              id: String(item.id || `analysis-${i}`),
+              title,
+              titleAr: title,
+              author: String(item.source || (isAr ? 'تحليلات الأسواق' : 'Market Analysis')),
+              link,
+              pubDate: String(item.pubDate || new Date().toISOString())
+            };
+
+            if (matcher && matcher.test(title)) {
+              symbolMatched.push(entry);
+            } else {
+              generalMacro.push(entry);
+            }
+          }
+
+          collected.push(...symbolMatched, ...generalMacro);
         }
-      })
-      .catch((err) => console.error('[TradingIdeasFeed] Error fetching ideas:', err))
-      .finally(() => {
-        if (isMounted) setIsLoading(false);
-      });
+      } catch (err) {
+        console.warn('[TradingIdeasFeed] Analysis feed fetch notice:', err);
+      }
+
+      if (isMounted) {
+        setIdeas(collected.slice(0, 12));
+        setIsLoading(false);
+      }
+    };
+
+    loadRealIdeasAndAnalysis();
 
     return () => {
       isMounted = false;
     };
-  }, [symbol]);
+  }, [symbol, lang, isAr]);
 
   const formatTimeAgo = (pubDate: string) => {
     try {
       const date = new Date(pubDate);
       const diffMs = Date.now() - date.getTime();
+      if (Number.isNaN(diffMs) || diffMs < 0) return isAr ? 'مباشر' : 'Live';
       const mins = Math.floor(diffMs / (1000 * 60));
       if (mins < 2) return isAr ? 'الآن' : 'Just now';
       if (mins < 60) return isAr ? `قبل ${mins} دقيقة` : `${mins}m ago`;
@@ -78,7 +182,7 @@ export const TradingIdeasFeed: React.FC<TradingIdeasFeedProps> = ({ symbol, lang
 
         <span className="text-[10px] font-mono text-[#787b86] flex items-center gap-1">
           <Radio className="w-2.5 h-2.5 text-[#089981] animate-ping" />
-          <span>{ideas.length} {isAr ? 'أفكار' : 'Ideas'}</span>
+          <span>{ideas.length} {isAr ? 'تحليلات' : 'Articles'}</span>
         </span>
       </div>
 
@@ -91,7 +195,7 @@ export const TradingIdeasFeed: React.FC<TradingIdeasFeedProps> = ({ symbol, lang
           </div>
         ) : ideas.length === 0 ? (
           <div className="py-4 text-center text-xs text-[#787b86]">
-            {isAr ? 'لا توجد أفكار تداول متاحة حالياً لهذا الرمز' : 'No community ideas available for this symbol right now'}
+            {isAr ? 'لا توجد تحليلات متاحة حالياً لهذا الرمز' : 'No market analysis available right now'}
           </div>
         ) : (
           ideas.map((item) => (

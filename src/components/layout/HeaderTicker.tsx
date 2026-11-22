@@ -32,7 +32,7 @@ export const HeaderTicker: React.FC<HeaderTickerProps> = ({
     script.innerHTML = JSON.stringify({
       symbols: [
         {
-          proName: 'NASDAQ:QQQ',
+          proName: 'CAPITALCOM:US100',
           title: 'US100'
         },
         {
@@ -40,8 +40,16 @@ export const HeaderTicker: React.FC<HeaderTickerProps> = ({
           title: isAr ? 'الذهب (XAUUSD)' : 'XAUUSD'
         },
         {
-          proName: 'OANDA:EURUSD',
+          proName: 'FX:EURUSD',
           title: 'EURUSD'
+        },
+        {
+          proName: 'FX:GBPUSD',
+          title: 'GBPUSD'
+        },
+        {
+          proName: 'TVC:USOIL',
+          title: 'WTI'
         },
         {
           proName: 'BINANCE:BTCUSDT',

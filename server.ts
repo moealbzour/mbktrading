@@ -15,6 +15,9 @@ import {
 import { getFirestore as getAdminFirestore, type Firestore as AdminFirestore } from 'firebase-admin/firestore';
 import { store } from './server/store.js';
 import { getSignalsFromFirestore, saveBotAlertToFirestore } from './server/firebaseDb.js';
+import marketNewsHandler from './api/market/news.js';
+import marketCalendarHandler from './api/market/calendar.js';
+import marketQuotesHandler from './api/market/quotes.js';
 
 dotenv.config();
 
@@ -74,49 +77,54 @@ try {
 }
 
 // ==========================================
-// 2. TRADING IDEAS FEED (RSS + Local Store)
+// 1B. REAL SERVER-CACHED MARKET NEWS, ECONOMIC CALENDAR & QUOTES
+// ==========================================
+app.get('/api/market/news', (req, res) => marketNewsHandler(req, res));
+app.get('/api/market/calendar', (req, res) => marketCalendarHandler(req, res));
+app.get('/api/market/quotes', (req, res) => marketQuotesHandler(req, res));
+
+// ==========================================
+// 2. TRADING IDEAS FEED (Real Firestore market_ideas only — Zero Hardcoded Mock Setups)
 // ==========================================
 app.get(['/api/tradingview/ideas', '/api/ideas', '/api/ideas/:symbol'], async (req, res) => {
   try {
     const symbolParam = (req.params.symbol || (req.query.symbol as string)) || '';
     const cleanSym = symbolParam.toUpperCase();
-    const rows = cleanSym ? store.ideas.getBySymbol(cleanSym) : store.ideas.getAll();
+    const firestoreIdeas: any[] = [];
 
-    let rssIdeas: any[] = [];
-    try {
-      const tvRes = await fetch('https://api.rss2json.com/v1/api.json?rss_url=https://www.tradingview.com/feed/', {
-        signal: AbortSignal.timeout(4000)
-      });
-      if (tvRes.ok) {
-        const tvData = await tvRes.json();
-        if (tvData && tvData.status === 'ok' && Array.isArray(tvData.items)) {
-          rssIdeas = tvData.items.slice(0, 10).map((item: any, idx: number) => ({
-            id: `tv-idea-rss-${idx}`,
-            title: item.title,
-            titleAr: item.title,
-            author: item.author || 'TradingView Analyst',
-            link: item.link || item.guid || 'https://www.tradingview.com/ideas/',
-            pubDate: item.pubDate || new Date().toISOString()
-          }));
-        }
+    if (adminDb) {
+      try {
+        const snap = await adminDb
+          .collection('market_ideas')
+          .orderBy('timestampMs', 'desc')
+          .limit(15)
+          .get();
+
+        snap.forEach((docSnap) => {
+          const d = docSnap.data();
+          if (!d) return;
+          const docSym = String(d.symbol || '').toUpperCase();
+          if (cleanSym && docSym && !docSym.includes(cleanSym) && !cleanSym.includes(docSym)) {
+            return;
+          }
+          firestoreIdeas.push({
+            id: docSnap.id,
+            title: String(d.titleEn || d.title || d.titleAr || '').trim(),
+            titleAr: String(d.titleAr || d.title || d.titleEn || '').trim(),
+            author: String(d.author || d.authorName || 'MBK Analyst'),
+            link: String(d.link || d.chartUrl || `https://www.tradingview.com/symbols/${docSym || 'XAUUSD'}/ideas/`),
+            pubDate: String(d.createdAt || d.pubDate || new Date().toISOString())
+          });
+        });
+      } catch {
+        // ignore adminDb query fallback
       }
-    } catch {
-      // ignore RSS timeout
     }
-
-    const storeIdeas = rows.map((r) => ({
-      id: r.id,
-      title: r.title_en || r.title_ar,
-      titleAr: r.title_ar,
-      author: r.author || 'MBK Research',
-      link: `https://www.tradingview.com/symbols/${r.symbol}/ideas/`,
-      pubDate: r.created_at
-    }));
 
     return res.json({
       success: true,
       symbol: cleanSym || 'ALL',
-      ideas: [...storeIdeas, ...rssIdeas]
+      ideas: firestoreIdeas
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });

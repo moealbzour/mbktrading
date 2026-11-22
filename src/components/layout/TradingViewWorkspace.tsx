@@ -954,6 +954,34 @@ export const TradingViewWorkspace: React.FC<Props> = ({
         </button>
       </div>
 
+      {/* 2c. FOLDED TICKER / NEWS QUICK-RESTORE SMALL ARROW (0px layout height) */}
+      {(!showPriceTicker || !showNewsBanner) && (
+        <div className="relative h-0 shrink-0 z-40">
+          <div className="absolute end-1.5 top-0 flex items-center gap-1">
+            {!showPriceTicker && (
+              <button
+                type="button"
+                onClick={togglePriceTicker}
+                className="p-0.5 rounded-b-[3px] bg-[#10141c]/95 hover:bg-[#161c26] text-[#8b95a5] hover:text-white border-x border-b border-[#2a3446] shadow-sm transition-colors cursor-pointer flex items-center justify-center"
+                title={isAr ? 'إظهار شريط الأسعار' : 'Restore price ticker'}
+              >
+                <ChevronDown className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {!showNewsBanner && (
+              <button
+                type="button"
+                onClick={toggleNewsBanner}
+                className="p-0.5 rounded-b-[3px] bg-[#10141c]/95 hover:bg-[#161c26] text-[#8b95a5] hover:text-white border-x border-b border-[#2a3446] shadow-sm transition-colors cursor-pointer flex items-center justify-center"
+                title={isAr ? 'إظهار شريط الأخبار' : 'Restore news banner'}
+              >
+                <ChevronDown className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* 3. MAIN WORKSPACE CANVAS (MAIN VIEWPORT + COMPANION DOCK) */}
       <div className="flex-1 min-h-0 flex overflow-hidden relative">
 

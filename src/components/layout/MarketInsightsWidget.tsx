@@ -19,25 +19,25 @@ interface MarketInsightsWidgetProps {
 
 // Broker-prefixed symbols for TradingView widgets
 const TRADINGVIEW_TICKERS: Record<MarketSymbol, string> = {
-  US100: 'NASDAQ:QQQ',
+  US100: 'CAPITALCOM:US100',
   XAUUSD: 'OANDA:XAUUSD',
-  EURUSD: 'OANDA:EURUSD',
+  EURUSD: 'FX:EURUSD',
   BTCUSD: 'BINANCE:BTCUSDT',
   WTI: 'TVC:USOIL',
-  GBPUSD: 'OANDA:GBPUSD'
+  GBPUSD: 'FX:GBPUSD'
 };
 
 const getTVSymbol = (sym: MarketSymbol | string): string => {
-  if (!sym) return 'NASDAQ:QQQ';
+  if (!sym) return 'CAPITALCOM:US100';
   const clean = String(sym).toUpperCase().trim();
-  if (clean === 'US100' || clean.includes('US100') || clean.includes('NAS100') || clean.includes('NDX') || clean.includes('QQQ')) {
-    return 'NASDAQ:QQQ';
+  if (clean === 'US100' || clean.includes('US100') || clean.includes('NAS100') || clean.includes('NDX')) {
+    return 'CAPITALCOM:US100';
   }
   if (clean === 'XAUUSD' || clean.includes('XAU') || clean.includes('GOLD')) {
     return 'OANDA:XAUUSD';
   }
   if (clean === 'EURUSD' || clean.includes('EURUSD')) {
-    return 'OANDA:EURUSD';
+    return 'FX:EURUSD';
   }
   if (clean === 'BTCUSD' || clean.includes('BTC')) {
     return 'BINANCE:BTCUSDT';
@@ -46,9 +46,9 @@ const getTVSymbol = (sym: MarketSymbol | string): string => {
     return 'TVC:USOIL';
   }
   if (clean === 'GBPUSD' || clean.includes('GBP')) {
-    return 'OANDA:GBPUSD';
+    return 'FX:GBPUSD';
   }
-  return TRADINGVIEW_TICKERS[clean as MarketSymbol] || clean || 'NASDAQ:QQQ';
+  return TRADINGVIEW_TICKERS[clean as MarketSymbol] || clean || 'CAPITALCOM:US100';
 };
 
 // Subcomponent for TradingView Symbol Info Widget with Dynamic Injection

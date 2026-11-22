@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import { getDmConversationId } from './directMessageService';
+import { enrichMacroEvent } from '../utils/macroArabicTranslator';
 
 export type AnnouncementType = 'offer' | 'news' | 'event' | 'update';
 export type TargetAudienceSegment = 'all' | 'free' | 'vip' | 'elite' | 'expiring_soon';
@@ -38,150 +39,241 @@ export interface AdminAnnouncement {
 
 export interface MacroEconomicEvent {
   id: string;
-  code: 'CPI' | 'FOMC' | 'NFP' | 'PCE' | 'PPI' | 'CLAIMS' | 'GDP' | 'RETAIL' | 'ECB';
+  code: string;
   titleAr: string;
   titleEn: string;
   descriptionAr: string;
   descriptionEn: string;
-  currency: 'USD' | 'EUR' | 'GBP';
-  impact: 'HIGH' | 'MEDIUM';
+  summaryAr: string;
+  summaryEn: string;
+  goldNasdaqImpactAr: string;
+  goldNasdaqImpactEn: string;
+  currency: string;
+  countryCode: string;
+  impact: 'HIGH' | 'MEDIUM' | 'LOW';
+  rawImpact: 'High' | 'Medium' | 'Low';
+  actual: string;
   forecast: string;
   previous: string;
+  revisedPrevious: string;
+  unit: string;
   releaseTimeMs: number;
+  dateIso: string;
   affectedPairs: string[];
+  affectedAssets: string[];
+}
+
+interface RawCalendarApiEvent {
+  id: string;
+  title: string;
+  currency: string;
+  countryCode?: string;
+  impact: 'High' | 'Medium' | 'Low';
+  timestampMs: number;
+  dateIso: string;
+  actual?: string;
+  forecast?: string;
+  previous?: string;
+  revisedPrevious?: string;
+  unit?: string;
+}
+
+const CLIENT_CALENDAR_CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes in-memory client cache
+const PRIORITY_CURRENCIES = ['USD', 'EUR', 'GBP', 'CAD'];
+
+let cachedAllCalendarEvents: MacroEconomicEvent[] = [];
+let lastCalendarFetchAtMs = 0;
+let calendarInFlightPromise: Promise<MacroEconomicEvent[]> | null = null;
+const macroEventSubscribers = new Set<(events: MacroEconomicEvent[]) => void>();
+const fullCalendarSubscribers = new Set<(events: MacroEconomicEvent[]) => void>();
+
+function mapRawApiEventToMacroEvent(raw: RawCalendarApiEvent): MacroEconomicEvent {
+  const currency = (raw.currency || 'USD').toUpperCase();
+  const countryCode = (raw.countryCode || currency.slice(0, 2)).toUpperCase();
+  const rawImpact: 'High' | 'Medium' | 'Low' =
+    raw.impact === 'High' ? 'High' : raw.impact === 'Medium' ? 'Medium' : 'Low';
+  const impact: 'HIGH' | 'MEDIUM' | 'LOW' =
+    rawImpact === 'High' ? 'HIGH' : rawImpact === 'Medium' ? 'MEDIUM' : 'LOW';
+
+  const enriched = enrichMacroEvent({
+    title: raw.title,
+    currency,
+    impact: rawImpact
+  });
+
+  const actual = raw.actual ? String(raw.actual).trim() : '';
+  const forecast = raw.forecast ? String(raw.forecast).trim() : '—';
+  const previous = raw.previous ? String(raw.previous).trim() : '—';
+  const revisedPrevious = raw.revisedPrevious ? String(raw.revisedPrevious).trim() : '';
+  const unit = raw.unit ? String(raw.unit).trim() : '';
+
+  return {
+    id: raw.id,
+    code: enriched.code,
+    titleAr: enriched.titleAr,
+    titleEn: enriched.titleEn,
+    descriptionAr: enriched.goldNasdaqImpactAr,
+    descriptionEn: enriched.goldNasdaqImpactEn,
+    summaryAr: enriched.summaryAr,
+    summaryEn: enriched.summaryEn,
+    goldNasdaqImpactAr: enriched.goldNasdaqImpactAr,
+    goldNasdaqImpactEn: enriched.goldNasdaqImpactEn,
+    currency,
+    countryCode,
+    impact,
+    rawImpact,
+    actual,
+    forecast,
+    previous,
+    revisedPrevious,
+    unit,
+    releaseTimeMs: raw.timestampMs,
+    dateIso: raw.dateIso || new Date(raw.timestampMs).toISOString(),
+    affectedPairs: enriched.affectedAssets,
+    affectedAssets: enriched.affectedAssets
+  };
+}
+
+function filterFutureHighImpactEvents(
+  events: MacroEconomicEvent[],
+  nowMs: number = Date.now()
+): MacroEconomicEvent[] {
+  const futureHighOnly = events.filter(
+    (ev) => ev.impact === 'HIGH' && ev.releaseTimeMs > nowMs
+  );
+  const priorityMatches = futureHighOnly.filter((ev) =>
+    PRIORITY_CURRENCIES.includes(ev.currency.toUpperCase())
+  );
+  const others = futureHighOnly.filter(
+    (ev) => !PRIORITY_CURRENCIES.includes(ev.currency.toUpperCase())
+  );
+
+  priorityMatches.sort((a, b) => a.releaseTimeMs - b.releaseTimeMs);
+  others.sort((a, b) => a.releaseTimeMs - b.releaseTimeMs);
+
+  return [...priorityMatches, ...others];
+}
+
+function notifyMacroSubscribers() {
+  const highImpactFutureList = filterFutureHighImpactEvents(cachedAllCalendarEvents, Date.now());
+  macroEventSubscribers.forEach((cb) => {
+    try {
+      cb(highImpactFutureList);
+    } catch {
+      // ignore subscriber callback error
+    }
+  });
+  fullCalendarSubscribers.forEach((cb) => {
+    try {
+      cb(cachedAllCalendarEvents);
+    } catch {
+      // ignore subscriber callback error
+    }
+  });
 }
 
 /**
- * Generates realistic upcoming high-impact economic events anchored around today's UTC/NY session
- * so traders always see upcoming CPI, Federal Reserve (FOMC), NFP, PCE, Jobless Claims, etc.,
- * in both Arabic and English, with accurate countdown timers.
+ * Fetches the full 14-day + recent real economic calendar from /api/market/calendar
+ * and enriches every item with Arabic financial titles, summaries, and XAUUSD/US100 impact explanations.
  */
-export function getUpcomingMacroEvents(nowMs: number = Date.now()): MacroEconomicEvent[] {
-  const baseDate = new Date(nowMs);
-
-  // Helper to get next occurrence at 13:30 UTC (8:30 AM NY) or 19:00 UTC (2:00 PM NY for FOMC)
-  const getUpcomingSlotMs = (daysAhead: number, utcHour: number, utcMinute: number): number => {
-    const d = new Date(baseDate);
-    d.setUTCDate(d.getUTCDate() + daysAhead);
-    d.setUTCHours(utcHour, utcMinute, 0, 0);
-    if (d.getTime() <= nowMs - 15 * 60 * 1000) {
-      d.setUTCDate(d.getUTCDate() + 1);
-    }
-    return d.getTime();
-  };
-
-  // Next 55-minute slot if user triggered a local 1-hour simulation, otherwise scheduled slots
-  let simEventMs = 0;
-  if (typeof window !== 'undefined') {
-    const savedSim = localStorage.getItem('mbk_sim_macro_event_ms');
-    if (savedSim) {
-      const parsed = Number(savedSim);
-      if (parsed > nowMs) {
-        simEventMs = parsed;
-      }
-    }
+export async function fetchCalendarEvents(
+  forceRefresh: boolean = false
+): Promise<MacroEconomicEvent[]> {
+  const nowMs = Date.now();
+  if (
+    !forceRefresh &&
+    lastCalendarFetchAtMs > 0 &&
+    nowMs - lastCalendarFetchAtMs < CLIENT_CALENDAR_CACHE_TTL_MS &&
+    cachedAllCalendarEvents.length > 0
+  ) {
+    return cachedAllCalendarEvents;
   }
 
-  const events: MacroEconomicEvent[] = [
-    {
-      id: 'macro-cpi-usd',
-      code: 'CPI',
-      titleAr: 'مؤشر أسعار المستهلكين والتضخم الأمريكي (US CPI)',
-      titleEn: 'US Consumer Price Index (CPI Inflation)',
-      descriptionAr:
-        'أهم مؤشر لقياس التضخم في الولايات المتحدة وتحديد توجه الفيدرالي لأسعار الفائدة؛ يسبب حركة عنيفة على الذهب XAUUSD والناسداك US100.',
-      descriptionEn:
-        'Primary US inflation gauge driving Federal Reserve policy; causes high volatility across XAUUSD, US100, and USD pairs.',
-      currency: 'USD',
-      impact: 'HIGH',
-      forecast: '2.6%',
-      previous: '2.4%',
-      releaseTimeMs: simEventMs > nowMs ? simEventMs : getUpcomingSlotMs(0, 13, 30),
-      affectedPairs: ['XAUUSD', 'US100', 'EURUSD', 'BTCUSD']
-    },
-    {
-      id: 'macro-fomc-fed',
-      code: 'FOMC',
-      titleAr: 'قرار الفائدة الفيدرالية والمؤتمر الصحفي لجيروم باول (FOMC)',
-      titleEn: 'Federal Reserve (FOMC) Rate Decision & Powell Press Conference',
-      descriptionAr:
-        'قرار اللجنة الفيدرالية للسوق المفتوحة بشأن أسعار الفائدة الأمريكية يليه المؤتمر الصحفي لرئيس الفيدرالي جيروم باول.',
-      descriptionEn:
-        'Federal Open Market Committee interest rate announcement and monetary policy statement followed by Chair Powell press conference.',
-      currency: 'USD',
-      impact: 'HIGH',
-      forecast: '4.50%',
-      previous: '4.75%',
-      releaseTimeMs: getUpcomingSlotMs(1, 19, 0),
-      affectedPairs: ['US100', 'XAUUSD', 'BTCUSD', 'EURUSD']
-    },
-    {
-      id: 'macro-nfp-usd',
-      code: 'NFP',
-      titleAr: 'تقرير الوظائف غير الزراعية ومعدل البطالة الأمريكي (NFP)',
-      titleEn: 'US Non-Farm Payrolls (NFP) & Unemployment Rate',
-      descriptionAr:
-        'التقرير الشهري لوزارة العمل الأمريكية لقياس عدد الوظائف الجديدة ومعدل البطالة ومتوسط الأجور في الساعة.',
-      descriptionEn:
-        'Monthly US employment report measuring new non-farm jobs added, unemployment rate, and average hourly earnings.',
-      currency: 'USD',
-      impact: 'HIGH',
-      forecast: '185K',
-      previous: '227K',
-      releaseTimeMs: getUpcomingSlotMs(2, 13, 30),
-      affectedPairs: ['XAUUSD', 'US100', 'EURUSD', 'GBPUSD']
-    },
-    {
-      id: 'macro-claims-usd',
-      code: 'CLAIMS',
-      titleAr: 'معدلات الشكاوى من البطالة الأمريكية الأسبوعية (Jobless Claims)',
-      titleEn: 'US Initial Jobless Claims',
-      descriptionAr:
-        'عدد الأفراد الذين تقدموا بطلبات للحصول على إعانات البطالة لأول مرة خلال الأسبوع الماضي في الولايات المتحدة.',
-      descriptionEn:
-        'Weekly measure of the number of individuals filing for unemployment insurance for the first time in the US.',
-      currency: 'USD',
-      impact: 'HIGH',
-      forecast: '220K',
-      previous: '217K',
-      releaseTimeMs: getUpcomingSlotMs(0, 14, 30),
-      affectedPairs: ['US100', 'XAUUSD', 'EURUSD']
-    },
-    {
-      id: 'macro-pce-usd',
-      code: 'PCE',
-      titleAr: 'مؤشر نفقات الاستهلاك الشخصي الأساسي الفيدرالي (Core PCE)',
-      titleEn: 'US Core PCE Price Index (Fed Preferred Inflation Gauge)',
-      descriptionAr:
-        'المؤشر المفضل لدى البنك الاحتياطي الفيدرالي لقياس التضخم الأساسي واستهلاك الأفراد في الاقتصاد الأمريكي.',
-      descriptionEn:
-        'The Federal Reserve’s preferred measure of underlying core inflation and consumer spending trends.',
-      currency: 'USD',
-      impact: 'HIGH',
-      forecast: '2.8%',
-      previous: '2.7%',
-      releaseTimeMs: getUpcomingSlotMs(3, 13, 30),
-      affectedPairs: ['XAUUSD', 'US100', 'BTCUSD']
-    },
-    {
-      id: 'macro-ppi-usd',
-      code: 'PPI',
-      titleAr: 'مؤشر أسعار المنتجين الأمريكي (US PPI)',
-      titleEn: 'US Producer Price Index (PPI m/m)',
-      descriptionAr:
-        'يقيس التغير في أسعار السلع والخدمات المباعة من قبل المنتجين ويعتبر مؤشراً استباقياً لتضخم المستهلكين CPI.',
-      descriptionEn:
-        'Measures average changes in prices received by domestic producers for their output; leading indicator for CPI.',
-      currency: 'USD',
-      impact: 'HIGH',
-      forecast: '0.2%',
-      previous: '0.3%',
-      releaseTimeMs: getUpcomingSlotMs(4, 13, 30),
-      affectedPairs: ['XAUUSD', 'US100', 'EURUSD']
-    }
-  ];
+  if (calendarInFlightPromise) {
+    return calendarInFlightPromise;
+  }
 
-  return events.sort((a, b) => a.releaseTimeMs - b.releaseTimeMs);
+  calendarInFlightPromise = (async () => {
+    try {
+      const res = await fetch('/api/market/calendar', {
+        method: 'GET',
+        headers: { Accept: 'application/json' }
+      });
+      if (!res.ok) {
+        throw new Error(`Calendar API HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      const rawEvents: RawCalendarApiEvent[] = Array.isArray(data?.events) ? data.events : [];
+
+      const enrichedAll = rawEvents
+        .filter((ev) => ev && typeof ev.timestampMs === 'number' && ev.timestampMs > 0)
+        .map(mapRawApiEventToMacroEvent)
+        .sort((a, b) => a.releaseTimeMs - b.releaseTimeMs);
+
+      cachedAllCalendarEvents = enrichedAll;
+      lastCalendarFetchAtMs = Date.now();
+      notifyMacroSubscribers();
+      return cachedAllCalendarEvents;
+    } catch (err) {
+      console.warn('[MacroCalendar] Real calendar fetch notice:', err);
+      return cachedAllCalendarEvents;
+    } finally {
+      calendarInFlightPromise = null;
+    }
+  })();
+
+  return calendarInFlightPromise;
+}
+
+export async function fetchUpcomingMacroEvents(
+  forceRefresh: boolean = false
+): Promise<MacroEconomicEvent[]> {
+  const allEvents = await fetchCalendarEvents(forceRefresh);
+  return filterFutureHighImpactEvents(allEvents, Date.now());
+}
+
+export function subscribeToCalendarEvents(
+  onUpdate: (events: MacroEconomicEvent[]) => void
+): () => void {
+  fullCalendarSubscribers.add(onUpdate);
+  onUpdate(cachedAllCalendarEvents);
+  fetchCalendarEvents(false).catch(() => {});
+
+  return () => {
+    fullCalendarSubscribers.delete(onUpdate);
+  };
+}
+
+export function subscribeToUpcomingMacroEvents(
+  onUpdate: (events: MacroEconomicEvent[]) => void
+): () => void {
+  macroEventSubscribers.add(onUpdate);
+  onUpdate(filterFutureHighImpactEvents(cachedAllCalendarEvents, Date.now()));
+  fetchCalendarEvents(false).catch(() => {});
+
+  return () => {
+    macroEventSubscribers.delete(onUpdate);
+  };
+}
+
+/**
+ * Returns future High-impact economic events for the top radar cards and 1-hour pre-event popup.
+ */
+export function getUpcomingHighImpactEvents(nowMs: number = Date.now()): MacroEconomicEvent[] {
+  if (
+    typeof window !== 'undefined' &&
+    Date.now() - lastCalendarFetchAtMs >= CLIENT_CALENDAR_CACHE_TTL_MS
+  ) {
+    fetchCalendarEvents(false).catch(() => {});
+  }
+  return filterFutureHighImpactEvents(cachedAllCalendarEvents, nowMs);
+}
+
+/**
+ * Alias for getUpcomingHighImpactEvents to preserve compatibility across existing widgets.
+ */
+export function getUpcomingMacroEvents(nowMs: number = Date.now()): MacroEconomicEvent[] {
+  return getUpcomingHighImpactEvents(nowMs);
 }
 
 /**

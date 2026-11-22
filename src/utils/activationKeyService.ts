@@ -1,11 +1,9 @@
 import {
   doc,
-  getDoc,
-  setDoc,
   runTransaction,
   serverTimestamp
 } from 'firebase/firestore';
-import { db, legacyDb, auth } from '../lib/firebase';
+import { db, auth } from '../lib/firebase';
 import { FeatureKey } from './entitlements';
 
 export type KeyGrantTier = 'vip' | 'elite' | 'custom';
@@ -65,19 +63,6 @@ export async function redeemActivationKey(
   const resolvedEmail = userEmail || auth.currentUser.email || '';
   const keyRef = doc(db, 'activation_keys', cleanCode);
   const userRef = doc(db, 'users', currentUid);
-
-  // If the key was generated in the standby/legacy database before failover, migrate it seamlessly
-  try {
-    const primaryKeyCheck = await getDoc(keyRef);
-    if (!primaryKeyCheck.exists()) {
-      const legacyKeyCheck = await getDoc(doc(legacyDb, 'activation_keys', cleanCode));
-      if (legacyKeyCheck.exists()) {
-        await setDoc(keyRef, legacyKeyCheck.data());
-      }
-    }
-  } catch {
-    // ignore pre-check errors; transaction below will handle validation
-  }
 
   const result = await runTransaction(db, async (tx) => {
     const keySnap = await tx.get(keyRef);
@@ -242,29 +227,6 @@ export async function redeemActivationKey(
       grantFeatures
     };
   });
-
-  // Mirror key usage and updated user entitlements to standby database
-  try {
-    setDoc(
-      doc(legacyDb, 'activation_keys', cleanCode),
-      {
-        status: 'used',
-        usedByUserId: currentUid,
-        usedByUserEmail: resolvedEmail,
-        usedAt: new Date().toISOString()
-      },
-      { merge: true }
-    ).catch(() => {});
-    getDoc(userRef)
-      .then((snap) => {
-        if (snap.exists()) {
-          setDoc(doc(legacyDb, 'users', currentUid), snap.data(), { merge: true }).catch(() => {});
-        }
-      })
-      .catch(() => {});
-  } catch {
-    // ignore background mirror errors
-  }
 
   try {
     localStorage.removeItem('mbk_vip_access');

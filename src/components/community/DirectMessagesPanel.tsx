@@ -31,6 +31,7 @@ import {
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../../lib/firebase';
 import { soundManager } from '../../utils/audio';
+import { useSignalsContext } from '../../context/SignalsContext';
 
 export interface DmTargetUser {
   uid: string;
@@ -102,9 +103,17 @@ export const DirectMessagesPanel: React.FC<Props> = ({
   const isAr = lang === 'ar';
   const myUid = auth.currentUser?.uid || user.uid || user.id || '';
   const myDisplayName = (user.name || user.email?.split('@')[0] || 'MBK Trader').trim();
+  const isAdminUser = Boolean(
+    user.isAdmin ||
+      (user.role || '').toString().toUpperCase() === 'ADMIN' ||
+      auth.currentUser?.email?.toLowerCase() === 'moe.albzour@gmail.com'
+  );
 
+  const { dmConversations } = useSignalsContext();
   const [ownChatProfile, setOwnChatProfile] = useState<ChatProfile | null>(null);
-  const [conversations, setConversations] = useState<DmConversation[]>([]);
+  const [adminOversightMode, setAdminOversightMode] = useState<boolean>(false);
+  const [adminConversations, setAdminConversations] = useState<DmConversation[]>([]);
+  const conversations = isAdminUser && adminOversightMode ? adminConversations : dmConversations;
   const [selectedRecipientUid, setSelectedRecipientUid] = useState<string | null>(null);
   const [selectedFallbackRecipient, setSelectedFallbackRecipient] = useState<DmTargetUser | null>(null);
   const [selectedRecipientProfile, setSelectedRecipientProfile] = useState<ChatProfile | null>(null);
@@ -142,16 +151,26 @@ export const DirectMessagesPanel: React.FC<Props> = ({
     syncOwnChatProfile(user).catch(() => {});
   }, [myUid, user]);
 
-  // Subscribe ONLY to own DM privacy settings and own DM conversations (no global user directory)
+  // Subscribe to own DM privacy settings; non-admin users share dmConversations from SignalsContext (0 duplicate listeners)
   useEffect(() => {
     if (!myUid) return;
     const unsubOwn = subscribeToOwnChatProfile(myUid, setOwnChatProfile);
-    const unsubConvos = subscribeToDmConversations(myUid, setConversations);
     return () => {
       unsubOwn();
-      unsubConvos();
     };
   }, [myUid]);
+
+  // Separate limit(50) listener ONLY when an Admin explicitly toggles Admin Oversight mode
+  useEffect(() => {
+    if (!myUid || !isAdminUser || !adminOversightMode) {
+      setAdminConversations([]);
+      return;
+    }
+    const unsubAdminConvos = subscribeToDmConversations(myUid, setAdminConversations, true);
+    return () => {
+      unsubAdminConvos();
+    };
+  }, [myUid, isAdminUser, adminOversightMode]);
 
   // Handle jump-to-DM from PublicTradingChat or Admin CRM
   useEffect(() => {
@@ -403,33 +422,58 @@ export const DirectMessagesPanel: React.FC<Props> = ({
           </div>
         </div>
 
-        {/* Global Allow / Stop DM Switch */}
-        <button
-          type="button"
-          disabled={updatingPrivacy}
-          onClick={handleToggleGlobalDm}
-          className={`px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shrink-0 ${
-            myAllowDm
-              ? 'bg-[#089981]/15 border-[#089981]/40 text-[#089981] hover:bg-[#089981]/25'
-              : 'bg-rose-500/15 border-rose-500/40 text-rose-400 hover:bg-rose-500/25'
-          }`}
-          title={
-            isAr
-              ? 'تبديل استقبال الرسائل الخاصة'
-              : 'Toggle receiving direct messages'
-          }
-        >
-          {myAllowDm ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
-          <span>
-            {myAllowDm
-              ? isAr
-                ? 'استقبال الرسائل: مفتوح'
-                : 'DMs Open: ON'
-              : isAr
-              ? 'استقبال الرسائل: موقوف'
-              : 'DMs Blocked: OFF'}
-          </span>
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          {isAdminUser && (
+            <button
+              type="button"
+              onClick={() => {
+                soundManager.playClick();
+                setAdminOversightMode((prev) => !prev);
+              }}
+              className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+                adminOversightMode
+                  ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
+                  : 'bg-[#1e222d] border-[#2a2e39] text-[#787b86] hover:text-white'
+              }`}
+              title={
+                isAr
+                  ? 'وضع إشراف الإدارة (توسيع حد المحادثات إلى 50)'
+                  : 'Admin Oversight Mode (Expanded limit(50) conversations)'
+              }
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>{isAr ? 'إشراف الإدارة (50)' : 'Admin Mode (50)'}</span>
+            </button>
+          )}
+
+          {/* Global Allow / Stop DM Switch */}
+          <button
+            type="button"
+            disabled={updatingPrivacy}
+            onClick={handleToggleGlobalDm}
+            className={`px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shrink-0 ${
+              myAllowDm
+                ? 'bg-[#089981]/15 border-[#089981]/40 text-[#089981] hover:bg-[#089981]/25'
+                : 'bg-rose-500/15 border-rose-500/40 text-rose-400 hover:bg-rose-500/25'
+            }`}
+            title={
+              isAr
+                ? 'تبديل استقبال الرسائل الخاصة'
+                : 'Toggle receiving direct messages'
+            }
+          >
+            {myAllowDm ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+            <span>
+              {myAllowDm
+                ? isAr
+                  ? 'استقبال الرسائل: مفتوح'
+                  : 'DMs Open: ON'
+                : isAr
+                ? 'استقبال الرسائل: موقوف'
+                : 'DMs Blocked: OFF'}
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* Feedback Banner */}

@@ -49,7 +49,7 @@ import {
   Megaphone
 } from 'lucide-react';
 import { doc, setDoc, onSnapshot, collection, deleteDoc, writeBatch, serverTimestamp, getDocs, query, limit } from 'firebase/firestore';
-import { auth, db, legacyDb, getActiveDatabaseMode, setActiveDatabaseMode, ActiveDatabaseMode } from '../../lib/firebase';
+import { auth, db, getActiveDatabaseMode, setActiveDatabaseMode, ActiveDatabaseMode } from '../../lib/firebase';
 import { soundManager } from '../../utils/audio';
 import { formatKeyDurationLabel } from '../../utils/activationKeyService';
 import { subscribeToAuth } from '../../services/firebaseAuthService';

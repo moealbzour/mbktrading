@@ -20,9 +20,9 @@ import { dispatchMobileAppNotification } from '../../utils/mobileNotifications';
 import {
   AdminAnnouncement,
   MacroEconomicEvent,
-  getUpcomingMacroEvents,
   getUserRemainingSubscriptionDays,
-  subscribeToActiveAnnouncements
+  subscribeToActiveAnnouncements,
+  subscribeToUpcomingMacroEvents
 } from '../../services/macroEventsAndAnnouncementsService';
 
 interface Props {
@@ -45,10 +45,10 @@ export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
   const isAr = lang === 'ar';
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
   const [announcements, setAnnouncements] = useState<AdminAnnouncement[]>([]);
+  const [upcomingMacroEvents, setUpcomingMacroEvents] = useState<MacroEconomicEvent[]>([]);
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => new Set());
   const [notifiedIds, setNotifiedIds] = useState<Set<string>>(() => new Set());
   const [openedAppSession, setOpenedAppSession] = useState<boolean>(true);
-  const [simulatedEvent, setSimulatedEvent] = useState<MacroEconomicEvent | null>(null);
 
   // Tick every 15 seconds for live 1-hour countdown detection
   useEffect(() => {
@@ -58,63 +58,12 @@ export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
     return () => clearInterval(interval);
   }, []);
 
-  // Listen for custom Admin/Calendar test simulation of 1-hour CPI/Fed warning
+  // Subscribe to real upcoming High-Impact Macro Events from /api/market/calendar (15-min client cache)
   useEffect(() => {
-    const handleSimEvent = (e: Event) => {
-      const custom = e as CustomEvent<{ code?: 'CPI' | 'FOMC' | 'NFP' }>;
-      const code = custom.detail?.code || 'CPI';
-      const targetTime = Date.now() + 55 * 60 * 1000; // 55 minutes left (within 1 hour)
-      try {
-        localStorage.setItem('mbk_sim_macro_event_ms', String(targetTime));
-      } catch {
-        // ignore
-      }
-
-      const ev: MacroEconomicEvent =
-        code === 'FOMC'
-          ? {
-              id: `sim-fomc-${Date.now()}`,
-              code: 'FOMC',
-              titleAr: 'قرار الفائدة الفيدرالية والمؤتمر الصحفي لجيروم باول (FOMC)',
-              titleEn: 'Federal Reserve (FOMC) Interest Rate Decision & Press Conference',
-              descriptionAr:
-                'تحذير هام: أقل من ساعة واحدة متبقية على صدور قرار الفائدة الفيدرالية الأمريكية! يتوقع تقلبات عالية جداً على الذهب XAUUSD والناسداك US100 والدولار.',
-              descriptionEn:
-                'Important Warning: Less than 1 hour remaining until the Federal Reserve Rate Decision! Expect extreme volatility on XAUUSD, US100 & USD.',
-              currency: 'USD',
-              impact: 'HIGH',
-              forecast: '4.50%',
-              previous: '4.75%',
-              releaseTimeMs: targetTime,
-              affectedPairs: ['US100', 'XAUUSD', 'BTCUSD', 'EURUSD']
-            }
-          : {
-              id: `sim-cpi-${Date.now()}`,
-              code: 'CPI',
-              titleAr: 'بيانات التضخم ومؤشر أسعار المستهلكين الأمريكي (US CPI)',
-              titleEn: 'US Consumer Price Index (CPI Inflation Data)',
-              descriptionAr:
-                'تحذير هام: متبقي أقل من ساعة واحدة على صدور بيانات التضخم الأمريكية CPI! يرجى تأمين الصفقات المفتوحة وتفعيل وقف الخسارة.',
-              descriptionEn:
-                'Important Warning: Less than 1 hour until US CPI Inflation release! Secure open positions and manage your stop-loss levels.',
-              currency: 'USD',
-              impact: 'HIGH',
-              forecast: '2.6%',
-              previous: '2.4%',
-              releaseTimeMs: targetTime,
-              affectedPairs: ['XAUUSD', 'US100', 'EURUSD', 'BTCUSD']
-            };
-
-      setSimulatedEvent(ev);
-      setDismissedIds((prev) => {
-        const next = new Set(prev);
-        next.delete(ev.id);
-        return next;
-      });
-    };
-
-    window.addEventListener('mbk-trigger-macro-warning', handleSimEvent);
-    return () => window.removeEventListener('mbk-trigger-macro-warning', handleSimEvent);
+    const unsub = subscribeToUpcomingMacroEvents((events) => {
+      setUpcomingMacroEvents(events);
+    });
+    return () => unsub();
   }, []);
 
   // Subscribe to Firestore Admin Announcements
@@ -125,20 +74,16 @@ export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
     return () => unsub();
   }, []);
 
-  // Detect any upcoming High-Impact Macro Event within 1 hour (0 < remaining <= 60 min)
+  // Detect any real upcoming High-Impact Macro Event within 1 hour (0 < remaining <= 60 min)
   const upcomingWithinOneHourEvent = useMemo<MacroEconomicEvent | null>(() => {
-    if (simulatedEvent && simulatedEvent.releaseTimeMs > nowMs) {
-      return simulatedEvent;
-    }
-    const events = getUpcomingMacroEvents(nowMs);
-    for (const ev of events) {
+    for (const ev of upcomingMacroEvents) {
       const diffMs = ev.releaseTimeMs - nowMs;
       if (diffMs > 0 && diffMs <= 60 * 60 * 1000) {
         return ev;
       }
     }
     return null;
-  }, [nowMs, simulatedEvent]);
+  }, [nowMs, upcomingMacroEvents]);
 
   // Determine if user matches targetAudience of an Admin Announcement
   const userMatchesAudience = (audience: AdminAnnouncement['targetAudience']): boolean => {
@@ -251,16 +196,16 @@ export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
     >
       {/* 1. ONE-HOUR UPCOMING HIGH-IMPACT ECONOMIC EVENT POPUP (CPI / FED / NFP) */}
       {showMacroWarning && upcomingWithinOneHourEvent && (
-        <div className="bg-[#1e222d]/98 backdrop-blur-xl border-2 border-rose-500/70 rounded-2xl p-4 shadow-[0_14px_45px_rgba(242,54,69,0.35)] text-[#d1d4dc]">
+        <div className="bg-[#1e222d]/98 backdrop-blur-xl border-2 border-[#f23645]/80 rounded-xl p-4 shadow-[0_14px_45px_rgba(242,54,69,0.35)] text-[#d1d4dc]">
           <div className="flex items-start gap-3">
-            <div className="w-11 h-11 rounded-xl bg-rose-500/20 border border-rose-500/50 text-rose-400 flex items-center justify-center shrink-0">
-              <Flame className="w-6 h-6 animate-pulse" />
+            <div className="w-10 h-10 rounded-lg bg-[#f23645]/20 border border-[#f23645]/50 text-[#f23645] flex items-center justify-center shrink-0">
+              <Flame className="w-5 h-5 animate-pulse" />
             </div>
 
-            <div className="flex-1 min-w-0 space-y-1.5">
+            <div className="flex-1 min-w-0 space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="px-2 py-0.5 rounded-md bg-rose-600 text-white text-[10px] font-mono font-extrabold uppercase flex items-center gap-1 shadow-sm">
+                  <span className="px-2 py-0.5 rounded bg-[#f23645] text-white text-[10px] font-mono tabular-nums font-extrabold uppercase flex items-center gap-1 shadow-sm">
                     <Clock className="w-3 h-3" />
                     <span>
                       {isAr
@@ -274,7 +219,13 @@ export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
                           )}m LEFT`}
                     </span>
                   </span>
-                  <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-mono font-bold">
+                  <span className="px-2 py-0.5 rounded bg-[#131722] text-[#d1d4dc] border border-[#2a2e39] text-[10px] font-mono tabular-nums font-bold">
+                    {new Date(upcomingWithinOneHourEvent.releaseTimeMs).toLocaleTimeString(
+                      isAr ? 'ar-AE' : 'en-US',
+                      { hour: '2-digit', minute: '2-digit' }
+                    )}
+                  </span>
+                  <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-mono font-bold">
                     {upcomingWithinOneHourEvent.code} • {upcomingWithinOneHourEvent.currency}
                   </span>
                 </div>
@@ -293,24 +244,37 @@ export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
                 {isAr ? upcomingWithinOneHourEvent.titleAr : upcomingWithinOneHourEvent.titleEn}
               </h4>
 
-              <p className="text-[11px] text-[#b2b5be] leading-relaxed">
-                {isAr
-                  ? upcomingWithinOneHourEvent.descriptionAr
-                  : upcomingWithinOneHourEvent.descriptionEn}
-              </p>
+              <div className="p-2.5 rounded-lg bg-[#131722] border border-[#2a2e39] space-y-1">
+                <div className="text-[10px] font-bold text-[#089981]">
+                  {isAr
+                    ? '⚡ التأثير المتوقع على الذهب (XAUUSD) والناسداك (US100):'
+                    : '⚡ XAUUSD & US100 Trading Impact:'}
+                </div>
+                <p className="text-[11px] text-[#d1d4dc] leading-relaxed">
+                  {isAr
+                    ? upcomingWithinOneHourEvent.goldNasdaqImpactAr ||
+                      upcomingWithinOneHourEvent.descriptionAr
+                    : upcomingWithinOneHourEvent.goldNasdaqImpactEn ||
+                      upcomingWithinOneHourEvent.descriptionEn}
+                </p>
+              </div>
 
-              <div className="grid grid-cols-2 gap-2 pt-1 font-mono text-[10px]">
+              <div className="grid grid-cols-2 gap-2 font-mono tabular-nums text-[10px]">
                 <div className="px-2.5 py-1.5 rounded-lg bg-[#131722] border border-[#2a2e39] flex items-center justify-between">
                   <span className="text-[#787b86]">{isAr ? 'المتوقع:' : 'Forecast:'}</span>
-                  <span className="text-amber-400 font-bold">{upcomingWithinOneHourEvent.forecast}</span>
+                  <span className="text-amber-400 font-bold">
+                    {upcomingWithinOneHourEvent.forecast || '—'}
+                  </span>
                 </div>
                 <div className="px-2.5 py-1.5 rounded-lg bg-[#131722] border border-[#2a2e39] flex items-center justify-between">
                   <span className="text-[#787b86]">{isAr ? 'السابق:' : 'Previous:'}</span>
-                  <span className="text-white font-bold">{upcomingWithinOneHourEvent.previous}</span>
+                  <span className="text-white font-bold">
+                    {upcomingWithinOneHourEvent.previous || '—'}
+                  </span>
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2 pt-1.5">
+              <div className="flex flex-wrap items-center gap-2 pt-1">
                 {onNavigateToCalendar && (
                   <button
                     type="button"
@@ -319,7 +283,7 @@ export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
                       onNavigateToCalendar();
                       handleDismiss(upcomingWithinOneHourEvent.id);
                     }}
-                    className="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow"
+                    className="px-3.5 py-1.5 rounded-lg bg-[#2962FF] hover:bg-[#1E53E5] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow"
                   >
                     <Calendar className="w-3.5 h-3.5" />
                     <span>{isAr ? 'فتح التقويم الاقتصادي' : 'Open Economic Calendar'}</span>
@@ -328,7 +292,7 @@ export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
                 <button
                   type="button"
                   onClick={() => handleDismiss(upcomingWithinOneHourEvent.id)}
-                  className="px-3 py-1.5 rounded-xl bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-[#9db2c6] hover:text-white text-[11px] font-bold cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-[#9db2c6] hover:text-white text-[11px] font-bold cursor-pointer"
                 >
                   {isAr ? 'تم الاطلاع — تأمين الصفقات' : 'Got It'}
                 </button>

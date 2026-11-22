@@ -2,12 +2,15 @@ import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import { ThemeProvider } from './context/ThemeContext';
 import { SignalsProvider } from './context/SignalsContext';
+import { CommunityChatProvider } from './context/CommunityChatContext';
 import './index.css';
 
 createRoot(document.getElementById('root')!).render(
   <ThemeProvider>
     <SignalsProvider>
-      <App />
+      <CommunityChatProvider>
+        <App />
+      </CommunityChatProvider>
     </SignalsProvider>
   </ThemeProvider>
 );
