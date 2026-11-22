@@ -48,11 +48,11 @@ import {
   Radio,
   Megaphone
 } from 'lucide-react';
-import { onAuthStateChanged } from 'firebase/auth';
-import { doc, setDoc, onSnapshot, collection, updateDoc, deleteDoc, writeBatch, serverTimestamp, getDocs, query, limit } from 'firebase/firestore';
+import { doc, setDoc, onSnapshot, collection, deleteDoc, writeBatch, serverTimestamp, getDocs, query, limit } from 'firebase/firestore';
 import { auth, db, legacyDb, getActiveDatabaseMode, setActiveDatabaseMode, ActiveDatabaseMode } from '../../lib/firebase';
 import { soundManager } from '../../utils/audio';
 import { formatKeyDurationLabel } from '../../utils/activationKeyService';
+import { subscribeToAuth } from '../../services/firebaseAuthService';
 import {
   syncAllLegacyDataToDefaultDb,
   createFullBackupSnapshot,
@@ -162,6 +162,10 @@ interface Props {
   onClose?: () => void;
 }
 
+let hasMergedSecondaryAdminUsersOnce = false;
+let cachedSecondaryAdminUsers: AdminUserRecord[] = [];
+let hasFetchedActivationKeysThisSession = false;
+
 export const AdminDashboard: React.FC<Props> = ({
   currentRole = 'free',
   isAdmin = false,
@@ -178,41 +182,20 @@ export const AdminDashboard: React.FC<Props> = ({
   const [dbQuotaExceeded, setDbQuotaExceeded] = useState<boolean>(false);
   const [crmRetryTick, setCrmRetryTick] = useState<number>(0);
 
-  // Check logged-in user's role from Firestore 'users' collection
+  // Check logged-in user's role from shared singleton auth listener (0 extra Firestore reads)
   useEffect(() => {
-    const unsubAuth = onAuthStateChanged(auth, (authUser) => {
-      if (!authUser) {
+    const unsub = subscribeToAuth((profile) => {
+      if (!profile) {
         setFirestoreRole(null);
         return;
       }
-      if (authUser.email?.toLowerCase() === 'moe.albzour@gmail.com') {
+      if (profile.email?.toLowerCase() === 'moe.albzour@gmail.com' || profile.isAdmin) {
         setFirestoreRole('admin');
         return;
       }
-      try {
-        const userDocRef = doc(db, 'users', authUser.uid);
-        const unsubDoc = onSnapshot(
-          userDocRef,
-          (docSnap) => {
-            if (docSnap.exists()) {
-              const data = docSnap.data();
-              setFirestoreRole((data.role || 'free').toString().toLowerCase());
-            } else {
-              setFirestoreRole('free');
-            }
-          },
-          (err) => {
-            console.warn('Admin role Firestore check notice:', err);
-          }
-        );
-
-        return () => unsubDoc();
-      } catch (err) {
-        console.warn('Error setting up admin role listener:', err);
-      }
+      setFirestoreRole((profile.role || 'free').toString().toLowerCase());
     });
-
-    return () => unsubAuth();
+    return () => unsub();
   }, []);
 
   // Staff roles allowed to access dashboard: admin, moderator, sales, analyser
@@ -335,19 +318,15 @@ export const AdminDashboard: React.FC<Props> = ({
 
   useEffect(() => {
     if (!isStaff) return;
-    const unsubVer = onSnapshot(
-      doc(db, 'settings', 'app_version'),
-      (snap) => {
-        if (snap.exists()) {
-          setRemoteAppVersionInfo(snap.data() as any);
-        }
-      },
-      () => {
-        // ignore
+    try {
+      const cachedVer = localStorage.getItem('mbk_remote_app_version_info');
+      if (cachedVer) {
+        setRemoteAppVersionInfo(JSON.parse(cachedVer));
       }
-    );
-    return () => unsubVer();
-  }, [isStaff]);
+    } catch {
+      // ignore
+    }
+  }, [isStaff, activeTab]);
 
   const handlePushAppUpdateToAllUsers = async () => {
     if (!isFullAdmin || isPushingAppUpdate) return;
@@ -623,7 +602,7 @@ export const AdminDashboard: React.FC<Props> = ({
   }, [isFullAdmin]);
 
   useEffect(() => {
-    if (!isStaff) return;
+    if (!isStaff || activeTab !== 'settings') return;
     const unsubSettings = subscribeToPlatformSettings((settings) => {
       setSettingsWhatsapp(settings.whatsappNumber || '');
       setSettingsTelegram(settings.telegramUrl || '');
@@ -632,7 +611,7 @@ export const AdminDashboard: React.FC<Props> = ({
       setSettingsUpdatedBy(settings.updatedBy);
     });
     return () => unsubSettings();
-  }, [isStaff]);
+  }, [isStaff, activeTab]);
 
   const handleSavePlatformSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -665,54 +644,51 @@ export const AdminDashboard: React.FC<Props> = ({
     }
   };
 
-  // ================= REAL-TIME FIRESTORE ACTIVATION KEYS LISTENER (LAZY-LOADED ON KEYS TAB) =================
+  // ================= ON-DEMAND FIRESTORE ACTIVATION KEYS FETCH (0 BACKGROUND READS) =================
   useEffect(() => {
     if (!isStaff || activeTab !== 'keys') return;
-    try {
-      const keysQuery = query(collection(db, 'activation_keys'), limit(150));
-      const unsubKeys = onSnapshot(
-        keysQuery,
-        (snapshot) => {
-          const keysList: ActivationKeyRecord[] = [];
-          snapshot.forEach((docSnap) => {
-            const data = docSnap.data();
-            const days = Number(data.durationInDays || 30);
-            keysList.push({
-              id: docSnap.id,
-              code: data.code || docSnap.id,
-              durationInDays: days,
-              durationLabel: data.durationLabel || formatKeyDurationLabel(days),
-              keyType: data.keyType || (data.grantTier === 'elite' ? 'elite' : data.grantTier === 'custom' ? 'trial' : 'vip'),
-              grantTier: data.grantTier || 'vip',
-              grantFeatures: Array.isArray(data.grantFeatures) ? data.grantFeatures : [],
-              status: data.status || 'active',
-              createdAt: data.createdAt || '',
-              createdBy: data.createdBy || '',
-              usedByUserId: data.usedByUserId || '',
-              usedByUserEmail: data.usedByUserEmail || '',
-              usedAt: data.usedAt || ''
-            });
-          });
-          keysList.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-          setActivationKeys(keysList);
-          try {
-            localStorage.setItem('mbk_admin_cached_keys_v1', JSON.stringify(keysList));
-          } catch {
-            // ignore
-          }
-        },
-        (err: any) => {
-          const msg = String(err?.message || err || '').toLowerCase();
-          if (err?.code === 'resource-exhausted' || msg.includes('quota')) {
-            setDbQuotaExceeded(true);
-          }
-          console.warn('activation_keys snapshot warning:', err?.message || err);
-        }
-      );
-      return () => unsubKeys();
-    } catch (err) {
-      console.warn('activation_keys listener error:', err);
+    if (hasFetchedActivationKeysThisSession && activationKeys.length > 0 && crmRetryTick === 0) {
+      return;
     }
+    hasFetchedActivationKeysThisSession = true;
+    const keysQuery = query(collection(db, 'activation_keys'), limit(50));
+    getDocs(keysQuery)
+      .then((snapshot) => {
+        const keysList: ActivationKeyRecord[] = [];
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          const days = Number(data.durationInDays || 30);
+          keysList.push({
+            id: docSnap.id,
+            code: data.code || docSnap.id,
+            durationInDays: days,
+            durationLabel: data.durationLabel || formatKeyDurationLabel(days),
+            keyType: data.keyType || (data.grantTier === 'elite' ? 'elite' : data.grantTier === 'custom' ? 'trial' : 'vip'),
+            grantTier: data.grantTier || 'vip',
+            grantFeatures: Array.isArray(data.grantFeatures) ? data.grantFeatures : [],
+            status: data.status || 'active',
+            createdAt: data.createdAt || '',
+            createdBy: data.createdBy || '',
+            usedByUserId: data.usedByUserId || '',
+            usedByUserEmail: data.usedByUserEmail || '',
+            usedAt: data.usedAt || ''
+          });
+        });
+        keysList.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+        setActivationKeys(keysList);
+        try {
+          localStorage.setItem('mbk_admin_cached_keys_v1', JSON.stringify(keysList));
+        } catch {
+          // ignore
+        }
+      })
+      .catch((err: any) => {
+        const msg = String(err?.message || err || '').toLowerCase();
+        if (err?.code === 'resource-exhausted' || msg.includes('quota')) {
+          setDbQuotaExceeded(true);
+        }
+        console.warn('activation_keys fetch warning:', err?.message || err);
+      });
   }, [isStaff, activeTab, crmRetryTick]);
 
   const generateSecureRandomCode = (tag: string): string => {
@@ -785,6 +761,15 @@ export const AdminDashboard: React.FC<Props> = ({
 
       await batch.commit();
       setLastGeneratedBatch(generatedRecords);
+      setActivationKeys((prev) => {
+        const next = [...generatedRecords, ...prev];
+        try {
+          localStorage.setItem('mbk_admin_cached_keys_v1', JSON.stringify(next));
+        } catch {
+          // ignore
+        }
+        return next;
+      });
       soundManager.playProfitChime();
       showFeedback(
         'success',
@@ -867,6 +852,15 @@ export const AdminDashboard: React.FC<Props> = ({
 
       await batch.commit();
       setLastGeneratedTrialBatch(generatedRecords);
+      setActivationKeys((prev) => {
+        const next = [...generatedRecords, ...prev];
+        try {
+          localStorage.setItem('mbk_admin_cached_keys_v1', JSON.stringify(next));
+        } catch {
+          // ignore
+        }
+        return next;
+      });
       soundManager.playProfitChime();
       showFeedback(
         'success',
@@ -925,6 +919,15 @@ export const AdminDashboard: React.FC<Props> = ({
     soundManager.playClick();
     try {
       await deleteDoc(doc(db, 'activation_keys', code));
+      setActivationKeys((prev) => {
+        const next = prev.filter((k) => k.code !== code && k.id !== code);
+        try {
+          localStorage.setItem('mbk_admin_cached_keys_v1', JSON.stringify(next));
+        } catch {
+          // ignore
+        }
+        return next;
+      });
       showFeedback('success', isAr ? 'تم حذف المفتاح' : 'Key deleted');
     } catch (err: any) {
       showFeedback('error', err.message);
@@ -934,7 +937,18 @@ export const AdminDashboard: React.FC<Props> = ({
   const handleRevokeKey = async (code: string) => {
     soundManager.playClick();
     try {
-      await updateDoc(doc(db, 'activation_keys', code), { status: 'revoked' });
+      await setDoc(doc(db, 'activation_keys', code), { status: 'revoked' }, { merge: true });
+      setActivationKeys((prev) => {
+        const next: ActivationKeyRecord[] = prev.map((k) =>
+          k.code === code || k.id === code ? { ...k, status: 'revoked' as const } : k
+        );
+        try {
+          localStorage.setItem('mbk_admin_cached_keys_v1', JSON.stringify(next));
+        } catch {
+          // ignore
+        }
+        return next;
+      });
       showFeedback('success', isAr ? 'تم إلغاء تفعيل المفتاح' : 'Key revoked');
     } catch (err: any) {
       showFeedback('error', err.message);
@@ -951,6 +965,10 @@ export const AdminDashboard: React.FC<Props> = ({
   // ================= REAL-TIME FIRESTORE USER CRM LISTENER =================
   useEffect(() => {
     if (!isStaff) return;
+    if (activeTab !== 'users' && activeTab !== 'overview' && activeTab !== 'broadcasts') {
+      setUsersLoading(false);
+      return;
+    }
     setUsersLoading(true);
 
     try {
@@ -1065,7 +1083,7 @@ export const AdminDashboard: React.FC<Props> = ({
 
       let latestPrimaryUsers: AdminUserRecord[] = [];
 
-      const usersColRef = collection(db, 'users');
+      const usersColRef = query(collection(db, 'users'), limit(250));
       const unsub = onSnapshot(
         usersColRef,
         (snapshot) => {
@@ -1075,29 +1093,7 @@ export const AdminDashboard: React.FC<Props> = ({
           });
           latestPrimaryUsers = loadedUsers;
 
-          if (!secondaryFetched) {
-            secondaryFetched = true;
-            getDocs(query(collection(legacyDb, 'users'), limit(500)))
-              .then((secSnap) => {
-                const secList: AdminUserRecord[] = [];
-                secSnap.forEach((d) => {
-                  secList.push(mapDocToAdminUser(d.id, d.data()));
-                });
-                secondaryUsersList = secList;
-                const combined = deduplicateUsers(latestPrimaryUsers, secondaryUsersList);
-                setUsers(combined);
-                try {
-                  if (combined.length > 0) {
-                    localStorage.setItem('mbk_admin_cached_users_v1', JSON.stringify(combined));
-                  }
-                } catch {
-                  // ignore
-                }
-              })
-              .catch(() => {});
-          }
-
-          const mergedUsers = deduplicateUsers(latestPrimaryUsers, secondaryUsersList);
+          const mergedUsers = deduplicateUsers(latestPrimaryUsers, []);
 
           setUsers(mergedUsers);
           setDbQuotaExceeded(false);
@@ -1161,7 +1157,7 @@ export const AdminDashboard: React.FC<Props> = ({
       console.warn('CRM setup error:', err);
       setUsersLoading(false);
     }
-  }, [isStaff, crmRetryTick]);
+  }, [isStaff, activeTab, crmRetryTick]);
 
   // ================= EXPIRING SOON ALERTS COMPUTATION (Next 72 Hours) =================
   const expiringSoonUsers = users.filter((u) => {
@@ -1185,7 +1181,6 @@ export const AdminDashboard: React.FC<Props> = ({
     try {
       const userRef = doc(db, 'users', targetUser.id);
       await setDoc(userRef, { uid: targetUser.id, isBanned: nextBanned, updatedAt: serverTimestamp() }, { merge: true });
-      setDoc(doc(legacyDb, 'users', targetUser.id), { uid: targetUser.id, isBanned: nextBanned, updatedAt: serverTimestamp() }, { merge: true }).catch(() => {});
       setUsers((prev) => {
         const nextList = prev.map((u) => (u.id === targetUser.id ? { ...u, isBanned: nextBanned } : u));
         try {
@@ -1214,7 +1209,6 @@ export const AdminDashboard: React.FC<Props> = ({
     try {
       const userRef = doc(db, 'users', targetUser.id);
       await setDoc(userRef, { uid: targetUser.id, isMutedFromChat: nextMuted, updatedAt: serverTimestamp() }, { merge: true });
-      setDoc(doc(legacyDb, 'users', targetUser.id), { uid: targetUser.id, isMutedFromChat: nextMuted, updatedAt: serverTimestamp() }, { merge: true }).catch(() => {});
       setUsers((prev) => {
         const nextList = prev.map((u) => (u.id === targetUser.id ? { ...u, isMutedFromChat: nextMuted } : u));
         try {
@@ -1282,22 +1276,12 @@ export const AdminDashboard: React.FC<Props> = ({
         rolePayload.subscription_status = 'active';
       }
 
-      // Use setDoc with merge: true on both primary and standby databases so role never reverts
+      // Use setDoc with merge: true on primary database so role never reverts
       await setDoc(userRef, rolePayload, { merge: true });
-      setDoc(doc(legacyDb, 'users', targetUserId), rolePayload, { merge: true }).catch(() => {});
 
       // Also sync the user's role badge in chat_profiles so General Chat & DM Inbox reflect ADMIN/STAFF immediately
       await setDoc(
         doc(db, 'chat_profiles', targetUserId),
-        {
-          uid: targetUserId,
-          role: upperRole === 'ELITE' ? 'VIP' : upperRole,
-          updatedAt: new Date().toISOString()
-        },
-        { merge: true }
-      ).catch(() => {});
-      setDoc(
-        doc(legacyDb, 'chat_profiles', targetUserId),
         {
           uid: targetUserId,
           role: upperRole === 'ELITE' ? 'VIP' : upperRole,
@@ -1388,7 +1372,6 @@ export const AdminDashboard: React.FC<Props> = ({
       };
 
       await setDoc(doc(db, 'users', inspectUser.id), payload, { merge: true });
-      setDoc(doc(legacyDb, 'users', inspectUser.id), payload, { merge: true }).catch(() => {});
       setUsers((prev) => {
         const nextList = prev.map((u) =>
           u.id === inspectUser.id
@@ -1533,10 +1516,15 @@ export const AdminDashboard: React.FC<Props> = ({
         [featureKey]: expiryIso
       };
 
-      await updateDoc(doc(db, 'users', inspectUser.id), {
-        grantedFeatures: nextMap,
-        updatedAt: serverTimestamp()
-      });
+      await setDoc(
+        doc(db, 'users', inspectUser.id),
+        {
+          uid: inspectUser.id,
+          grantedFeatures: nextMap,
+          updatedAt: serverTimestamp()
+        },
+        { merge: true }
+      );
 
       setInspectUser((prev) => (prev ? { ...prev, grantedFeatures: nextMap } : null));
       soundManager.playProfitChime();
@@ -1561,10 +1549,15 @@ export const AdminDashboard: React.FC<Props> = ({
       const nextMap: Partial<Record<FeatureKey, string>> = { ...(inspectUser.grantedFeatures || {}) };
       delete nextMap[featureKey];
 
-      await updateDoc(doc(db, 'users', inspectUser.id), {
-        grantedFeatures: nextMap,
-        updatedAt: serverTimestamp()
-      });
+      await setDoc(
+        doc(db, 'users', inspectUser.id),
+        {
+          uid: inspectUser.id,
+          grantedFeatures: nextMap,
+          updatedAt: serverTimestamp()
+        },
+        { merge: true }
+      );
 
       setInspectUser((prev) => (prev ? { ...prev, grantedFeatures: nextMap } : null));
       soundManager.playProfitChime();
@@ -1605,7 +1598,8 @@ export const AdminDashboard: React.FC<Props> = ({
       const nextTotalPaid = (inspectUser.totalPaid || 0) + amountNum;
       const preserveElite = inspectUser.tier === 'elite' || Boolean(inspectUser.isElite);
 
-      await updateDoc(userRef, {
+      const paymentPayload = {
+        uid: inspectUser.id,
         totalPaid: nextTotalPaid,
         role: 'vip',
         tier: preserveElite ? 'elite' : 'vip',
@@ -1617,7 +1611,8 @@ export const AdminDashboard: React.FC<Props> = ({
         subscription_status: 'active',
         subscription_end_date: newEndDate,
         updatedAt: serverTimestamp()
-      });
+      };
+      await setDoc(userRef, paymentPayload, { merge: true });
 
       soundManager.playProfitChime();
       showFeedback(
@@ -1705,50 +1700,6 @@ export const AdminDashboard: React.FC<Props> = ({
               ? 'لوحة التحكم وإدارة العملاء مقتصرة فقط على رتب (ADMIN, MODERATOR, SALES, ANALYSER).'
               : 'This CRM Dashboard is strictly reserved for Admin, Moderator, Sales, and Analyser roles.'}
           </p>
-          {auth.currentUser && (
-            <button
-              onClick={async () => {
-                const curr = auth.currentUser;
-                if (!curr) return;
-                try {
-                  soundManager.playClick();
-                  await setDoc(
-                    doc(db, 'users', curr.uid),
-                    {
-                      uid: curr.uid,
-                      email: curr.email || '',
-                      displayName: curr.displayName || curr.email?.split('@')[0] || 'Admin',
-                      role: 'admin',
-                      tier: 'elite',
-                      isVip: true,
-                      vipAccess: true,
-                      isElite: true,
-                      subscription_status: 'active',
-                      updatedAt: serverTimestamp()
-                    },
-                    { merge: true }
-                  );
-                  await setDoc(
-                    doc(db, 'chat_profiles', curr.uid),
-                    {
-                      uid: curr.uid,
-                      displayName: curr.displayName || curr.email?.split('@')[0] || 'Admin',
-                      role: 'ADMIN',
-                      allowDirectMessages: true,
-                      updatedAt: new Date().toISOString()
-                    },
-                    { merge: true }
-                  ).catch(() => {});
-                  soundManager.playProfitChime();
-                } catch (e) {
-                  console.warn(e);
-                }
-              }}
-              className="w-full mb-3 py-3 px-4 rounded-xl bg-[#089981] hover:bg-[#089981]/90 text-white font-bold text-xs transition-colors cursor-pointer"
-            >
-              {isAr ? '👑 استعادة صلاحية الأدمن (ADMIN) لهذا الحساب المفتوح الآن' : '👑 Restore ADMIN Access for Current Account'}
-            </button>
-          )}
           {onClose && (
             <button
               onClick={onClose}

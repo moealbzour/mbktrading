@@ -13,7 +13,7 @@ import {
   updateDoc,
   where
 } from 'firebase/firestore';
-import { auth, db, legacyDb } from '../lib/firebase';
+import { auth, db } from '../lib/firebase';
 import { ChatProfile, DmConversation, DmMessage, UserProfile } from '../types/trading';
 
 const CACHED_CHAT_PROFILES_KEY = 'mbk_cached_chat_profiles_v1';
@@ -162,6 +162,7 @@ export function subscribeToOwnChatProfile(
   );
 }
 
+
 export function subscribeToChatDirectory(
   onChange: (profiles: ChatProfile[]) => void
 ): () => void {
@@ -169,9 +170,6 @@ export function subscribeToChatDirectory(
   if (initialCached.length > 0) {
     onChange(initialCached);
   }
-
-  let secondaryProfiles: ChatProfile[] = [];
-  let secondaryChecked = false;
 
   const mapDocToProfile = (docId: string, d: Record<string, any>): ChatProfile => ({
     uid: d.uid || docId,
@@ -215,27 +213,12 @@ export function subscribeToChatDirectory(
     return uniqueList;
   };
 
-  let latestPrimaryProfiles: ChatProfile[] = [];
-
   const q = query(collection(db, 'chat_profiles'), orderBy('displayName', 'asc'), limit(100));
   return onSnapshot(
     q,
     (snap) => {
-      latestPrimaryProfiles = snap.docs.map((docSnap) => mapDocToProfile(docSnap.id, docSnap.data()));
-
-      if (!secondaryChecked) {
-        secondaryChecked = true;
-        getDocs(query(collection(legacyDb, 'chat_profiles'), limit(100)))
-          .then((secSnap) => {
-            secondaryProfiles = secSnap.docs.map((d) => mapDocToProfile(d.id, d.data()));
-            const merged = deduplicateAndSortProfiles([...latestPrimaryProfiles, ...secondaryProfiles]);
-            writeCachedArray(CACHED_CHAT_PROFILES_KEY, merged);
-            onChange(merged);
-          })
-          .catch(() => {});
-      }
-
-      const uniqueList = deduplicateAndSortProfiles([...latestPrimaryProfiles, ...secondaryProfiles]);
+      const primaryProfiles = snap.docs.map((docSnap) => mapDocToProfile(docSnap.id, docSnap.data()));
+      const uniqueList = deduplicateAndSortProfiles(primaryProfiles);
       writeCachedArray(CACHED_CHAT_PROFILES_KEY, uniqueList);
       onChange(uniqueList);
     },
@@ -248,7 +231,8 @@ export function subscribeToChatDirectory(
 
 export function subscribeToDmConversations(
   uid: string,
-  onChange: (conversations: DmConversation[]) => void
+  onChange: (conversations: DmConversation[]) => void,
+  isAdmin: boolean = false
 ): () => void {
   if (!uid) {
     onChange([]);
@@ -273,51 +257,17 @@ export function subscribeToDmConversations(
     updatedAt: d.updatedAt
   });
 
-  const secondaryConvosMap = new Map<string, DmConversation>();
-  let latestPrimaryConvos: DmConversation[] = [];
-  let secondaryChecked = false;
-
-  const mergeConvos = (primaryList: DmConversation[]): DmConversation[] => {
-    const byId = new Map<string, DmConversation>();
-    primaryList.forEach((c) => byId.set(c.id, c));
-    secondaryConvosMap.forEach((secConvo, id) => {
-      const existing = byId.get(id);
-      if (!existing || secConvo.lastMessageAtMs > existing.lastMessageAtMs) {
-        byId.set(id, secConvo);
-      }
-    });
-    const combined = Array.from(byId.values());
-    combined.sort((a, b) => b.lastMessageAtMs - a.lastMessageAtMs);
-    return combined;
-  };
-
-  const q = query(collection(db, 'dm_conversations'), where('participants', 'array-contains', uid));
+  const capLimit = isAdmin ? 50 : 30;
+  const q = query(
+    collection(db, 'dm_conversations'),
+    where('participants', 'array-contains', uid),
+    limit(capLimit)
+  );
   return onSnapshot(
     q,
     (snap) => {
-      latestPrimaryConvos = snap.docs.map((docSnap) => mapDocToConvo(docSnap.id, docSnap.data()));
-
-      if (!secondaryChecked) {
-        secondaryChecked = true;
-        getDocs(query(collection(legacyDb, 'dm_conversations'), where('participants', 'array-contains', uid)))
-          .then((secSnap) => {
-            const primaryById = new Map(latestPrimaryConvos.map((c) => [c.id, c]));
-            secSnap.docs.forEach((sDoc) => {
-              const convo = mapDocToConvo(sDoc.id, sDoc.data());
-              secondaryConvosMap.set(sDoc.id, convo);
-              const ex = primaryById.get(sDoc.id);
-              if (!ex || convo.lastMessageAtMs > ex.lastMessageAtMs) {
-                setDoc(doc(db, 'dm_conversations', sDoc.id), { id: sDoc.id, ...sDoc.data() }, { merge: true }).catch(() => {});
-              }
-            });
-            const merged = mergeConvos(latestPrimaryConvos);
-            writeCachedArray(cacheKey, merged);
-            onChange(merged);
-          })
-          .catch(() => {});
-      }
-
-      const list = mergeConvos(latestPrimaryConvos);
+      const list = snap.docs.map((docSnap) => mapDocToConvo(docSnap.id, docSnap.data()));
+      list.sort((a, b) => b.lastMessageAtMs - a.lastMessageAtMs);
       writeCachedArray(cacheKey, list);
       onChange(list);
     },
@@ -352,21 +302,6 @@ export function subscribeToDmMessages(
     createdAt: d.createdAt
   });
 
-  const secondaryMsgsMap = new Map<string, DmMessage>();
-  let latestPrimaryMsgs: DmMessage[] = [];
-  let secondaryChecked = false;
-
-  const mergeMsgs = (primaryList: DmMessage[]): DmMessage[] => {
-    const byId = new Map<string, DmMessage>();
-    primaryList.forEach((m) => byId.set(m.id, m));
-    secondaryMsgsMap.forEach((m, id) => {
-      if (!byId.has(id)) byId.set(id, m);
-    });
-    const combined = Array.from(byId.values());
-    combined.sort((a, b) => a.timestampMs - b.timestampMs);
-    return combined;
-  };
-
   const q = query(
     collection(db, 'dm_conversations', convoId, 'messages'),
     orderBy('timestampMs', 'asc'),
@@ -375,34 +310,9 @@ export function subscribeToDmMessages(
   return onSnapshot(
     q,
     (snap) => {
-      latestPrimaryMsgs = snap.docs.map((docSnap) => mapDocToMsg(docSnap.id, docSnap.data()));
-
-      if (!secondaryChecked) {
-        secondaryChecked = true;
-        getDocs(
-          query(
-            collection(legacyDb, 'dm_conversations', convoId, 'messages'),
-            orderBy('timestampMs', 'asc'),
-            limitToLast(60)
-          )
-        )
-          .then((secSnap) => {
-            const primaryIds = new Set(latestPrimaryMsgs.map((m) => m.id));
-            secSnap.docs.forEach((mDoc) => {
-              const msg = mapDocToMsg(mDoc.id, mDoc.data());
-              secondaryMsgsMap.set(mDoc.id, msg);
-              if (!primaryIds.has(mDoc.id)) {
-                setDoc(doc(db, 'dm_conversations', convoId, 'messages', mDoc.id), mDoc.data(), { merge: true }).catch(() => {});
-              }
-            });
-            const merged = mergeMsgs(latestPrimaryMsgs);
-            writeCachedArray(cacheKey, merged);
-            onChange(merged);
-          })
-          .catch(() => {});
-      }
-
-      const list = mergeMsgs(latestPrimaryMsgs);
+      const list = snap.docs
+        .map((docSnap) => mapDocToMsg(docSnap.id, docSnap.data()))
+        .sort((a, b) => a.timestampMs - b.timestampMs);
       writeCachedArray(cacheKey, list);
       onChange(list);
     },

@@ -22,15 +22,6 @@ self.addEventListener('activate', (event) => {
         )
       )
       .then(() => self.clients.claim())
-      .then(() =>
-        self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
-          clients.forEach((client) => {
-            if ('navigate' in client && client.url) {
-              client.navigate(client.url).catch(() => {});
-            }
-          });
-        })
-      )
   );
 });
 
@@ -51,9 +42,9 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Always network-first with no-cache for HTML navigation and JS/CSS bundles so laptop/mobile always get latest build
+  // Standard network-first fetch with cache fallback
   event.respondWith(
-    fetch(event.request, { cache: 'no-store' })
+    fetch(event.request)
       .then((response) => {
         if (response && response.status === 200 && response.type === 'basic') {
           const responseClone = response.clone();

@@ -20,7 +20,7 @@ import {
   onSnapshot,
   serverTimestamp
 } from 'firebase/firestore';
-import { auth, googleProvider, db, legacyDb } from '../lib/firebase';
+import { auth, googleProvider, db } from '../lib/firebase';
 import { UserProfile } from '../types/trading';
 import { redeemActivationKey } from '../utils/activationKeyService';
 
@@ -264,33 +264,6 @@ export async function fetchOrCreateUserRegistry(
       };
     }
 
-    // Check standby/secondary database (legacyDb) before creating a fresh free document
-    try {
-      const legacySnap = await getDoc(doc(legacyDb, 'users', user.uid));
-      if (legacySnap.exists()) {
-        const legacyData = legacySnap.data();
-        const migratedRole = isSuperAdmin ? 'admin' : (legacyData.role || fallbackRole);
-        await setDoc(
-          userDocRef,
-          {
-            ...legacyData,
-            uid: user.uid,
-            email: safeEmail || legacyData.email || '',
-            role: migratedRole,
-            updatedAt: serverTimestamp()
-          },
-          { merge: true }
-        );
-        return {
-          uid: user.uid,
-          email: safeEmail || legacyData.email || '',
-          role: migratedRole
-        };
-      }
-    } catch {
-      // ignore if standby db is unreachable
-    }
-
     const safeDisplayName = (user.displayName || safeEmail.split('@')[0] || 'Trader').slice(0, 100);
     const safePhone = (extraData?.phone || '').slice(0, 40);
     const safeCountry = (extraData?.country || '').slice(0, 80);
@@ -332,7 +305,6 @@ export async function fetchOrCreateUserRegistry(
     };
 
     await setDoc(userDocRef, newRegistryDoc);
-    setDoc(doc(legacyDb, 'users', user.uid), newRegistryDoc, { merge: true }).catch(() => {});
   } catch (err) {
     console.warn('[Firebase Auth] fetchOrCreateUserRegistry fallback (quota/offline):', err);
   }
@@ -831,20 +803,33 @@ export async function signOutUser(): Promise<void> {
   await signOut(auth);
 }
 
-/**
- * Subscribe to live Firebase Auth user state + real-time Firestore user profile snapshot
- */
-export function subscribeToAuth(onUserChange: (user: UserProfile | null) => void): () => void {
-  let unsubDoc: (() => void) | null = null;
+const authSubscribers = new Set<(user: UserProfile | null) => void>();
+let latestAuthUserProfile: UserProfile | null | undefined = undefined;
+let sharedUnsubAuth: (() => void) | null = null;
+let sharedUnsubDoc: (() => void) | null = null;
 
-  const unsubAuth = onAuthStateChanged(auth, async (firebaseUser) => {
-    if (unsubDoc) {
-      unsubDoc();
-      unsubDoc = null;
+function broadcastAuthProfile(profile: UserProfile | null): void {
+  latestAuthUserProfile = profile;
+  authSubscribers.forEach((cb) => {
+    try {
+      cb(profile);
+    } catch {
+      // ignore subscriber callback error
+    }
+  });
+}
+
+function ensureSharedAuthListener(): void {
+  if (sharedUnsubAuth) return;
+
+  sharedUnsubAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+    if (sharedUnsubDoc) {
+      sharedUnsubDoc();
+      sharedUnsubDoc = null;
     }
 
     if (!firebaseUser) {
-      onUserChange(null);
+      broadcastAuthProfile(null);
       return;
     }
 
@@ -852,16 +837,17 @@ export function subscribeToAuth(onUserChange: (user: UserProfile | null) => void
       Boolean(firebaseUser.emailVerified) &&
       firebaseUser.email?.toLowerCase() === SUPER_ADMIN_EMAIL;
 
-    // Immediately emit super-admin or cached profile so UI never stalls or loses admin access on quota limits
     if (isSuperAdmin) {
-      onUserChange(mapUserDocToProfile(firebaseUser, { role: 'admin', tier: 'elite', isVip: true, isElite: true }));
+      broadcastAuthProfile(
+        mapUserDocToProfile(firebaseUser, { role: 'admin', tier: 'elite', isVip: true, isElite: true })
+      );
     } else {
       try {
         const cachedRaw = localStorage.getItem('mbk_user');
         if (cachedRaw) {
           const cachedUser = JSON.parse(cachedRaw);
           if (cachedUser && cachedUser.id === firebaseUser.uid) {
-            onUserChange(cachedUser);
+            broadcastAuthProfile(cachedUser);
           }
         }
       } catch {
@@ -880,7 +866,7 @@ export function subscribeToAuth(onUserChange: (user: UserProfile | null) => void
       return 1;
     };
 
-    unsubDoc = onSnapshot(
+    sharedUnsubDoc = onSnapshot(
       userDocRef,
       async (docSnap) => {
         let cachedProfile: any = null;
@@ -917,7 +903,9 @@ export function subscribeToAuth(onUserChange: (user: UserProfile | null) => void
               : undefined;
             await fetchOrCreateUserRegistry(firebaseUser, effectiveInitialRole, cachedExtra);
             if (roleWeight(effectiveInitialRole) > 1) {
-              const isStaffOrElite = ['admin', 'moderator', 'analyser', 'analyst', 'sales', 'elite'].includes(effectiveInitialRole);
+              const isStaffOrElite = ['admin', 'moderator', 'analyser', 'analyst', 'sales', 'elite'].includes(
+                effectiveInitialRole
+              );
               await updateDoc(userDocRef, {
                 role: effectiveInitialRole === 'elite' ? 'vip' : effectiveInitialRole,
                 tier: isStaffOrElite ? 'elite' : 'vip',
@@ -943,7 +931,9 @@ export function subscribeToAuth(onUserChange: (user: UserProfile | null) => void
               // ignore
             }
           } else if (roleWeight(cachedRoleLower) > roleWeight(data.role)) {
-            const isStaffOrElite = ['admin', 'moderator', 'analyser', 'analyst', 'sales', 'elite'].includes(cachedRoleLower);
+            const isStaffOrElite = ['admin', 'moderator', 'analyser', 'analyst', 'sales', 'elite'].includes(
+              cachedRoleLower
+            );
             try {
               await updateDoc(userDocRef, {
                 role: cachedRoleLower === 'elite' ? 'vip' : cachedRoleLower,
@@ -962,21 +952,9 @@ export function subscribeToAuth(onUserChange: (user: UserProfile | null) => void
             } catch {
               // ignore
             }
-          } else if (roleWeight(data.role) <= 1) {
-            // Check standby database (legacyDb) once if primary db shows free role, in case admin/VIP role exists there
-            getDoc(doc(legacyDb, 'users', firebaseUser.uid))
-              .then((legSnap) => {
-                if (legSnap.exists()) {
-                  const legData = legSnap.data();
-                  if (roleWeight(legData.role) > roleWeight(data.role)) {
-                    setDoc(userDocRef, { ...legData, uid: firebaseUser.uid }, { merge: true }).catch(() => {});
-                  }
-                }
-              })
-              .catch(() => {});
           }
         }
-        onUserChange(mapUserDocToProfile(firebaseUser, data));
+        broadcastAuthProfile(mapUserDocToProfile(firebaseUser, data));
       },
       (err) => {
         console.warn('Firestore user profile listener notice:', err?.message || err);
@@ -989,21 +967,48 @@ export function subscribeToAuth(onUserChange: (user: UserProfile | null) => void
                 cachedUser.role = 'ADMIN';
                 cachedUser.isAdmin = true;
               }
-              onUserChange(cachedUser);
+              broadcastAuthProfile(cachedUser);
               return;
             }
           }
         } catch {
           // ignore
         }
-        onUserChange(mapUserDocToProfile(firebaseUser, isSuperAdmin ? { role: 'admin' } : {}));
+        broadcastAuthProfile(mapUserDocToProfile(firebaseUser, isSuperAdmin ? { role: 'admin' } : {}));
       }
     );
   });
+}
+
+/**
+ * Subscribe to live Firebase Auth user state + real-time Firestore user profile snapshot
+ * Shared singleton across the entire application to eliminate duplicate users/{uid} listeners.
+ */
+export function subscribeToAuth(onUserChange: (user: UserProfile | null) => void): () => void {
+  authSubscribers.add(onUserChange);
+  ensureSharedAuthListener();
+
+  if (latestAuthUserProfile !== undefined) {
+    try {
+      onUserChange(latestAuthUserProfile);
+    } catch {
+      // ignore
+    }
+  }
 
   return () => {
-    if (unsubDoc) unsubDoc();
-    unsubAuth();
+    authSubscribers.delete(onUserChange);
+    if (authSubscribers.size === 0) {
+      if (sharedUnsubDoc) {
+        sharedUnsubDoc();
+        sharedUnsubDoc = null;
+      }
+      if (sharedUnsubAuth) {
+        sharedUnsubAuth();
+        sharedUnsubAuth = null;
+      }
+      latestAuthUserProfile = undefined;
+    }
   };
 }
 

@@ -17,7 +17,7 @@ import {
 import { soundManager } from '../../utils/audio';
 import confetti from 'canvas-confetti';
 import { MarketTicker, MarketSymbol, UserProfile } from '../../types/trading';
-import { collection, addDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, doc, deleteDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { auth, db, legacyDb } from '../../lib/firebase';
 import { useLiveSignals, ChannelSignalItem, BotAlertItem } from '../../hooks/useLiveSignals';
 import { hasFeatureAccess } from '../../utils/entitlements';
@@ -63,7 +63,7 @@ export const SignalsChannelHub: React.FC<Props> = ({
     }
   };
 
-  const { signals, botAlerts, loading, botAlertsLoading, addToast } = useLiveSignals();
+  const { signals, botAlerts, loading, botAlertsLoading, addToast, removeSignalLocally } = useLiveSignals();
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [pendingDeleteSignal, setPendingDeleteSignal] = useState<{
     id: string;
@@ -157,7 +157,8 @@ export const SignalsChannelHub: React.FC<Props> = ({
     setDeleteSignalError(null);
     try {
       markDocumentDeleted(cleanId);
-      await deleteDoc(doc(db, targetCollection, cleanId));
+      removeSignalLocally(cleanId);
+      await deleteDoc(doc(db, targetCollection, cleanId)).catch(() => {});
       const altCol = targetCollection === 'bot_alerts' ? 'signals' : 'bot_alerts';
       await deleteDoc(doc(db, altCol, cleanId)).catch(() => {});
       await deleteDoc(doc(legacyDb, targetCollection, cleanId)).catch(() => {});
@@ -225,8 +226,11 @@ export const SignalsChannelHub: React.FC<Props> = ({
         await updateDoc(doc(db, 'bot_alerts', cleanId), {
           text: editSigNotes
         });
+        updateDoc(doc(legacyDb, 'bot_alerts', cleanId), {
+          text: editSigNotes
+        }).catch(() => {});
       } else {
-        await updateDoc(doc(db, 'signals', cleanId), {
+        const updatePayload = {
           symbol: editSigSymbol,
           action: editSigAction,
           entryPrice: Number(editSigEntry || 0),
@@ -238,7 +242,9 @@ export const SignalsChannelHub: React.FC<Props> = ({
           instructionsAr: editSigNotes,
           instructionsEn: editSigNotes,
           textMsg: editSigNotes
-        });
+        };
+        await updateDoc(doc(db, 'signals', cleanId), updatePayload);
+        updateDoc(doc(legacyDb, 'signals', cleanId), updatePayload).catch(() => {});
       }
 
       soundManager.playProfitChime();
@@ -304,7 +310,8 @@ export const SignalsChannelHub: React.FC<Props> = ({
         createdAt: new Date().toISOString()
       };
 
-      await addDoc(collection(db, 'signals'), payload);
+      const docRef = await addDoc(collection(db, 'signals'), payload);
+      setDoc(doc(legacyDb, 'signals', docRef.id), payload).catch(() => {});
 
       soundManager.playProfitChime();
       confetti({ particleCount: 80, spread: 70 });
@@ -329,23 +336,23 @@ export const SignalsChannelHub: React.FC<Props> = ({
   const channelSignals = signals.filter((s) => s.channel === activeChannel).slice(0, 30);
 
   return (
-    <div className="space-y-4">
-      {/* 1. CHANNEL SELECTION BAR */}
-      <div className="bg-[#1e222d] border border-[#2a2e39] rounded-xl p-2 sm:p-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
-        <div className="flex items-center gap-1 bg-[#131722] p-1 rounded-lg border border-[#2a2e39] overflow-x-auto smooth-scroll-x">
+    <div className="space-y-3">
+      {/* 1. INSTITUTIONAL CHANNEL CONTROL HEADER */}
+      <div className="bg-[#10141c] border border-[#1e2633] rounded-[3px] px-3 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div className="flex items-center gap-0.5 bg-[#0a0d12] p-0.5 rounded-[3px] border border-[#1e2633] overflow-x-auto smooth-scroll-x">
           <button
             onClick={() => {
               soundManager.playClick();
               setActiveChannel('free');
             }}
-            className={`px-3 py-1.5 rounded-md text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-[2px] text-[11px] font-medium whitespace-nowrap transition-colors cursor-pointer flex items-center gap-2 ${
               activeChannel === 'free'
-                ? 'bg-white text-[#131722] font-bold shadow-sm'
-                : 'text-[#787b86] hover:text-[#d1d4dc]'
+                ? 'bg-[#1c2432] text-[#edf0f5] font-semibold border border-[#2a3446]'
+                : 'text-[#8492a6] hover:text-[#edf0f5]'
             }`}
           >
-            <span className="w-2 h-2 rounded-full bg-[#089981]" />
-            <span>{isAr ? 'التوصيات العامة' : 'Free Signals'}</span>
+            <span className="w-1.5 h-1.5 rounded-[1px] bg-[#10b981]" />
+            <span>{isAr ? 'التوصيات العامة' : 'Public Signals'}</span>
           </button>
 
           <button
@@ -353,15 +360,14 @@ export const SignalsChannelHub: React.FC<Props> = ({
               soundManager.playClick();
               setActiveChannel('vip');
             }}
-            className={`px-3 py-1.5 rounded-md text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-[2px] text-[11px] font-medium whitespace-nowrap transition-colors cursor-pointer flex items-center gap-1.5 ${
               activeChannel === 'vip'
-                ? 'bg-white text-[#131722] font-bold shadow-sm'
-                : 'text-[#787b86] hover:text-[#d1d4dc]'
+                ? 'bg-[#1c2432] text-[#edf0f5] font-semibold border border-[#2a3446]'
+                : 'text-[#8492a6] hover:text-[#edf0f5]'
             }`}
           >
-            <Crown className="w-3.5 h-3.5 text-amber-400" />
-            <span>{isAr ? 'توصيات VIP' : 'VIP Signals'}</span>
-            {!hasVipSignalsAccess && <Lock className="w-2.5 h-2.5 text-amber-400" />}
+            <span>{isAr ? 'توصيات VIP المؤسسية' : 'VIP Institutional'}</span>
+            {!hasVipSignalsAccess && <Lock className="w-2.5 h-2.5 text-[#8492a6]" />}
           </button>
 
           <button
@@ -369,25 +375,24 @@ export const SignalsChannelHub: React.FC<Props> = ({
               soundManager.playClick();
               setActiveChannel('bot');
             }}
-            className={`px-3 py-1.5 rounded-md text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-[2px] text-[11px] font-medium whitespace-nowrap transition-colors cursor-pointer flex items-center gap-1.5 ${
               activeChannel === 'bot'
-                ? 'bg-white text-[#131722] font-bold shadow-sm'
-                : 'text-[#787b86] hover:text-[#d1d4dc]'
+                ? 'bg-[#1c2432] text-[#edf0f5] font-semibold border border-[#2a3446]'
+                : 'text-[#8492a6] hover:text-[#edf0f5]'
             }`}
           >
-            <Bot className="w-3.5 h-3.5 text-[#089981]" />
-            <span>{isAr ? 'بوت MBK' : 'MBK Bot'}</span>
-            {!hasBotSignalsAccess && <Lock className="w-2.5 h-2.5 text-amber-400" />}
+            <span>{isAr ? 'البوت الخوارزمي MBK' : 'Automated Bot'}</span>
+            {!hasBotSignalsAccess && <Lock className="w-2.5 h-2.5 text-[#8492a6]" />}
           </button>
         </div>
 
         {/* Channel Status & Admin-only Publish Button */}
-        <div className="flex items-center justify-between sm:justify-end gap-2 text-xs">
-          <div className="flex items-center gap-1.5 text-[#787b86] font-mono text-[11px]">
-            <span className="w-2 h-2 rounded-full bg-[#089981] animate-pulse" />
+        <div className="flex items-center justify-between sm:justify-end gap-2.5 text-xs">
+          <div className="flex items-center gap-1.5 text-[#8492a6] font-mono text-[11px] px-2 py-1 bg-[#0a0d12] border border-[#1e2633] rounded-[3px]">
+            <span className="w-1.5 h-1.5 rounded-[1px] bg-[#10b981]" />
             <span>
               {activeChannel === 'bot' ? botAlerts.length : channelSignals.length}{' '}
-              {isAr ? 'نشط' : 'Live'}
+              {isAr ? 'نشط' : 'ACTIVE'}
             </span>
           </div>
 
@@ -397,49 +402,51 @@ export const SignalsChannelHub: React.FC<Props> = ({
                 soundManager.playClick();
                 setAdminPublishOpen(true);
               }}
-              className="px-2.5 py-1 rounded bg-[#2a2e39] hover:bg-[#363a45] text-[#d1d4dc] hover:text-white border border-[#363a45] text-xs font-medium transition-colors cursor-pointer flex items-center gap-1"
+              className="px-2.5 py-1 rounded-[3px] bg-[#161c26] hover:bg-[#1c2432] text-[#edf0f5] border border-[#2a3446] text-[11px] font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
               title={isAr ? 'نشر توصية جديدة للمشرف' : 'Admin publish signal'}
             >
-              <PlusCircle className="w-3.5 h-3.5 text-[#089981]" />
-              <span>{isAr ? 'نشر توصية' : 'Publish'}</span>
+              <PlusCircle className="w-3.5 h-3.5 text-[#10b981]" />
+              <span>{isAr ? 'نشر توصية' : 'Publish Order'}</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* 2. CHANNEL DESCRIPTION BANNER */}
-      <div className="p-3 rounded-lg bg-[#1e222d]/70 border border-[#2a2e39] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-        <div>
+      {/* 2. CHANNEL SPECIFICATION BAR */}
+      <div className="px-3 py-2 rounded-[3px] bg-[#10141c] border border-[#1e2633] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 bg-[#0a0d12] border border-[#1e2633] text-[#8492a6] rounded-[2px]">
+            {activeChannel === 'free' ? 'DESK · PUBLIC' : activeChannel === 'vip' ? 'DESK · VIP' : 'DESK · ALGO'}
+          </span>
           {activeChannel === 'free' ? (
-            <p className="text-[#d1d4dc]">
-              📢 <strong className="text-white">{isAr ? 'التوصيات العامة:' : 'Free Signals:'}</strong>{' '}
-              {isAr ? 'توصيات مجانية عامة' : 'Public daily signals'}
+            <p className="text-[#8492a6] text-[11px]">
+              <strong className="text-[#edf0f5] font-semibold">{isAr ? 'التوصيات العامة:' : 'Public Desk:'}</strong>{' '}
+              {isAr ? 'توصيات يومية مفتوحة لجميع المتداولين' : 'Standard daily order setups available to all accounts'}
             </p>
           ) : activeChannel === 'vip' ? (
-            <p className="text-[#d1d4dc]">
-              👑 <strong className="text-amber-400">{isAr ? 'توصيات VIP:' : 'VIP Signals:'}</strong>{' '}
-              {isAr ? 'توصيات مباشرة خاصة بمشتركي VIP' : 'Direct live VIP signals'}
+            <p className="text-[#8492a6] text-[11px]">
+              <strong className="text-[#edf0f5] font-semibold">{isAr ? 'توصيات VIP:' : 'VIP Desk:'}</strong>{' '}
+              {isAr ? 'صفقات السيولة المؤسسية المباشرة لمشتركي VIP' : 'High-conviction institutional setups with full Entry/SL/TP execution levels'}
             </p>
           ) : (
-            <p className="text-[#d1d4dc]">
-              ⚡ <strong className="text-[#089981]">{isAr ? 'بوت MBK:' : 'MBK Bot:'}</strong>{' '}
-              {isAr ? 'تنبيهات بوت MBK الفورية' : 'Live MBK Bot alerts'}
+            <p className="text-[#8492a6] text-[11px]">
+              <strong className="text-[#edf0f5] font-semibold">{isAr ? 'بوت MBK:' : 'Algorithmic Feed:'}</strong>{' '}
+              {isAr ? 'تدفق التنبيهات الخوارزمية الفورية' : 'Real-time automated webhook execution stream'}
             </p>
           )}
         </div>
 
         {((activeChannel === 'bot' && !hasBotSignalsAccess) || (activeChannel === 'vip' && !hasVipSignalsAccess)) && (
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             {onOpenPlansModal && (
               <button
                 onClick={() => {
                   soundManager.playClick();
                   onOpenPlansModal();
                 }}
-                className="px-3 py-1.5 rounded-lg bg-[#089981] hover:bg-[#07846f] text-white font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
+                className="px-2.5 py-1 rounded-[3px] bg-[#161c26] hover:bg-[#1c2432] text-[#edf0f5] border border-[#2a3446] font-semibold text-[11px] transition-colors flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
               >
-                <Crown className="w-3.5 h-3.5" />
-                <span>{isAr ? 'ترقية إلى VIP' : 'Upgrade to VIP'}</span>
+                <span>{isAr ? 'ترقية إلى VIP' : 'Upgrade Desk Access'}</span>
               </button>
             )}
             {onOpenPromoModal && (
@@ -448,10 +455,10 @@ export const SignalsChannelHub: React.FC<Props> = ({
                   soundManager.playClick();
                   onOpenPromoModal();
                 }}
-                className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-black font-bold text-xs shadow-sm hover:brightness-110 transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
+                className="px-2.5 py-1 rounded-[3px] bg-[#0a0d12] hover:bg-[#161c26] text-[#8492a6] hover:text-[#edf0f5] border border-[#1e2633] font-semibold text-[11px] transition-colors flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
               >
-                <KeyRound className="w-3.5 h-3.5" />
-                <span>{isAr ? 'تفعيل كود' : 'Redeem Key'}</span>
+                <KeyRound className="w-3 h-3" />
+                <span>{isAr ? 'تفعيل مفتاح' : 'Enter License Key'}</span>
               </button>
             )}
           </div>
@@ -461,97 +468,78 @@ export const SignalsChannelHub: React.FC<Props> = ({
       {/* 3. SIGNALS OR BOT FEED VIEW */}
       {activeChannel === 'bot' ? (
         !hasBotSignalsAccess ? (
-          <div className="space-y-4">
-            {/* Free Bot Trader Starter Tier Summary */}
-            <div className="bg-[#1e222d] border border-[#089981]/35 rounded-xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-2 text-xs font-bold text-[#089981]">
-                  <Bot className="w-4 h-4" />
-                  <span>{isAr ? 'بوت MBK' : 'MBK Bot'}</span>
-                </div>
-                <p className="text-xs text-[#b2b5be] leading-relaxed">
-                  {isAr
-                    ? 'قم بالترقية إلى باقة VIP لتفعيل تنبيهات بوت MBK الفورية.'
-                    : 'Upgrade to VIP ($100/mo) or redeem a key to unlock live MBK Bot alerts.'}
-                </p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                {onOpenPlansModal && (
-                  <button
-                    onClick={() => {
-                      soundManager.playClick();
-                      onOpenPlansModal();
-                    }}
-                    className="px-4 py-2 rounded-xl bg-[#089981] hover:bg-[#07846f] text-white font-bold text-xs cursor-pointer whitespace-nowrap"
-                  >
-                    {isAr ? 'عرض الباقات ($100/mo)' : 'View VIP Plan ($100/mo)'}
-                  </button>
-                )}
-                {onOpenPromoModal && (
-                  <button
-                    onClick={() => {
-                      soundManager.playClick();
-                      onOpenPromoModal();
-                    }}
-                    className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-[#131722] font-bold text-xs cursor-pointer inline-flex items-center gap-1.5 whitespace-nowrap"
-                  >
-                    <KeyRound className="w-3.5 h-3.5" />
-                    <span>{isAr ? 'إدخال كود' : 'Activate Key'}</span>
-                  </button>
-                )}
-              </div>
+          <div className="bg-[#10141c] border border-[#1e2633] rounded-[3px] p-6 text-center space-y-3">
+            <div className="w-9 h-9 rounded-[3px] bg-[#161c26] border border-[#2a3446] text-[#8492a6] flex items-center justify-center mx-auto">
+              <Lock className="w-4 h-4" />
             </div>
-
-            <div className="bg-[#1e222d] border border-amber-500/30 rounded-xl p-8 text-center space-y-3 shadow-xl">
-              <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center mx-auto">
-                <Lock className="w-6 h-6" />
-              </div>
-              <h4 className="text-sm font-black text-white">
-                {isAr ? 'بوت MBK مخصص لباقة VIP' : 'MBK Bot requires VIP'}
-              </h4>
-              <p className="text-xs text-[#787b86] max-w-md mx-auto">
-                {isAr
-                  ? 'اشترك في باقة VIP أو فعّل كود التفعيل لاستقبال تنبيهات بوت MBK الفورية.'
-                  : 'Upgrade to VIP or apply an activation key for live MBK Bot alerts.'}
-              </p>
+            <h4 className="text-sm font-semibold text-[#edf0f5]">
+              {isAr ? 'البوت الخوارزمي مخصص لحسابات VIP' : 'Automated Webhook Feed — Restricted Access'}
+            </h4>
+            <p className="text-xs text-[#8492a6] max-w-md mx-auto">
+              {isAr
+                ? 'قم بترقية الحساب أو إدخال مفتاح الترخيص لتفعيل تدفق إشارات البوت المباشرة.'
+                : 'Upgrade your terminal subscription or enter a valid license key to unlock live algorithmic alerts.'}
+            </p>
+            <div className="flex items-center justify-center gap-2 pt-1">
+              {onOpenPlansModal && (
+                <button
+                  onClick={() => {
+                    soundManager.playClick();
+                    onOpenPlansModal();
+                  }}
+                  className="px-4 py-1.5 rounded-[3px] bg-[#161c26] hover:bg-[#1c2432] text-[#edf0f5] border border-[#2a3446] font-semibold text-xs cursor-pointer whitespace-nowrap"
+                >
+                  {isAr ? 'عرض الباقات ($100/mo)' : 'View Institutional Plans ($100/mo)'}
+                </button>
+              )}
+              {onOpenPromoModal && (
+                <button
+                  onClick={() => {
+                    soundManager.playClick();
+                    onOpenPromoModal();
+                  }}
+                  className="px-4 py-1.5 rounded-[3px] bg-[#0a0d12] hover:bg-[#161c26] text-[#8492a6] hover:text-[#edf0f5] border border-[#1e2633] font-semibold text-xs cursor-pointer inline-flex items-center gap-1.5 whitespace-nowrap"
+                >
+                  <KeyRound className="w-3.5 h-3.5" />
+                  <span>{isAr ? 'إدخال مفتاح' : 'Activate License Key'}</span>
+                </button>
+              )}
             </div>
           </div>
         ) : (
-          <div className="bg-[#1e222d] border border-[#2a2e39] rounded-xl p-4 shadow-xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-[#2a2e39]">
+          <div className="bg-[#10141c] border border-[#1e2633] rounded-[3px] p-3.5 space-y-3">
+            <div className="flex items-center justify-between pb-2.5 border-b border-[#1e2633]">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-[#089981]/20 border border-[#089981]/40 flex items-center justify-center text-[#089981]">
-                  <Bot className="w-5 h-5 animate-pulse" />
+                <div className="w-7 h-7 rounded-[3px] bg-[#161c26] border border-[#2a3446] flex items-center justify-center text-[#edf0f5]">
+                  <Bot className="w-4 h-4" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h4 className="text-sm font-bold text-white">
-                      {isAr ? 'بوت MBK' : 'MBK Bot'}
+                    <h4 className="text-xs font-semibold text-[#edf0f5] uppercase tracking-wider">
+                      {isAr ? 'تدفق البوت الخوارزمي' : 'ALGORITHMIC EXECUTION STREAM'}
                     </h4>
-                    <span className="w-2 h-2 rounded-full bg-[#089981] animate-ping" />
+                    <span className="w-1.5 h-1.5 rounded-[1px] bg-[#10b981]" />
                   </div>
-                  <p className="text-[11px] text-[#787b86]">
-                    {isAr ? 'تنبيهات بوت MBK المباشرة' : 'Live MBK Bot alerts'}
+                  <p className="text-[11px] text-[#8492a6]">
+                    {isAr ? 'تنبيهات بوت MBK المباشرة' : 'Real-time automated webhook dispatch'}
                   </p>
                 </div>
               </div>
 
-              <div className="px-2.5 py-1 rounded-lg bg-[#131722] border border-[#2a2e39] text-xs font-mono text-[#089981] font-bold">
-                {botAlerts.length} {isAr ? 'تنبيهات' : 'alerts'}
+              <div className="px-2 py-0.5 rounded-[2px] bg-[#0a0d12] border border-[#1e2633] text-[11px] font-mono text-[#8492a6]">
+                {botAlerts.length} {isAr ? 'تنبيه' : 'EVENTS'}
               </div>
             </div>
 
-            <div className="space-y-3 max-h-[550px] overflow-y-auto pr-1 smooth-scroll">
+            <div className="space-y-2 max-h-[550px] overflow-y-auto pr-1 smooth-scroll">
               {botAlertsLoading ? (
-                <div className="p-8 text-center text-[#787b86] text-xs">
-                  <Bot className="w-6 h-6 animate-bounce mx-auto mb-2 text-[#089981]" />
-                  <p>{isAr ? 'جاري التحميل...' : 'Loading...'}</p>
+                <div className="p-8 text-center text-[#8492a6] text-xs font-mono">
+                  <p>{isAr ? 'جاري التحميل...' : 'SYNCHRONIZING STREAM...'}</p>
                 </div>
               ) : botAlerts.length === 0 ? (
-                <div className="p-8 text-center bg-[#131722] border border-[#2a2e39] rounded-xl text-[#787b86]">
-                  <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-50 text-[#089981]" />
-                  <p className="text-sm font-semibold">
-                    {isAr ? 'لا توجد تنبيهات حالياً' : 'No MBK Bot alerts yet'}
+                <div className="p-8 text-center bg-[#0a0d12] border border-[#1e2633] rounded-[3px] text-[#8492a6]">
+                  <p className="text-xs font-mono">
+                    {isAr ? 'لا توجد تنبيهات حالياً' : 'NO ALGORITHMIC EVENTS RECORDED'}
                   </p>
                 </div>
               ) : (
@@ -562,29 +550,28 @@ export const SignalsChannelHub: React.FC<Props> = ({
                         minute: '2-digit',
                         second: '2-digit'
                       })
-                    : 'الآن';
+                    : 'NOW';
 
                   return (
                     <div
                       key={alertItem.id}
-                      className="bg-[#131722] border border-[#2a2e39] hover:border-[#363a45] rounded-2xl p-4 shadow-md transition-all group animate-fade-in"
+                      className="bg-[#0a0d12] border border-[#1e2633] hover:border-[#2a3446] rounded-[3px] p-3 transition-colors group"
                     >
-                      <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#2a2e39]/60">
+                      <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#1e2633]">
                         <div className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-[#089981]" />
-                          <span className="text-xs font-bold text-white flex items-center gap-1">
-                            <Bot className="w-3.5 h-3.5 text-[#089981]" />
-                            <span>{isAr ? 'بوت MBK' : 'MBK Bot'}</span>
+                          <span className="w-1.5 h-1.5 rounded-[1px] bg-[#10b981]" />
+                          <span className="text-[11px] font-mono font-semibold text-[#edf0f5]">
+                            {isAr ? 'بوت MBK' : 'MBK ALGO'}
                           </span>
                           {alertItem.chat_id && (
-                            <span className="text-[10px] text-[#787b86] font-mono bg-[#1e222d] px-2 py-0.5 rounded border border-[#2a2e39]">
+                            <span className="text-[10px] text-[#8492a6] font-mono bg-[#10141c] px-1.5 py-0.5 rounded-[2px] border border-[#1e2633]">
                               {alertItem.chat_id}
                             </span>
                           )}
                         </div>
 
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] text-[#787b86] font-mono">{timeStr}</span>
+                          <span className="text-[10px] text-[#8492a6] font-mono">{timeStr}</span>
 
                           {isRealAdmin && (
                             <>
@@ -601,10 +588,10 @@ export const SignalsChannelHub: React.FC<Props> = ({
                                     isBot: true
                                   })
                                 }
-                                className="p-1 rounded bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 cursor-pointer"
+                                className="p-1 rounded-[2px] bg-[#161c26] hover:bg-[#1c2432] text-[#8492a6] hover:text-[#edf0f5] border border-[#1e2633] cursor-pointer"
                                 title={isAr ? 'تعديل' : 'Edit'}
                               >
-                                <Edit3 className="w-3.5 h-3.5" />
+                                <Edit3 className="w-3 h-3" />
                               </button>
 
                               <button
@@ -618,29 +605,29 @@ export const SignalsChannelHub: React.FC<Props> = ({
                                     'MBK Bot Alert'
                                   );
                                 }}
-                                className="p-1 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 cursor-pointer"
+                                className="p-1 rounded-[2px] bg-[#161c26] hover:bg-[#e11d48]/20 text-[#8492a6] hover:text-[#e11d48] border border-[#1e2633] cursor-pointer"
                                 title={isAr ? 'حذف' : 'Delete'}
                               >
-                                <Trash2 className="w-3.5 h-3.5" />
+                                <Trash2 className="w-3 h-3" />
                               </button>
                             </>
                           )}
 
                           <button
                             onClick={() => handleCopyLevels(alertItem.text, alertItem.id)}
-                            className={`p-1 rounded text-[11px] transition-all cursor-pointer ${
+                            className={`p-1 rounded-[2px] text-[11px] border transition-colors cursor-pointer ${
                               copiedId === alertItem.id
-                                ? 'bg-[#089981] text-black font-bold'
-                                : 'bg-[#1e222d] hover:bg-[#2a2e39] text-[#787b86] hover:text-white'
+                                ? 'bg-[#10b981] text-[#0a0d12] border-[#10b981] font-semibold'
+                                : 'bg-[#161c26] hover:bg-[#1c2432] text-[#8492a6] hover:text-[#edf0f5] border-[#1e2633]'
                             }`}
-                            title={isAr ? 'نسخ النص' : 'Copy message'}
+                            title={isAr ? 'نسخ النص' : 'Copy payload'}
                           >
-                            <Copy className="w-3.5 h-3.5" />
+                            <Copy className="w-3 h-3" />
                           </button>
                         </div>
                       </div>
 
-                      <div className="text-xs text-[#d1d4dc] leading-relaxed whitespace-pre-wrap font-mono bg-[#1a1e29] p-3 rounded-xl border border-[#2a2e39]/80 text-start dir-ltr">
+                      <div className="text-xs text-[#edf0f5] leading-relaxed whitespace-pre-wrap font-mono bg-[#10141c] p-2.5 rounded-[2px] border border-[#1e2633] text-start dir-ltr">
                         {alertItem.text}
                       </div>
                     </div>
@@ -651,29 +638,28 @@ export const SignalsChannelHub: React.FC<Props> = ({
           </div>
         )
       ) : activeChannel === 'vip' && !hasVipSignalsAccess ? (
-        <div className="bg-[#1e222d] border border-amber-500/30 rounded-xl p-8 text-center space-y-3 shadow-xl">
-          <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center mx-auto">
-            <Crown className="w-6 h-6" />
+        <div className="bg-[#10141c] border border-[#1e2633] rounded-[3px] p-6 text-center space-y-3">
+          <div className="w-9 h-9 rounded-[3px] bg-[#161c26] border border-[#2a3446] text-[#8492a6] flex items-center justify-center mx-auto">
+            <Lock className="w-4 h-4" />
           </div>
-          <h4 className="text-sm font-black text-white">
-            {isAr ? 'قناة التوصيات الحصرية لأعضاء VIP' : 'Exclusive VIP Signals Channel'}
+          <h4 className="text-sm font-semibold text-[#edf0f5]">
+            {isAr ? 'مكتب توصيات VIP المؤسسية' : 'VIP Institutional Signal Desk'}
           </h4>
-          <p className="text-xs text-[#787b86] max-w-md mx-auto">
+          <p className="text-xs text-[#8492a6] max-w-md mx-auto">
             {isAr
               ? 'قم بترقية الباقة أو تفعيل مفتاح العضوية لفتح جميع إشارات النخبة والأهداف ومناطق وقف الخسارة لحظياً.'
-              : 'Upgrade to VIP or activate a key to unlock all live VIP signals and institutional targets.'}
+              : 'Upgrade to VIP or enter an institutional license key to unlock full execution prices, stop-loss parameters, and target levels.'}
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-2">
+          <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
             {onOpenPlansModal && (
               <button
                 onClick={() => {
                   soundManager.playClick();
                   onOpenPlansModal();
                 }}
-                className="px-5 py-2.5 rounded-xl bg-[#089981] hover:bg-[#07846f] text-white font-bold text-xs cursor-pointer inline-flex items-center gap-1.5"
+                className="px-4 py-1.5 rounded-[3px] bg-[#161c26] hover:bg-[#1c2432] text-[#edf0f5] border border-[#2a3446] font-semibold text-xs cursor-pointer inline-flex items-center gap-1.5"
               >
-                <Crown className="w-4 h-4" />
-                <span>{isAr ? 'ترقية إلى VIP ($100/mo)' : 'Subscribe VIP ($100/mo)'}</span>
+                <span>{isAr ? 'ترقية إلى VIP ($100/mo)' : 'Subscribe VIP Desk ($100/mo)'}</span>
               </button>
             )}
             {onOpenPromoModal && (
@@ -682,113 +668,119 @@ export const SignalsChannelHub: React.FC<Props> = ({
                   soundManager.playClick();
                   onOpenPromoModal();
                 }}
-                className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-[#131722] font-bold text-xs cursor-pointer inline-flex items-center gap-1.5"
+                className="px-4 py-1.5 rounded-[3px] bg-[#0a0d12] hover:bg-[#161c26] text-[#8492a6] hover:text-[#edf0f5] border border-[#1e2633] font-semibold text-xs cursor-pointer inline-flex items-center gap-1.5"
               >
-                <KeyRound className="w-4 h-4" />
-                <span>{isAr ? 'تفعيل مفتاح VIP الآن' : 'Activate VIP Key'}</span>
+                <KeyRound className="w-3.5 h-3.5" />
+                <span>{isAr ? 'تفعيل مفتاح VIP' : 'Activate License Key'}</span>
               </button>
             )}
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {loading ? (
-            <div className="col-span-full p-8 text-center bg-[#1e222d] border border-[#2a2e39] rounded-xl text-[#787b86]">
-              <Radio className="w-8 h-8 mx-auto mb-2 text-[#089981] animate-pulse" />
-              <p className="text-sm font-semibold">{isAr ? 'جاري تحميل الإشارات...' : 'Loading live signals...'}</p>
+            <div className="col-span-full p-8 text-center bg-[#10141c] border border-[#1e2633] rounded-[3px] text-[#8492a6] font-mono text-xs">
+              <p>{isAr ? 'جاري تحميل الإشارات...' : 'LOADING EXECUTION TICKETS...'}</p>
             </div>
           ) : channelSignals.length === 0 ? (
-            <div className="col-span-full p-8 text-center bg-[#1e222d] border border-[#2a2e39] rounded-xl text-[#787b86]">
-              <Radio className="w-8 h-8 mx-auto mb-2 text-[#787b86] opacity-60" />
-              <p className="text-sm font-semibold">{isAr ? 'لا توجد إشارات مباشرة حالياً' : 'No live alerts yet'}</p>
-              <p className="text-xs text-[#787b86] mt-1">
-                {isAr ? 'سيتم بث الإشارات لحظة استيفاء شروط السيولة' : 'New setups will broadcast upon confirmation'}
+            <div className="col-span-full p-8 text-center bg-[#10141c] border border-[#1e2633] rounded-[3px] text-[#8492a6]">
+              <p className="text-xs font-mono uppercase">{isAr ? 'لا توجد إشارات مباشرة حالياً' : 'NO ACTIVE ORDERS IN DESK'}</p>
+              <p className="text-[11px] text-[#525f73] mt-1">
+                {isAr ? 'سيتم بث الإشارات لحظة استيفاء شروط السيولة' : 'New institutional tickets broadcast upon liquidity confirmation'}
               </p>
             </div>
           ) : (
             channelSignals.map((signal) => {
               const isLocked = signal.channel !== 'free' && !hasFullAccess;
+              const isBuy = signal.action === 'BUY';
 
               return (
                 <div
                   key={signal.id}
-                  className="bg-[#1e222d] border border-[#2a2e39] hover:border-[#363a45] rounded-xl p-4 flex flex-col justify-between shadow-lg relative overflow-hidden transition-all group"
+                  className={`bg-[#10141c] border border-[#1e2633] hover:border-[#2a3446] rounded-[3px] p-3.5 flex flex-col justify-between relative overflow-hidden transition-colors border-s-2 ${
+                    isBuy ? 'border-s-[#10b981]' : 'border-s-[#e11d48]'
+                  }`}
                 >
                   <div>
-                    <div className="flex items-center justify-between mb-3">
+                    {/* Order Ticket Top Header */}
+                    <div className="flex items-center justify-between mb-2.5">
                       <div className="flex items-center gap-2">
                         <span
-                          className={`px-2.5 py-0.5 rounded text-xs font-mono font-bold ${
-                            signal.action === 'BUY'
-                              ? 'bg-[#089981]/15 text-[#089981] border border-[#089981]/30'
-                              : 'bg-[#f23645]/15 text-[#f23645] border border-[#f23645]/30'
+                          className={`px-2 py-0.5 rounded-[2px] text-[11px] font-mono font-bold tracking-wider ${
+                            isBuy
+                              ? 'bg-[#10b981]/12 text-[#10b981] border border-[#10b981]/30'
+                              : 'bg-[#e11d48]/12 text-[#e11d48] border border-[#e11d48]/30'
                           }`}
                         >
                           {signal.action}
                         </span>
-                        <span className="text-base font-mono font-bold text-white tracking-wide">
+                        <span className="text-sm font-mono font-bold text-[#edf0f5] tracking-tight">
                           {signal.symbol}
                         </span>
-                        <span className="text-[11px] text-[#787b86] font-mono">{signal.timeframe}</span>
+                        <span className="text-[10px] text-[#8492a6] font-mono px-1.5 py-0.5 bg-[#0a0d12] border border-[#1e2633] rounded-[2px]">
+                          {signal.timeframe}
+                        </span>
                       </div>
 
-                      <div className="flex items-center gap-1.5 text-xs font-mono">
+                      <div className="flex items-center gap-1.5 text-[11px] font-mono">
                         {signal.status === 'TP2_HIT' ? (
-                          <span className="px-2 py-0.5 rounded bg-[#089981]/15 text-[#089981] font-bold border border-[#089981]/30 flex items-center gap-1">
+                          <span className="px-2 py-0.5 rounded-[2px] bg-[#10b981]/12 text-[#10b981] font-semibold border border-[#10b981]/30 flex items-center gap-1">
                             <CheckCircle2 className="w-3 h-3" />
-                            <span>TP2 HIT (+{signal.pips} Pips)</span>
+                            <span>TP2 (+{signal.pips}p)</span>
                           </span>
                         ) : (
-                          <span className="px-2 py-0.5 rounded bg-[#131722] text-[#089981] font-bold border border-[#2a2e39] flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#089981] animate-ping" />
-                            <span>LIVE</span>
+                          <span className="px-2 py-0.5 rounded-[2px] bg-[#0a0d12] text-[#edf0f5] font-medium border border-[#1e2633] flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-[1px] bg-[#10b981]" />
+                            <span>ACTIVE</span>
                           </span>
                         )}
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between text-xs text-[#787b86] pb-2 mb-3 border-b border-[#2a2e39]">
-                      <span className="truncate">{signal.strategy}</span>
-                      <span className="font-mono text-[11px] shrink-0 text-[#089981]">{signal.timeAgo}</span>
+                    {/* Strategy & Timestamp Subheader */}
+                    <div className="flex items-center justify-between text-[11px] text-[#8492a6] pb-2 mb-2.5 border-b border-[#1e2633]">
+                      <span className="truncate font-medium">{signal.strategy}</span>
+                      <span className="font-mono text-[10px] shrink-0 text-[#8492a6]">{signal.timeAgo}</span>
                     </div>
 
-                    <div className="relative mb-3">
+                    {/* Tabular Price Matrix */}
+                    <div className="relative mb-2.5">
                       <div
-                        className={`grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2 font-mono text-center transition-all ${
-                          isLocked ? 'filter blur-[5px] select-none opacity-60' : ''
+                        className={`grid grid-cols-2 sm:grid-cols-4 gap-1.5 font-mono text-center transition-all ${
+                          isLocked ? 'filter blur-[5px] select-none opacity-50' : ''
                         }`}
                       >
-                        <div className="bg-[#131722] p-2 rounded-lg border border-[#2a2e39]">
-                          <div className="text-[10px] text-[#787b86]">ENTRY</div>
-                          <div className="text-xs font-bold text-white" dir="ltr">
+                        <div className="bg-[#0a0d12] px-2 py-1.5 rounded-[2px] border border-[#1e2633]">
+                          <div className="text-[9px] text-[#8492a6] uppercase tracking-wider">ENTRY</div>
+                          <div className="text-xs font-bold text-[#edf0f5] tabular-nums" dir="ltr">
                             {signal.entryPrice.toLocaleString()}
                           </div>
                         </div>
-                        <div className="bg-[#131722] p-2 rounded-lg border border-[#2a2e39]">
-                          <div className="text-[10px] text-[#f23645]">SL</div>
-                          <div className="text-xs font-bold text-[#f23645]" dir="ltr">
+                        <div className="bg-[#0a0d12] px-2 py-1.5 rounded-[2px] border border-[#1e2633]">
+                          <div className="text-[9px] text-[#e11d48] uppercase tracking-wider">STOP</div>
+                          <div className="text-xs font-bold text-[#e11d48] tabular-nums" dir="ltr">
                             {signal.sl.toLocaleString()}
                           </div>
                         </div>
-                        <div className="bg-[#131722] p-2 rounded-lg border border-[#2a2e39]">
-                          <div className="text-[10px] text-[#089981]">TP1</div>
-                          <div className="text-xs font-bold text-[#089981]" dir="ltr">
+                        <div className="bg-[#0a0d12] px-2 py-1.5 rounded-[2px] border border-[#1e2633]">
+                          <div className="text-[9px] text-[#10b981] uppercase tracking-wider">TARGET 1</div>
+                          <div className="text-xs font-bold text-[#10b981] tabular-nums" dir="ltr">
                             {signal.tp1.toLocaleString()}
                           </div>
                         </div>
-                        <div className="bg-[#131722] p-2 rounded-lg border border-[#2a2e39]">
-                          <div className="text-[10px] text-[#089981]">TP2</div>
-                          <div className="text-xs font-bold text-[#089981]" dir="ltr">
+                        <div className="bg-[#0a0d12] px-2 py-1.5 rounded-[2px] border border-[#1e2633]">
+                          <div className="text-[9px] text-[#10b981] uppercase tracking-wider">TARGET 2</div>
+                          <div className="text-xs font-bold text-[#10b981] tabular-nums" dir="ltr">
                             {signal.tp2.toLocaleString()}
                           </div>
                         </div>
                       </div>
 
                       {isLocked && (
-                        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/40 backdrop-blur-[2px] rounded-lg p-2 text-center">
-                          <div className="flex items-center gap-1.5 text-xs font-bold text-amber-400 mb-1">
-                            <Lock className="w-3.5 h-3.5" />
-                            <span>{isAr ? 'توصية خاصة بـ VIP' : 'VIP Setup'}</span>
+                        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-[#0a0d12]/80 backdrop-blur-[2px] rounded-[2px] p-2 text-center border border-[#1e2633]">
+                          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#edf0f5] mb-1">
+                            <Lock className="w-3 h-3 text-[#8492a6]" />
+                            <span>{isAr ? 'مستويات تنفيذ VIP' : 'VIP Execution Levels'}</span>
                           </div>
                           {onOpenPromoModal && (
                             <button
@@ -796,33 +788,34 @@ export const SignalsChannelHub: React.FC<Props> = ({
                                 soundManager.playClick();
                                 onOpenPromoModal();
                               }}
-                              className="px-3 py-1 rounded bg-white text-[#131722] text-[11px] font-bold hover:bg-[#d1d4dc] transition-all cursor-pointer shadow-sm"
+                              className="px-2.5 py-1 rounded-[2px] bg-[#161c26] hover:bg-[#1c2432] text-[#edf0f5] border border-[#2a3446] text-[10px] font-semibold transition-colors cursor-pointer"
                             >
-                              {isAr ? 'تفعيل VIP للفتح 🔓' : 'Unlock VIP 🔓'}
+                              {isAr ? 'إدخال مفتاح الترخيص' : 'Unlock Desk'}
                             </button>
                           )}
                         </div>
                       )}
                     </div>
 
-                    <p className="text-xs text-[#787b86] leading-relaxed mb-3">
+                    <p className="text-[11px] text-[#8492a6] leading-relaxed mb-3">
                       {isLocked
                         ? isAr
                           ? 'المستويات الدقيقة مخصصة لحسابات VIP النشطة.'
-                          : 'Exact levels reserved for active VIP accounts.'
+                          : 'Exact execution parameters reserved for active VIP accounts.'
                         : isAr
                         ? signal.instructionsAr
                         : signal.instructionsEn}
                     </p>
                   </div>
 
-                  <div className="pt-2 border-t border-[#2a2e39] flex items-center justify-between gap-2">
+                  {/* Order Ticket Footer Actions */}
+                  <div className="pt-2 border-t border-[#1e2633] flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => onSelectSymbol(signal.symbol as MarketSymbol)}
-                        className="py-1.5 px-2.5 rounded bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-xs font-medium text-white transition-colors cursor-pointer flex items-center gap-1"
+                        className="py-1 px-2.5 rounded-[2px] bg-[#0a0d12] hover:bg-[#161c26] border border-[#1e2633] text-[11px] font-medium text-[#edf0f5] transition-colors cursor-pointer flex items-center gap-1"
                       >
-                        <span>{isAr ? 'عرض الشارت' : 'Chart'}</span>
+                        <span>{isAr ? 'الشارت' : 'Open Chart'}</span>
                       </button>
 
                       {isRealAdmin && (
@@ -841,10 +834,10 @@ export const SignalsChannelHub: React.FC<Props> = ({
                                 isBot: signal.channel === 'bot'
                               })
                             }
-                            className="py-1.5 px-2 rounded bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 font-bold transition-all cursor-pointer flex items-center gap-0.5 text-xs"
+                            className="py-1 px-2 rounded-[2px] bg-[#161c26] hover:bg-[#1c2432] text-[#8492a6] hover:text-[#edf0f5] border border-[#1e2633] font-medium transition-colors cursor-pointer flex items-center gap-1 text-[11px]"
                             title={isAr ? 'تعديل' : 'Edit'}
                           >
-                            <Edit3 className="w-3.5 h-3.5" />
+                            <Edit3 className="w-3 h-3" />
                             <span>{isAr ? 'تعديل' : 'Edit'}</span>
                           </button>
 
@@ -859,10 +852,10 @@ export const SignalsChannelHub: React.FC<Props> = ({
                                 `${signal.action} ${signal.symbol}`
                               );
                             }}
-                            className="py-1.5 px-2 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 font-bold transition-all cursor-pointer flex items-center gap-0.5 text-xs"
+                            className="py-1 px-2 rounded-[2px] bg-[#161c26] hover:bg-[#e11d48]/20 text-[#8492a6] hover:text-[#e11d48] border border-[#1e2633] font-medium transition-colors cursor-pointer flex items-center gap-1 text-[11px]"
                             title={isAr ? 'حذف' : 'Delete'}
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-3 h-3" />
                             <span>{isAr ? 'حذف' : 'Delete'}</span>
                           </button>
                         </>
@@ -877,14 +870,14 @@ export const SignalsChannelHub: React.FC<Props> = ({
                             signal.id
                           )
                         }
-                        className={`py-1.5 px-3 rounded text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                        className={`py-1 px-2.5 rounded-[2px] text-[11px] font-semibold border transition-colors flex items-center gap-1 cursor-pointer ${
                           copiedId === signal.id
-                            ? 'bg-[#089981] text-[#131722]'
-                            : 'bg-white text-[#131722] hover:bg-[#d1d4dc]'
+                            ? 'bg-[#10b981] text-[#0a0d12] border-[#10b981]'
+                            : 'bg-[#161c26] hover:bg-[#1c2432] text-[#edf0f5] border-[#2a3446]'
                         }`}
                       >
-                        <Copy className="w-3.5 h-3.5" />
-                        <span>{copiedId === signal.id ? (isAr ? '✓ تم النسخ' : 'Copied!') : isAr ? 'نسخ المستويات' : 'Copy'}</span>
+                        <Copy className="w-3 h-3" />
+                        <span>{copiedId === signal.id ? (isAr ? 'تم النسخ' : 'Copied') : isAr ? 'نسخ' : 'Copy Levels'}</span>
                       </button>
                     ) : (
                       onOpenPromoModal && (
@@ -893,9 +886,9 @@ export const SignalsChannelHub: React.FC<Props> = ({
                             soundManager.playClick();
                             onOpenPromoModal();
                           }}
-                          className="py-1.5 px-3 rounded bg-[#2a2e39] hover:bg-[#363a45] text-amber-400 text-xs font-semibold flex items-center gap-1 cursor-pointer"
+                          className="py-1 px-2.5 rounded-[2px] bg-[#161c26] hover:bg-[#1c2432] text-[#8492a6] hover:text-[#edf0f5] border border-[#2a3446] text-[11px] font-semibold flex items-center gap-1 cursor-pointer"
                         >
-                          <Lock className="w-3.5 h-3.5" />
+                          <Lock className="w-3 h-3" />
                           <span>{isAr ? 'تفعيل VIP' : 'Unlock'}</span>
                         </button>
                       )

@@ -96,13 +96,6 @@ async function writeBotAlertToFirestore(alertDoc: BotAlertDoc): Promise<void> {
     return restRes.ok;
   };
 
-  // Best-effort mirror to legacy database so both old and new clients receive webhook alerts
-  if (primaryDbId === '(default)') {
-    postToRestDb(LEGACY_DATABASE_ID).catch(() => {});
-  } else {
-    postToRestDb('(default)').catch(() => {});
-  }
-
   try {
     const ok = await postToRestDb(primaryDbId);
     if (ok) {
@@ -197,7 +190,13 @@ export default async function handler(req: Req, res: Res | ServerResponse) {
       req.query?.test !== undefined ||
       req.query?.test1 !== undefined;
 
-    if (isTest) {
+    const configuredSecret = (process.env.TRADINGVIEW_WEBHOOK_SECRET || '').trim();
+    const providedSecret = (
+      urlObj.searchParams.get('secret') ||
+      (typeof req.query?.secret === 'string' ? req.query.secret : '')
+    ).trim();
+
+    if (isTest && configuredSecret && providedSecret === configuredSecret) {
       const text =
         (queryMsg && queryMsg.trim()) ||
         'BUY US100 @ 21450 - TP1: 21550 SL: 21350 [Test Webhook Alert via Browser]';
@@ -220,10 +219,7 @@ export default async function handler(req: Req, res: Res | ServerResponse) {
 
     return sendJson(res, 200, {
       ok: true,
-      endpoint: '/api/webhooks/tradingview',
-      method: 'POST / GET (with ?test=1 or ?test1 or ?msg=...)',
-      message:
-        'MBK TradingView Webhook Receiver is active. Send POST JSON/text alerts from TradingView, or open this URL with ?test=1 to trigger an instant test alert.'
+      endpoint: '/api/webhooks/tradingview'
     });
   }
 
@@ -232,6 +228,12 @@ export default async function handler(req: Req, res: Res | ServerResponse) {
   }
 
   try {
+    const urlObj = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
+    const querySecret = (
+      urlObj.searchParams.get('secret') ||
+      (typeof req.query?.secret === 'string' ? req.query.secret : '')
+    ).trim();
+
     let rawBody: any = req.body;
     if (rawBody === undefined || rawBody === null || rawBody === '') {
       const streamText = await readRawBody(req);
@@ -253,6 +255,14 @@ export default async function handler(req: Req, res: Res | ServerResponse) {
 
     if (!payload || typeof payload !== 'object') {
       return sendJson(res, 400, { error: 'Valid JSON or text payload required from TradingView alert' });
+    }
+
+    const configuredSecret = (process.env.TRADINGVIEW_WEBHOOK_SECRET || '').trim();
+    if (configuredSecret) {
+      const bodySecret = typeof payload.secret === 'string' ? payload.secret.trim() : '';
+      if (querySecret !== configuredSecret && bodySecret !== configuredSecret) {
+        return sendJson(res, 401, { error: 'Unauthorized webhook secret' });
+      }
     }
 
     let text = String(

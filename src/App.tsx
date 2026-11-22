@@ -13,7 +13,6 @@ import {
   signOutUser
 } from './services/firebaseAuthService';
 import { KeyRedemptionResult } from './utils/activationKeyService';
-import { syncAllLegacyDataToDefaultDb } from './utils/legacyDbRecovery';
 
 // Pages & Components
 import { MotionSplashScreen } from './components/MotionSplashScreen';
@@ -26,6 +25,8 @@ import { EmailVerificationGuard } from './components/EmailVerificationGuard';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 import { NotificationPermissionPrompt } from './components/common/NotificationPermissionPrompt';
 import { ExitConfirmationModal } from './components/common/ExitConfirmationModal';
+
+import { ThemeProvider } from './context/ThemeContext';
 
 const REMOTE_VERSION_STORAGE_KEY = 'mbk_synced_remote_version';
 
@@ -76,13 +77,6 @@ export default function App() {
     setIsMuted(next);
     soundManager.setMuted(next);
   };
-
-  // One-time merge on login so any new General Chat & DM messages from yesterday's failover DB are merged with the restored original database
-  useEffect(() => {
-    const uid = currentUser?.uid || currentUser?.id;
-    if (!uid) return;
-    syncAllLegacyDataToDefaultDb(false).catch(() => {});
-  }, [currentUser?.uid, currentUser?.id]);
 
   // Remote Force-Update Listener (Admin 1-Click Push Update to all Laptop, Mobile & PWA Shortcut Users)
   useEffect(() => {
@@ -169,7 +163,13 @@ export default function App() {
       versionRef,
       (snap) => {
         if (snap.exists()) {
-          applyRemoteVersionIfNeeded(snap.data());
+          const data = snap.data();
+          try {
+            localStorage.setItem('mbk_remote_app_version_info', JSON.stringify(data));
+          } catch {
+            // ignore
+          }
+          applyRemoteVersionIfNeeded(data);
         }
       },
       () => {
@@ -221,7 +221,6 @@ export default function App() {
     const unsubscribe = subscribeToAuth((user) => {
       if (user) {
         setCurrentUser(user);
-        syncAllLegacyDataToDefaultDb(false).catch(() => {});
         setPageView((prev) => {
           if (pendingGoogleOnboardingRef.current || prev === 'register') {
             return prev;
@@ -346,12 +345,13 @@ export default function App() {
   };
 
   return (
-    <div
-      dir={lang === 'ar' ? 'rtl' : 'ltr'}
-      className={`min-h-screen bg-[#131722] text-[#d1d4dc] flex flex-col ${
-        lang === 'ar' ? "font-['Cairo',sans-serif]" : "font-['Plus_Jakarta_Sans',sans-serif]"
-      }`}
-    >
+    <ThemeProvider>
+      <div
+        dir={lang === 'ar' ? 'rtl' : 'ltr'}
+        className={`min-h-screen bg-[#131722] text-[#d1d4dc] flex flex-col ${
+          lang === 'ar' ? "font-['Cairo',sans-serif]" : "font-['Plus_Jakarta_Sans',sans-serif]"
+        }`}
+      >
       {/* Route Views: Splash -> Login / Register -> Authenticated Dashboard */}
       {pageView === 'login' ? (
         <Login
@@ -481,6 +481,7 @@ export default function App() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </ThemeProvider>
   );
 }

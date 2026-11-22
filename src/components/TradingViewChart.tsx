@@ -1,15 +1,8 @@
-import React, { useEffect, useId } from 'react';
+import React from 'react';
 import { MarketSymbol, MarketTicker, TradeSignal } from '../types/trading';
-import { X, CheckCircle2 } from 'lucide-react';
+import { X } from 'lucide-react';
 import { soundManager } from '../utils/audio';
-
-declare global {
-  interface Window {
-    TradingView?: {
-      widget: new (config: any) => any;
-    };
-  }
-}
+import { useTheme } from '../context/ThemeContext';
 
 export interface TradingViewChartProps {
   symbol: MarketSymbol;
@@ -62,100 +55,30 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
   activeSignal,
   onClearSignal
 }) => {
-  const containerId = useId().replace(/:/g, '_') + '_tv_chart';
   const currentTickerInfo = TRADINGVIEW_TICKERS[symbol] || TRADINGVIEW_TICKERS.US100;
+  const { resolvedTheme } = useTheme();
+  const isLight = resolvedTheme === 'light';
+  const toolbarBgParam = isLight ? 'F8FAFC' : '131722';
 
-  // Load official TradingView tv.js script once
-  useEffect(() => {
-    if (window.TradingView) return;
-
-    const existingScript = document.getElementById('tradingview-tv-js');
-    if (existingScript) return;
-
-    const script = document.createElement('script');
-    script.id = 'tradingview-tv-js';
-    script.src = 'https://s3.tradingview.com/tv.js';
-    script.async = true;
-    document.head.appendChild(script);
-  }, []);
-
-  // Instantiate widget when symbol changes
-  useEffect(() => {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-    container.innerHTML = '';
-
-    const initWidget = () => {
-      if (!window.TradingView) return;
-      try {
-        new window.TradingView.widget({
-          autosize: true,
-          symbol: currentTickerInfo.tvSymbol,
-          interval: '15',
-          timezone: 'Asia/Riyadh',
-          theme: 'dark',
-          style: '1',
-          locale: 'ar',
-          toolbar_bg: '#06080C',
-          enable_publishing: false,
-          hide_side_toolbar: false,
-          allow_symbol_change: true,
-          save_image: false,
-          container_id: containerId,
-          studies: ['STD;RSI', 'STD;SMA', 'STD;Volume'],
-          overrides: {
-            'paneProperties.background': '#06080C',
-            'paneProperties.backgroundType': 'solid',
-            'paneProperties.vertGridProperties.color': 'rgba(30, 38, 56, 0.45)',
-            'paneProperties.horzGridProperties.color': 'rgba(30, 38, 56, 0.45)',
-            'scalesProperties.backgroundColor': '#06080C',
-            'scalesProperties.textColor': '#94a3b8',
-            'scalesProperties.lineColor': 'rgba(30, 38, 56, 0.8)',
-            'mainSeriesProperties.candleStyle.upColor': '#00E676',
-            'mainSeriesProperties.candleStyle.downColor': '#EF4444',
-            'mainSeriesProperties.candleStyle.borderUpColor': '#00E676',
-            'mainSeriesProperties.candleStyle.borderDownColor': '#EF4444',
-            'mainSeriesProperties.candleStyle.wickUpColor': '#00E676',
-            'mainSeriesProperties.candleStyle.wickDownColor': '#EF4444'
-          }
-        });
-      } catch (err) {
-        console.warn('TradingView widget initialization error:', err);
-      }
-    };
-
-    if (window.TradingView) {
-      initWidget();
-    } else {
-      const timer = setTimeout(initWidget, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [symbol, currentTickerInfo.tvSymbol, containerId]);
-
-  // Fallback iframe URL if script load is pending
   const iframeSrc = `https://www.tradingview.com/widgetembed/?symbol=${encodeURIComponent(
     currentTickerInfo.tvSymbol
-  )}&interval=15&theme=dark&style=1&timezone=Asia%2FRiyadh&toolbarbg=06080C&hide_side_toolbar=0&allow_symbol_change=1&locale=ar&utm_source=mbktrading.live`;
+  )}&interval=15&theme=${isLight ? 'light' : 'dark'}&style=1&timezone=Asia%2FRiyadh&toolbarbg=${toolbarBgParam}&hide_side_toolbar=0&allow_symbol_change=1&locale=ar&utm_source=mbktrading.live`;
 
   return (
-    <div className="w-full h-full flex flex-col bg-[#06080C] overflow-hidden relative select-none">
+    <div className="w-full h-full flex flex-col overflow-hidden relative select-none bg-[#131722]">
       {/* PURE 100% FULL HEIGHT CHART CONTAINER */}
-      <div className="w-full h-full flex-1 relative bg-[#06080C] overflow-hidden">
-        {/* tv.js container */}
-        <div id={containerId} className="w-full h-full" />
-
-        {/* Fallback iframe */}
+      <div className="w-full h-full flex-1 relative overflow-hidden bg-[#131722]">
         <iframe
           title="TradingView Advanced Chart"
           src={iframeSrc}
-          className="w-full h-full border-0 absolute inset-0 bg-[#06080C]"
+          className="w-full h-full border-0 absolute inset-0 bg-[#131722]"
           allow="fullscreen"
         />
 
         {/* DYNAMIC SIGNAL HUD OVERLAY IF ACTIVE */}
         {activeSignal && (
           <div className="absolute top-3 left-3 right-3 sm:right-auto sm:max-w-md z-30 pointer-events-auto">
-            <div className="p-2.5 rounded-xl bg-[#06080C]/90 backdrop-blur-md border border-cyan-500/40 shadow-2xl text-xs text-slate-100 space-y-1.5">
+            <div className="p-2.5 rounded-xl bg-[#090D16]/90 backdrop-blur-md border border-[#089981]/40 shadow-2xl text-xs text-slate-100 space-y-1.5">
               <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-1">
                 <div className="flex items-center gap-1.5">
                   <span

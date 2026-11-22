@@ -5,14 +5,13 @@ import {
   getDocs,
   deleteDoc,
   updateDoc,
-  setDoc,
   doc,
   query,
   orderBy,
   limit
 } from 'firebase/firestore';
-import { db, legacyDb } from '../../lib/firebase';
-import { markDocumentDeleted } from '../../utils/legacyDbRecovery';
+import { db } from '../../lib/firebase';
+import { isDocumentDeleted, markDocumentDeleted } from '../../utils/legacyDbRecovery';
 import {
   Send,
   ShieldAlert,
@@ -47,7 +46,7 @@ export const PublishingCenter: React.FC<Props> = ({
   lang = 'ar',
   onClose
 }) => {
-  const { setDbError } = useSignalsContext();
+  const { setDbError, removeSignalLocally } = useSignalsContext();
   const isAr = lang === 'ar';
   const roleUpper = (currentUserRole || '').toUpperCase();
   const isAuthorized = roleUpper === 'ADMIN' || roleUpper === 'ANALYSER' || roleUpper === 'ANALYST';
@@ -149,10 +148,12 @@ export const PublishingCenter: React.FC<Props> = ({
       setSignalsLoading(true);
       const q = query(collection(db, 'signals'), orderBy('timestampMs', 'desc'), limit(50));
       const snapshot = await getDocs(q);
-      const items: any[] = snapshot.docs.map((docSnap) => ({
-        id: docSnap.id,
-        ...docSnap.data()
-      }));
+      const items: any[] = snapshot.docs
+        .filter((docSnap) => !isDocumentDeleted(docSnap.id))
+        .map((docSnap) => ({
+          id: docSnap.id,
+          ...docSnap.data()
+        }));
 
       items.sort((a, b) => (Number(b.timestampMs) || 0) - (Number(a.timestampMs) || 0));
       setPublishedSignals(items);
@@ -277,8 +278,9 @@ export const PublishingCenter: React.FC<Props> = ({
     try {
       soundManager.playClick();
       markDocumentDeleted(id);
-      await deleteDoc(doc(db, 'signals', id));
-      await deleteDoc(doc(legacyDb, 'signals', id)).catch(() => {});
+      removeSignalLocally(id);
+      await deleteDoc(doc(db, 'signals', id)).catch(() => {});
+      await deleteDoc(doc(db, 'bot_alerts', id)).catch(() => {});
       setPublishedSignals((prev) => prev.filter((s) => s.id !== id));
       setConfirmDeleteId(null);
       showFeedback('info', isAr ? 'تم حذف الإشارة من قاعدة البيانات بنجاح' : 'Signal deleted from Firestore');

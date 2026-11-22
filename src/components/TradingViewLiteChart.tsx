@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { MarketSymbol } from '../types/trading';
 import { TRADINGVIEW_TICKERS } from './TradingViewChart';
+import { useTheme } from '../context/ThemeContext';
 
 interface Props {
   symbol: MarketSymbol;
@@ -16,6 +17,9 @@ export const TradingViewLiteChart: React.FC<Props> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const isAr = lang === 'ar';
   const activeTickerInfo = TRADINGVIEW_TICKERS[symbol] || TRADINGVIEW_TICKERS.US100;
+  const { resolvedTheme } = useTheme();
+  const isLight = resolvedTheme === 'light';
+  const chartBgHex = isLight ? '#FFFFFF' : '#111726';
 
   useEffect(() => {
     const container = containerRef.current;
@@ -45,7 +49,7 @@ export const TradingViewLiteChart: React.FC<Props> = ({
       width: '100%',
       height: '100%',
       locale: isAr ? 'ar' : 'en',
-      colorTheme: 'dark',
+      colorTheme: isLight ? 'light' : 'dark',
       autosize: true,
       showVolume: false,
       showMA: false,
@@ -61,9 +65,9 @@ export const TradingViewLiteChart: React.FC<Props> = ({
       changeMode: 'price-and-percent',
       chartType: 'area',
       headerFontSize: 'small',
-      backgroundColor: '#131722',
-      gridLineColor: 'rgba(42, 46, 57, 0.4)',
-      widgetFontColor: '#d1d4dc',
+      backgroundColor: chartBgHex,
+      gridLineColor: isLight ? 'rgba(203, 213, 225, 0.5)' : 'rgba(42, 46, 57, 0.4)',
+      widgetFontColor: isLight ? '#0f172a' : '#d1d4dc',
       lineWidth: 2,
       lineType: 0,
       dateRanges: [
@@ -86,15 +90,20 @@ export const TradingViewLiteChart: React.FC<Props> = ({
     return () => {
       if (container) container.innerHTML = '';
     };
-  }, [symbol, isAr, activeTickerInfo.tvSymbol, activeTickerInfo.label]);
+  }, [symbol, isAr, activeTickerInfo.tvSymbol, activeTickerInfo.label, isLight, chartBgHex]);
 
   return (
-    <div className="w-full h-full flex flex-col bg-[#131722] overflow-hidden select-none relative">
-      {/* 100% Pure Lite Chart Container without top quick-switch box */}
-      <div className="flex-1 w-full min-h-0 bg-[#131722] relative overflow-hidden">
+    <div
+      className="w-full h-full flex flex-col overflow-hidden select-none relative"
+      style={{ backgroundColor: chartBgHex }}
+    >
+      <div
+        className="flex-1 w-full min-h-0 relative overflow-hidden"
+        style={{ backgroundColor: chartBgHex }}
+      >
         <div
           ref={containerRef}
-          className="tradingview-widget-container w-full h-full [&_iframe]:bg-[#131722]"
+          className="tradingview-widget-container w-full h-full"
         />
       </div>
     </div>

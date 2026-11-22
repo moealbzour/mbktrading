@@ -1,17 +1,18 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
-import { collection, doc, getDocs, limit, onSnapshot, orderBy, query, setDoc, where } from 'firebase/firestore';
-import { auth, db, legacyDb } from '../lib/firebase';
+import { collection, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import { soundManager } from '../utils/audio';
-import { DailyTrade, TradeSource, DailyTradeStatus, UserProfile } from '../types/trading';
+import { DailyTrade, TradeSource, DailyTradeStatus } from '../types/trading';
 import { ToastContainer, ToastItem } from '../components/common/ToastContainer';
 import { hasFeatureAccess } from '../utils/entitlements';
+import { subscribeToAuth } from '../services/firebaseAuthService';
 import {
   AppNotificationPermission,
   dispatchMobileAppNotification,
   getNotificationPermissionState,
   requestAppNotificationPermission
 } from '../utils/mobileNotifications';
+import { isDocumentDeleted, markDocumentDeleted } from '../utils/legacyDbRecovery';
 
 export interface ChannelSignalItem {
   id: string;
@@ -66,6 +67,7 @@ export interface SignalsContextValue {
   setDbError: (err: string | null) => void;
   addToast: (toast: Omit<ToastItem, 'id'>) => void;
   removeToast: (id: string) => void;
+  removeSignalLocally: (id: string) => void;
   requestNotificationPermission: () => Promise<AppNotificationPermission>;
   markChatAsRead: () => void;
   markTradesAsRead: () => void;
@@ -87,6 +89,7 @@ const SignalsContext = createContext<SignalsContextValue>({
   setDbError: () => {},
   addToast: () => {},
   removeToast: () => {},
+  removeSignalLocally: () => {},
   requestNotificationPermission: async () => 'default',
   markChatAsRead: () => {},
   markTradesAsRead: () => {},
@@ -99,42 +102,31 @@ const CACHED_SIGNALS_KEY = 'mbk_cached_signals_v1';
 const CACHED_TRADES_KEY = 'mbk_cached_trades_v1';
 const CACHED_BOT_ALERTS_KEY = 'mbk_cached_bot_alerts_v1';
 
+function isSignalIdDeleted(rawId: string): boolean {
+  if (!rawId) return false;
+  const cleanId = rawId.replace(/^bot-/, '');
+  return isDocumentDeleted(rawId) || isDocumentDeleted(cleanId) || isDocumentDeleted(`bot-${cleanId}`);
+}
+
 function isFirestoreQuotaError(error: any): boolean {
   const code = String(error?.code || '').toLowerCase();
   const msg = String(error?.message || error || '').toLowerCase();
   return code === 'resource-exhausted' || msg.includes('quota') || msg.includes('resource-exhausted');
 }
 
-function readCachedJson<T>(key: string, fallback: T): T {
+function readCachedJson<T extends Array<{ id: string }>>(key: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(key);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed as unknown as T;
+      if (Array.isArray(parsed)) {
+        return parsed.filter((item) => item && !isSignalIdDeleted(String(item.id || ''))) as unknown as T;
+      }
     }
   } catch {
     // ignore
   }
   return fallback;
-}
-
-function mapRawUserToProfile(userData: Record<string, any> | undefined): Partial<UserProfile> | null {
-  if (!userData) return null;
-  return {
-    role: (userData.role || 'free').toString().toUpperCase(),
-    tier: userData.tier || (userData.isElite ? 'elite' : userData.isVip ? 'vip' : 'free'),
-    isVip: Boolean(userData.isVip),
-    vipAccess: Boolean(userData.vipAccess),
-    isElite: Boolean(userData.isElite),
-    vipExpiryDate: userData.vipExpiryDate || userData.subscription_end_date || null,
-    eliteExpiryDate: userData.eliteExpiryDate || userData.subscription_end_date || null,
-    subscriptionEndDate: userData.subscription_end_date || userData.subscriptionEndDate || userData.vipExpiryDate || null,
-    grantedFeatures:
-      userData.grantedFeatures && typeof userData.grantedFeatures === 'object'
-        ? userData.grantedFeatures
-        : {},
-    isBanned: Boolean(userData.isBanned)
-  };
 }
 
 export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -218,6 +210,44 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
+  const removeSignalLocally = useCallback((rawId: string) => {
+    if (!rawId) return;
+    const cleanId = rawId.replace(/^bot-/, '');
+    markDocumentDeleted(cleanId);
+    markDocumentDeleted(rawId);
+    markDocumentDeleted(`bot-${cleanId}`);
+
+    setSignals((prev) => {
+      const next = prev.filter((s) => s.id !== cleanId && s.id !== rawId && !isSignalIdDeleted(s.id));
+      try {
+        localStorage.setItem(CACHED_SIGNALS_KEY, JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+
+    setRawTrades((prev) => {
+      const next = prev.filter((t) => t.id !== cleanId && t.id !== rawId && !isSignalIdDeleted(t.id));
+      try {
+        localStorage.setItem(CACHED_TRADES_KEY, JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+
+    setBotAlerts((prev) => {
+      const next = prev.filter((b) => b.id !== cleanId && b.id !== rawId && !isSignalIdDeleted(b.id));
+      try {
+        localStorage.setItem(CACHED_BOT_ALERTS_KEY, JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  }, []);
+
   const addToast = useCallback(
     (toastData: Omit<ToastItem, 'id'>) => {
       try {
@@ -282,17 +312,10 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     };
   }, []);
 
-  // Track authenticated user VIP/Elite/Feature-Trial/Admin status in real time
+  // Track authenticated user VIP/Elite/Feature-Trial/Admin status via shared singleton auth listener (0 extra reads)
   useEffect(() => {
-    let unsubscribeUserDoc: (() => void) | null = null;
-
-    const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
-      if (unsubscribeUserDoc) {
-        unsubscribeUserDoc();
-        unsubscribeUserDoc = null;
-      }
-
-      if (!firebaseUser) {
+    const unsubscribe = subscribeToAuth((profile) => {
+      if (!profile) {
         setCurrentUserUid(null);
         setCanReadVipSignals(false);
         setCanReadBotAlerts(false);
@@ -302,11 +325,10 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return;
       }
 
-      setCurrentUserUid(firebaseUser.uid);
+      const uid = profile.uid || profile.id || null;
+      setCurrentUserUid(uid);
 
-      const isSuperAdmin =
-        firebaseUser.email?.toLowerCase() === SUPER_ADMIN_EMAIL && firebaseUser.emailVerified;
-
+      const isSuperAdmin = profile.email?.toLowerCase() === SUPER_ADMIN_EMAIL || profile.isAdmin;
       if (isSuperAdmin) {
         setCanReadVipSignals(true);
         setCanReadBotAlerts(true);
@@ -315,30 +337,13 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return;
       }
 
-      const userRef = doc(db, 'users', firebaseUser.uid);
-      unsubscribeUserDoc = onSnapshot(
-        userRef,
-        (snap) => {
-          const profile = mapRawUserToProfile(snap.data());
-          setCanReadVipSignals(hasFeatureAccess(profile, 'vipSignals'));
-          setCanReadBotAlerts(hasFeatureAccess(profile, 'botSignals'));
-          setCanReadVipChat(!profile?.isBanned);
-          setAuthResolved(true);
-        },
-        (err) => {
-          console.warn('[SignalsContext] User role listener notice:', err?.message || err);
-          setCanReadVipSignals(false);
-          setCanReadBotAlerts(false);
-          setCanReadVipChat(true);
-          setAuthResolved(true);
-        }
-      );
+      setCanReadVipSignals(hasFeatureAccess(profile, 'vipSignals'));
+      setCanReadBotAlerts(hasFeatureAccess(profile, 'botSignals'));
+      setCanReadVipChat(!profile.isBanned);
+      setAuthResolved(true);
     });
 
-    return () => {
-      unsubscribeAuth();
-      if (unsubscribeUserDoc) unsubscribeUserDoc();
-    };
+    return () => unsubscribe();
   }, []);
 
   // Live Firestore listeners (capped at latest 30 signals & split Free vs VIP/Bot queries)
@@ -400,6 +405,7 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
           snapshot.forEach((docSnap) => {
             const data = docSnap.data();
             const docId = docSnap.id;
+            if (isSignalIdDeleted(docId)) return;
 
             const access = (data.accessLevel || data.access_level || 'free').toLowerCase();
             const isVip = access === 'vip' || data.source === 'VIP_MANUAL';
@@ -565,6 +571,7 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
             const rawAlerts: BotAlertItem[] = [];
             snapshot.forEach((docSnap) => {
+              if (isSignalIdDeleted(docSnap.id)) return;
               const data = docSnap.data();
               rawAlerts.push({
                 id: docSnap.id,
@@ -630,7 +637,8 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     const dmQuery = query(
       collection(db, 'dm_conversations'),
-      where('participants', 'array-contains', currentUserUid)
+      where('participants', 'array-contains', currentUserUid),
+      limit(30)
     );
 
     const unsubDm = onSnapshot(
@@ -724,11 +732,11 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [authResolved, currentUserUid, canReadVipChat, addToast, sendBrowserNotification, triggerAudioAlert]);
 
   // Merge raw bot_alerts into trades array, capped at latest 30 signals
-  const mergedTrades: DailyTrade[] = [...rawTrades];
-  const existingTradeIds = new Set(rawTrades.map((t) => t.id));
+  const mergedTrades: DailyTrade[] = rawTrades.filter((t) => !isSignalIdDeleted(t.id));
+  const existingTradeIds = new Set(mergedTrades.map((t) => t.id));
 
   botAlerts.forEach((alert) => {
-    if (!existingTradeIds.has(alert.id)) {
+    if (!isSignalIdDeleted(alert.id) && !existingTradeIds.has(alert.id)) {
       const text = alert.text || '';
 
       mergedTrades.push({
@@ -774,9 +782,9 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   return (
     <SignalsContext.Provider
       value={{
-        signals,
+        signals: signals.filter((s) => !isSignalIdDeleted(s.id)),
         trades: cappedTrades,
-        botAlerts,
+        botAlerts: botAlerts.filter((b) => !isSignalIdDeleted(b.id)),
         loading,
         botAlertsLoading,
         toasts,
@@ -788,6 +796,7 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setDbError,
         addToast,
         removeToast,
+        removeSignalLocally,
         requestNotificationPermission,
         markChatAsRead,
         markTradesAsRead,

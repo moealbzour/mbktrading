@@ -26,7 +26,14 @@ import {
   KeyRound,
   Ban,
   VolumeX,
-  Mail
+  Mail,
+  Mic,
+  Square,
+  Play,
+  Pause,
+  BarChart2,
+  TrendingUp,
+  TrendingDown
 } from 'lucide-react';
 import {
   collection,
@@ -44,16 +51,30 @@ import {
   writeBatch,
   serverTimestamp
 } from 'firebase/firestore';
-import { db, auth, legacyDb } from '../../lib/firebase';
+import { db, auth } from '../../lib/firebase';
 import { soundManager } from '../../utils/audio';
-import { UserProfile } from '../../types/trading';
+import { UserProfile, MarketSymbol } from '../../types/trading';
 import { markDocumentDeleted, isDocumentDeleted } from '../../utils/legacyDbRecovery';
+import { useSignalsContext } from '../../context/SignalsContext';
 
 export interface ChatReplyTo {
   id: string;
   user: string;
   text: string;
   imageUrl?: string;
+}
+
+export interface SharedTradeCardPayload {
+  id?: string;
+  symbol: string;
+  action: 'BUY' | 'SELL';
+  entry: number | string;
+  tp1: number | string;
+  tp2?: number | string;
+  sl: number | string;
+  pips?: number;
+  timeframe?: string;
+  strategy?: string;
 }
 
 export interface ChatMessageItem {
@@ -65,6 +86,9 @@ export interface ChatMessageItem {
   text: string;
   imageUrl?: string;
   imageCaption?: string;
+  audioUrl?: string;
+  audioDurationSec?: number;
+  tradeCard?: SharedTradeCardPayload;
   time: string;
   likes: number;
   reactions?: Record<string, number>;
@@ -94,6 +118,7 @@ interface Props {
   onOpenPromoModal?: () => void;
   onOpenPlansModal?: () => void;
   onStartDirectMessage?: (target: { uid: string; displayName: string; avatar?: string; role: string }) => void;
+  onSelectSymbol?: (sym: MarketSymbol) => void;
 }
 
 const MAX_CHAT_CHARS = 500;
@@ -122,9 +147,11 @@ export const PublicTradingChat: React.FC<Props> = ({
   isCompact = false,
   onOpenPromoModal,
   onOpenPlansModal,
-  onStartDirectMessage
+  onStartDirectMessage,
+  onSelectSymbol
 }) => {
   const isAr = lang === 'ar';
+  const { signals: liveSignals } = useSignalsContext();
 
   const [messages, setMessages] = useState<ChatMessageItem[]>([]);
   const [pinnedMessage, setPinnedMessage] = useState<ChatMessageItem | null>(null);
@@ -136,6 +163,33 @@ export const PublicTradingChat: React.FC<Props> = ({
   const [moderatedUsers, setModeratedUsers] = useState<
     Record<string, { isBanned?: boolean; isMutedFromChat?: boolean }>
   >({});
+
+  // Real-Chat Upgrade State: Trade Setup Card Attachment, Voice Note Recording & Trader Profile Card
+  const [attachedTradeCard, setAttachedTradeCard] = useState<SharedTradeCardPayload | null>(null);
+  const [showTradeCardModal, setShowTradeCardModal] = useState(false);
+  const [customTradeSymbol, setCustomTradeSymbol] = useState<MarketSymbol>('XAUUSD');
+  const [customTradeAction, setCustomTradeAction] = useState<'BUY' | 'SELL'>('BUY');
+  const [customTradeEntry, setCustomTradeEntry] = useState('2682.00');
+  const [customTradeTp1, setCustomTradeTp1] = useState('2694.00');
+  const [customTradeSl, setCustomTradeSl] = useState('2673.00');
+
+  // Voice Note Recording State (MediaRecorder API)
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [recordedAudioDataUrl, setRecordedAudioDataUrl] = useState<string | null>(null);
+  const [recordedAudioDuration, setRecordedAudioDuration] = useState<number>(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordingChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<number | null>(null);
+  const recordingStartSecRef = useRef<number>(0);
+
+  // Interactive Trader Profile Card Modal State
+  const [inspectedTrader, setInspectedTrader] = useState<{
+    uid?: string;
+    name: string;
+    avatar?: string;
+    role: string;
+  } | null>(null);
 
   // General Chat is open to all authenticated non-banned users (Free, VIP, Elite, Staff)
   const roleUpper = (userRole || user?.role || 'FREE').toUpperCase();
@@ -269,8 +323,6 @@ export const PublicTradingChat: React.FC<Props> = ({
       // ignore
     }
 
-    const recentSecondaryMsgsMap = new Map<string, ChatMessageItem>();
-
     const mapDocToChatItem = (docId: string, d: Record<string, any>): ChatMessageItem => {
       const roleNormalized = (d.role || 'VIP').toString().toUpperCase();
       const avatarUrl = d.photoURL || d.avatar || '';
@@ -285,7 +337,10 @@ export const PublicTradingChat: React.FC<Props> = ({
         text: d.text || '',
         imageUrl: d.imageUrl || undefined,
         imageCaption: d.imageCaption || undefined,
-        symbolTag: d.symbolTag || undefined,
+        audioUrl: d.audioUrl || undefined,
+        audioDurationSec: typeof d.audioDurationSec === 'number' ? d.audioDurationSec : undefined,
+        tradeCard: d.tradeCard && typeof d.tradeCard === 'object' ? d.tradeCard : undefined,
+        symbolTag: d.symbolTag || d.tradeCard?.symbol || undefined,
         replyTo: d.replyTo || undefined,
         isPinned: Boolean(d.isPinned),
         likes: Number(d.likes || 0),
@@ -303,10 +358,8 @@ export const PublicTradingChat: React.FC<Props> = ({
     const chatQuery = query(
       collection(db, 'public_chat'),
       orderBy('timestampMs', 'asc'),
-      limitToLast(80)
+      limitToLast(60)
     );
-
-    let secondaryChecked = false;
 
     const unsubscribe = onSnapshot(
       chatQuery,
@@ -329,65 +382,10 @@ export const PublicTradingChat: React.FC<Props> = ({
         }
         isInitialSnapshotRef.current = false;
 
-        const primaryList: ChatMessageItem[] = snapshot.docs
+        const list: ChatMessageItem[] = snapshot.docs
           .filter((docSnap) => !isDocumentDeleted(docSnap.id))
-          .map((docSnap) => mapDocToChatItem(docSnap.id, docSnap.data()));
-
-        // Determine the start timestamp of today's primary General Chat so old yesterday messages from secondary DB are never mixed in
-        const minPrimaryTs =
-          primaryList.length > 0
-            ? Math.min(...primaryList.map((m) => m.timestampMs || Date.now()))
-            : Date.now() - 12 * 60 * 60 * 1000;
-
-        if (!secondaryChecked) {
-          secondaryChecked = true;
-          getDocs(query(collection(legacyDb, 'public_chat'), orderBy('timestampMs', 'asc'), limitToLast(40)))
-            .then((secSnap) => {
-              let addedAny = false;
-              secSnap.docs.forEach((sDoc) => {
-                if (isDocumentDeleted(sDoc.id)) return;
-                const d = sDoc.data();
-                const ts = Number(d.timestampMs || 0);
-                // Strictly only include messages sent AFTER today's General Chat started (never yesterday's old chat!)
-                if (ts > minPrimaryTs) {
-                  recentSecondaryMsgsMap.set(sDoc.id, mapDocToChatItem(sDoc.id, d));
-                  addedAny = true;
-                  if (isCurrentAdmin || d.uid === auth.currentUser?.uid) {
-                    setDoc(doc(db, 'public_chat', sDoc.id), d, { merge: true }).catch(() => {});
-                  }
-                }
-              });
-              if (addedAny) {
-                setMessages((prev) => {
-                  const byId = new Map<string, ChatMessageItem>();
-                  prev.forEach((m) => {
-                    if (!isDocumentDeleted(m.id)) byId.set(m.id, m);
-                  });
-                  recentSecondaryMsgsMap.forEach((m, id) => {
-                    if (!isDocumentDeleted(id) && !byId.has(id)) byId.set(id, m);
-                  });
-                  const merged = Array.from(byId.values()).sort((a, b) => (a.timestampMs || 0) - (b.timestampMs || 0));
-                  try {
-                    localStorage.setItem('mbk_cached_public_chat_v2', JSON.stringify(merged));
-                  } catch {
-                    // ignore
-                  }
-                  return merged;
-                });
-              }
-            })
-            .catch(() => {});
-        }
-
-        const combinedById = new Map<string, ChatMessageItem>();
-        primaryList.forEach((m) => combinedById.set(m.id, m));
-        recentSecondaryMsgsMap.forEach((m, id) => {
-          if (!isDocumentDeleted(id) && (m.timestampMs || 0) > minPrimaryTs && !combinedById.has(id)) {
-            combinedById.set(id, m);
-          }
-        });
-
-        const list = Array.from(combinedById.values()).sort((a, b) => (a.timestampMs || 0) - (b.timestampMs || 0));
+          .map((docSnap) => mapDocToChatItem(docSnap.id, docSnap.data()))
+          .sort((a, b) => (a.timestampMs || 0) - (b.timestampMs || 0));
 
         setMessages(list);
         try {
@@ -546,6 +544,108 @@ export const PublicTradingChat: React.FC<Props> = ({
     resetFileInput();
   };
 
+  // Voice Note Recording Handlers (30-second compressed WebM/Opus audio)
+  const startVoiceRecording = async () => {
+    if (!canAccessChat || isMutedFromChat) return;
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      showToastNotice('error', isAr ? 'المتصفح لا يدعم تسجيل الملاحظات الصوتية' : 'Browser does not support audio recording');
+      return;
+    }
+
+    try {
+      soundManager.playClick();
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/webm')
+        ? 'audio/webm'
+        : '';
+
+      const recorder = mimeType
+        ? new MediaRecorder(stream, { mimeType, audioBitsPerSecond: 24000 })
+        : new MediaRecorder(stream);
+
+      recordingChunksRef.current = [];
+      recordingStartSecRef.current = Date.now();
+      setRecordingSeconds(0);
+      setIsRecordingVoice(true);
+
+      recorder.ondataavailable = (ev) => {
+        if (ev.data && ev.data.size > 0) {
+          recordingChunksRef.current.push(ev.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        stream.getTracks().forEach((track) => track.stop());
+        if (recordingTimerRef.current) {
+          window.clearInterval(recordingTimerRef.current);
+          recordingTimerRef.current = null;
+        }
+        setIsRecordingVoice(false);
+
+        if (recordingChunksRef.current.length === 0) return;
+        const blob = new Blob(recordingChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+        if (blob.size > 750 * 1024) {
+          showToastNotice(
+            'error',
+            isAr ? 'التسجيل الصوتي طويل جداً. يرجى تسجيل رسالة أقصر.' : 'Voice note exceeds size limit. Please record a shorter clip.'
+          );
+          return;
+        }
+
+        const durationSec = Math.max(1, Math.round((Date.now() - recordingStartSecRef.current) / 1000));
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64Audio = reader.result as string;
+          if (base64Audio) {
+            setRecordedAudioDataUrl(base64Audio);
+            setRecordedAudioDuration(durationSec);
+          }
+        };
+        reader.readAsDataURL(blob);
+      };
+
+      mediaRecorderRef.current = recorder;
+      recorder.start(250);
+
+      recordingTimerRef.current = window.setInterval(() => {
+        const elapsed = Math.round((Date.now() - recordingStartSecRef.current) / 1000);
+        setRecordingSeconds(elapsed);
+        if (elapsed >= 30 && mediaRecorderRef.current?.state === 'recording') {
+          mediaRecorderRef.current.stop();
+        }
+      }, 500);
+    } catch (err: any) {
+      console.warn('Voice note mic access error:', err);
+      showToastNotice(
+        'error',
+        isAr
+          ? 'يرجى السماح بصلاحية الميكروفون في المتصفح لتسجيل رسالة صوتية'
+          : 'Please allow microphone access in your browser to record voice notes'
+      );
+    }
+  };
+
+  const stopVoiceRecording = () => {
+    soundManager.playClick();
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    }
+  };
+
+  const cancelVoiceRecording = () => {
+    soundManager.playClick();
+    recordingChunksRef.current = [];
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecordingVoice(false);
+    setRecordedAudioDataUrl(null);
+    setRecordedAudioDuration(0);
+    setRecordingSeconds(0);
+  };
+
   // 2. Write to Firestore 'public_chat' collection with anti-spam (>2 repeats) & temporary lock enforcement
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -574,10 +674,10 @@ export const PublicTradingChat: React.FC<Props> = ({
       return;
     }
 
-    if ((!textToSend && !selectedImage) || isSending) return;
+    if ((!textToSend && !selectedImage && !recordedAudioDataUrl && !attachedTradeCard) || isSending) return;
 
     // Anti-Spam Gate: Prevent & auto-discard if repeated more than 2 times (> 2x)
-    if (!isCurrentAdmin && textToSend) {
+    if (!isCurrentAdmin && textToSend && !recordedAudioDataUrl && !attachedTradeCard) {
       const normIncoming = normalizeChatTextForSpam(textToSend);
       const nowMs = Date.now();
       const recentMatches = messages.filter(
@@ -610,7 +710,9 @@ export const PublicTradingChat: React.FC<Props> = ({
       setIsSending(true);
       soundManager.playClick();
 
-      const detectedTag = textToSend.includes('US100')
+      const detectedTag = attachedTradeCard?.symbol
+        ? attachedTradeCard.symbol
+        : textToSend.includes('US100')
         ? 'US100'
         : textToSend.includes('XAU') || textToSend.includes('الذهب')
         ? 'XAUUSD'
@@ -622,7 +724,7 @@ export const PublicTradingChat: React.FC<Props> = ({
 
       const userRoleToSend = isCurrentAdmin ? 'ADMIN' : (userRole || 'VIP').toUpperCase();
 
-      const payload = {
+      const payload: Record<string, any> = {
         uid: currentUser.uid,
         displayName: currentUser.displayName || currentUserName,
         photoURL: currentUser.photoURL || null,
@@ -630,12 +732,25 @@ export const PublicTradingChat: React.FC<Props> = ({
         text: textToSend.slice(0, MAX_CHAT_CHARS),
         imageUrl: isCurrentAdmin ? selectedImage || null : null,
         imageCaption: isCurrentAdmin ? imageCaption.trim().slice(0, 200) || null : null,
+        audioUrl: recordedAudioDataUrl || null,
+        audioDurationSec: recordedAudioDataUrl ? recordedAudioDuration || 1 : null,
+        tradeCard: attachedTradeCard || null,
         symbolTag: detectedTag || null,
         replyTo: replyingTo
           ? {
               id: replyingTo.id,
               user: replyingTo.user,
-              text: replyingTo.text ? replyingTo.text.slice(0, 60) : isAr ? '[صورة تحليل فني]' : '[Chart Image]',
+              text: replyingTo.text
+                ? replyingTo.text.slice(0, 60)
+                : replyingTo.tradeCard
+                ? `[${replyingTo.tradeCard.action} ${replyingTo.tradeCard.symbol}]`
+                : replyingTo.audioUrl
+                ? isAr
+                  ? '[ملاحظة صوتية 🎙️]'
+                  : '[Voice Note 🎙️]'
+                : isAr
+                ? '[صورة تحليل فني]'
+                : '[Chart Image]',
               imageUrl: replyingTo.imageUrl || null
             }
           : null,
@@ -651,6 +766,9 @@ export const PublicTradingChat: React.FC<Props> = ({
       setInputText('');
       setSelectedImage(null);
       setImageCaption('');
+      setRecordedAudioDataUrl(null);
+      setRecordedAudioDuration(0);
+      setAttachedTradeCard(null);
       setReplyingTo(null);
       setIsTypePopupOpen(false);
       scrollToBottom('smooth');
@@ -659,7 +777,7 @@ export const PublicTradingChat: React.FC<Props> = ({
       console.error('Send Firestore chat message error:', err);
       showToastNotice(
         'error',
-        isAr ? 'تعذر إرسال الرسالة. تأكد من صلاحيات VIP أو حالة الكتم.' : `Failed to send message: ${err?.message || err}`
+        isAr ? 'تعذر إرسال الرسالة. تأكد من صلاحيات الحساب أو حالة الكتم.' : `Failed to send message: ${err?.message || err}`
       );
     } finally {
       setIsSending(false);
@@ -707,7 +825,6 @@ export const PublicTradingChat: React.FC<Props> = ({
     try {
       markDocumentDeleted(messageId);
       await deleteDoc(doc(db, 'public_chat', messageId));
-      await deleteDoc(doc(legacyDb, 'public_chat', messageId)).catch(() => {});
       setMessages((prev) => {
         const next = prev.filter((m) => m.id !== messageId);
         try {
@@ -1311,18 +1428,35 @@ export const PublicTradingChat: React.FC<Props> = ({
 
                   <div className="flex items-center justify-between gap-2 mb-1.5">
                     <div className="flex items-center gap-1.5 min-w-0">
-                      {msg.avatar ? (
-                        <img
-                          src={msg.avatar}
-                          alt={msg.user}
-                          className="w-5 h-5 rounded-full object-cover border border-[#363a45] shrink-0"
-                        />
-                      ) : (
-                        <div className="w-5 h-5 rounded-full bg-[#2a2e39] border border-[#363a45] text-[10px] font-bold text-white flex items-center justify-center shrink-0">
-                          {msg.user ? msg.user[0].toUpperCase() : 'M'}
-                        </div>
-                      )}
-                      <span className="font-bold text-white text-[11px] sm:text-xs truncate">{msg.user}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          soundManager.playClick();
+                          setInspectedTrader({
+                            uid: msg.uid,
+                            name: msg.user,
+                            avatar: msg.avatar,
+                            role: msg.role
+                          });
+                        }}
+                        className="flex items-center gap-1.5 min-w-0 hover:opacity-85 transition-opacity cursor-pointer"
+                        title={isAr ? `عرض بطاقة المتداول ${msg.user}` : `View ${msg.user}'s Trader Card`}
+                      >
+                        {msg.avatar ? (
+                          <img
+                            src={msg.avatar}
+                            alt={msg.user}
+                            className="w-5 h-5 rounded-full object-cover border border-[#363a45] shrink-0"
+                          />
+                        ) : (
+                          <div className="w-5 h-5 rounded-full bg-[#2a2e39] border border-[#363a45] text-[10px] font-bold text-white flex items-center justify-center shrink-0">
+                            {msg.user ? msg.user[0].toUpperCase() : 'M'}
+                          </div>
+                        )}
+                        <span className="font-bold text-white hover:text-[#089981] text-[11px] sm:text-xs truncate transition-colors">
+                          {msg.user}
+                        </span>
+                      </button>
 
                       {(() => {
                         const r = (msg.role || 'VIP').toUpperCase();
@@ -1334,11 +1468,11 @@ export const PublicTradingChat: React.FC<Props> = ({
                             </span>
                           );
                         }
-                        if (r === 'VIP') {
+                        if (r === 'VIP' || r === 'ELITE') {
                           return (
                             <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/50 flex items-center gap-0.5 shrink-0">
                               <Sparkles className="w-2.5 h-2.5 text-amber-400" />
-                              <span>VIP</span>
+                              <span>{r}</span>
                             </span>
                           );
                         }
@@ -1362,6 +1496,86 @@ export const PublicTradingChat: React.FC<Props> = ({
 
                     <span className="text-[9px] text-[#787b86] font-mono shrink-0">{msg.time}</span>
                   </div>
+
+                  {/* Embedded Interactive Trade Setup Card */}
+                  {msg.tradeCard && (
+                    <div className="mb-2 p-2.5 rounded-xl bg-[#131722]/90 border border-[#089981]/40 space-y-2">
+                      <div className="flex items-center justify-between gap-2 border-b border-[#2a2e39] pb-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] font-mono font-extrabold flex items-center gap-1 ${
+                              msg.tradeCard.action === 'BUY'
+                                ? 'bg-[#089981]/20 text-[#089981] border border-[#089981]/40'
+                                : 'bg-[#f23645]/20 text-[#f23645] border border-[#f23645]/40'
+                            }`}
+                          >
+                            {msg.tradeCard.action === 'BUY' ? (
+                              <TrendingUp className="w-3 h-3" />
+                            ) : (
+                              <TrendingDown className="w-3 h-3" />
+                            )}
+                            <span>{msg.tradeCard.action}</span>
+                          </span>
+                          <span className="font-mono font-black text-white text-xs">
+                            {msg.tradeCard.symbol}
+                          </span>
+                          {msg.tradeCard.timeframe && (
+                            <span className="text-[9px] font-mono text-[#787b86] bg-[#1e222d] px-1.5 py-0.5 rounded border border-[#2a2e39]">
+                              {msg.tradeCard.timeframe}
+                            </span>
+                          )}
+                        </div>
+
+                        {onSelectSymbol && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              soundManager.playClick();
+                              onSelectSymbol(msg.tradeCard!.symbol as MarketSymbol);
+                            }}
+                            className="px-2 py-0.5 rounded-lg bg-[#089981] hover:bg-[#07846f] text-white text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                          >
+                            <BarChart2 className="w-3 h-3" />
+                            <span>{isAr ? 'فتح الشارت' : 'Load Chart'}</span>
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-1.5 text-center font-mono tabular-nums text-[10px]">
+                        <div className="p-1.5 rounded-lg bg-[#1e222d] border border-[#2a2e39]">
+                          <span className="text-[8px] text-[#787b86] block">{isAr ? 'الدخول' : 'ENTRY'}</span>
+                          <span className="font-bold text-white">{msg.tradeCard.entry}</span>
+                        </div>
+                        <div className="p-1.5 rounded-lg bg-[#089981]/10 border border-[#089981]/30">
+                          <span className="text-[8px] text-[#089981] block">{isAr ? 'الهدف TP1' : 'TARGET TP1'}</span>
+                          <span className="font-bold text-[#089981]">{msg.tradeCard.tp1}</span>
+                        </div>
+                        <div className="p-1.5 rounded-lg bg-[#f23645]/10 border border-[#f23645]/30">
+                          <span className="text-[8px] text-[#f23645] block">{isAr ? 'الوقف SL' : 'STOP LOSS'}</span>
+                          <span className="font-bold text-[#f23645]">{msg.tradeCard.sl}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Embedded Voice Note Player */}
+                  {msg.audioUrl && (
+                    <div className="mb-2 p-2 rounded-xl bg-[#131722]/90 border border-[#089981]/35 flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-full bg-[#089981]/20 border border-[#089981]/40 text-[#089981] flex items-center justify-center shrink-0">
+                        <Mic className="w-3.5 h-3.5" />
+                      </div>
+                      <audio
+                        controls
+                        src={msg.audioUrl}
+                        className="h-8 w-full max-w-[230px] accent-[#089981]"
+                      />
+                      {msg.audioDurationSec && (
+                        <span className="text-[10px] font-mono text-[#089981] font-bold shrink-0">
+                          {msg.audioDurationSec}s
+                        </span>
+                      )}
+                    </div>
+                  )}
 
                   {msg.imageUrl && (
                     <div className="mb-2 rounded-xl overflow-hidden border border-[#2a2e39] bg-black/40 group/img relative">
@@ -1521,7 +1735,87 @@ export const PublicTradingChat: React.FC<Props> = ({
         </div>
       )}
 
-      {/* 4. ATTACHED IMAGE PREVIEW (Admin Only) */}
+      {/* 4a. ATTACHED TRADE SETUP CARD PREVIEW */}
+      {attachedTradeCard && (
+        <div className="p-2.5 border-t border-[#2a2e39] bg-[#1a1e28] flex items-center justify-between gap-3 shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span
+              className={`px-2 py-0.5 rounded text-[10px] font-mono font-extrabold ${
+                attachedTradeCard.action === 'BUY'
+                  ? 'bg-[#089981]/20 text-[#089981] border border-[#089981]/40'
+                  : 'bg-[#f23645]/20 text-[#f23645] border border-[#f23645]/40'
+              }`}
+            >
+              {attachedTradeCard.action} {attachedTradeCard.symbol}
+            </span>
+            <span className="text-[11px] font-mono text-[#d1d4dc] truncate">
+              E: {attachedTradeCard.entry} • TP: {attachedTradeCard.tp1} • SL: {attachedTradeCard.sl}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setAttachedTradeCard(null)}
+            className="p-1 rounded-lg bg-[#131722] text-[#787b86] hover:text-[#f23645] cursor-pointer"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* 4b. RECORDED VOICE NOTE PREVIEW OR ACTIVE RECORDING BAR */}
+      {(isRecordingVoice || recordedAudioDataUrl) && (
+        <div className="p-2.5 border-t border-[#2a2e39] bg-[#1a1e28] flex items-center justify-between gap-2.5 shrink-0">
+          {isRecordingVoice ? (
+            <>
+              <div className="flex items-center gap-2 text-xs font-bold text-[#f23645]">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#f23645] animate-ping" />
+                <span>
+                  {isAr ? 'جاري تسجيل ملاحظة صوتية...' : 'Recording voice note...'} ({recordingSeconds}s / 30s)
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={cancelVoiceRecording}
+                  className="px-2.5 py-1 rounded-lg bg-[#131722] border border-[#2a2e39] text-[#787b86] hover:text-white text-[11px] font-bold cursor-pointer"
+                >
+                  {isAr ? 'إلغاء' : 'Cancel'}
+                </button>
+                <button
+                  type="button"
+                  onClick={stopVoiceRecording}
+                  className="px-2.5 py-1 rounded-lg bg-[#f23645] hover:bg-rose-500 text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                >
+                  <Square className="w-3 h-3 fill-white" />
+                  <span>{isAr ? 'إيقاف وحفظ' : 'Stop'}</span>
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <div className="w-7 h-7 rounded-full bg-[#089981]/20 border border-[#089981]/40 text-[#089981] flex items-center justify-center shrink-0">
+                  <Mic className="w-3.5 h-3.5" />
+                </div>
+                <audio controls src={recordedAudioDataUrl!} className="h-8 w-full max-w-[220px]" />
+                <span className="text-[10px] font-mono text-[#089981] font-bold shrink-0">
+                  {recordedAudioDuration}s
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={cancelVoiceRecording}
+                className="p-1 rounded-lg bg-[#131722] text-[#787b86] hover:text-[#f23645] cursor-pointer"
+                title={isAr ? 'حذف التسجيل' : 'Discard voice note'}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* 4c. ATTACHED IMAGE PREVIEW (Admin Only) */}
       {selectedImage && isCurrentAdmin && (
         <div className="p-2.5 border-t border-[#2a2e39] bg-[#1a1e28] flex items-center gap-3 shrink-0">
           <div className="relative w-14 h-14 rounded-lg overflow-hidden border border-[#089981] shrink-0">
@@ -1613,6 +1907,47 @@ export const PublicTradingChat: React.FC<Props> = ({
             </button>
           )}
 
+          {/* Share Interactive Trade Setup Card Button */}
+          <button
+            type="button"
+            onClick={() => {
+              soundManager.playClick();
+              setShowTradeCardModal(true);
+            }}
+            className={`p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-center shrink-0 ${
+              attachedTradeCard
+                ? 'bg-[#089981] text-white border-[#089981]'
+                : 'bg-[#131722] hover:bg-[#2a2e39] text-amber-400 border-[#2a2e39]'
+            }`}
+            title={isAr ? 'مشاركة بطاقة صفقة أو توصية تداول' : 'Share Trade Setup Card'}
+          >
+            <BarChart2 className="w-4 h-4" />
+          </button>
+
+          {/* Record Voice Note Button */}
+          <button
+            type="button"
+            onClick={isRecordingVoice ? stopVoiceRecording : startVoiceRecording}
+            className={`p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-center shrink-0 ${
+              isRecordingVoice
+                ? 'bg-[#f23645] text-white border-[#f23645] animate-pulse'
+                : recordedAudioDataUrl
+                ? 'bg-[#089981] text-white border-[#089981]'
+                : 'bg-[#131722] hover:bg-[#2a2e39] text-[#089981] border-[#2a2e39]'
+            }`}
+            title={
+              isRecordingVoice
+                ? isAr
+                  ? 'إيقاف التسجيل الصوتي'
+                  : 'Stop Recording'
+                : isAr
+                ? 'تسجيل رسالة صوتية (30 ثانية)'
+                : 'Record Voice Note (30s)'
+            }
+          >
+            {isRecordingVoice ? <Square className="w-4 h-4 fill-white" /> : <Mic className="w-4 h-4" />}
+          </button>
+
           <div className="flex-1 min-w-0 relative flex items-center">
             <input
               type="text"
@@ -1621,8 +1956,8 @@ export const PublicTradingChat: React.FC<Props> = ({
               onChange={(e) => setInputText(e.target.value.slice(0, MAX_CHAT_CHARS))}
               placeholder={
                 isAr
-                  ? 'اكتب رسالة في الشات العام (حد أقصى 500 حرف)...'
-                  : 'Type a message in General Chat (max 500 chars)...'
+                  ? 'اكتب رسالة أو شارك صفقة أو ملاحظة صوتية...'
+                  : 'Type a message, share a trade card, or record voice...'
               }
               className="w-full bg-[#131722] border border-[#2a2e39] focus:border-[#089981] rounded-xl px-3 py-2 pe-16 text-xs text-white placeholder-[#787b86] transition-all focus:outline-none"
             />
@@ -1648,7 +1983,7 @@ export const PublicTradingChat: React.FC<Props> = ({
 
           <button
             type="submit"
-            disabled={(!inputText.trim() && !selectedImage) || isSending}
+            disabled={(!inputText.trim() && !selectedImage && !recordedAudioDataUrl && !attachedTradeCard) || isSending}
             className="p-2 sm:px-3.5 sm:py-2 rounded-xl bg-[#089981] hover:bg-[#07806c] disabled:opacity-40 text-white font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5 shadow-md shrink-0"
             title={isAr ? 'إرسال' : 'Send'}
           >
@@ -1969,6 +2304,291 @@ export const PublicTradingChat: React.FC<Props> = ({
               📊 {lightboxImage.caption}
             </div>
           )}
+        </div>
+      )}
+
+      {/* 7. TRADE SETUP CARD PICKER & BUILDER MODAL */}
+      {showTradeCardModal && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+          onClick={() => setShowTradeCardModal(false)}
+        >
+          <div
+            className="bg-[#1e222d] border border-[#2a2e39] rounded-2xl max-w-md w-full p-4 shadow-2xl space-y-4"
+            onClick={(e) => e.stopPropagation()}
+            dir={isAr ? 'rtl' : 'ltr'}
+          >
+            <div className="flex items-center justify-between border-b border-[#2a2e39] pb-2.5">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-[#089981]/20 border border-[#089981]/40 text-[#089981] flex items-center justify-center">
+                  <BarChart2 className="w-4 h-4" />
+                </div>
+                <h3 className="text-xs sm:text-sm font-extrabold text-white">
+                  {isAr ? 'مشاركة بطاقة صفقة تفاعلية في الشات' : 'Share Interactive Trade Setup Card'}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTradeCardModal(false)}
+                className="p-1 rounded-lg text-[#787b86] hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Option A: Quick-Pick from Live Signals */}
+            {liveSignals && liveSignals.length > 0 && (
+              <div className="space-y-1.5">
+                <span className="text-[11px] font-bold text-[#9db2c6] block">
+                  {isAr ? 'اختر من الصفقات الجارية حالياً:' : 'Pick from active live signals:'}
+                </span>
+                <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1">
+                  {liveSignals.slice(0, 6).map((sig) => (
+                    <button
+                      key={sig.id}
+                      type="button"
+                      onClick={() => {
+                        soundManager.playClick();
+                        setAttachedTradeCard({
+                          id: sig.id,
+                          symbol: sig.symbol,
+                          action: sig.action === 'SELL' ? 'SELL' : 'BUY',
+                          entry: sig.entryPrice,
+                          tp1: sig.tp1,
+                          tp2: sig.tp2,
+                          sl: sig.sl,
+                          pips: sig.pips,
+                          timeframe: sig.timeframe || '15m'
+                        });
+                        setShowTradeCardModal(false);
+                      }}
+                      className="w-full p-2 rounded-xl bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] hover:border-[#089981] flex items-center justify-between text-xs cursor-pointer transition-all"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${
+                            sig.action === 'BUY'
+                              ? 'bg-[#089981]/20 text-[#089981]'
+                              : 'bg-[#f23645]/20 text-[#f23645]'
+                          }`}
+                        >
+                          {sig.action}
+                        </span>
+                        <span className="font-mono font-bold text-white">{sig.symbol}</span>
+                      </div>
+                      <span className="text-[10px] font-mono text-[#787b86]">
+                        E: {sig.entryPrice} • TP: {sig.tp1}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Option B: Custom Trade Setup Card */}
+            <div className="space-y-2.5 pt-2 border-t border-[#2a2e39]">
+              <span className="text-[11px] font-bold text-amber-400 block">
+                {isAr ? 'أو أنشئ بطاقة صفقة مخصصة:' : 'Or create a custom trade setup card:'}
+              </span>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] text-[#787b86] block mb-1">{isAr ? 'الزوج / الأصل' : 'Symbol'}</label>
+                  <select
+                    value={customTradeSymbol}
+                    onChange={(e) => setCustomTradeSymbol(e.target.value as MarketSymbol)}
+                    className="w-full bg-[#131722] border border-[#2a2e39] rounded-lg px-2.5 py-1.5 text-xs font-mono text-white"
+                  >
+                    <option value="XAUUSD">XAUUSD (Gold)</option>
+                    <option value="US100">US100 (Nasdaq)</option>
+                    <option value="EURUSD">EURUSD</option>
+                    <option value="BTCUSD">BTCUSD</option>
+                    <option value="GBPUSD">GBPUSD</option>
+                    <option value="WTI">WTI (Oil)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] text-[#787b86] block mb-1">{isAr ? 'نوع الأمر' : 'Direction'}</label>
+                  <div className="grid grid-cols-2 gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setCustomTradeAction('BUY')}
+                      className={`py-1.5 rounded-lg text-xs font-mono font-bold cursor-pointer border ${
+                        customTradeAction === 'BUY'
+                          ? 'bg-[#089981] text-white border-[#089981]'
+                          : 'bg-[#131722] text-[#787b86] border-[#2a2e39]'
+                      }`}
+                    >
+                      BUY
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCustomTradeAction('SELL')}
+                      className={`py-1.5 rounded-lg text-xs font-mono font-bold cursor-pointer border ${
+                        customTradeAction === 'SELL'
+                          ? 'bg-[#f23645] text-white border-[#f23645]'
+                          : 'bg-[#131722] text-[#787b86] border-[#2a2e39]'
+                      }`}
+                    >
+                      SELL
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="text-[10px] text-[#787b86] block mb-1">{isAr ? 'الدخول' : 'Entry'}</label>
+                  <input
+                    type="text"
+                    value={customTradeEntry}
+                    onChange={(e) => setCustomTradeEntry(e.target.value)}
+                    className="w-full bg-[#131722] border border-[#2a2e39] rounded-lg px-2 py-1.5 text-xs font-mono text-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-[#089981] block mb-1">{isAr ? 'الهدف TP1' : 'TP1'}</label>
+                  <input
+                    type="text"
+                    value={customTradeTp1}
+                    onChange={(e) => setCustomTradeTp1(e.target.value)}
+                    className="w-full bg-[#131722] border border-[#089981]/40 rounded-lg px-2 py-1.5 text-xs font-mono text-[#089981]"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-[#f23645] block mb-1">{isAr ? 'الوقف SL' : 'Stop Loss'}</label>
+                  <input
+                    type="text"
+                    value={customTradeSl}
+                    onChange={(e) => setCustomTradeSl(e.target.value)}
+                    className="w-full bg-[#131722] border border-[#f23645]/40 rounded-lg px-2 py-1.5 text-xs font-mono text-[#f23645]"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  soundManager.playClick();
+                  setAttachedTradeCard({
+                    symbol: customTradeSymbol,
+                    action: customTradeAction,
+                    entry: customTradeEntry || '0',
+                    tp1: customTradeTp1 || '0',
+                    sl: customTradeSl || '0',
+                    timeframe: '15m'
+                  });
+                  setShowTradeCardModal(false);
+                }}
+                className="w-full py-2 rounded-xl bg-[#089981] hover:bg-[#07846f] text-white text-xs font-bold cursor-pointer transition-colors"
+              >
+                {isAr ? 'إرفاق بطاقة الصفقة بالرسالة' : 'Attach Trade Setup Card'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 8. CLICKABLE TRADER PROFILE POPOVER CARD MODAL */}
+      {inspectedTrader && (
+        <div
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+          onClick={() => setInspectedTrader(null)}
+        >
+          <div
+            className="bg-[#1e222d] border border-[#2a2e39] rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-4"
+            onClick={(e) => e.stopPropagation()}
+            dir={isAr ? 'rtl' : 'ltr'}
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                {inspectedTrader.avatar ? (
+                  <img
+                    src={inspectedTrader.avatar}
+                    alt={inspectedTrader.name}
+                    className="w-12 h-12 rounded-2xl object-cover border-2 border-[#089981]"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-2xl bg-[#131722] border-2 border-[#089981] text-white font-mono font-black text-lg flex items-center justify-center">
+                    {inspectedTrader.name ? inspectedTrader.name[0].toUpperCase() : 'T'}
+                  </div>
+                )}
+                <div>
+                  <h3 className="text-sm font-extrabold text-white">{inspectedTrader.name}</h3>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#089981]/20 text-[#089981] border border-[#089981]/40">
+                      {(inspectedTrader.role || 'TRADER').toUpperCase()}
+                    </span>
+                    <span className="text-[10px] text-[#787b86]">
+                      {isAr ? 'عضو معتمد في MBK' : 'Verified MBK Member'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setInspectedTrader(null)}
+                className="p-1 rounded-lg text-[#787b86] hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#2a2e39]">
+              {inspectedTrader.uid &&
+                inspectedTrader.uid !== auth.currentUser?.uid &&
+                onStartDirectMessage && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      soundManager.playClick();
+                      const target = inspectedTrader;
+                      setInspectedTrader(null);
+                      onStartDirectMessage({
+                        uid: target.uid!,
+                        displayName: target.name,
+                        avatar: target.avatar,
+                        role: target.role
+                      });
+                    }}
+                    className="col-span-2 py-2.5 px-3 rounded-xl bg-[#089981] hover:bg-[#07846f] text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    <Mail className="w-3.5 h-3.5" />
+                    <span>{isAr ? 'إرسال رسالة خاصة (DM)' : 'Send Direct Message (DM)'}</span>
+                  </button>
+                )}
+
+              {isCurrentAdmin &&
+                inspectedTrader.uid &&
+                inspectedTrader.uid !== auth.currentUser?.uid && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const target = inspectedTrader;
+                        setInspectedTrader(null);
+                        handleToggleMuteUser(target.uid, target.name);
+                      }}
+                      className="py-2 px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <VolumeX className="w-3.5 h-3.5" />
+                      <span>{isAr ? 'كتم / فك كتم' : 'Mute / Unmute'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const target = inspectedTrader;
+                        setInspectedTrader(null);
+                        handleToggleBanUser(target.uid, target.name);
+                      }}
+                      className="py-2 px-3 rounded-xl bg-[#f23645]/15 hover:bg-[#f23645]/25 border border-[#f23645]/40 text-[#f23645] text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <Ban className="w-3.5 h-3.5" />
+                      <span>{isAr ? 'حظر الحساب' : 'Ban User'}</span>
+                    </button>
+                  </>
+                )}
+            </div>
+          </div>
         </div>
       )}
     </div>

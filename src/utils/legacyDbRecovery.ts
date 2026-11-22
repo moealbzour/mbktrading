@@ -234,7 +234,21 @@ let localIdbExtractedThisSession = false;
 let activeSyncPromise: Promise<RecoveryStats> | null = null;
 
 export async function syncAllLegacyDataToDefaultDb(forceFullRun = false): Promise<RecoveryStats> {
-  if (activeSyncPromise && !forceFullRun) {
+  // Never run bulk multi-collection reads automatically in the background; only run when explicitly requested by Admin
+  if (!forceFullRun) {
+    return {
+      usersRecovered: 0,
+      signalsRecovered: 0,
+      botAlertsRecovered: 0,
+      publicChatRecovered: 0,
+      chatProfilesRecovered: 0,
+      dmConversationsRecovered: 0,
+      dmMessagesRecovered: 0,
+      activationKeysRecovered: 0,
+      legacyDbStatus: 'idle'
+    };
+  }
+  if (activeSyncPromise) {
     return activeSyncPromise;
   }
   activeSyncPromise = runSyncAllLegacyDataInternal(forceFullRun).finally(() => {
@@ -431,22 +445,13 @@ async function runSyncAllLegacyDataInternal(forceFullRun = false): Promise<Recov
       }
 
       const legacySignalsSnap = await getDocs(
-        query(collection(legacyDb, 'signals'), orderBy('timestampMs', 'desc'), limit(100))
+        query(collection(legacyDb, 'signals'), orderBy('timestampMs', 'desc'), limit(50))
       );
       for (const sDoc of legacySignalsSnap.docs) {
         if (isDocumentDeleted(sDoc.id)) continue;
         await setDoc(doc(db, 'signals', sDoc.id), sDoc.data(), { merge: true })
           .then(() => {
             stats.signalsRecovered++;
-          })
-          .catch(() => {});
-      }
-
-      const legacyKeysSnap = await getDocs(query(collection(legacyDb, 'activation_keys'), limit(300)));
-      for (const kDoc of legacyKeysSnap.docs) {
-        await setDoc(doc(db, 'activation_keys', kDoc.id), kDoc.data(), { merge: true })
-          .then(() => {
-            stats.activationKeysRecovered++;
           })
           .catch(() => {});
       }

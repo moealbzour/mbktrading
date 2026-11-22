@@ -255,44 +255,77 @@ export function translateFinancialHeadlineToArabic(englishTitle: string): string
   return `📰 خبر عاجل من الأسواق العالمية: ${text}`;
 }
 
+const announcementSubscribers = new Set<(items: AdminAnnouncement[]) => void>();
+let latestAnnouncementsList: AdminAnnouncement[] | null = null;
+let sharedUnsubAnnouncements: (() => void) | null = null;
+
 /**
- * Subscribe in real time to Admin Popup Announcements in Firestore
+ * Subscribe in real time to Admin Popup Announcements in Firestore (shared singleton listener)
  */
 export function subscribeToActiveAnnouncements(
   onUpdate: (items: AdminAnnouncement[]) => void
 ): () => void {
-  const q = query(collection(db, 'announcements'), orderBy('timestampMs', 'desc'), limit(25));
-  return onSnapshot(
-    q,
-    (snap) => {
-      const list: AdminAnnouncement[] = [];
-      snap.forEach((docSnap) => {
-        const d = docSnap.data();
-        list.push({
-          id: docSnap.id,
-          title: d.title || '',
-          titleEn: d.titleEn || d.title || '',
-          message: d.message || '',
-          messageEn: d.messageEn || d.message || '',
-          type: (d.type as AnnouncementType) || 'offer',
-          targetTabs: Array.isArray(d.targetTabs) ? d.targetTabs : ['on_open'],
-          targetAudience: (d.targetAudience as TargetAudienceSegment) || 'all',
-          ctaType: (d.ctaType as AnnouncementCtaType) || 'none',
-          ctaLabel: d.ctaLabel || '',
-          ctaUrl: d.ctaUrl || '',
-          isActive: Boolean(d.isActive),
-          createdBy: d.createdBy || '',
-          createdAt: d.createdAt || new Date().toISOString(),
-          timestampMs: Number(d.timestampMs || Date.now())
+  announcementSubscribers.add(onUpdate);
+  if (latestAnnouncementsList !== null) {
+    onUpdate(latestAnnouncementsList);
+  }
+
+  if (!sharedUnsubAnnouncements) {
+    const q = query(collection(db, 'announcements'), orderBy('timestampMs', 'desc'), limit(10));
+    sharedUnsubAnnouncements = onSnapshot(
+      q,
+      (snap) => {
+        const list: AdminAnnouncement[] = [];
+        snap.forEach((docSnap) => {
+          const d = docSnap.data();
+          list.push({
+            id: docSnap.id,
+            title: d.title || '',
+            titleEn: d.titleEn || d.title || '',
+            message: d.message || '',
+            messageEn: d.messageEn || d.message || '',
+            type: (d.type as AnnouncementType) || 'offer',
+            targetTabs: Array.isArray(d.targetTabs) ? d.targetTabs : ['on_open'],
+            targetAudience: (d.targetAudience as TargetAudienceSegment) || 'all',
+            ctaType: (d.ctaType as AnnouncementCtaType) || 'none',
+            ctaLabel: d.ctaLabel || '',
+            ctaUrl: d.ctaUrl || '',
+            isActive: Boolean(d.isActive),
+            createdBy: d.createdBy || '',
+            createdAt: d.createdAt || new Date().toISOString(),
+            timestampMs: Number(d.timestampMs || Date.now())
+          });
         });
-      });
-      onUpdate(list);
-    },
-    (err) => {
-      console.warn('[Announcements] listener notice:', err?.message || err);
-      onUpdate([]);
+        latestAnnouncementsList = list;
+        announcementSubscribers.forEach((cb) => {
+          try {
+            cb(list);
+          } catch {
+            // ignore
+          }
+        });
+      },
+      (err) => {
+        console.warn('[Announcements] listener notice:', err?.message || err);
+        announcementSubscribers.forEach((cb) => {
+          try {
+            cb(latestAnnouncementsList || []);
+          } catch {
+            // ignore
+          }
+        });
+      }
+    );
+  }
+
+  return () => {
+    announcementSubscribers.delete(onUpdate);
+    if (announcementSubscribers.size === 0 && sharedUnsubAnnouncements) {
+      sharedUnsubAnnouncements();
+      sharedUnsubAnnouncements = null;
+      latestAnnouncementsList = null;
     }
-  );
+  };
 }
 
 /**

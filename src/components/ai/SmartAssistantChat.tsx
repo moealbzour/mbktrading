@@ -3,6 +3,7 @@ import { Bot, Send, Lock, Crown, Ticket, AlertCircle } from 'lucide-react';
 import { UserProfile } from '../../types/trading';
 import { ELITE_LOCK_BADGE_TEXT, hasFeatureAccess } from '../../utils/entitlements';
 import { soundManager } from '../../utils/audio';
+import { auth } from '../../lib/firebase';
 
 export interface ChatMessage {
   id: string;
@@ -83,9 +84,13 @@ export const SmartAssistantChat: React.FC<SmartAssistantChatProps> = ({
     setLoading(true);
 
     try {
+      const token = await auth.currentUser?.getIdToken();
       const res = await fetch('/api/gemini/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({
           query: trimmed,
           activeSymbol,

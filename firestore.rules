@@ -256,13 +256,12 @@ service cloud.firestore {
     // 1. USERS COLLECTION (Strict Ownership + Protected Privileges)
     // ---------------------------------------------------------------
     match /users/{userId} {
-      allow get: if isValidId(userId) && (isOwner(userId) || isStaff() || isSignedIn());
-      allow list: if isSignedIn();
-      allow create: if isValidId(userId) && (isValidUserCreate(userId) || isAdmin() || isStaff() || isOwner(userId));
+      allow get: if isValidId(userId) && (isOwner(userId) || isStaff());
+      allow list: if isStaff();
+      allow create: if isValidId(userId) && (isValidUserCreate(userId) || isAdmin());
       allow update: if isValidId(userId) && (
         isAdmin()
-        || isStaff()
-        || isOwner(userId)
+        || (isStaff() && !(incoming().get('role', '') in ['admin', 'ADMIN']))
         || isAtomicUserUpgradeUpdate(userId)
         || isSafeOwnerProfileUpdate(userId)
       );

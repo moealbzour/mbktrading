@@ -43,7 +43,7 @@
     ]
   },
   "firestore": {
-    "database": "ai-studio-mbktrading-5c717851-cdb4-4a97-a0f4-f006f13d6c7b",
+    "database": "(default)",
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   }

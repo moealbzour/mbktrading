@@ -17,7 +17,7 @@ import {
   Edit3
 } from 'lucide-react';
 import { doc, deleteDoc, updateDoc, collection, getDocs, writeBatch } from 'firebase/firestore';
-import { auth, db, legacyDb } from '../../lib/firebase';
+import { auth, db } from '../../lib/firebase';
 import { DailyTrade, UserProfile } from '../../types/trading';
 import { soundManager } from '../../utils/audio';
 import { useSignalsContext } from '../../context/SignalsContext';
@@ -51,7 +51,14 @@ export const DailyTradesPanel: React.FC<Props> = ({
   loading: loadingProp
 }) => {
   const isAr = lang === 'ar';
-  const { trades: contextTrades, loading: contextLoading, dbError, setDbError, addToast } = useSignalsContext();
+  const {
+    trades: contextTrades,
+    loading: contextLoading,
+    dbError,
+    setDbError,
+    addToast,
+    removeSignalLocally
+  } = useSignalsContext();
 
   const rawTrades = tradesProp && tradesProp.length > 0 ? tradesProp : contextTrades;
   const loading = loadingProp !== undefined ? loadingProp : contextLoading;
@@ -147,6 +154,8 @@ export const DailyTradesPanel: React.FC<Props> = ({
         const chunk = docs.slice(i, i + chunkSize);
         const batch = writeBatch(db);
         chunk.forEach((d) => {
+          markDocumentDeleted(d.id);
+          removeSignalLocally(d.id);
           batch.delete(d.ref);
         });
         await batch.commit();
@@ -196,11 +205,10 @@ export const DailyTradesPanel: React.FC<Props> = ({
     setDeleteTradeError(null);
     try {
       markDocumentDeleted(cleanId);
-      await deleteDoc(doc(db, targetCollection, cleanId));
+      removeSignalLocally(cleanId);
+      await deleteDoc(doc(db, targetCollection, cleanId)).catch(() => {});
       const altCol = targetCollection === 'bot_alerts' ? 'signals' : 'bot_alerts';
       await deleteDoc(doc(db, altCol, cleanId)).catch(() => {});
-      await deleteDoc(doc(legacyDb, targetCollection, cleanId)).catch(() => {});
-      await deleteDoc(doc(legacyDb, altCol, cleanId)).catch(() => {});
       soundManager.playProfitChime();
       addToast({
         title: isAr ? 'تم حذف الصفقة بنجاح' : 'Trade Deleted',
@@ -254,7 +262,7 @@ export const DailyTradesPanel: React.FC<Props> = ({
           text: editNotes
         });
       } else {
-        await updateDoc(doc(db, 'signals', cleanId), {
+        const updatePayload = {
           symbol: editSymbol,
           action: editAction,
           entryPrice: Number(editEntry || 0),
@@ -266,7 +274,8 @@ export const DailyTradesPanel: React.FC<Props> = ({
           instructionsAr: editNotes,
           instructionsEn: editNotes,
           textMsg: editNotes
-        });
+        };
+        await updateDoc(doc(db, 'signals', cleanId), updatePayload);
       }
 
       soundManager.playProfitChime();
@@ -299,48 +308,48 @@ export const DailyTradesPanel: React.FC<Props> = ({
   return (
     <div className="space-y-2" dir={isAr ? 'rtl' : 'ltr'}>
       {/* 1. TOP COMPACT BAR */}
-      <div className="flex items-center justify-between pb-1 border-b border-[#2a2e39]/50">
+      <div className="flex items-center justify-between pb-1.5 border-b border-[#1e2633]">
         <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-[#089981] animate-ping" />
-          <h3 className="text-xs font-bold text-white">
-            {isAr ? 'بوت وتوصيات MBK' : 'MBK Bot & Signals'}
+          <span className="w-1.5 h-1.5 rounded-[1px] bg-[#10b981]" />
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#edf0f5]">
+            {isAr ? 'تدفق الإشارات المباشر' : 'LIVE ORDER STREAM'}
           </h3>
-          <span className="text-[10px] text-[#787b86] font-mono">({displayedTrades.length})</span>
+          <span className="text-[10px] text-[#8492a6] font-mono">[{displayedTrades.length}]</span>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           {isRealAdmin && (
             <div className="flex items-center gap-1">
               <button
                 type="button"
                 disabled={wipingBots}
                 onClick={handleWipeAllBotSignals}
-                className={`px-2 py-1 rounded border text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1 shrink-0 disabled:opacity-50 ${
+                className={`px-2 py-0.5 rounded-[2px] border text-[10px] font-semibold transition-colors cursor-pointer flex items-center gap-1 shrink-0 disabled:opacity-50 ${
                   confirmWipeBots
-                    ? 'bg-red-600 text-white border-red-400 animate-pulse'
-                    : 'bg-rose-500/15 hover:bg-rose-500/25 border-rose-500/40 text-rose-400'
+                    ? 'bg-[#e11d48] text-white border-[#e11d48]'
+                    : 'bg-[#161c26] hover:bg-[#e11d48]/15 border-[#1e2633] text-[#8492a6] hover:text-[#e11d48]'
                 }`}
                 title={isAr ? 'حذف وتفريغ جميع تنبيهات البوت' : 'Wipe all bot signals'}
               >
-                {wipingBots ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                {wipingBots ? <RefreshCw className="w-2.5 h-2.5 animate-spin" /> : <Trash2 className="w-2.5 h-2.5" />}
                 <span>
                   {confirmWipeBots
                     ? isAr
-                      ? 'تأكيد التفريغ؟'
-                      : 'Confirm Wipe?'
+                      ? 'تأكيد؟'
+                      : 'Confirm?'
                     : isAr
                     ? 'تفريغ البوت'
-                    : 'Wipe Bots'}
+                    : 'Clear Algo'}
                 </span>
               </button>
               {confirmWipeBots && (
                 <button
                   type="button"
                   onClick={() => setConfirmWipeBots(false)}
-                  className="p-1 rounded bg-[#2a2e39] text-white hover:bg-[#363a45] text-[10px] cursor-pointer"
+                  className="p-0.5 rounded-[2px] bg-[#161c26] text-[#edf0f5] hover:bg-[#1c2432] border border-[#1e2633] text-[10px] cursor-pointer"
                   title={isAr ? 'إلغاء' : 'Cancel'}
                 >
-                  <X className="w-3 h-3" />
+                  <X className="w-2.5 h-2.5" />
                 </button>
               )}
             </div>
@@ -353,52 +362,51 @@ export const DailyTradesPanel: React.FC<Props> = ({
               setTimeout(() => setRefreshing(false), 400);
             }}
             disabled={refreshing}
-            className="p-1 rounded bg-[#1e222d] hover:bg-[#2a2e39] text-[#787b86] hover:text-white transition-colors cursor-pointer"
+            className="p-1 rounded-[2px] bg-[#10141c] hover:bg-[#161c26] border border-[#1e2633] text-[#8492a6] hover:text-[#edf0f5] transition-colors cursor-pointer"
             title={isAr ? 'تحديث' : 'Refresh'}
           >
-            <RefreshCw className={`w-3 h-3 ${refreshing ? 'animate-spin text-[#089981]' : ''}`} />
+            <RefreshCw className={`w-3 h-3 ${refreshing ? 'animate-spin text-[#10b981]' : ''}`} />
           </button>
         </div>
       </div>
 
       {/* RAW FIRESTORE DB ERROR ALERT BANNER */}
       {dbError && (
-        <div className="p-2.5 rounded-xl bg-rose-500/20 border-2 border-rose-500 text-rose-200 text-xs space-y-1 font-mono shrink-0">
-          <div className="flex items-center justify-between font-bold text-rose-300 text-[11px]">
+        <div className="p-2 rounded-[3px] bg-[#e11d48]/15 border border-[#e11d48] text-rose-200 text-xs space-y-1 font-mono shrink-0">
+          <div className="flex items-center justify-between font-bold text-rose-300 text-[10px]">
             <div className="flex items-center gap-1.5">
-              <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+              <AlertTriangle className="w-3.5 h-3.5 text-[#e11d48] shrink-0" />
               <span>[FIRESTORE ERROR]</span>
             </div>
             <button
               onClick={() => setDbError(null)}
-              className="p-0.5 rounded hover:bg-rose-500/30 text-rose-300 hover:text-white cursor-pointer"
+              className="p-0.5 rounded-[2px] hover:bg-[#e11d48]/30 text-rose-300 hover:text-white cursor-pointer"
               title="Dismiss"
             >
-              <X className="w-3.5 h-3.5" />
+              <X className="w-3 h-3" />
             </button>
           </div>
-          <p className="text-[10px] leading-relaxed break-words bg-black/50 p-2 rounded border border-rose-500/40 text-rose-100 font-mono select-all select-text">
+          <p className="text-[10px] leading-relaxed break-words bg-[#0a0d12] p-1.5 rounded-[2px] border border-[#e11d48]/40 text-rose-100 font-mono select-all">
             {dbError}
           </p>
         </div>
       )}
 
-      {/* 2. FILTER PILLS */}
-      <div className="flex items-center justify-between gap-1 overflow-x-auto pb-0.5 scrollbar-none text-[10px]">
-        <div className="flex items-center gap-1">
+      {/* 2. MONOCHROME INSTITUTIONAL FILTER BAR */}
+      <div className="flex items-center justify-between gap-1 overflow-x-auto pb-0.5 scrollbar-none text-[10px] font-mono">
+        <div className="flex items-center gap-0.5 bg-[#0a0d12] p-0.5 rounded-[3px] border border-[#1e2633]">
           <button
             onClick={() => {
               soundManager.playClick();
               setSourceFilter('ALL');
             }}
-            className={`p-1.5 rounded-lg font-bold cursor-pointer transition-all flex items-center justify-center ${
+            className={`px-2 py-0.5 rounded-[2px] font-semibold cursor-pointer transition-colors ${
               sourceFilter === 'ALL'
-                ? 'bg-white text-[#131722]'
-                : 'bg-[#1e222d] text-[#787b86] hover:text-white border border-[#2a2e39]'
+                ? 'bg-[#1c2432] text-[#edf0f5] border border-[#2a3446]'
+                : 'text-[#8492a6] hover:text-[#edf0f5]'
             }`}
-            title={isAr ? 'جميع الإشارات' : 'All Signals'}
           >
-            <Layers className="w-3.5 h-3.5" />
+            {isAr ? 'الكل' : 'ALL'}
           </button>
 
           <button
@@ -406,14 +414,13 @@ export const DailyTradesPanel: React.FC<Props> = ({
               soundManager.playClick();
               setSourceFilter('BOT_WEBHOOK');
             }}
-            className={`p-1.5 rounded-lg font-bold cursor-pointer transition-all flex items-center justify-center ${
+            className={`px-2 py-0.5 rounded-[2px] font-semibold cursor-pointer transition-colors ${
               sourceFilter === 'BOT_WEBHOOK'
-                ? 'bg-purple-500 text-white shadow-sm'
-                : 'bg-[#1e222d] text-purple-400 hover:text-purple-300 border border-[#2a2e39]'
+                ? 'bg-[#1c2432] text-[#edf0f5] border border-[#2a3446]'
+                : 'text-[#8492a6] hover:text-[#edf0f5]'
             }`}
-            title={isAr ? 'إشارات البوت الآلي' : 'Bot Signals'}
           >
-            <Bot className="w-3.5 h-3.5" />
+            {isAr ? 'بوت' : 'ALGO'}
           </button>
 
           <button
@@ -421,14 +428,13 @@ export const DailyTradesPanel: React.FC<Props> = ({
               soundManager.playClick();
               setSourceFilter('VIP_MANUAL');
             }}
-            className={`p-1.5 rounded-lg font-bold cursor-pointer transition-all flex items-center justify-center ${
+            className={`px-2 py-0.5 rounded-[2px] font-semibold cursor-pointer transition-colors ${
               sourceFilter === 'VIP_MANUAL'
-                ? 'bg-amber-500 text-black shadow-sm'
-                : 'bg-[#1e222d] text-amber-400 hover:text-amber-300 border border-[#2a2e39]'
+                ? 'bg-[#1c2432] text-[#edf0f5] border border-[#2a3446]'
+                : 'text-[#8492a6] hover:text-[#edf0f5]'
             }`}
-            title={isAr ? 'إشارات VIP' : 'VIP Signals'}
           >
-            <Crown className="w-3.5 h-3.5" />
+            VIP
           </button>
 
           <button
@@ -436,49 +442,46 @@ export const DailyTradesPanel: React.FC<Props> = ({
               soundManager.playClick();
               setSourceFilter('FREE_PUBLIC');
             }}
-            className={`p-1.5 rounded-lg font-bold cursor-pointer transition-all flex items-center justify-center ${
+            className={`px-2 py-0.5 rounded-[2px] font-semibold cursor-pointer transition-colors ${
               sourceFilter === 'FREE_PUBLIC'
-                ? 'bg-blue-500 text-white shadow-sm'
-                : 'bg-[#1e222d] text-blue-400 hover:text-blue-300 border border-[#2a2e39]'
+                ? 'bg-[#1c2432] text-[#edf0f5] border border-[#2a3446]'
+                : 'text-[#8492a6] hover:text-[#edf0f5]'
             }`}
-            title={isAr ? 'إشارات عامة' : 'Free Signals'}
           >
-            <Radio className="w-3.5 h-3.5" />
+            {isAr ? 'عام' : 'PUBLIC'}
           </button>
         </div>
 
-        <div className="flex items-center gap-0.5 bg-[#131722] p-0.5 rounded border border-[#2a2e39]">
+        <div className="flex items-center gap-0.5 bg-[#0a0d12] p-0.5 rounded-[3px] border border-[#1e2633]">
           <button
             onClick={() => setStatusFilter('ALL')}
-            className={`p-1 rounded cursor-pointer transition-all ${
-              statusFilter === 'ALL' ? 'bg-[#2a2e39] text-white' : 'text-[#787b86] hover:text-white'
+            className={`px-1.5 py-0.5 rounded-[2px] cursor-pointer transition-colors font-semibold ${
+              statusFilter === 'ALL' ? 'bg-[#1c2432] text-[#edf0f5]' : 'text-[#8492a6] hover:text-[#edf0f5]'
             }`}
             title={isAr ? 'جميع الحالات' : 'All Statuses'}
           >
-            <Activity className="w-3 h-3" />
+            {isAr ? 'الكل' : 'ALL'}
           </button>
           <button
             onClick={() => setStatusFilter('RUNNING')}
-            className={`p-1 rounded cursor-pointer transition-all ${
-              statusFilter === 'RUNNING' ? 'bg-amber-500/20 text-amber-400' : 'text-[#787b86] hover:text-amber-400'
+            className={`px-1.5 py-0.5 rounded-[2px] cursor-pointer transition-colors font-semibold ${
+              statusFilter === 'RUNNING' ? 'bg-[#1c2432] text-[#10b981]' : 'text-[#8492a6] hover:text-[#edf0f5]'
             }`}
             title={isAr ? 'الصفقات النشطة فقط' : 'Live Running Only'}
           >
-            <Zap className="w-3 h-3" />
+            {isAr ? 'نشط' : 'ACTIVE'}
           </button>
         </div>
       </div>
 
       {/* 3. COMPACT SIGNALS STREAM LIST */}
       {loading ? (
-        <div className="py-8 text-center text-[#787b86] text-xs">
-          <RefreshCw className="w-4 h-4 animate-spin mx-auto mb-1 text-[#089981]" />
-          <span>{isAr ? 'جاري التحميل...' : 'Loading...'}</span>
+        <div className="py-8 text-center text-[#8492a6] text-[11px] font-mono">
+          <span>{isAr ? 'جاري التحميل...' : 'SYNCHRONIZING...'}</span>
         </div>
       ) : displayedTrades.length === 0 ? (
-        <div className="py-6 text-center text-[#787b86] text-xs bg-[#131722] rounded-lg border border-[#2a2e39] p-3">
-          <Activity className="w-5 h-5 mx-auto opacity-30 mb-1" />
-          <p>{isAr ? 'لا توجد إشارات مباشرة حالياً' : 'No live alerts yet'}</p>
+        <div className="py-6 text-center text-[#8492a6] text-[11px] font-mono bg-[#0a0d12] rounded-[3px] border border-[#1e2633] p-3">
+          <p>{isAr ? 'لا توجد إشارات مباشرة حالياً' : 'NO MATCHING ORDERS'}</p>
         </div>
       ) : (
         <div className="space-y-1.5">
@@ -496,134 +499,132 @@ export const DailyTradesPanel: React.FC<Props> = ({
             const isRunning = trade.status === 'RUNNING';
             const isWin = trade.pips > 0;
             const isExpanded = expandedId === trade.id;
+            const isBuy = trade.action === 'BUY';
 
             return (
               <div
                 key={trade.id}
-                className="rounded-lg border bg-[#1e222d] border-[#2a2e39] hover:border-[#363a45] p-2 space-y-1.5 transition-all text-xs"
+                className={`rounded-[3px] border bg-[#10141c] border-[#1e2633] hover:border-[#2a3446] p-2 space-y-1.5 transition-colors text-xs ${
+                  !isBot ? (isBuy ? 'border-s-2 border-s-[#10b981]' : 'border-s-2 border-s-[#e11d48]') : ''
+                }`}
               >
                 <div className="flex items-center justify-between">
                   {isBot ? (
                     <>
                       <div className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-[#089981]" />
-                        <span className="text-[11px] font-bold text-white flex items-center gap-1">
-                          <Bot className="w-3.5 h-3.5 text-[#089981]" />
-                          <span>{isAr ? 'بوت MBK' : 'MBK Bot'}</span>
+                        <span className="w-1.5 h-1.5 rounded-[1px] bg-[#10b981]" />
+                        <span className="text-[11px] font-mono font-semibold text-[#edf0f5]">
+                          {isAr ? 'بوت MBK' : 'MBK ALGO'}
                         </span>
                       </div>
-                      <span className="text-[10px] text-[#787b86] font-mono">{trade.openTime}</span>
+                      <span className="text-[10px] text-[#8492a6] font-mono">{trade.openTime}</span>
                     </>
                   ) : (
                     <>
                       <div className="flex items-center gap-1.5">
                         <span
-                          className={`px-1.5 py-0.2 rounded text-[10px] font-mono font-bold ${
-                            trade.action === 'BUY'
-                              ? 'bg-[#089981]/20 text-[#089981] border border-[#089981]/40'
-                              : 'bg-[#f23645]/20 text-[#f23645] border border-[#f23645]/40'
+                          className={`px-1.5 py-0.5 rounded-[2px] text-[10px] font-mono font-bold ${
+                            isBuy
+                              ? 'bg-[#10b981]/12 text-[#10b981] border border-[#10b981]/30'
+                              : 'bg-[#e11d48]/12 text-[#e11d48] border border-[#e11d48]/30'
                           }`}
                         >
                           {trade.action}
                         </span>
 
-                        <span className="font-bold text-white font-mono text-xs">{trade.symbol}</span>
+                        <span className="font-bold text-[#edf0f5] font-mono text-xs">{trade.symbol}</span>
 
-                        <span className="text-[9px] font-semibold text-[#787b86] flex items-center gap-0.5">
-                          {trade.source === 'VIP_MANUAL' ? (
-                            <span className="text-amber-400">👑 VIP</span>
-                          ) : (
-                            <span className="text-blue-400">📡 Free</span>
-                          )}
+                        <span className="text-[9px] font-mono uppercase tracking-wider px-1 py-0.2 bg-[#0a0d12] border border-[#1e2633] text-[#8492a6] rounded-[2px]">
+                          {trade.source === 'VIP_MANUAL' ? 'VIP' : 'PUBLIC'}
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-1 font-mono font-bold text-[11px]">
+                      <div className="flex items-center gap-1 font-mono font-bold text-[11px] tabular-nums">
                         {isRunning ? (
-                          <span className="text-amber-400 flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+                          <span className="text-[#edf0f5] flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-[1px] bg-[#10b981]" />
                             <span>{trade.pips >= 0 ? `+${trade.pips}p` : `${trade.pips}p`}</span>
                           </span>
                         ) : isWin ? (
-                          <span className="text-[#089981]">🎯 +{trade.pips}p</span>
+                          <span className="text-[#10b981]">TP +{trade.pips}p</span>
                         ) : (
-                          <span className="text-[#f23645]">🛑 {trade.pips}p</span>
+                          <span className="text-[#e11d48]">SL {trade.pips}p</span>
                         )}
                       </div>
                     </>
                   )}
                 </div>
 
-                <div className="relative rounded overflow-hidden">
+                <div className="relative rounded-[2px] overflow-hidden">
                   {shouldBlur && (
-                    <div className="absolute inset-0 z-10 backdrop-blur-md bg-[#131722]/85 flex items-center justify-between px-2.5 py-1">
-                      <div className="flex items-center gap-1 text-amber-400 text-[10px] font-bold">
-                        <Lock className="w-3 h-3" />
-                        <span>{isAr ? 'مستويات VIP' : 'VIP Signal'}</span>
+                    <div className="absolute inset-0 z-10 backdrop-blur-md bg-[#0a0d12]/85 border border-[#1e2633] flex items-center justify-between px-2.5 py-1">
+                      <div className="flex items-center gap-1 text-[#edf0f5] text-[10px] font-semibold">
+                        <Lock className="w-3 h-3 text-[#8492a6]" />
+                        <span>{isAr ? 'مستويات VIP' : 'VIP Execution'}</span>
                       </div>
                       <button
                         onClick={() => onOpenPromoModal && onOpenPromoModal()}
-                        className="px-2 py-0.5 rounded bg-amber-500 text-black text-[9px] font-bold cursor-pointer hover:brightness-110"
+                        className="px-2 py-0.5 rounded-[2px] bg-[#161c26] hover:bg-[#1c2432] text-[#edf0f5] border border-[#2a3446] text-[9px] font-semibold cursor-pointer"
                       >
-                        {isAr ? 'تفعيل VIP' : 'Activate VIP'}
+                        {isAr ? 'تفعيل VIP' : 'Unlock'}
                       </button>
                     </div>
                   )}
 
                   {!isBot && trade.entryPrice > 0 ? (
                     <div
-                      className={`grid grid-cols-3 gap-1 bg-[#131722] p-1.5 rounded text-center font-mono ${
+                      className={`grid grid-cols-3 gap-1 bg-[#0a0d12] p-1.5 rounded-[2px] border border-[#1e2633] text-center font-mono ${
                         shouldBlur ? 'filter blur-[4px] select-none pointer-events-none' : ''
                       }`}
                     >
                       <div>
-                        <span className="text-[8px] text-[#787b86] block font-sans">
+                        <span className="text-[8px] text-[#8492a6] block uppercase">
                           {isAr ? 'الدخول' : 'ENTRY'}
                         </span>
-                        <span className="font-bold text-white text-[11px]">{trade.entryPrice}</span>
+                        <span className="font-bold text-[#edf0f5] text-[11px] tabular-nums">{trade.entryPrice}</span>
                       </div>
                       <div>
-                        <span className="text-[8px] text-[#f23645] block font-sans">
-                          {isAr ? 'الوقف SL' : 'SL'}
+                        <span className="text-[8px] text-[#e11d48] block uppercase">
+                          {isAr ? 'الوقف' : 'STOP'}
                         </span>
-                        <span className="font-bold text-[#f23645] text-[11px]">{trade.sl}</span>
+                        <span className="font-bold text-[#e11d48] text-[11px] tabular-nums">{trade.sl}</span>
                       </div>
                       <div>
-                        <span className="text-[8px] text-[#089981] block font-sans">
-                          {isAr ? 'الهدف TP' : 'TP'}
+                        <span className="text-[8px] text-[#10b981] block uppercase">
+                          {isAr ? 'الهدف' : 'TARGET'}
                         </span>
-                        <span className="font-bold text-[#089981] text-[11px]">{trade.tp1}</span>
+                        <span className="font-bold text-[#10b981] text-[11px] tabular-nums">{trade.tp1}</span>
                       </div>
                     </div>
                   ) : (
                     <div
-                      className={`bg-[#1a1e29] p-2.5 rounded-lg border border-[#2a2e39]/90 text-[#d1d4dc] text-[11px] font-mono leading-relaxed text-start dir-ltr ${
+                      className={`bg-[#0a0d12] p-2 rounded-[2px] border border-[#1e2633] text-[#edf0f5] text-[11px] font-mono leading-relaxed text-start dir-ltr ${
                         shouldBlur ? 'filter blur-[4px] select-none pointer-events-none' : ''
                       }`}
                     >
-                      <p className="whitespace-pre-wrap break-words text-white/95 text-[11px]">
-                        {trade.textMsg || trade.notesAr || (isAr ? 'تنبيه آلي مباشر' : 'Direct bot alert')}
+                      <p className="whitespace-pre-wrap break-words text-[#edf0f5] text-[11px]">
+                        {trade.textMsg || trade.notesAr || (isAr ? 'تنبيه آلي مباشر' : 'Direct algorithmic alert')}
                       </p>
                     </div>
                   )}
                 </div>
 
                 {/* Collapsible details & Verified Admin-only Edit/Delete */}
-                <div className="flex items-center justify-between text-[10px] text-[#787b86] pt-0.5">
+                <div className="flex items-center justify-between text-[10px] text-[#8492a6] pt-0.5">
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => setExpandedId(isExpanded ? null : trade.id)}
-                      className="p-0.5 text-[#787b86] hover:text-white transition-colors cursor-pointer"
+                      className="p-0.5 text-[#8492a6] hover:text-[#edf0f5] transition-colors cursor-pointer"
                       title={isAr ? 'تفاصيل الإشارة' : 'Signal Details'}
                     >
                       {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                     </button>
 
                     {isRealAdmin && (
-                      <div className="flex items-center gap-1 border-s border-[#2a2e39] ps-1.5 ms-1">
+                      <div className="flex items-center gap-1 border-s border-[#1e2633] ps-1.5 ms-1">
                         <button
                           onClick={() => openEditModal(trade)}
-                          className="px-1.5 py-0.5 rounded bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 font-bold transition-all cursor-pointer flex items-center gap-0.5 text-[9px]"
+                          className="px-1.5 py-0.5 rounded-[2px] bg-[#161c26] hover:bg-[#1c2432] text-[#8492a6] hover:text-[#edf0f5] border border-[#1e2633] font-medium transition-colors cursor-pointer flex items-center gap-0.5 text-[9px]"
                           title={isAr ? 'تعديل' : 'Edit'}
                         >
                           <Edit3 className="w-2.5 h-2.5" />
@@ -636,7 +637,7 @@ export const DailyTradesPanel: React.FC<Props> = ({
                             e.stopPropagation();
                             handleDeleteTrade(trade);
                           }}
-                          className="px-1.5 py-0.5 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 font-bold transition-all cursor-pointer flex items-center gap-0.5 text-[9px]"
+                          className="px-1.5 py-0.5 rounded-[2px] bg-[#161c26] hover:bg-[#e11d48]/20 text-[#8492a6] hover:text-[#e11d48] border border-[#1e2633] font-medium transition-colors cursor-pointer flex items-center gap-0.5 text-[9px]"
                           title={isAr ? 'حذف' : 'Delete'}
                         >
                           <Trash2 className="w-2.5 h-2.5" />
@@ -649,36 +650,36 @@ export const DailyTradesPanel: React.FC<Props> = ({
                   {!shouldBlur && (
                     <button
                       onClick={() => handleCopyLevels(trade)}
-                      className="hover:text-white transition-colors cursor-pointer flex items-center gap-0.5 text-[9px]"
+                      className="hover:text-[#edf0f5] transition-colors cursor-pointer flex items-center gap-0.5 text-[9px] font-mono"
                       title={isAr ? 'نسخ' : 'Copy'}
                     >
                       <Copy className="w-2.5 h-2.5" />
-                      <span>{copiedId === trade.id ? (isAr ? 'تم' : 'Copied') : isAr ? 'نسخ' : 'Copy'}</span>
+                      <span>{copiedId === trade.id ? (isAr ? 'تم' : 'COPIED') : isAr ? 'نسخ' : 'COPY'}</span>
                     </button>
                   )}
                 </div>
 
                 {isExpanded && (
-                  <div className="p-2 rounded bg-[#131722] border border-[#2a2e39] text-[10px] space-y-1.5 animate-fade-in">
-                    <div className="flex justify-between text-[#d1d4dc]">
-                      <span className="text-[#787b86]">{isAr ? 'الإستراتيجية:' : 'Strategy:'}</span>
+                  <div className="p-2 rounded-[2px] bg-[#0a0d12] border border-[#1e2633] text-[10px] space-y-1.5">
+                    <div className="flex justify-between text-[#edf0f5]">
+                      <span className="text-[#8492a6]">{isAr ? 'الإستراتيجية:' : 'Strategy:'}</span>
                       <span className="font-semibold">{trade.strategy}</span>
                     </div>
                     {trade.tp2 && (
-                      <div className="flex justify-between text-[#d1d4dc]">
-                        <span className="text-[#089981]">{isAr ? 'الهدف الثاني (TP2):' : 'Take Profit 2:'}</span>
-                        <span className="font-mono font-bold text-[#089981]">{trade.tp2}</span>
+                      <div className="flex justify-between text-[#edf0f5]">
+                        <span className="text-[#10b981]">{isAr ? 'الهدف الثاني (TP2):' : 'Target 2:'}</span>
+                        <span className="font-mono font-bold text-[#10b981]">{trade.tp2}</span>
                       </div>
                     )}
                     {trade.tp3 && (
-                      <div className="flex justify-between text-[#d1d4dc]">
-                        <span className="text-[#089981]">{isAr ? 'الهدف الثالث (TP3):' : 'Take Profit 3:'}</span>
-                        <span className="font-mono font-bold text-[#089981]">{trade.tp3}</span>
+                      <div className="flex justify-between text-[#edf0f5]">
+                        <span className="text-[#10b981]">{isAr ? 'الهدف الثالث (TP3):' : 'Target 3:'}</span>
+                        <span className="font-mono font-bold text-[#10b981]">{trade.tp3}</span>
                       </div>
                     )}
-                    <div className="flex justify-between text-[#d1d4dc]">
-                      <span className="text-[#787b86]">{isAr ? 'التوقيت:' : 'Time:'}</span>
-                      <span>{trade.openTime}</span>
+                    <div className="flex justify-between text-[#edf0f5]">
+                      <span className="text-[#8492a6]">{isAr ? 'التوقيت:' : 'Timestamp:'}</span>
+                      <span className="font-mono">{trade.openTime}</span>
                     </div>
                     {trade.textMsg && (
                       <div className="pt-1.5 border-t border-[#2a2e39]/80">

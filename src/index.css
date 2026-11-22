@@ -6,6 +6,36 @@
     --sar: env(safe-area-inset-right, 0px);
     --sab: env(safe-area-inset-bottom, 0px);
     --sal: env(safe-area-inset-left, 0px);
+
+    /* Carbon Obsidian Institutional Dark Theme (Default) */
+    --bg-canvas: #0a0d12;
+    --bg-panel: #10141c;
+    --bg-elevated: #161c26;
+    --bg-hover: #1c2430;
+    --border-subtle: #1e2633;
+    --border-strong: #2a3446;
+    --text-primary: #f1f5f9;
+    --text-secondary: #8b95a5;
+    --text-muted: #5e6878;
+    --accent-primary: #c5a059;
+    --color-bull: #10b981;
+    --color-bear: #e11d48;
+  }
+
+  html[data-theme="light"] {
+    /* Swiss Daylight Institutional Light Theme */
+    --bg-canvas: #f3f5f8;
+    --bg-panel: #ffffff;
+    --bg-elevated: #f8fafc;
+    --bg-hover: #edf1f7;
+    --border-subtle: #dce2ec;
+    --border-strong: #c4cddb;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
+    --accent-primary: #9a7b38;
+    --color-bull: #059669;
+    --color-bear: #dc2626;
   }
 
   html {
@@ -15,16 +45,16 @@
   }
 
   body {
-    font-family: 'Cairo', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background-color: #131722;
-    color: #d1d4dc;
+    font-family: 'Cairo', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background-color: var(--bg-canvas);
+    color: var(--text-primary);
     overflow-x: hidden;
     min-height: 100vh;
     min-height: 100dvh;
     touch-action: manipulation;
+    letter-spacing: -0.005em;
   }
 
-  /* Safe Area Utilities */
   .pb-safe {
     padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
   }
@@ -33,47 +63,178 @@
   }
 }
 
-/* TradingView Custom scrollbars */
+/* ============================================================================
+   ARCHITECTURAL GEOMETRY & ANTI-SLOP INSTITUTIONAL OVERRIDES
+   Enforces crisp 3px-4px terminal edges instead of bubbly AI rounded-2xl/3xl
+   ============================================================================ */
+.rounded-xl,
+.rounded-2xl,
+.rounded-3xl {
+  border-radius: 4px !important;
+}
+
+.rounded-lg {
+  border-radius: 3px !important;
+}
+
+/* ============================================================================
+   CARBON OBSIDIAN DARK-MODE SURFACE REFINEMENT
+   Replaces legacy washed-out blue-grey (#131722 / #1e222d) with pure carbon
+   ============================================================================ */
+html:not([data-theme="light"]) .bg-\[\#131722\],
+html:not([data-theme="light"]) .bg-\[\#06080C\],
+html:not([data-theme="light"]) .bg-\[\#0b0e14\],
+html:not([data-theme="light"]) .bg-\[\#0d1017\],
+html:not([data-theme="light"]) .bg-\[\#090D16\] {
+  background-color: var(--bg-canvas) !important;
+}
+
+html:not([data-theme="light"]) .bg-\[\#1e222d\],
+html:not([data-theme="light"]) .bg-\[\#171b26\],
+html:not([data-theme="light"]) .bg-\[\#181c27\],
+html:not([data-theme="light"]) .bg-\[\#1a1e28\],
+html:not([data-theme="light"]) .bg-\[\#1a1e29\],
+html:not([data-theme="light"]) .bg-\[\#111726\] {
+  background-color: var(--bg-panel) !important;
+}
+
+html:not([data-theme="light"]) .bg-\[\#2a2e39\],
+html:not([data-theme="light"]) .bg-\[\#182034\] {
+  background-color: var(--bg-elevated) !important;
+}
+
+html:not([data-theme="light"]) .border-\[\#2a2e39\],
+html:not([data-theme="light"]) .border-\[\#363a45\],
+html:not([data-theme="light"]) .border-\[\#1E293B\] {
+  border-color: var(--border-subtle) !important;
+}
+
+/* ============================================================================
+   SWISS DAYLIGHT LIGHT-MODE ADAPTATION LAYER
+   ============================================================================ */
+html[data-theme="light"] .bg-\[\#131722\],
+html[data-theme="light"] .bg-\[\#06080C\],
+html[data-theme="light"] .bg-\[\#0b0e14\],
+html[data-theme="light"] .bg-\[\#0d1017\],
+html[data-theme="light"] .bg-\[\#090D16\],
+html[data-theme="light"] .bg-\[\#0a0d12\] {
+  background-color: var(--bg-canvas) !important;
+}
+
+html[data-theme="light"] .bg-\[\#131722\]\/95,
+html[data-theme="light"] .bg-\[\#131722\]\/90,
+html[data-theme="light"] .bg-\[\#131722\]\/80,
+html[data-theme="light"] .bg-\[\#131722\]\/70,
+html[data-theme="light"] .bg-\[\#131722\]\/60,
+html[data-theme="light"] .bg-\[\#131722\]\/50,
+html[data-theme="light"] .bg-\[\#0a0d12\]\/95 {
+  background-color: rgba(243, 245, 248, 0.96) !important;
+}
+
+html[data-theme="light"] .bg-\[\#1e222d\],
+html[data-theme="light"] .bg-\[\#1e222d\]\/95,
+html[data-theme="light"] .bg-\[\#1e222d\]\/90,
+html[data-theme="light"] .bg-\[\#1e222d\]\/70,
+html[data-theme="light"] .bg-\[\#1e222d\]\/60,
+html[data-theme="light"] .bg-\[\#171b26\],
+html[data-theme="light"] .bg-\[\#181c27\],
+html[data-theme="light"] .bg-\[\#1a1e28\],
+html[data-theme="light"] .bg-\[\#1a1e29\],
+html[data-theme="light"] .bg-\[\#111726\],
+html[data-theme="light"] .bg-\[\#10141c\] {
+  background-color: var(--bg-panel) !important;
+}
+
+html[data-theme="light"] .bg-\[\#2a2e39\],
+html[data-theme="light"] .bg-\[\#2a2e39\]\/60,
+html[data-theme="light"] .bg-\[\#182034\],
+html[data-theme="light"] .bg-\[\#161c26\] {
+  background-color: #e8edf5 !important;
+}
+
+html[data-theme="light"] .border-\[\#2a2e39\],
+html[data-theme="light"] .border-\[\#2a2e39\]\/60,
+html[data-theme="light"] .border-\[\#2a2e39\]\/70,
+html[data-theme="light"] .border-\[\#2a2e39\]\/80,
+html[data-theme="light"] .border-\[\#363a45\],
+html[data-theme="light"] .border-\[\#1E293B\],
+html[data-theme="light"] .border-\[\#1e2633\],
+html[data-theme="light"] .border-white\/10,
+html[data-theme="light"] .border-white\/5 {
+  border-color: var(--border-subtle) !important;
+}
+
+html[data-theme="light"] .text-white,
+html[data-theme="light"] .text-\[\#f1f5f9\],
+html[data-theme="light"] .text-\[\#d1d4dc\],
+html[data-theme="light"] .text-\[\#e1e4ea\],
+html[data-theme="light"] .text-slate-100,
+html[data-theme="light"] .text-slate-200 {
+  color: var(--text-primary) !important;
+}
+
+/* Preserve white text on solid primary/semantic buttons in Light Mode */
+html[data-theme="light"] .bg-\[\#089981\] .text-white,
+html[data-theme="light"] .bg-\[\#089981\].text-white,
+html[data-theme="light"] .bg-\[\#10b981\].text-white,
+html[data-theme="light"] .bg-\[\#0f172a\].text-white,
+html[data-theme="light"] .bg-emerald-600.text-white,
+html[data-theme="light"] .bg-rose-600.text-white,
+html[data-theme="light"] .bg-\[\#f23645\].text-white,
+html[data-theme="light"] .bg-\[\#e11d48\].text-white,
+html[data-theme="light"] .bg-blue-600.text-white,
+html[data-theme="light"] .bg-red-600.text-white {
+  color: #ffffff !important;
+}
+
+html[data-theme="light"] .text-\[\#787b86\],
+html[data-theme="light"] .text-\[\#8b95a5\],
+html[data-theme="light"] .text-\[\#9db2c6\],
+html[data-theme="light"] .text-\[\#8a93a6\],
+html[data-theme="light"] .text-slate-400 {
+  color: var(--text-secondary) !important;
+}
+
+/* Custom precision scrollbars */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 4px;
+  height: 4px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #131722;
+  background: var(--bg-canvas);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #2a2e39;
-  border-radius: 3px;
+  background: var(--border-strong);
+  border-radius: 2px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #363a45;
+  background: #64748b;
 }
 
 /* Tabular numbers for financial digits */
-.tabular-nums {
+.tabular-nums,
+.font-mono {
   font-variant-numeric: tabular-nums;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
-/* TradingView chart grid lines subtle background */
+/* Subtle institutional grid background */
 .tv-grid-bg {
-  background-size: 32px 32px;
+  background-size: 28px 28px;
   background-image: 
-    linear-gradient(to right, rgba(42, 46, 57, 0.4) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(42, 46, 57, 0.4) 1px, transparent 1px);
+    linear-gradient(to right, rgba(148, 163, 184, 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
 }
 
-/* Mobile smooth scrolling for horizontal lists & tables */
 .smooth-scroll-x {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
 }
 
-/* Standalone PWA adjustments */
 @media all and (display-mode: standalone) {
   body {
     user-select: none;

@@ -34,10 +34,11 @@ import {
   Smartphone
 } from 'lucide-react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../../lib/firebase';
 import { UserProfile } from '../../types/trading';
 import { soundManager } from '../../utils/audio';
+import { subscribeToAuth } from '../../services/firebaseAuthService';
 import { SubscriptionCountdown } from '../common/SubscriptionCountdown';
 import {
   FeatureKey,
@@ -186,53 +187,36 @@ export const UserProfileModal: React.FC<Props> = ({
 
   useEffect(() => {
     if (!isOpen) return;
-    const targetUid = currentUserAuth?.uid || user.uid || user.id;
-    if (!targetUid) return;
-
-    try {
-      const userDocRef = doc(db, 'users', targetUid);
-      const unsubDoc = onSnapshot(
-        userDocRef,
-        (docSnap) => {
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            setFirestoreUserData({
-              email: data.email || currentUserAuth?.email || user.email,
-              displayName: data.displayName || currentUserAuth?.displayName || user.name,
-              role: data.role || 'free',
-              tier: data.tier,
-              isVip: Boolean(data.isVip),
-              vipAccess: Boolean(data.vipAccess),
-              isElite: Boolean(data.isElite),
-              eliteExpiryDate: data.eliteExpiryDate || null,
-              grantedFeatures:
-                data.grantedFeatures && typeof data.grantedFeatures === 'object'
-                  ? data.grantedFeatures
-                  : {},
-              subscriptionStatus: data.subscription_status || data.subscriptionStatus,
-              subscriptionEndDate:
-                data.subscription_end_date || data.subscriptionEndDate || data.vipExpiryDate || null,
-              phone: data.phone || '',
-              country: data.country || '',
-              dob: data.dob || '',
-              experienceLevel: data.experienceLevel || '',
-              assetClasses: Array.isArray(data.assetClasses) ? data.assetClasses : [],
-              favoritePairs: data.favoritePairs || '',
-              telegramUsername: data.telegramUsername || '',
-              lastNameChangeAt: toIsoDateString(data.lastNameChangeAt),
-              createdAt: data.createdAt
-            });
-          }
-        },
-        (err) => {
-          console.warn('Firestore user profile fetch notice:', err);
-        }
-      );
-      return () => unsubDoc();
-    } catch (err) {
-      console.warn('Profile listener notice:', err);
-    }
-  }, [currentUserAuth, user.uid, user.id, user.email, user.name]);
+    const unsub = subscribeToAuth((liveProfile) => {
+      if (!liveProfile) return;
+      setFirestoreUserData({
+        email: liveProfile.email || currentUserAuth?.email || user.email,
+        displayName: liveProfile.name || currentUserAuth?.displayName || user.name,
+        role: (liveProfile.role || 'free').toLowerCase(),
+        tier: liveProfile.tier,
+        isVip: Boolean(liveProfile.isVip),
+        vipAccess: Boolean(liveProfile.vipAccess || liveProfile.isVip),
+        isElite: Boolean(liveProfile.isElite),
+        eliteExpiryDate: liveProfile.eliteExpiryDate || null,
+        grantedFeatures:
+          liveProfile.grantedFeatures && typeof liveProfile.grantedFeatures === 'object'
+            ? liveProfile.grantedFeatures
+            : {},
+        subscriptionStatus: liveProfile.subscriptionStatus,
+        subscriptionEndDate:
+          liveProfile.subscriptionEndDate || liveProfile.vipExpiryDate || null,
+        phone: liveProfile.phone || '',
+        country: liveProfile.country || '',
+        dob: liveProfile.dob || '',
+        experienceLevel: liveProfile.experienceLevel || '',
+        assetClasses: Array.isArray(liveProfile.assetClasses) ? liveProfile.assetClasses : [],
+        favoritePairs: liveProfile.favoritePairs || '',
+        telegramUsername: (liveProfile as any).telegramUsername || '',
+        lastNameChangeAt: toIsoDateString((liveProfile as any).lastNameChangeAt)
+      });
+    });
+    return () => unsub();
+  }, [isOpen, currentUserAuth, user.email, user.name]);
 
   const mergedProfile: Partial<UserProfile> = {
     ...user,
