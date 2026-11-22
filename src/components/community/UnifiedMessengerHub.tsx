@@ -88,7 +88,7 @@ export const UnifiedMessengerHub: React.FC<UnifiedMessengerHubProps> = ({
             )}
           </button>
 
-          {/* Tab 2: Direct Messages & Member Directory */}
+          {/* Tab 2: Direct Messages Inbox */}
           <button
             type="button"
             onClick={() => {
@@ -102,7 +102,7 @@ export const UnifiedMessengerHub: React.FC<UnifiedMessengerHubProps> = ({
             }`}
           >
             <Mail className="w-3.5 h-3.5 shrink-0" />
-            <span>{isAr ? 'الرسائل الخاصة والأعضاء' : 'Direct Messages & Directory'}</span>
+            <span>{isAr ? 'صندوق الوارد (الرسائل الخاصة)' : 'Inbox (Direct Messages)'}</span>
             {unreadDmCount > 0 && (
               <span className="min-w-[16px] h-4 px-1 rounded-[2px] bg-[#e11d48] text-white text-[9px] font-mono font-bold flex items-center justify-center">
                 {unreadDmCount > 99 ? '99+' : unreadDmCount}

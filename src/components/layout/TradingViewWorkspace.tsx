@@ -809,394 +809,122 @@ export const TradingViewWorkspace: React.FC<Props> = ({
       className="h-screen h-[100dvh] max-h-[100dvh] w-full max-w-full bg-[#0a0d12] text-[#f1f5f9] flex flex-col font-sans select-none overflow-hidden antialiased"
       dir={isAr ? 'rtl' : 'ltr'}
     >
-      {/* 1. INSTITUTIONAL COMMAND HEADER — SHARP GEOMETRY, MONOCHROME PRECISION, ZERO DUPLICATE BUTTONS */}
-      <header className="h-11 bg-[#10141c] border-b border-[#1e2633] px-2.5 sm:px-3.5 flex items-center justify-between shrink-0 z-40 gap-2">
-        {/* Left: Brand Lockup & Monochrome Workspace Layout Controls */}
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <div className="flex items-center gap-2 shrink-0">
+      {/* 1. UNIFIED SINGLE TOP BAR — FIXED LOGO + DOWNLOAD | SCROLLABLE TABS MENU | FIXED PROFILE & SETTINGS */}
+      <header className="h-12 bg-[#10141c] border-b border-[#1e2633] px-2 sm:px-3 flex items-center justify-between shrink-0 z-40 gap-2">
+        {/* Start Side (Fixed): Brand Logo + Download App Button */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 border-e border-[#1e2633] pe-2 sm:pe-3">
+          <div className="flex items-center gap-1.5 shrink-0">
             <img
               src="/mbk-logo.png"
               alt="MBK Trading"
+              referrerPolicy="no-referrer"
               className="h-7 w-auto rounded-[3px] object-contain border border-[#1e2633] bg-[#0a0d12]"
             />
-            <span className="font-bold text-white text-xs sm:text-[13px] tracking-tight whitespace-nowrap">
+            <span className="font-bold text-white text-xs sm:text-[13px] tracking-tight whitespace-nowrap hidden xs:inline">
               MBK TRADING
             </span>
           </div>
 
-          {/* Monochrome Workspace Controls (Desktop) */}
-          <div className="hidden md:flex items-center gap-1 bg-[#0a0d12] p-0.5 rounded-[3px] border border-[#1e2633] text-[11px] shrink-0">
-            <button
-              onClick={toggleNavRail}
-              className={`px-2 py-1 rounded-[2px] flex items-center gap-1 font-medium transition-colors cursor-pointer whitespace-nowrap ${
-                !isNavRailFolded
-                  ? 'bg-[#161c26] text-white border border-[#2a3446]'
-                  : 'text-[#8b95a5] hover:text-white border border-transparent'
-              }`}
-              title={isAr ? (!isNavRailFolded ? 'تصغير القائمة الجانبية' : 'توسيع القائمة الجانبية') : (!isNavRailFolded ? 'Collapse Sidebar' : 'Expand Sidebar')}
-            >
-              <Layers className="w-3 h-3" />
-              <span className="hidden xl:inline">{isAr ? 'القائمة' : 'Menu'}</span>
-            </button>
-
-            <button
-              onClick={togglePriceTicker}
-              className={`px-2 py-1 rounded-[2px] flex items-center gap-1 font-medium transition-colors cursor-pointer whitespace-nowrap ${
-                showPriceTicker
-                  ? 'bg-[#161c26] text-white border border-[#2a3446]'
-                  : 'text-[#8b95a5] hover:text-white border border-transparent'
-              }`}
-              title={isAr ? (showPriceTicker ? 'إخفاء شريط الأسعار' : 'إظهار شريط الأسعار') : (showPriceTicker ? 'Hide Ticker' : 'Show Ticker')}
-            >
-              <Activity className="w-3 h-3" />
-              <span className="hidden xl:inline">{isAr ? 'الأسعار' : 'Ticker'}</span>
-            </button>
-
-            <button
-              onClick={toggleNewsBanner}
-              className={`px-2 py-1 rounded-[2px] flex items-center gap-1 font-medium transition-colors cursor-pointer whitespace-nowrap ${
-                showNewsBanner
-                  ? 'bg-[#161c26] text-white border border-[#2a3446]'
-                  : 'text-[#8b95a5] hover:text-white border border-transparent'
-              }`}
-              title={isAr ? (showNewsBanner ? 'إخفاء شريط الأخبار' : 'إظهار شريط الأخبار') : (showNewsBanner ? 'Hide News' : 'Show News')}
-            >
-              <Newspaper className="w-3 h-3" />
-              <span className="hidden xl:inline">{isAr ? 'الأخبار' : 'News'}</span>
-            </button>
-
-            <div className="h-3.5 w-[1px] bg-[#1e2633] mx-0.5" />
-
-            <ChatDockControls
-              currentPosition={chatPosition}
-              onSelectPosition={handleSetChatPosition}
-              isAr={isAr}
-              compact
-            />
-          </div>
-
-          {/* Mobile Workspace Customization Trigger */}
           <button
+            type="button"
             onClick={() => {
               soundManager.playClick();
-              setMobileWorkspaceMenuOpen(prev => !prev);
+              window.dispatchEvent(new CustomEvent('mbk-open-pwa-install'));
             }}
-            className={`md:hidden p-1.5 rounded-[3px] border text-xs font-medium flex items-center gap-1 cursor-pointer transition-colors shrink-0 ${
-              mobileWorkspaceMenuOpen
-                ? 'bg-[#161c26] border-[#2a3446] text-white'
-                : 'bg-[#0a0d12] border-[#1e2633] text-[#8b95a5] hover:text-white'
-            }`}
-            title={isAr ? 'تخصيص مساحة العمل' : 'Workspace Layout'}
+            className="px-2 py-1 rounded-[3px] bg-[#0a0d12] hover:bg-[#161c26] border border-[#1e2633] hover:border-[#2a3446] text-[#8b95a5] hover:text-white text-[11px] font-semibold transition-colors cursor-pointer flex items-center gap-1 shrink-0 whitespace-nowrap"
+            title={isAr ? 'تحميل وتثبيت التطبيق' : 'Download & Install App'}
           >
-            <Sliders className="w-3.5 h-3.5" />
+            <Download className="w-3.5 h-3.5 text-[#10b981] shrink-0" />
+            <span className="hidden lg:inline">{isAr ? 'تثبيت التطبيق' : 'Install'}</span>
           </button>
         </div>
 
-        {/* Right: Quick Signal Publisher (Staff), 3-State Theme Control, Desk Utilities & Account */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          {/* Quick Slide-Over Signal Publisher Trigger (Admin / Analyst) */}
-          {canPublishQuickSignals && (
-            <button
-              type="button"
-              onClick={() => {
-                soundManager.playClick();
-                setQuickSignalDrawerOpen(true);
-              }}
-              className="px-2.5 py-1 rounded-[3px] bg-[#161c26] hover:bg-[#1c2430] border border-[#2a3446] text-white text-[11px] font-semibold transition-colors cursor-pointer flex items-center gap-1 shrink-0 whitespace-nowrap"
-              title={isAr ? 'نشر صفقة سريعة أو إدارة الصفقات من أي صفحة' : 'Quick Publish Signal / Manage Trades'}
-            >
-              <Plus className="w-3.5 h-3.5 text-[#10b981]" />
-              <span className="hidden sm:inline">{isAr ? 'نشر صفقة' : 'Publish Trade'}</span>
-            </button>
-          )}
+        {/* Center (Scrollable Horizontally): Unified Navigation Tabs Menu */}
+        <nav
+          aria-label={isAr ? 'القائمة الرئيسية' : 'Main Navigation'}
+          className="flex-1 min-w-0 flex items-center gap-1 overflow-x-auto scrollbar-none py-1"
+        >
+          {navItems.map((item) => {
+            const isActive =
+              item.id === 'heatmap'
+                ? activeMainView === 'heatmap'
+                : activeMainView === 'chart' && activeView === item.id;
+            const Icon = item.icon;
 
-          {/* 3-State Segmented Theme Selector (Auto | Dark | Light) */}
-          <div
-            className="flex items-center bg-[#0a0d12] p-0.5 rounded-[3px] border border-[#1e2633] text-[10px] font-semibold shrink-0"
-            role="group"
-            aria-label="Theme Switcher"
-          >
-            <button
-              type="button"
-              onClick={() => {
-                soundManager.playClick();
-                setThemeMode('auto');
-              }}
-              className={`px-1.5 py-0.5 rounded-[2px] flex items-center gap-1 transition-colors cursor-pointer whitespace-nowrap ${
-                themeMode === 'auto'
-                  ? 'bg-[#2a3446] text-white'
-                  : 'text-[#8b95a5] hover:text-white'
-              }`}
-              title={isAr ? 'تلقائي حسب النظام' : 'Auto System Theme'}
-            >
-              <Monitor className="w-3 h-3" />
-              <span className="hidden xl:inline">{isAr ? 'تلقائي' : 'Auto'}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                soundManager.playClick();
-                setThemeMode('dark');
-              }}
-              className={`px-1.5 py-0.5 rounded-[2px] flex items-center gap-1 transition-colors cursor-pointer whitespace-nowrap ${
-                themeMode === 'dark'
-                  ? 'bg-[#2a3446] text-white'
-                  : 'text-[#8b95a5] hover:text-white'
-              }`}
-              title={isAr ? 'الوضع الليلي المؤسسي' : 'Obsidian Dark Mode'}
-            >
-              <Moon className="w-3 h-3" />
-              <span className="hidden xl:inline">{isAr ? 'ليلي' : 'Dark'}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                soundManager.playClick();
-                setThemeMode('light');
-              }}
-              className={`px-1.5 py-0.5 rounded-[2px] flex items-center gap-1 transition-colors cursor-pointer whitespace-nowrap ${
-                themeMode === 'light'
-                  ? 'bg-[#2a3446] text-white'
-                  : 'text-[#8b95a5] hover:text-white'
-              }`}
-              title={isAr ? 'الوضع النهاري المؤسسي' : 'Daylight Mode'}
-            >
-              <Sun className="w-3 h-3" />
-              <span className="hidden xl:inline">{isAr ? 'نهاري' : 'Light'}</span>
-            </button>
-          </div>
+            return (
+              <button
+                key={`top-nav-${item.id}`}
+                type="button"
+                onClick={() => {
+                  soundManager.playClick();
+                  if (item.id === 'signals') markTradesAsRead();
+                  if (item.id === 'chat') markChatAsRead();
+                  if (item.id === 'dm') markDmAsRead();
 
-          {/* Analysis Mode Toggle */}
+                  if (item.id === 'heatmap') {
+                    setActiveMainView('heatmap');
+                  } else {
+                    setActiveMainView('chart');
+                    setActiveView(item.id as WorkspaceView);
+                  }
+                }}
+                className={`px-2.5 py-1.5 rounded-[3px] text-[11px] sm:text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 whitespace-nowrap relative ${
+                  isActive
+                    ? 'bg-[#161c26] text-white border border-[#2a3446]'
+                    : 'text-[#8b95a5] hover:text-white hover:bg-[#161c26]/60 border border-transparent'
+                }`}
+                title={isAr ? item.labelAr : item.labelEn}
+              >
+                {isActive && (
+                  <span className="absolute bottom-0 inset-x-1.5 h-[2px] bg-[#10b981]" />
+                )}
+                <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-[#10b981]' : ''}`} />
+                <span>{isAr ? item.shortAr : item.shortEn}</span>
+                {'badge' in item && Number(item.badge) > 0 && (
+                  <span className="px-1 py-0.2 rounded-[2px] bg-[#e11d48] text-white font-mono tabular-nums text-[9px] font-bold">
+                    {Number(item.badge) > 99 ? '99+' : item.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* End Side (Fixed): Profile & App Settings Button */}
+        <div className="flex items-center shrink-0 border-s border-[#1e2633] ps-2 sm:ps-3">
           <button
-            onClick={() => {
-              soundManager.playClick();
-              setIsAnalysisMode((prev) => !prev);
-            }}
-            className={`px-2 py-1 rounded-[3px] border text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1 shrink-0 whitespace-nowrap ${
-              isAnalysisMode
-                ? 'bg-[#10b981] text-white border-[#10b981]'
-                : 'bg-[#0a0d12] hover:bg-[#161c26] border-[#1e2633] text-[#8b95a5] hover:text-white'
-            }`}
-            title={
-              isAnalysisMode
-                ? (isAr ? 'خروج من وضع التحليل' : 'Exit Full Chart')
-                : (isAr ? 'وضع الشارت الكامل' : 'Full Chart Mode')
-            }
-          >
-            {isAnalysisMode ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-            <span className="hidden lg:inline">{isAr ? 'شارت كامل' : 'Full Chart'}</span>
-          </button>
-
-          {/* Clean Institutional Account Button */}
-          <button
+            type="button"
             onClick={() => {
               soundManager.playClick();
               setProfileModalOpen(true);
             }}
-            className="flex items-center gap-1.5 px-2 py-1 rounded-[3px] bg-[#0a0d12] hover:bg-[#161c26] border border-[#1e2633] hover:border-[#2a3446] text-xs transition-colors cursor-pointer shrink-0"
-            title={isAr ? 'الملف الشخصي والحساب' : 'Profile & Account'}
+            className="flex items-center gap-2 px-2.5 py-1.5 rounded-[3px] bg-[#0a0d12] hover:bg-[#161c26] border border-[#1e2633] hover:border-[#2a3446] text-xs transition-colors cursor-pointer shrink-0 whitespace-nowrap"
+            title={isAr ? 'الملف الشخصي وإعدادات المنصة' : 'Profile & App Settings'}
           >
             <div className="w-5 h-5 rounded-[2px] bg-[#161c26] border border-[#2a3446] text-white flex items-center justify-center font-mono font-bold text-[10px] uppercase shrink-0 overflow-hidden">
               {user.avatar ? (
-                <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" />
+                <img
+                  src={user.avatar}
+                  alt="Profile"
+                  referrerPolicy="no-referrer"
+                  className="w-full h-full object-cover"
+                />
+              ) : user.name ? (
+                user.name[0].toUpperCase()
               ) : (
-                user.name ? user.name[0].toUpperCase() : <User className="w-3 h-3" />
+                <User className="w-3 h-3" />
               )}
             </div>
-            <span className="font-semibold text-white truncate max-w-[70px] sm:max-w-[110px] text-[11px] hidden xxs:inline">
+            <span className="font-semibold text-white truncate max-w-[75px] sm:max-w-[120px] text-[11px]">
               {user.name || user.email.split('@')[0]}
             </span>
-            <span className="text-[10px] font-mono text-[#8b95a5] hidden sm:inline">
-              · {isEliteMember ? 'ELITE' : isVIP ? 'VIP' : 'STD'}
+            <span className="text-[10px] font-mono text-[#10b981] hidden sm:inline">
+              · {user.isAdmin || roleUpperForAdmin === 'ADMIN' ? 'ADMIN' : isEliteMember ? 'ELITE' : isVIP ? 'VIP' : 'STD'}
             </span>
-          </button>
-
-          {/* Plans CTA */}
-          <button
-            onClick={() => {
-              soundManager.playClick();
-              setPlansModalOpen(true);
-            }}
-            className="px-2.5 py-1 rounded-[3px] bg-[#10b981] hover:bg-[#059669] text-white text-[11px] font-semibold transition-colors flex items-center gap-1 cursor-pointer shrink-0 whitespace-nowrap"
-            title={isAr ? 'الباقات والاشتراك' : 'Subscription Plans'}
-          >
-            <span>{isAr ? 'الباقات' : 'Plans'}</span>
-          </button>
-
-          {/* Notification Bell Toggle */}
-          <button
-            type="button"
-            onClick={handleToggleHeaderNotifications}
-            className={`p-1.5 rounded-[3px] border transition-colors cursor-pointer shrink-0 ${
-              notificationPermission === 'granted' && notificationsEnabled
-                ? 'bg-[#161c26] border-[#2a3446] text-white'
-                : 'bg-[#0a0d12] hover:bg-[#161c26] border-[#1e2633] text-[#8b95a5] hover:text-white'
-            }`}
-            title={
-              notificationPermission === 'granted' && notificationsEnabled
-                ? isAr
-                  ? 'الإشعارات الفورية مفعلة (اضغط للإيقاف المؤقت)'
-                  : 'App Notifications ON (Click to pause)'
-                : isAr
-                ? 'تفعيل إشعارات الصفقات والشات والرسائل الخاصة'
-                : 'Enable Mobile/Browser Notifications'
-            }
-          >
-            {notificationPermission === 'granted' && notificationsEnabled ? (
-              <Bell className="w-3.5 h-3.5" />
-            ) : (
-              <BellOff className="w-3.5 h-3.5" />
-            )}
-          </button>
-
-          {/* Install Mobile Home Screen Shortcut */}
-          {!isStandaloneApp && (
-            <button
-              type="button"
-              onClick={() => {
-                soundManager.playClick();
-                window.dispatchEvent(new CustomEvent('mbk-open-pwa-install'));
-              }}
-              className="p-1.5 rounded-[3px] bg-[#0a0d12] hover:bg-[#161c26] border border-[#1e2633] text-[#8b95a5] hover:text-white transition-colors cursor-pointer shrink-0"
-              title={isAr ? 'تثبيت التطبيق' : 'Install App'}
-            >
-              <Download className="w-3.5 h-3.5" />
-            </button>
-          )}
-
-          {/* Sound Mute */}
-          <button
-            onClick={onToggleMute}
-            className="p-1.5 rounded-[3px] bg-[#0a0d12] hover:bg-[#161c26] border border-[#1e2633] text-[#8b95a5] hover:text-white transition-colors cursor-pointer shrink-0"
-            title={isMuted ? 'Unmute' : 'Mute'}
-          >
-            {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
-          </button>
-
-          {/* Lang Toggle */}
-          {onToggleLang && (
-            <button
-              onClick={onToggleLang}
-              className="px-2 py-1 rounded-[3px] bg-[#0a0d12] hover:bg-[#161c26] border border-[#1e2633] text-[10px] font-mono font-semibold text-[#8b95a5] hover:text-white transition-colors cursor-pointer shrink-0"
-              title={isAr ? 'English' : 'عربي'}
-            >
-              {isAr ? 'EN' : 'AR'}
-            </button>
-          )}
-
-          {/* Sign Out */}
-          <button
-            onClick={onLogout}
-            className="p-1.5 rounded-[3px] bg-[#0a0d12] hover:bg-[#e11d48]/15 border border-[#1e2633] text-[#8b95a5] hover:text-[#e11d48] transition-colors cursor-pointer shrink-0"
-            title={isAr ? 'تسجيل الخروج' : 'Logout'}
-          >
-            <LogOut className="w-3.5 h-3.5" />
+            <Sliders className="w-3.5 h-3.5 text-[#8b95a5] shrink-0" />
           </button>
         </div>
       </header>
-
-      {/* MOBILE HORIZONTAL NAVIGATION STRIP (Visible ONLY on mobile <768px so desktop has zero duplicated nav bars) */}
-      <nav className="flex md:hidden items-center gap-1 px-2 py-1 bg-[#10141c] border-b border-[#1e2633] shrink-0 z-30 overflow-x-auto scrollbar-none">
-        {navItems.map((item) => {
-          const isActive =
-            item.id === 'heatmap'
-              ? activeMainView === 'heatmap'
-              : activeMainView === 'chart' && activeView === item.id;
-          const Icon = item.icon;
-
-          return (
-            <button
-              key={`mob-nav-${item.id}`}
-              type="button"
-              onClick={() => {
-                soundManager.playClick();
-                if (item.id === 'signals') markTradesAsRead();
-                if (item.id === 'chat') markChatAsRead();
-                if (item.id === 'dm') markDmAsRead();
-
-                if (item.id === 'heatmap') {
-                  setActiveMainView('heatmap');
-                } else {
-                  setActiveMainView('chart');
-                  setActiveView(item.id as WorkspaceView);
-                }
-              }}
-              className={`px-2.5 py-1 rounded-[3px] text-[11px] font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
-                isActive
-                  ? 'bg-[#161c26] text-white border border-[#2a3446]'
-                  : 'text-[#8b95a5] hover:text-white'
-              }`}
-            >
-              <Icon className="w-3.5 h-3.5 shrink-0" />
-              <span>{isAr ? item.shortAr : item.shortEn}</span>
-              {'badge' in item && Number(item.badge) > 0 && (
-                <span className="font-mono text-[10px] text-[#e11d48] font-bold">
-                  ({Number(item.badge) > 99 ? '99+' : item.badge})
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </nav>
-
-      {/* MOBILE WORKSPACE CUSTOMIZATION DROPDOWN */}
-      {mobileWorkspaceMenuOpen && (
-        <div className="md:hidden bg-[#10141c] border-b border-[#1e2633] p-3 space-y-2.5 z-40">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-white">
-              {isAr ? 'إعدادات مساحة العمل' : 'Workspace Layout'}
-            </span>
-            <button
-              onClick={() => setMobileWorkspaceMenuOpen(false)}
-              className="p-1 rounded-[2px] text-[#8b95a5] hover:text-white"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-3 gap-1.5 text-xs">
-            <button
-              onClick={togglePriceTicker}
-              className={`p-1.5 rounded-[3px] border flex items-center justify-center gap-1 font-medium cursor-pointer ${
-                showPriceTicker
-                  ? 'bg-[#161c26] border-[#2a3446] text-white'
-                  : 'bg-[#0a0d12] border-[#1e2633] text-[#8b95a5]'
-              }`}
-            >
-              <Activity className="w-3.5 h-3.5" />
-              <span className="text-[11px]">{isAr ? 'الأسعار' : 'Ticker'}</span>
-            </button>
-
-            <button
-              onClick={toggleNewsBanner}
-              className={`p-1.5 rounded-[3px] border flex items-center justify-center gap-1 font-medium cursor-pointer ${
-                showNewsBanner
-                  ? 'bg-[#161c26] border-[#2a3446] text-white'
-                  : 'bg-[#0a0d12] border-[#1e2633] text-[#8b95a5]'
-              }`}
-            >
-              <Newspaper className="w-3.5 h-3.5" />
-              <span className="text-[11px]">{isAr ? 'الأخبار' : 'News'}</span>
-            </button>
-
-            <button
-              onClick={() => {
-                soundManager.playClick();
-                setIsAnalysisMode((prev) => !prev);
-                setMobileWorkspaceMenuOpen(false);
-              }}
-              className={`p-1.5 rounded-[3px] border flex items-center justify-center gap-1 font-medium cursor-pointer ${
-                isAnalysisMode
-                  ? 'bg-[#10b981] border-[#10b981] text-white'
-                  : 'bg-[#0a0d12] border-[#1e2633] text-[#8b95a5]'
-              }`}
-            >
-              <Maximize2 className="w-3.5 h-3.5" />
-              <span className="text-[11px]">{isAr ? 'شارت كامل' : 'Full Chart'}</span>
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* 2. LIVE PRICE TICKER */}
       <div className={`transition-all duration-200 relative group/ticker overflow-hidden shrink-0 ${
@@ -1226,149 +954,8 @@ export const TradingViewWorkspace: React.FC<Props> = ({
         </button>
       </div>
 
-      {/* 3. MAIN WORKSPACE CANVAS (SINGLE UNIFIED NAVIGATION SIDEBAR + MAIN VIEWPORT + COMPANION DOCK) */}
+      {/* 3. MAIN WORKSPACE CANVAS (MAIN VIEWPORT + COMPANION DOCK) */}
       <div className="flex-1 min-h-0 flex overflow-hidden relative">
-        {/* SINGLE PRIMARY NAVIGATION SIDEBAR (Expandable on desktop with clean monochrome typography, or compact 48px icon rail) */}
-        <aside
-          className={`hidden md:flex bg-[#10141c] border-e border-[#1e2633] flex-col justify-between shrink-0 z-30 select-none overflow-y-auto scrollbar-none transition-all duration-200 relative ${
-            isNavRailFolded ? 'w-12 py-2 items-center' : 'w-44 lg:w-48 py-2 px-1.5'
-          }`}
-        >
-          <div className="flex flex-col gap-0.5 w-full">
-            {/* Sidebar Collapse / Expand Toggle Header */}
-            <div className={`flex items-center ${isNavRailFolded ? 'justify-center' : 'justify-between px-2'} pb-1.5 mb-1 border-b border-[#1e2633]`}>
-              {!isNavRailFolded && (
-                <span className="text-[10px] font-mono uppercase tracking-wider text-[#5e6878]">
-                  {isAr ? 'وحدات المنصة' : 'TERMINAL DESK'}
-                </span>
-              )}
-              <button
-                onClick={toggleNavRail}
-                className="p-1 rounded-[3px] text-[#8b95a5] hover:text-white hover:bg-[#161c26] transition-colors cursor-pointer"
-                title={isAr ? (isNavRailFolded ? 'توسيع القائمة' : 'تصغير القائمة') : (isNavRailFolded ? 'Expand Navigation' : 'Collapse Navigation')}
-              >
-                {isNavRailFolded ? (
-                  isAr ? <ChevronLeft className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />
-                ) : (
-                  isAr ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />
-                )}
-              </button>
-            </div>
-
-            {navItems.map((item) => {
-              const isActive =
-                item.id === 'heatmap'
-                  ? activeMainView === 'heatmap'
-                  : activeMainView === 'chart' && activeView === item.id;
-              const Icon = item.icon;
-
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    soundManager.playClick();
-                    if (item.id === 'signals') markTradesAsRead();
-                    if (item.id === 'chat') markChatAsRead();
-                    if (item.id === 'dm') markDmAsRead();
-
-                    if (item.id === 'heatmap') {
-                      setActiveMainView('heatmap');
-                    } else {
-                      setActiveMainView('chart');
-                      setActiveView(item.id as WorkspaceView);
-                    }
-                  }}
-                  className={`${
-                    isNavRailFolded
-                      ? 'w-9 h-9 mx-auto justify-center'
-                      : 'w-full px-2.5 py-2 justify-between'
-                  } rounded-[3px] flex items-center relative transition-colors cursor-pointer group ${
-                    isActive
-                      ? 'bg-[#161c26] text-white font-semibold border border-[#2a3446]'
-                      : 'text-[#8b95a5] hover:text-white hover:bg-[#161c26]/60 border border-transparent'
-                  }`}
-                  title={isAr ? item.labelAr : item.labelEn}
-                >
-                  {/* Active Left Accent Indicator */}
-                  {isActive && (
-                    <div className="absolute start-0 top-1.5 bottom-1.5 w-[2px] bg-[#10b981]" />
-                  )}
-
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-[#8b95a5] group-hover:text-white'}`} />
-                    {!isNavRailFolded && (
-                      <span className="text-xs truncate whitespace-nowrap">
-                        {isAr ? item.labelAr : item.labelEn}
-                      </span>
-                    )}
-                  </div>
-
-                  {'badge' in item && Number(item.badge) > 0 && (
-                    <span
-                      className={`${
-                        isNavRailFolded
-                          ? 'absolute -top-1 -end-1 min-w-[15px] h-[15px] px-0.5 text-[9px]'
-                          : 'px-1.5 py-0.2 text-[10px]'
-                      } rounded-[2px] bg-[#e11d48] text-white font-mono font-bold flex items-center justify-center shrink-0`}
-                    >
-                      {Number(item.badge) > 99 ? '99+' : item.badge}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Desk Utilities Footer (Monochrome Institutional Tools) */}
-          <div className="flex flex-col gap-0.5 pt-2 border-t border-[#1e2633] w-full">
-            {!isNavRailFolded && (
-              <span className="px-2 pb-1 text-[10px] font-mono uppercase tracking-wider text-[#5e6878]">
-                {isAr ? 'أدوات المكتب' : 'DESK TOOLS'}
-              </span>
-            )}
-            <button
-              onClick={() => {
-                soundManager.playClick();
-                setCalculatorModalOpen(true);
-              }}
-              className={`${
-                isNavRailFolded ? 'w-9 h-9 mx-auto justify-center' : 'w-full px-2.5 py-1.5 justify-start gap-2.5'
-              } rounded-[3px] flex items-center text-[#8b95a5] hover:text-white hover:bg-[#161c26] transition-colors cursor-pointer text-xs`}
-              title={isAr ? 'حاسبة اللوت وإدارة المخاطر' : 'Risk & Lot Calculator'}
-            >
-              <Calculator className="w-4 h-4 shrink-0" />
-              {!isNavRailFolded && <span className="truncate">{isAr ? 'حاسبة المخاطر' : 'Risk Calculator'}</span>}
-            </button>
-
-            <button
-              onClick={() => {
-                soundManager.playClick();
-                setSessionsModalOpen(true);
-              }}
-              className={`${
-                isNavRailFolded ? 'w-9 h-9 mx-auto justify-center' : 'w-full px-2.5 py-1.5 justify-start gap-2.5'
-              } rounded-[3px] flex items-center text-[#8b95a5] hover:text-white hover:bg-[#161c26] transition-colors cursor-pointer text-xs`}
-              title={isAr ? 'جلسات التداول العالمية' : 'Market Sessions'}
-            >
-              <Clock className="w-4 h-4 shrink-0" />
-              {!isNavRailFolded && <span className="truncate">{isAr ? 'جلسات السوق' : 'Market Sessions'}</span>}
-            </button>
-
-            <button
-              onClick={() => {
-                soundManager.playClick();
-                setSupportModalOpen(true);
-              }}
-              className={`${
-                isNavRailFolded ? 'w-9 h-9 mx-auto justify-center' : 'w-full px-2.5 py-1.5 justify-start gap-2.5'
-              } rounded-[3px] flex items-center text-[#8b95a5] hover:text-white hover:bg-[#161c26] transition-colors cursor-pointer text-xs`}
-              title={isAr ? 'الدعم الفني 24/7' : '24/7 Desk Support'}
-            >
-              <Headphones className="w-4 h-4 shrink-0" />
-              {!isNavRailFolded && <span className="truncate">{isAr ? 'الدعم الفني' : 'Desk Support'}</span>}
-            </button>
-          </div>
-        </aside>
 
         {/* CENTER WORKSPACE: MAIN VIEWPORT + DOCKABLE BOTTOM COMPANION */}
         {activeMainView === 'heatmap' ? (
@@ -1780,6 +1367,13 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                       isAdmin={user.role === 'ADMIN' || user.isAdmin}
                       lang={lang}
                       onClose={() => setActiveView('signals')}
+                      onStartDirectMessage={(target) => {
+                        setDmTargetUser(target);
+                        setMessengerSubTab('dm');
+                        setActiveMainView('chart');
+                        setActiveView('chat');
+                        markDmAsRead();
+                      }}
                     />
                   </div>
                 )}
@@ -2331,11 +1925,26 @@ export const TradingViewWorkspace: React.FC<Props> = ({
         onOpenPromoModal={onOpenPromoModal}
         onOpenPlansModal={() => setPlansModalOpen(true)}
         onOpenSupportModal={() => setSupportModalOpen(true)}
+        onOpenCalculatorModal={() => setCalculatorModalOpen(true)}
+        onOpenSessionsModal={() => setSessionsModalOpen(true)}
+        onOpenQuickSignalDrawer={() => setQuickSignalDrawerOpen(true)}
+        canPublishQuickSignals={canPublishQuickSignals}
         onNavigateAdmin={() => setActiveView('admin')}
         lang={lang}
         onToggleLang={onToggleLang}
         isMuted={isMuted}
         onToggleMute={onToggleMute}
+        showPriceTicker={showPriceTicker}
+        onTogglePriceTicker={togglePriceTicker}
+        showNewsBanner={showNewsBanner}
+        onToggleNewsBanner={toggleNewsBanner}
+        isAnalysisMode={isAnalysisMode}
+        onToggleAnalysisMode={() => setIsAnalysisMode((prev) => !prev)}
+        chatPosition={chatPosition}
+        onSetChatPosition={handleSetChatPosition}
+        notificationPermission={notificationPermission}
+        notificationsEnabled={notificationsEnabled}
+        onToggleNotifications={handleToggleHeaderNotifications}
       />
 
       <SubscriptionPlansModal

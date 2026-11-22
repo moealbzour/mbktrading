@@ -160,6 +160,7 @@ interface Props {
   isAdmin?: boolean;
   lang?: 'ar' | 'en';
   onClose?: () => void;
+  onStartDirectMessage?: (target: { uid: string; displayName: string; avatar?: string; role: string }) => void;
 }
 
 let hasMergedSecondaryAdminUsersOnce = false;
@@ -170,7 +171,8 @@ export const AdminDashboard: React.FC<Props> = ({
   currentRole = 'free',
   isAdmin = false,
   lang = 'ar',
-  onClose
+  onClose,
+  onStartDirectMessage
 }) => {
   const isAr = lang === 'ar';
   const [firestoreRole, setFirestoreRole] = useState<string | null>(() => {
@@ -2253,6 +2255,24 @@ export const AdminDashboard: React.FC<Props> = ({
                         {/* Actions */}
                         <td className="py-3 px-3 text-end">
                           <div className="flex items-center justify-end gap-1.5">
+                            {onStartDirectMessage && u.uid !== auth.currentUser?.uid && (
+                              <button
+                                onClick={() => {
+                                  soundManager.playClick();
+                                  onStartDirectMessage({
+                                    uid: u.uid,
+                                    displayName: u.displayName,
+                                    avatar: u.avatar,
+                                    role: u.role
+                                  });
+                                }}
+                                className="px-2.5 py-1.5 rounded-lg bg-[#1e222d] hover:bg-[#089981]/20 text-[#9db2c6] hover:text-[#089981] border border-[#2a2e39] hover:border-[#089981]/50 font-bold text-[11px] transition-all cursor-pointer flex items-center gap-1"
+                                title={isAr ? `مراسلة ${u.displayName} على الخاص` : `Direct Message ${u.displayName}`}
+                              >
+                                <MessageCircle className="w-3.5 h-3.5" />
+                                <span>{isAr ? 'مراسلة' : 'Message'}</span>
+                              </button>
+                            )}
                             {u.role !== 'ADMIN' && isFullAdmin && (
                               <button
                                 onClick={() => handleSetRole(u.id, 'ADMIN')}

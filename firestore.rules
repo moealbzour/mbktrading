@@ -378,7 +378,7 @@ service cloud.firestore {
 
     match /chat_profiles/{userId} {
       allow get: if isValidId(userId) && isSignedIn() && !isBanned();
-      allow list: if isSignedIn() && !isBanned();
+      allow list: if isStaff();
       allow create, update: if isValidId(userId)
         && (isOwner(userId) || isAdmin() || isStaff())
         && !isBanned();

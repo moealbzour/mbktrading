@@ -190,11 +190,47 @@ export const PublicTradingChat: React.FC<Props> = ({
     avatar?: string;
     role: string;
   } | null>(null);
+  const [showActiveTradersDrawer, setShowActiveTradersDrawer] = useState(false);
 
   // General Chat is open to all authenticated non-banned users (Free, VIP, Elite, Staff)
   const roleUpper = (userRole || user?.role || 'FREE').toUpperCase();
   const isCurrentAdmin = Boolean(isAdmin || user?.isAdmin || ['ADMIN', 'MODERATOR'].includes(roleUpper));
   const canAccessChat = !user?.isBanned;
+
+  // Derive active participants in the General Chat purely in memory from the live stream + current user (0 extra Firestore quota reads/writes)
+  const activeChatParticipants = React.useMemo(() => {
+    const map = new Map<
+      string,
+      { uid: string; name: string; avatar: string; role: string; lastActiveMs: number; isMe: boolean }
+    >();
+    const myUid = auth.currentUser?.uid || user?.uid || user?.id || '';
+    if (myUid) {
+      map.set(myUid, {
+        uid: myUid,
+        name: (user?.name || currentUserName || 'Trader').trim(),
+        avatar: user?.avatar || auth.currentUser?.photoURL || '',
+        role: isCurrentAdmin ? 'ADMIN' : roleUpper,
+        lastActiveMs: Date.now(),
+        isMe: true
+      });
+    }
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
+      const key = m.uid || m.user;
+      if (!key) continue;
+      if (!map.has(key)) {
+        map.set(key, {
+          uid: m.uid || '',
+          name: m.user || 'Trader',
+          avatar: m.avatar || '',
+          role: (m.role || 'FREE').toUpperCase(),
+          lastActiveMs: m.timestampMs || 0,
+          isMe: Boolean(myUid && m.uid === myUid)
+        });
+      }
+    }
+    return Array.from(map.values()).slice(0, 25);
+  }, [messages, user, currentUserName, isCurrentAdmin, roleUpper]);
 
   // Image attachment & room moderation state (Admin/Moderator only)
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -1130,8 +1166,38 @@ export const PublicTradingChat: React.FC<Props> = ({
           </div>
         </div>
 
-        {/* Right Tools: Admin Controls (Close/Open + Reset) + Quick Asset Filters */}
+        {/* Right Tools: Active in Chat Toggle + Admin Controls (Close/Open + Reset) + Quick Asset Filters */}
         <div className="flex items-center gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              soundManager.playClick();
+              setShowActiveTradersDrawer((prev) => !prev);
+            }}
+            className={`px-2 py-1 rounded-lg text-[10px] font-bold border flex items-center gap-1 transition-colors cursor-pointer shrink-0 ${
+              showActiveTradersDrawer
+                ? 'bg-[#089981] text-white border-[#089981]'
+                : 'bg-[#1e222d] hover:bg-[#2a2e39] text-[#089981] border-[#2a2e39]'
+            }`}
+            title={
+              isAr
+                ? 'عرض المتواجدين في الشات العام الآن'
+                : 'View active traders in General Chat'
+            }
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+            <span>
+              {isAr
+                ? `المتواجدون (${activeChatParticipants.length})`
+                : `Active (${activeChatParticipants.length})`}
+            </span>
+            <ChevronDown
+              className={`w-3 h-3 transition-transform ${
+                showActiveTradersDrawer ? 'rotate-180' : ''
+              }`}
+            />
+          </button>
+
           {isCurrentAdmin && (
             <>
               <button
@@ -1202,6 +1268,78 @@ export const PublicTradingChat: React.FC<Props> = ({
           )}
         </div>
       </div>
+
+      {/* Collapsible Swipe-Down Active Chat Participants Strip (0 Extra Firestore Reads/Writes) */}
+      {showActiveTradersDrawer && (
+        <div className="bg-[#161b26] border-b border-[#2a2e39] px-3 py-2.5 shrink-0 space-y-2 animate-in slide-in-from-top-1 duration-150">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-bold text-white flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-[#089981]" />
+              <span>
+                {isAr
+                  ? `المتداولون المتواجدون في الشات الآن (${activeChatParticipants.length})`
+                  : `Active Traders in General Chat (${activeChatParticipants.length})`}
+              </span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowActiveTradersDrawer(false)}
+              className="text-[10px] text-[#787b86] hover:text-white cursor-pointer flex items-center gap-1"
+            >
+              <span>{isAr ? 'إخفاء' : 'Hide'}</span>
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+            {activeChatParticipants.map((trader) => (
+              <button
+                key={trader.uid || trader.name}
+                type="button"
+                onClick={() => {
+                  soundManager.playClick();
+                  setInspectedTrader({
+                    uid: trader.uid || undefined,
+                    name: trader.name,
+                    avatar: trader.avatar,
+                    role: trader.role
+                  });
+                }}
+                className="px-2.5 py-1.5 rounded-xl bg-[#131722] hover:bg-[#1e222d] border border-[#2a2e39] hover:border-[#089981]/50 flex items-center gap-2 shrink-0 cursor-pointer transition-all"
+                title={
+                  isAr
+                    ? `اضغط لعرض بطاقة ${trader.name} أو إرسال رسالة خاصة`
+                    : `Click to view ${trader.name}'s card or send DM`
+                }
+              >
+                <div className="relative w-6 h-6 rounded-full bg-[#2a2e39] border border-[#363a45] flex items-center justify-center text-[10px] font-bold text-white overflow-hidden shrink-0">
+                  {trader.avatar ? (
+                    <img src={trader.avatar} alt={trader.name} className="w-full h-full object-cover" />
+                  ) : (
+                    trader.name[0]?.toUpperCase() || 'T'
+                  )}
+                  <span className="absolute bottom-0 end-0 w-1.5 h-1.5 rounded-full bg-[#089981] ring-1 ring-[#131722]" />
+                </div>
+                <div className="text-start">
+                  <div className="flex items-center gap-1">
+                    <span className="text-[11px] font-bold text-white max-w-[110px] truncate">
+                      {trader.name}
+                    </span>
+                    {trader.isMe && (
+                      <span className="text-[9px] text-[#089981] font-mono">
+                        ({isAr ? 'أنت' : 'You'})
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[9px] font-mono text-[#787b86] block">
+                    {trader.role}
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Inline Feedback Notice */}
       {chatFeedback && (

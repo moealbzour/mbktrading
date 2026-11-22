@@ -22,16 +22,15 @@ import {
   getOtherParticipantUid,
   markDmConversationRead,
   sendDirectMessage,
-  subscribeToChatDirectory,
   subscribeToDmConversations,
   subscribeToDmMessages,
   subscribeToOwnChatProfile,
   syncOwnChatProfile,
   updateDmPrivacySettings
 } from '../../services/directMessageService';
-import { auth } from '../../lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { auth, db } from '../../lib/firebase';
 import { soundManager } from '../../utils/audio';
-import { syncAllLegacyDataToDefaultDb } from '../../utils/legacyDbRecovery';
 
 export interface DmTargetUser {
   uid: string;
@@ -105,12 +104,11 @@ export const DirectMessagesPanel: React.FC<Props> = ({
   const myDisplayName = (user.name || user.email?.split('@')[0] || 'MBK Trader').trim();
 
   const [ownChatProfile, setOwnChatProfile] = useState<ChatProfile | null>(null);
-  const [directory, setDirectory] = useState<ChatProfile[]>([]);
   const [conversations, setConversations] = useState<DmConversation[]>([]);
   const [selectedRecipientUid, setSelectedRecipientUid] = useState<string | null>(null);
   const [selectedFallbackRecipient, setSelectedFallbackRecipient] = useState<DmTargetUser | null>(null);
+  const [selectedRecipientProfile, setSelectedRecipientProfile] = useState<ChatProfile | null>(null);
   const [messages, setMessages] = useState<DmMessage[]>([]);
-  const [sidebarTab, setSidebarTab] = useState<'chats' | 'members'>('chats');
   const [searchQuery, setSearchQuery] = useState('');
   const [messageInput, setMessageInput] = useState('');
   const [sending, setSending] = useState(false);
@@ -138,33 +136,63 @@ export const DirectMessagesPanel: React.FC<Props> = ({
     setTimeout(() => setFeedback(null), 4000);
   };
 
-  // Sync own lightweight directory profile so other users can reach us
+  // Sync own lightweight DM privacy profile so other users can message us if allowed
   useEffect(() => {
     if (!myUid) return;
     syncOwnChatProfile(user).catch(() => {});
   }, [myUid, user]);
 
-  // Subscribe to own DM privacy settings, chat directory, and conversations
+  // Subscribe ONLY to own DM privacy settings and own DM conversations (no global user directory)
   useEffect(() => {
     if (!myUid) return;
     const unsubOwn = subscribeToOwnChatProfile(myUid, setOwnChatProfile);
-    const unsubDir = subscribeToChatDirectory(setDirectory);
     const unsubConvos = subscribeToDmConversations(myUid, setConversations);
     return () => {
       unsubOwn();
-      unsubDir();
       unsubConvos();
     };
   }, [myUid]);
 
-  // Handle jump-to-DM from PublicTradingChat
+  // Handle jump-to-DM from PublicTradingChat or Admin CRM
   useEffect(() => {
     if (!initialTargetUser?.uid || initialTargetUser.uid === myUid) return;
     setSelectedRecipientUid(initialTargetUser.uid);
     setSelectedFallbackRecipient(initialTargetUser);
-    setSidebarTab('chats');
     onClearInitialTarget?.();
   }, [initialTargetUser, myUid, onClearInitialTarget]);
+
+  // Fetch single selected recipient's DM privacy settings on demand (1 single doc read instead of listing all users)
+  useEffect(() => {
+    if (!selectedRecipientUid) {
+      setSelectedRecipientProfile(null);
+      return;
+    }
+    let cancelled = false;
+    getDoc(doc(db, 'chat_profiles', selectedRecipientUid))
+      .then((snap) => {
+        if (cancelled) return;
+        if (snap.exists()) {
+          const d = snap.data();
+          setSelectedRecipientProfile({
+            uid: d.uid || snap.id,
+            displayName: d.displayName || 'Trader',
+            avatar: d.avatar || '',
+            role: (d.role || 'FREE').toString().toUpperCase(),
+            allowDirectMessages: d.allowDirectMessages !== false,
+            blockedUids: Array.isArray(d.blockedUids) ? d.blockedUids : [],
+            updatedAt: d.updatedAt
+          });
+        } else {
+          setSelectedRecipientProfile(null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setSelectedRecipientProfile(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedRecipientUid]);
 
   const activeConvoId = useMemo(() => {
     if (!myUid || !selectedRecipientUid) return '';
@@ -194,16 +222,11 @@ export const DirectMessagesPanel: React.FC<Props> = ({
     scrollDmToBottom();
   }, [messages.length, activeConvoId]);
 
-  const directoryByUid = useMemo(() => {
-    const map = new Map<string, ChatProfile>();
-    directory.forEach((p) => map.set(p.uid, p));
-    return map;
-  }, [directory]);
-
   const activeRecipient = useMemo(() => {
     if (!selectedRecipientUid) return null;
-    const dirProfile = directoryByUid.get(selectedRecipientUid);
-    if (dirProfile) return dirProfile;
+    if (selectedRecipientProfile && selectedRecipientProfile.uid === selectedRecipientUid) {
+      return selectedRecipientProfile;
+    }
 
     const convo = conversations.find((c) => c.id === activeConvoId);
     if (convo) {
@@ -229,7 +252,7 @@ export const DirectMessagesPanel: React.FC<Props> = ({
     }
 
     return null;
-  }, [selectedRecipientUid, directoryByUid, conversations, activeConvoId, selectedFallbackRecipient]);
+  }, [selectedRecipientUid, selectedRecipientProfile, conversations, activeConvoId, selectedFallbackRecipient]);
 
   const myAllowDm = ownChatProfile ? ownChatProfile.allowDirectMessages !== false : true;
   const myBlockedUids = useMemo(() => ownChatProfile?.blockedUids || [], [ownChatProfile]);
@@ -246,31 +269,18 @@ export const DirectMessagesPanel: React.FC<Props> = ({
     selectedRecipientUid && !isRecipientBlockedByMe && recipientAllowsDm && !hasRecipientBlockedMe
   );
 
-  const filteredMembers = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    return directory.filter((p) => {
-      if (p.uid === myUid) return false;
-      if (!q) return true;
-      return (
-        p.displayName.toLowerCase().includes(q) ||
-        (p.role || '').toLowerCase().includes(q)
-      );
-    });
-  }, [directory, myUid, searchQuery]);
-
   const filteredConversations = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return conversations.filter((convo) => {
       const otherUid = getOtherParticipantUid(convo.participants, myUid);
-      const otherProfile = directoryByUid.get(otherUid);
-      const otherName = otherProfile?.displayName || convo.participantNames?.[otherUid] || 'Trader';
+      const otherName = convo.participantNames?.[otherUid] || 'Trader';
       if (!q) return true;
       return (
         otherName.toLowerCase().includes(q) ||
         convo.lastMessage.toLowerCase().includes(q)
       );
     });
-  }, [conversations, directoryByUid, myUid, searchQuery]);
+  }, [conversations, myUid, searchQuery]);
 
   const totalUnread = useMemo(() => {
     return conversations.reduce((sum, c) => sum + Number(c.unreadBy?.[myUid] || 0), 0);
@@ -288,10 +298,10 @@ export const DirectMessagesPanel: React.FC<Props> = ({
         'success',
         next
           ? isAr
-            ? 'تم تفعيل استقبال الرسائل الخاصة من الأعضاء'
+            ? 'تم تفعيل استقبال الرسائل الخاصة'
             : 'Direct Messages enabled'
           : isAr
-          ? 'تم إيقاف استقبال الرسائل الخاصة من جميع الأعضاء'
+          ? 'تم إيقاف استقبال الرسائل الخاصة'
           : 'Direct Messages disabled — users can no longer message you'
       );
     } catch (err: any) {
@@ -379,7 +389,7 @@ export const DirectMessagesPanel: React.FC<Props> = ({
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-xs sm:text-sm font-black text-white">
-                {isAr ? 'الوارد (Inbox)' : 'Inbox'}
+                {isAr ? 'صندوق الوارد (Inbox)' : 'Direct Inbox'}
               </h2>
               {totalUnread > 0 && (
                 <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-[#f23645] text-white">
@@ -388,7 +398,7 @@ export const DirectMessagesPanel: React.FC<Props> = ({
               )}
             </div>
             <p className="text-[11px] text-[#787b86]">
-              {isAr ? 'الرسائل الخاصة' : 'Direct Messages'}
+              {isAr ? 'محادثاتك الخاصة المباشرة' : 'Your Private Direct Conversations'}
             </p>
           </div>
         </div>
@@ -405,8 +415,8 @@ export const DirectMessagesPanel: React.FC<Props> = ({
           }`}
           title={
             isAr
-              ? 'تبديل استقبال الرسائل الخاصة من الأعضاء'
-              : 'Toggle receiving direct messages from other users'
+              ? 'تبديل استقبال الرسائل الخاصة'
+              : 'Toggle receiving direct messages'
           }
         >
           {myAllowDm ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
@@ -435,9 +445,9 @@ export const DirectMessagesPanel: React.FC<Props> = ({
         </div>
       )}
 
-      {/* Split Workspace: Sidebar List + Active Thread */}
+      {/* Split Workspace: Inbox Conversations List + Active Thread */}
       <div className="flex-1 min-h-0 flex overflow-hidden">
-        {/* LEFT/START: Conversations & Members Directory */}
+        {/* LEFT/START: User's Direct Conversations Inbox */}
         <div
           className={`${
             isCompact ? 'w-full' : 'w-full md:w-72 lg:w-80 border-e border-[#2a2e39]'
@@ -445,46 +455,16 @@ export const DirectMessagesPanel: React.FC<Props> = ({
             selectedRecipientUid ? (isCompact ? 'hidden' : 'hidden md:flex') : 'flex'
           }`}
         >
-          {/* Tabs: Chats | Members */}
+          {/* Inbox Header + Search Input */}
           <div className="p-2.5 border-b border-[#2a2e39] space-y-2">
-            <div className="grid grid-cols-2 gap-1.5 bg-[#131722] p-1 rounded-xl border border-[#2a2e39]">
-              <button
-                type="button"
-                onClick={() => {
-                  soundManager.playClick();
-                  setSidebarTab('chats');
-                }}
-                className={`py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all ${
-                  sidebarTab === 'chats'
-                    ? 'bg-[#089981] text-white shadow'
-                    : 'text-[#787b86] hover:text-white'
-                }`}
-              >
-                <MessageCircle className="w-3.5 h-3.5" />
-                <span>{isAr ? 'المحادثات' : 'Chats'}</span>
-                {totalUnread > 0 && (
-                  <span className="px-1.5 rounded-full bg-[#f23645] text-white text-[9px] font-mono">
-                    {totalUnread}
-                  </span>
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  soundManager.playClick();
-                  setSidebarTab('members');
-                }}
-                className={`py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all ${
-                  sidebarTab === 'members'
-                    ? 'bg-[#089981] text-white shadow'
-                    : 'text-[#787b86] hover:text-white'
-                }`}
-              >
-                <Users className="w-3.5 h-3.5" />
-                <span>{isAr ? 'الأعضاء' : 'Members'}</span>
-                <span className="text-[10px] opacity-80 font-mono">({Math.max(0, directory.length - 1)})</span>
-              </button>
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-white">
+                <MessageCircle className="w-3.5 h-3.5 text-[#089981]" />
+                <span>{isAr ? 'المحادثات الخاصة' : 'Conversations'}</span>
+              </div>
+              <span className="text-[10px] font-mono text-[#787b86]">
+                {filteredConversations.length}
+              </span>
             </div>
 
             {/* Search Input */}
@@ -494,154 +474,82 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={isAr ? 'ابحث باسم العضو أو المحادثة...' : 'Search trader or message...'}
+                placeholder={isAr ? 'ابحث في رسائلك الخاصة...' : 'Search your inbox...'}
                 className="w-full ps-8 pe-3 py-1.5 rounded-xl bg-[#131722] border border-[#2a2e39] focus:border-[#089981] text-xs text-white placeholder-[#787b86] focus:outline-none"
               />
             </div>
           </div>
 
-          {/* List Body */}
+          {/* Conversations List Body */}
           <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-[#2a2e39]/60">
-            {sidebarTab === 'chats' ? (
-              filteredConversations.length === 0 ? (
-                <div className="p-6 text-center space-y-2.5 text-[#787b86]">
-                  <MessageCircle className="w-8 h-8 mx-auto opacity-40 text-[#089981]" />
-                  <p className="text-xs font-bold text-white">
-                    {isAr ? 'لا توجد محادثات خاصة بعد' : 'No direct conversations yet'}
-                  </p>
-                  <p className="text-[11px]">
-                    {isAr
-                      ? 'اختر تبويب الأعضاء لبدء محادثة خاصة جديدة مع أي متداول.'
-                      : 'Open the Members tab to start a private conversation.'}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setSidebarTab('members')}
-                    className="px-3 py-1.5 rounded-xl bg-[#089981] hover:bg-[#07846f] text-white text-xs font-bold cursor-pointer"
-                  >
-                    {isAr ? 'تصفح الأعضاء' : 'Browse Members'}
-                  </button>
-                </div>
-              ) : (
-                filteredConversations.map((convo) => {
-                  const otherUid = getOtherParticipantUid(convo.participants, myUid);
-                  const profile = directoryByUid.get(otherUid);
-                  const otherName = profile?.displayName || convo.participantNames?.[otherUid] || 'Trader';
-                  const otherAvatar = profile?.avatar || convo.participantAvatars?.[otherUid] || '';
-                  const otherRole = profile?.role || convo.participantRoles?.[otherUid] || 'FREE';
-                  const unread = Number(convo.unreadBy?.[myUid] || 0);
-                  const isActive = selectedRecipientUid === otherUid;
-
-                  return (
-                    <button
-                      key={convo.id}
-                      type="button"
-                      onClick={() => {
-                        soundManager.playClick();
-                        setSelectedRecipientUid(otherUid);
-                        setSelectedFallbackRecipient({
-                          uid: otherUid,
-                          displayName: otherName,
-                          avatar: otherAvatar,
-                          role: otherRole
-                        });
-                      }}
-                      className={`w-full p-3 flex items-center gap-2.5 text-start transition-colors cursor-pointer ${
-                        isActive ? 'bg-[#089981]/15 border-s-2 border-[#089981]' : 'hover:bg-[#1e222d]'
-                      }`}
-                    >
-                      <div className="w-9 h-9 rounded-full bg-[#2a2e39] border border-[#363a45] flex items-center justify-center font-bold text-xs text-white overflow-hidden shrink-0">
-                        {otherAvatar ? (
-                          <img src={otherAvatar} alt={otherName} className="w-full h-full object-cover" />
-                        ) : (
-                          otherName[0]?.toUpperCase() || 'T'
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-1.5">
-                          <span className="text-xs font-bold text-white truncate">{otherName}</span>
-                          <span className="text-[10px] font-mono text-[#787b86] shrink-0">
-                            {formatMessageTime(convo.lastMessageAtMs, isAr)}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between gap-2 mt-0.5">
-                          <span className="text-[11px] text-[#9db2c6] truncate">
-                            {convo.lastSenderUid === myUid ? (isAr ? 'أنت: ' : 'You: ') : ''}
-                            {convo.lastMessage}
-                          </span>
-                          {unread > 0 && (
-                            <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-[#f23645] text-white text-[10px] font-mono font-bold flex items-center justify-center shrink-0">
-                              {unread}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })
-              )
-            ) : filteredMembers.length === 0 ? (
-              <div className="p-6 text-center text-xs text-[#787b86]">
-                {isAr ? 'لا يوجد أعضاء مطابقون لبحثك.' : 'No matching traders found.'}
+            {filteredConversations.length === 0 ? (
+              <div className="p-6 text-center space-y-2.5 text-[#787b86]">
+                <MessageCircle className="w-8 h-8 mx-auto opacity-40 text-[#089981]" />
+                <p className="text-xs font-bold text-white">
+                  {isAr ? 'صندوق الوارد فارغ حالياً' : 'Your inbox is empty'}
+                </p>
+                <p className="text-[11px] leading-relaxed">
+                  {isAr
+                    ? 'ستظهر هنا محادثاتك الخاصة المباشرة. يمكنك بدء مراسلة أي متداول بالضغط على اسمه في الشات العام.'
+                    : 'Your private conversations appear here. Click any trader’s name in General Chat to send them a direct message.'}
+                </p>
               </div>
             ) : (
-              filteredMembers.map((member) => {
-                const blockedByMe = myBlockedUids.includes(member.uid);
-                const dmClosed = member.allowDirectMessages === false;
-                const isSelected = selectedRecipientUid === member.uid;
+              filteredConversations.map((convo) => {
+                const otherUid = getOtherParticipantUid(convo.participants, myUid);
+                const otherName = convo.participantNames?.[otherUid] || 'Trader';
+                const otherAvatar = convo.participantAvatars?.[otherUid] || '';
+                const otherRole = convo.participantRoles?.[otherUid] || 'FREE';
+                const unread = Number(convo.unreadBy?.[myUid] || 0);
+                const isActive = selectedRecipientUid === otherUid;
 
                 return (
                   <button
-                    key={member.uid}
+                    key={convo.id}
                     type="button"
                     onClick={() => {
                       soundManager.playClick();
-                      setSelectedRecipientUid(member.uid);
+                      setSelectedRecipientUid(otherUid);
                       setSelectedFallbackRecipient({
-                        uid: member.uid,
-                        displayName: member.displayName,
-                        avatar: member.avatar,
-                        role: member.role
+                        uid: otherUid,
+                        displayName: otherName,
+                        avatar: otherAvatar,
+                        role: otherRole
                       });
                     }}
-                    className={`w-full p-3 flex items-center justify-between gap-2 text-start transition-colors cursor-pointer ${
-                      isSelected ? 'bg-[#089981]/15 border-s-2 border-[#089981]' : 'hover:bg-[#1e222d]'
+                    className={`w-full p-3 flex items-center gap-2.5 text-start transition-colors cursor-pointer ${
+                      isActive ? 'bg-[#089981]/15 border-s-2 border-[#089981]' : 'hover:bg-[#1e222d]'
                     }`}
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-9 h-9 rounded-full bg-[#2a2e39] border border-[#363a45] flex items-center justify-center font-bold text-xs text-white overflow-hidden shrink-0">
-                        {member.avatar ? (
-                          <img src={member.avatar} alt={member.displayName} className="w-full h-full object-cover" />
-                        ) : (
-                          member.displayName[0]?.toUpperCase() || 'T'
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-bold text-white truncate">{member.displayName}</span>
-                          {renderRoleBadge(member.role)}
+                    <div className="w-9 h-9 rounded-full bg-[#2a2e39] border border-[#363a45] flex items-center justify-center font-bold text-xs text-white overflow-hidden shrink-0">
+                      {otherAvatar ? (
+                        <img src={otherAvatar} alt={otherName} className="w-full h-full object-cover" />
+                      ) : (
+                        otherName[0]?.toUpperCase() || 'T'
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1.5">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="text-xs font-bold text-white truncate">{otherName}</span>
+                          {renderRoleBadge(otherRole)}
                         </div>
-                        <span className="text-[10px] text-[#787b86] block mt-0.5">
-                          {blockedByMe
-                            ? isAr
-                              ? 'محظور بواسطتك'
-                              : 'Blocked by you'
-                            : dmClosed
-                            ? isAr
-                              ? 'أوقف استقبال الرسائل الخاصة'
-                              : 'Direct messages paused'
-                            : isAr
-                            ? 'متاح للمراسلة الخاصة'
-                            : 'Open for DMs'}
+                        <span className="text-[10px] font-mono text-[#787b86] shrink-0">
+                          {formatMessageTime(convo.lastMessageAtMs, isAr)}
                         </span>
                       </div>
+                      <div className="flex items-center justify-between gap-2 mt-0.5">
+                        <span className="text-[11px] text-[#9db2c6] truncate">
+                          {convo.lastSenderUid === myUid ? (isAr ? 'أنت: ' : 'You: ') : ''}
+                          {convo.lastMessage}
+                        </span>
+                        {unread > 0 && (
+                          <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-[#f23645] text-white text-[10px] font-mono font-bold flex items-center justify-center shrink-0">
+                            {unread}
+                          </span>
+                        )}
+                      </div>
                     </div>
-
-                    {blockedByMe || dmClosed ? (
-                      <Lock className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-                    ) : (
-                      <Send className="w-3.5 h-3.5 text-[#089981] shrink-0" />
-                    )}
                   </button>
                 );
               })
@@ -661,7 +569,7 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                 <Mail className="w-7 h-7" />
               </div>
               <h3 className="text-sm font-bold text-white">
-                {isAr ? 'اختر محادثة أو عضواً لبدء المراسلة' : 'Select a conversation or member'}
+                {isAr ? 'اختر محادثة من صندوق الوارد لعرض الرسائل' : 'Select an inbox conversation to view messages'}
               </h3>
               <p className="text-xs text-[#787b86] max-w-sm leading-relaxed">
                 {isAr

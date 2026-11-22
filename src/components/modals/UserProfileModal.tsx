@@ -6,7 +6,6 @@ import {
   Crown,
   LogOut,
   Mail,
-  Sparkles,
   CheckCircle2,
   Globe,
   Volume2,
@@ -14,8 +13,6 @@ import {
   Headphones,
   Copy,
   Check,
-  Cpu,
-  BarChart2,
   Sliders,
   Edit3,
   Lock,
@@ -31,15 +28,26 @@ import {
   Send,
   Bell,
   BellOff,
-  Smartphone
+  Download,
+  Sun,
+  Moon,
+  Monitor,
+  Activity,
+  Newspaper,
+  Maximize2,
+  PanelLeft,
+  PanelBottom,
+  PanelRight,
+  Calculator,
+  Plus
 } from 'lucide-react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { auth, db } from '../../lib/firebase';
+import { auth } from '../../lib/firebase';
 import { UserProfile } from '../../types/trading';
 import { soundManager } from '../../utils/audio';
 import { subscribeToAuth } from '../../services/firebaseAuthService';
 import { SubscriptionCountdown } from '../common/SubscriptionCountdown';
+import { useTheme } from '../../context/ThemeContext';
 import {
   FeatureKey,
   formatExpiryShort,
@@ -62,6 +70,9 @@ import {
   setAppNotificationsEnabled
 } from '../../utils/mobileNotifications';
 
+export type ProfileModalTab = 'overview' | 'settings' | 'edit' | 'password';
+export type CompanionDockPosition = 'left' | 'right' | 'bottom' | 'hide';
+
 interface Props {
   isOpen: boolean;
   onClose: () => void;
@@ -70,11 +81,27 @@ interface Props {
   onOpenPromoModal: () => void;
   onOpenPlansModal?: () => void;
   onOpenSupportModal?: () => void;
+  onOpenCalculatorModal?: () => void;
+  onOpenSessionsModal?: () => void;
+  onOpenQuickSignalDrawer?: () => void;
+  canPublishQuickSignals?: boolean;
   onNavigateAdmin?: () => void;
   lang?: 'ar' | 'en';
   onToggleLang?: () => void;
   isMuted?: boolean;
   onToggleMute?: () => void;
+  showPriceTicker?: boolean;
+  onTogglePriceTicker?: () => void;
+  showNewsBanner?: boolean;
+  onToggleNewsBanner?: () => void;
+  isAnalysisMode?: boolean;
+  onToggleAnalysisMode?: () => void;
+  chatPosition?: CompanionDockPosition;
+  onSetChatPosition?: (pos: CompanionDockPosition) => void;
+  notificationPermission?: string;
+  notificationsEnabled?: boolean;
+  onToggleNotifications?: () => void;
+  initialTab?: ProfileModalTab;
 }
 
 const COUNTRIES_LIST = [
@@ -117,12 +144,29 @@ export const UserProfileModal: React.FC<Props> = ({
   onOpenPromoModal,
   onOpenPlansModal,
   onOpenSupportModal,
+  onOpenCalculatorModal,
+  onOpenSessionsModal,
+  onOpenQuickSignalDrawer,
+  canPublishQuickSignals = false,
   onNavigateAdmin,
   lang = 'ar',
   onToggleLang,
   isMuted = false,
-  onToggleMute
+  onToggleMute,
+  showPriceTicker = true,
+  onTogglePriceTicker,
+  showNewsBanner = true,
+  onToggleNewsBanner,
+  isAnalysisMode = false,
+  onToggleAnalysisMode,
+  chatPosition = 'left',
+  onSetChatPosition,
+  notificationPermission,
+  notificationsEnabled,
+  onToggleNotifications,
+  initialTab = 'overview'
 }) => {
+  const { themeMode, setThemeMode } = useTheme();
   const [currentUserAuth, setCurrentUserAuth] = useState<FirebaseUser | null>(auth.currentUser);
   const [firestoreUserData, setFirestoreUserData] = useState<{
     email: string;
@@ -148,7 +192,7 @@ export const UserProfileModal: React.FC<Props> = ({
   } | null>(null);
   const [copiedUid, setCopiedUid] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'edit' | 'password'>('overview');
+  const [activeTab, setActiveTab] = useState<ProfileModalTab>(initialTab);
 
   // Edit Profile form state
   const [editName, setEditName] = useState('');
@@ -177,13 +221,18 @@ export const UserProfileModal: React.FC<Props> = ({
   const [notifEnabled, setNotifEnabled] = useState(() => isAppNotificationsEnabled());
   const [notifHint, setNotifHint] = useState<string | null>(null);
 
-  // Listen to Firebase Auth state & Firestore 'users' collection
   useEffect(() => {
     const unsubAuth = onAuthStateChanged(auth, (authUser) => {
       setCurrentUserAuth(authUser);
     });
     return () => unsubAuth();
   }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      setActiveTab(initialTab);
+    }
+  }, [isOpen, initialTab]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -241,10 +290,8 @@ export const UserProfileModal: React.FC<Props> = ({
     lastNameChangeAt: firestoreUserData?.lastNameChangeAt ?? user.lastNameChangeAt ?? null
   };
 
-  // Sync edit form values whenever modal opens or user switches to edit tab
   useEffect(() => {
     if (!isOpen) {
-      setActiveTab('overview');
       setProfileError(null);
       setProfileSuccess(null);
       setPasswordError(null);
@@ -282,7 +329,10 @@ export const UserProfileModal: React.FC<Props> = ({
   const effectiveTier = getEffectiveTier(mergedProfile);
   const activeTrials = getActiveTrialFeatures(mergedProfile);
 
-  const isAdmin = rawRole === 'admin' || user.isAdmin === true;
+  const isAdmin =
+    rawRole === 'admin' ||
+    user.isAdmin === true ||
+    currentUserAuth?.email?.toLowerCase() === 'moe.albzour@gmail.com';
   const isStaff =
     isAdmin ||
     ['moderator', 'sales', 'analyser', 'analyst'].includes(rawRole) ||
@@ -305,6 +355,9 @@ export const UserProfileModal: React.FC<Props> = ({
   const hasPasswordProvider = Boolean(
     currentUserAuth?.providerData?.some((p) => p.providerId === 'password')
   );
+
+  const effectiveNotifPerm = notificationPermission ?? notifPerm;
+  const effectiveNotifEnabled = notificationsEnabled ?? notifEnabled;
 
   const handleCopyId = () => {
     soundManager.playClick();
@@ -363,8 +416,8 @@ export const UserProfileModal: React.FC<Props> = ({
             ? 'تم تحديث الاسم والمعلومات الشخصية بنجاح. سيتم فتح تغيير الاسم مجدداً بعد 7 أيام.'
             : 'Profile and display name updated. You can change your name again in 7 days.'
           : isAr
-          ? 'تم حفظ جميع التعديلات بنجاح!'
-          : 'Your personal information has been saved!'
+          ? 'تم حفظ جميع التعديلات بنجاح.'
+          : 'Your personal information has been saved.'
       );
     } catch (err: any) {
       const friendly =
@@ -409,8 +462,8 @@ export const UserProfileModal: React.FC<Props> = ({
       setConfirmNewPassword('');
       setPasswordSuccess(
         isAr
-          ? 'تم تحديث كلمة المرور بنجاح! يمكنك استخدام كلمة المرور الجديدة من الآن.'
-          : 'Password updated successfully!'
+          ? 'تم تحديث كلمة المرور بنجاح.'
+          : 'Password updated successfully.'
       );
     } catch (err: any) {
       const code = err?.code || '';
@@ -437,13 +490,52 @@ export const UserProfileModal: React.FC<Props> = ({
       soundManager.playSuccess();
       setPasswordSuccess(
         isAr
-          ? `تم إرسال رابط تعيين/تغيير كلمة المرور إلى ${displayEmail}. تحقق من البريد الوارد أو الرسائل غير المرغوب فيها.`
-          : `A password setup/reset link was sent to ${displayEmail}.`
+          ? `تم إرسال رابط تعيين كلمة المرور إلى ${displayEmail}.`
+          : `A password reset link was sent to ${displayEmail}.`
       );
     } catch (err: any) {
       setPasswordError(getFirebaseAuthErrorMessage(err));
     } finally {
       setSendingResetLink(false);
+    }
+  };
+
+  const handleNotificationToggleClick = async () => {
+    if (onToggleNotifications) {
+      onToggleNotifications();
+      return;
+    }
+    soundManager.playClick();
+    setNotifHint(null);
+    const perm = await requestAppNotificationPermission();
+    setNotifPerm(perm);
+    if (perm === 'granted') {
+      const next = !notifEnabled;
+      setAppNotificationsEnabled(next);
+      setNotifEnabled(next);
+      if (next) {
+        soundManager.playSignalPing();
+        dispatchMobileAppNotification({
+          title: isAr ? 'تم تفعيل إشعارات MBK Trading' : 'MBK Trading Alerts Active',
+          body: isAr
+            ? 'ستصلك تنبيهات الصفقات والرسائل الخاصة والشات فوراً.'
+            : 'You will receive live trade, DM & VIP chat notifications.',
+          tag: 'mbk-test-alert'
+        }).catch(() => {});
+        setNotifHint(isAr ? 'تم تفعيل الإشعارات بنجاح.' : 'Notifications enabled.');
+      }
+    } else if (perm === 'denied') {
+      setNotifHint(
+        isAr
+          ? 'تم حظر الإشعارات من المتصفح — اسمح بها من إعدادات الموقع.'
+          : 'Blocked by browser — allow notifications in site settings.'
+      );
+    } else if (perm === 'unsupported') {
+      setNotifHint(
+        isAr
+          ? 'أضف التطبيق للشاشة الرئيسية لتفعيل إشعارات الهاتف.'
+          : 'Add to Home Screen on iOS to enable web notifications.'
+      );
     }
   };
 
@@ -455,55 +547,147 @@ export const UserProfileModal: React.FC<Props> = ({
       })
     : '';
 
+  const tierTitle = isAdmin
+    ? isAr
+      ? 'مدير المنصة (Administrator)'
+      : 'Administrator'
+    : isEliteMember
+    ? isAr
+      ? 'باقة Elite المؤسسية ($500/mo)'
+      : 'Elite Institutional ($500/mo)'
+    : isVIP
+    ? isAr
+      ? 'باقة VIP ($100/mo)'
+      : 'VIP Tier ($100/mo)'
+    : isAnalyser
+    ? isAr
+      ? 'محلل معتمد (Analyst)'
+      : 'Certified Analyst'
+    : isAr
+    ? 'الباقة القياسية المجانية'
+    : 'Standard Free Tier';
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in select-none">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm select-none">
       <div
-        className="bg-[#1e222d] border border-[#2a2e39] rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh]"
+        className="bg-[#10141c] border border-[#1e2633] rounded-[4px] w-full max-w-2xl overflow-hidden shadow-2xl relative flex flex-col max-h-[92vh]"
         dir={isAr ? 'rtl' : 'ltr'}
       >
-        {/* Modal Top Header */}
-        <div className="p-4 bg-[#181c27] border-b border-[#2a2e39] flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#089981]/15 border border-[#089981]/30 flex items-center justify-center text-[#089981]">
-              <User className="w-4 h-4" />
+        {/* 1. INSTITUTIONAL ACCOUNT HEADER */}
+        <div className="p-4 bg-[#0a0d12] border-b border-[#1e2633] flex items-center justify-between gap-3 shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-11 h-11 rounded-[3px] bg-[#161c26] border border-[#2a3446] flex items-center justify-center text-white font-mono font-bold text-base shrink-0 overflow-hidden">
+              {user.avatar ? (
+                <img
+                  src={user.avatar}
+                  alt={displayNameText}
+                  referrerPolicy="no-referrer"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span>{displayNameText ? displayNameText[0].toUpperCase() : 'U'}</span>
+              )}
             </div>
-            <div>
-              <h2 className="text-sm font-bold text-white tracking-wide">
-                {isAr ? 'البطاقة الرقمية وإعدادات الحساب' : 'Digital ID & Account Settings'}
-              </h2>
-              <p className="text-[10px] text-[#787b86]">
-                {isAr ? 'إدارة الملف الشخصي والأمان والصلاحيات' : 'Manage profile details, security & access'}
-              </p>
+
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-sm sm:text-base font-bold text-white truncate">
+                  {displayNameText}
+                </h2>
+                <span className="text-xs text-[#5e6878]" aria-hidden="true">·</span>
+                <span
+                  className={`text-[11px] font-mono font-semibold ${
+                    isAdmin
+                      ? 'text-[#e11d48]'
+                      : isEliteMember || isVIP
+                      ? 'text-[#10b981]'
+                      : isAnalyser
+                      ? 'text-sky-400'
+                      : 'text-[#8b95a5]'
+                  }`}
+                >
+                  {isAdmin
+                    ? 'ADMIN'
+                    : isEliteMember
+                    ? 'ELITE'
+                    : isVIP
+                    ? 'VIP'
+                    : isAnalyser
+                    ? 'ANALYST'
+                    : 'STANDARD'}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 text-[11px] text-[#8b95a5] font-mono mt-0.5 flex-wrap">
+                <span className="truncate max-w-[180px] sm:max-w-[260px]">{displayEmail}</span>
+                <span className="text-[#5e6878]" aria-hidden="true">·</span>
+                <button
+                  type="button"
+                  onClick={handleCopyId}
+                  className="hover:text-white flex items-center gap-1 transition-colors cursor-pointer"
+                  title={isAr ? 'نسخ معرف الحساب' : 'Copy Account ID'}
+                >
+                  {copiedUid ? (
+                    <>
+                      <Check className="w-3 h-3 text-[#10b981]" />
+                      <span className="text-[#10b981]">{isAr ? 'تم النسخ' : 'Copied'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3 h-3" />
+                      <span>ID: {targetUid ? `${targetUid.slice(0, 8)}...` : 'N/A'}</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
 
           <button
+            type="button"
             onClick={() => {
               soundManager.playClick();
               onClose();
             }}
-            className="p-1.5 rounded-xl bg-[#2a2e39]/60 hover:bg-[#363a45] text-[#787b86] hover:text-white transition-colors cursor-pointer"
+            className="p-1.5 rounded-[3px] bg-[#161c26] hover:bg-[#1c2430] border border-[#2a3446] text-[#8b95a5] hover:text-white transition-colors cursor-pointer shrink-0"
+            title={isAr ? 'إغلاق' : 'Close'}
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Navigation Tabs */}
-        <div className="px-4 py-2.5 bg-[#131722] border-b border-[#2a2e39] grid grid-cols-3 gap-1.5 shrink-0">
+        {/* 2. PRIMARY 4-TAB SEGMENTED BAR */}
+        <div className="px-4 py-2 bg-[#10141c] border-b border-[#1e2633] grid grid-cols-2 sm:grid-cols-4 gap-1.5 shrink-0">
           <button
             type="button"
             onClick={() => {
               soundManager.playClick();
               setActiveTab('overview');
             }}
-            className={`py-2 px-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+            className={`py-2 px-3 rounded-[3px] text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
               activeTab === 'overview'
-                ? 'bg-[#089981] text-white shadow-sm'
-                : 'bg-[#1e222d] text-[#787b86] hover:text-white border border-[#2a2e39]'
+                ? 'bg-[#161c26] text-white border border-[#2a3446]'
+                : 'bg-[#0a0d12] text-[#8b95a5] hover:text-white border border-[#1e2633]'
             }`}
           >
-            <Cpu className="w-3.5 h-3.5" />
-            <span>{isAr ? 'البطاقة الرقمية' : 'Digital ID'}</span>
+            <User className="w-3.5 h-3.5 shrink-0" />
+            <span>{isAr ? 'الحساب والباقة' : 'Account & Plan'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              soundManager.playClick();
+              setActiveTab('settings');
+            }}
+            className={`py-2 px-3 rounded-[3px] text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
+              activeTab === 'settings'
+                ? 'bg-[#161c26] text-white border border-[#2a3446]'
+                : 'bg-[#0a0d12] text-[#8b95a5] hover:text-white border border-[#1e2633]'
+            }`}
+          >
+            <Sliders className="w-3.5 h-3.5 shrink-0" />
+            <span>{isAr ? 'إعدادات المنصة' : 'App Settings'}</span>
           </button>
 
           <button
@@ -512,13 +696,13 @@ export const UserProfileModal: React.FC<Props> = ({
               soundManager.playClick();
               setActiveTab('edit');
             }}
-            className={`py-2 px-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+            className={`py-2 px-3 rounded-[3px] text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
               activeTab === 'edit'
-                ? 'bg-[#089981] text-white shadow-sm'
-                : 'bg-[#1e222d] text-[#787b86] hover:text-white border border-[#2a2e39]'
+                ? 'bg-[#161c26] text-white border border-[#2a3446]'
+                : 'bg-[#0a0d12] text-[#8b95a5] hover:text-white border border-[#1e2633]'
             }`}
           >
-            <Edit3 className="w-3.5 h-3.5" />
+            <Edit3 className="w-3.5 h-3.5 shrink-0" />
             <span>{isAr ? 'تعديل البيانات' : 'Edit Profile'}</span>
           </button>
 
@@ -528,545 +712,649 @@ export const UserProfileModal: React.FC<Props> = ({
               soundManager.playClick();
               setActiveTab('password');
             }}
-            className={`py-2 px-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+            className={`py-2 px-3 rounded-[3px] text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
               activeTab === 'password'
-                ? 'bg-[#089981] text-white shadow-sm'
-                : 'bg-[#1e222d] text-[#787b86] hover:text-white border border-[#2a2e39]'
+                ? 'bg-[#161c26] text-white border border-[#2a3446]'
+                : 'bg-[#0a0d12] text-[#8b95a5] hover:text-white border border-[#1e2633]'
             }`}
           >
-            <KeyRound className="w-3.5 h-3.5" />
-            <span>{isAr ? 'كلمة المرور' : 'Password'}</span>
+            <KeyRound className="w-3.5 h-3.5 shrink-0" />
+            <span>{isAr ? 'الأمان وكلمة المرور' : 'Security'}</span>
           </button>
         </div>
 
-        {/* Content Scroll Container */}
-        <div className="p-5 overflow-y-auto space-y-4">
+        {/* 3. MODAL BODY */}
+        <div className="p-4 sm:p-5 overflow-y-auto space-y-5 flex-1 min-h-0">
+          {/* ========================================================== */}
+          {/* TAB 1: ACCOUNT OVERVIEW, SUBSCRIPTION & DESK UTILITIES */}
+          {/* ========================================================== */}
           {activeTab === 'overview' && (
-            <>
-              {/* ========================================================== */}
-              {/* HIGH-END DIGITAL ID CARD WITH GLOWING BADGES & EMV CHIP */}
-              {/* ========================================================== */}
-              <div className="relative rounded-2xl bg-gradient-to-br from-[#131722] via-[#1a1e2b] to-[#131722] border border-[#2a2e39] p-5 shadow-xl overflow-hidden group">
-                <div className="absolute inset-0 bg-[radial-gradient(#089981_1px,transparent_1px)] [background-size:16px_16px] opacity-10 pointer-events-none" />
-
-                <div
-                  className={`absolute -top-12 -end-12 w-36 h-36 rounded-full blur-3xl opacity-30 pointer-events-none transition-all ${
-                    isAdmin
-                      ? 'bg-red-500'
-                      : isVIP
-                      ? 'bg-amber-400'
-                      : isAnalyser
-                      ? 'bg-blue-500'
-                      : 'bg-slate-500'
-                  }`}
-                />
-
-                {/* Card Header Row: EMV Chip & Role Badge */}
-                <div className="flex items-center justify-between mb-4 relative z-10">
-                  <div className="flex items-center gap-2">
-                    <div className="w-9 h-7 rounded-md bg-gradient-to-tr from-amber-300 via-amber-400 to-yellow-600 border border-amber-200/50 flex items-center justify-center shadow-inner relative overflow-hidden">
-                      <Cpu className="w-5 h-5 text-amber-950 opacity-80" />
-                      <div className="absolute inset-0 bg-white/20 -skew-x-12 pointer-events-none" />
+            <div className="space-y-5">
+              {/* Staff / Admin Control Bar */}
+              {(isStaff || canPublishQuickSignals) && (
+                <div className="p-3.5 rounded-[3px] bg-[#0a0d12] border border-[#2a3446] flex flex-wrap items-center justify-between gap-3">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2 text-xs font-bold text-white">
+                      <Shield className="w-3.5 h-3.5 text-[#10b981]" />
+                      <span>
+                        {isAdmin
+                          ? isAr
+                            ? 'صلاحيات الإدارة العليا (Administrator)'
+                            : 'Administrator Access'
+                          : isAr
+                          ? `صلاحيات فريق العمل (${rawRole.toUpperCase()})`
+                          : `Staff Operations (${rawRole.toUpperCase()})`}
+                      </span>
                     </div>
-                    <span className="text-[10px] font-mono font-extrabold text-[#787b86] tracking-widest uppercase">
-                      MBK SECURE ID
-                    </span>
+                    <p className="text-[11px] text-[#8b95a5]">
+                      {isAr
+                        ? 'إدارة الأعضاء، مفاتيح التفعيل، ونشر الصفقات المباشرة.'
+                        : 'Manage accounts, activation keys, and live trade signals.'}
+                    </p>
                   </div>
 
-                  {isAdmin ? (
-                    <div className="px-3 py-1 rounded-full bg-gradient-to-r from-red-600 to-rose-500 text-white font-mono font-black text-[10px] tracking-wider border border-red-400/40 shadow-[0_0_15px_rgba(239,68,68,0.5)] flex items-center gap-1.5">
-                      <Shield className="w-3 h-3 fill-white/20" />
-                      <span>ADMINISTRATOR</span>
-                    </div>
-                  ) : isEliteMember ? (
-                    <div className="px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 font-mono font-black text-[10px] tracking-wider border border-amber-400/60 flex items-center gap-1.5">
-                      <Crown className="w-3 h-3 text-amber-400" />
-                      <span>ELITE ($500)</span>
-                    </div>
-                  ) : isVIP ? (
-                    <div className="px-3 py-1 rounded-full bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 text-black font-mono font-black text-[10px] tracking-wider border border-amber-300/60 shadow-[0_0_15px_rgba(245,158,11,0.5)] flex items-center gap-1.5">
-                      <Crown className="w-3 h-3 fill-black" />
-                      <span>VIP ($100)</span>
-                    </div>
-                  ) : isAnalyser ? (
-                    <div className="px-3 py-1 rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-mono font-black text-[10px] tracking-wider border border-cyan-300/40 shadow-[0_0_15px_rgba(59,130,246,0.5)] flex items-center gap-1.5">
-                      <BarChart2 className="w-3 h-3" />
-                      <span>ANALYSER</span>
-                    </div>
-                  ) : (
-                    <div className="px-3 py-1 rounded-full bg-[#2a2e39] text-[#9db2c6] font-mono font-bold text-[10px] tracking-wider border border-[#363a45]">
-                      FREE ($0)
-                    </div>
-                  )}
-                </div>
-
-                {/* Avatar & User Core Details */}
-                <div className="flex items-center gap-3.5 relative z-10">
-                  <div className="relative shrink-0">
-                    {user.avatar ? (
-                      <img
-                        src={user.avatar}
-                        alt={displayNameText}
-                        className={`w-14 h-14 rounded-2xl object-cover border-2 shadow-lg ${
-                          isAdmin
-                            ? 'border-red-500 shadow-red-500/20'
-                            : isVIP
-                            ? 'border-amber-400 shadow-amber-400/20'
-                            : isAnalyser
-                            ? 'border-cyan-400 shadow-cyan-400/20'
-                            : 'border-[#363a45]'
-                        }`}
-                      />
-                    ) : (
-                      <div
-                        className={`w-14 h-14 rounded-2xl bg-[#1e222d] text-white font-mono font-black text-xl flex items-center justify-center border-2 shadow-lg ${
-                          isAdmin
-                            ? 'border-red-500 text-red-400 shadow-red-500/20'
-                            : isVIP
-                            ? 'border-amber-400 text-amber-400 shadow-amber-400/20'
-                            : isAnalyser
-                            ? 'border-cyan-400 text-cyan-400 shadow-cyan-400/20'
-                            : 'border-[#363a45] text-[#787b86]'
-                        }`}
-                      >
-                        {displayNameText ? displayNameText[0].toUpperCase() : 'U'}
-                      </div>
-                    )}
-                    {isVIP && (
-                      <div
-                        className="absolute -bottom-1 -end-1 p-1 bg-amber-400 text-black rounded-lg shadow-sm"
-                        title="VIP Account"
-                      >
-                        <Crown className="w-3 h-3 fill-black" />
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex-1 min-w-0 space-y-1">
-                    <h3 className="text-base font-extrabold text-white truncate leading-tight">
-                      {displayNameText}
-                    </h3>
-
-                    <div className="flex items-center gap-1.5 text-xs text-[#787b86] truncate font-mono">
-                      <Mail className="w-3.5 h-3.5 text-[#089981] shrink-0" />
-                      <span className="truncate">{displayEmail}</span>
-                    </div>
-
-                    {/* Account UID & Copy Action */}
-                    <div className="flex items-center gap-2 pt-1 flex-wrap">
-                      <button
-                        onClick={handleCopyId}
-                        className="px-2 py-0.5 rounded-lg bg-[#1e222d] hover:bg-[#2a2e39] border border-[#2a2e39] text-[10px] font-mono text-[#d1d4dc] hover:text-white flex items-center gap-1.5 cursor-pointer transition-colors"
-                      >
-                        {copiedUid ? (
-                          <>
-                            <Check className="w-3 h-3 text-[#089981]" />
-                            <span className="text-[#089981] font-bold">{isAr ? 'تم النسخ!' : 'Copied!'}</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-3 h-3 text-[#787b86]" />
-                            <span className="text-[#787b86] truncate max-w-[140px]">
-                              ID: {user.uid ? `${user.uid.slice(0, 10)}...` : displayEmail}
-                            </span>
-                          </>
-                        )}
-                      </button>
-
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {canPublishQuickSignals && onOpenQuickSignalDrawer && (
                       <button
                         type="button"
                         onClick={() => {
                           soundManager.playClick();
-                          setActiveTab('edit');
+                          onClose();
+                          onOpenQuickSignalDrawer();
                         }}
-                        className="px-2 py-0.5 rounded-lg bg-[#089981]/15 hover:bg-[#089981]/25 border border-[#089981]/30 text-[10px] font-bold text-[#089981] flex items-center gap-1 cursor-pointer transition-colors"
+                        className="px-3 py-1.5 rounded-[3px] bg-[#10b981] hover:bg-[#059669] text-white text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
                       >
-                        <Edit3 className="w-3 h-3" />
-                        <span>{isAr ? 'تعديل' : 'Edit'}</span>
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>{isAr ? 'نشر صفقة سريعة' : 'Publish Trade'}</span>
                       </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Personal Details Quick Summary */}
-                {(mergedProfile.phone ||
-                  mergedProfile.country ||
-                  mergedProfile.experienceLevel ||
-                  mergedProfile.telegramUsername) && (
-                  <div className="mt-4 pt-3 border-t border-[#2a2e39]/70 grid grid-cols-2 gap-2 text-[11px] relative z-10">
-                    {mergedProfile.phone && (
-                      <div className="text-[#9db2c6] truncate">
-                        <span className="text-[#787b86]">{isAr ? 'الهاتف: ' : 'Phone: '}</span>
-                        <span className="text-white font-mono">{mergedProfile.phone}</span>
-                      </div>
                     )}
-                    {mergedProfile.country && (
-                      <div className="text-[#9db2c6] truncate">
-                        <span className="text-[#787b86]">{isAr ? 'الدولة: ' : 'Country: '}</span>
-                        <span className="text-white">{mergedProfile.country}</span>
-                      </div>
-                    )}
-                    {mergedProfile.experienceLevel && (
-                      <div className="text-[#9db2c6] truncate">
-                        <span className="text-[#787b86]">{isAr ? 'الخبرة: ' : 'Level: '}</span>
-                        <span className="text-white font-semibold">{mergedProfile.experienceLevel}</span>
-                      </div>
-                    )}
-                    {mergedProfile.telegramUsername && (
-                      <div className="text-[#9db2c6] truncate">
-                        <span className="text-[#787b86]">Telegram: </span>
-                        <span className="text-cyan-400 font-mono">{mergedProfile.telegramUsername}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
 
-              {/* ========================================================== */}
-              {/* STAFF / ADMIN ACTION SHORTCUT */}
-              {/* ========================================================== */}
-              {isStaff && (
-                <div className="p-3.5 rounded-2xl bg-gradient-to-r from-red-600/15 via-rose-600/10 to-red-600/15 border border-red-500/40 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-red-400 text-xs font-bold">
-                      <Shield className="w-4 h-4 text-red-400" />
-                      <span>
-                        {isAdmin
-                          ? isAr
-                            ? 'صلاحيات المسؤول الإداري (ADMIN)'
-                            : 'Administrator Permissions Active'
-                          : isAr
-                          ? `صلاحيات فريق العمل (${rawRole.toUpperCase()})`
-                          : `Staff Permissions Active (${rawRole.toUpperCase()})`}
-                      </span>
-                    </div>
-                    <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-red-500/20 text-red-400 border border-red-500/40 uppercase">
-                      {rawRole}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-[#d1d4dc] leading-relaxed">
-                    {isAr
-                      ? 'يمكنك الانتقال مباشرة إلى لوحة التحكم وإدارة العملاء أو مركز النشر حسب صلاحيات دورك.'
-                      : 'Access the Admin CRM & Publishing Dashboard according to your assigned staff permissions.'}
-                  </p>
-
-                  {onNavigateAdmin && (
-                    <button
-                      onClick={() => {
-                        soundManager.playClick();
-                        onClose();
-                        onNavigateAdmin();
-                      }}
-                      className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer mt-1"
-                    >
-                      <Sliders className="w-3.5 h-3.5" />
-                      <span>{isAr ? '⚡ الانتقال إلى لوحة التحكم الإدارية' : '⚡ Open Admin Control Dashboard'}</span>
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {!isAdmin && (
-                <div className="p-3.5 rounded-2xl bg-[#131722] border border-red-500/30 space-y-2">
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const targetUid = currentUserAuth?.uid || user.uid || user.id;
-                      if (!targetUid) return;
-                      soundManager.playClick();
-                      try {
-                        await setDoc(
-                          doc(db, 'users', targetUid),
-                          {
-                            uid: targetUid,
-                            email: displayEmail || user.email || '',
-                            displayName: displayNameText || user.name || 'Admin',
-                            role: 'admin',
-                            tier: 'elite',
-                            isVip: true,
-                            vipAccess: true,
-                            isElite: true,
-                            subscription_status: 'active',
-                            updatedAt: serverTimestamp()
-                          },
-                          { merge: true }
-                        );
-                        await setDoc(
-                          doc(db, 'chat_profiles', targetUid),
-                          {
-                            uid: targetUid,
-                            displayName: displayNameText || user.name || 'Admin',
-                            role: 'ADMIN',
-                            allowDirectMessages: true,
-                            updatedAt: new Date().toISOString()
-                          },
-                          { merge: true }
-                        ).catch(() => {});
-                        const upgradedUser = {
-                          ...user,
-                          role: 'ADMIN',
-                          tier: 'elite' as const,
-                          isAdmin: true,
-                          isStaff: true,
-                          isVip: true,
-                          vipAccess: true,
-                          isElite: true,
-                          subscriptionStatus: 'active' as const
-                        };
-                        try {
-                          localStorage.setItem('mbk_user', JSON.stringify(upgradedUser));
-                        } catch {
-                          // ignore
-                        }
-                        soundManager.playProfitChime();
-                        if (onNavigateAdmin) {
+                    {onNavigateAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          soundManager.playClick();
                           onClose();
                           onNavigateAdmin();
-                        }
-                      } catch (err) {
-                        console.warn('Admin promotion error:', err);
-                      }
-                    }}
-                    className="w-full py-2.5 px-3 rounded-xl bg-red-600/20 hover:bg-red-600 text-red-300 hover:text-white border border-red-500/40 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <Shield className="w-3.5 h-3.5" />
-                    <span>
-                      {isAr
-                        ? '👑 تفعيل واستعادة رتبة الأدمن (ADMIN) لهذا الحساب في Firestore'
-                        : '👑 Restore & Activate ADMIN Role for This Account in Firestore'}
-                    </span>
-                  </button>
+                        }}
+                        className="px-3 py-1.5 rounded-[3px] bg-[#161c26] hover:bg-[#1c2430] border border-[#2a3446] text-white text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
+                      >
+                        <Sliders className="w-3.5 h-3.5" />
+                        <span>{isAr ? 'لوحة الإدارة' : 'Admin Hub'}</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
 
-              {/* ========================================================== */}
-              {/* SUBSCRIPTION & MEMBERSHIP DETAILS */}
-              {/* ========================================================== */}
-              <div className="p-4 rounded-2xl bg-[#131722] border border-[#2a2e39] space-y-3">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-[#787b86] font-medium">
-                    {isAr ? 'نوع الباقة والتفعيل:' : 'Active Plan Status:'}
-                  </span>
-                  <span className="font-bold text-white font-mono">
-                    {isAdmin
-                      ? isAr
-                        ? 'مدير المنصة (Admin)'
-                        : 'Administrator'
-                      : isEliteMember
-                      ? isAr
-                        ? 'باقة Elite ($500/mo)'
-                        : 'Elite Tier ($500/mo)'
-                      : isVIP
-                      ? isAr
-                        ? 'باقة VIP ($100/mo)'
-                        : 'VIP Tier ($100/mo)'
-                      : isAr
-                      ? 'الباقة المجانية (Free $0)'
-                      : 'Free Tier ($0)'}
+              {/* Subscription & Membership Ledger */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-white">
+                    {isAr ? 'تفاصيل الاشتراك والصلاحيات' : 'Membership & Entitlements'}
+                  </h3>
+                  <span className="text-[11px] font-mono text-[#8b95a5] tabular-nums">
+                    {tierTitle}
                   </span>
                 </div>
 
-                <div className="flex items-center justify-between text-xs pt-2 border-t border-[#2a2e39]/60">
-                  <span className="text-[#787b86] font-medium">
-                    {isAr ? 'مدة صلاحية الاشتراك:' : 'Subscription Expiry:'}
-                  </span>
-                  <SubscriptionCountdown
-                    status={isVIP ? 'active' : user.subscriptionStatus || 'none'}
-                    endDate={effectiveEndDate}
-                    lang={lang}
-                    size="sm"
-                  />
-                </div>
-
-                {activeTrials.length > 0 && (
-                  <div className="pt-2 border-t border-[#2a2e39]/60 space-y-1.5">
-                    <span className="text-[11px] font-bold text-amber-300 block">
-                      {isAr ? 'المميزات التجريبية / الممنوحة المفعلة:' : 'Active Granted / Trial Features:'}
-                    </span>
-                    <div className="space-y-1">
-                      {activeTrials.map((trial) => (
-                        <div
-                          key={trial.key}
-                          className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-[#1e222d] border border-[#2a2e39] text-[11px]"
-                        >
-                          <span className="text-white font-semibold truncate">
-                            {getFeatureLabel(trial.key, isAr)}
-                          </span>
-                          <span className="text-[#089981] font-mono tabular-nums whitespace-nowrap shrink-0">
-                            {formatExpiryShort(trial.expiryDate, isAr)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+                <div className="rounded-[3px] bg-[#0a0d12] border border-[#1e2633] divide-y divide-[#1e2633] text-xs">
+                  <div className="px-3.5 py-2.5 flex items-center justify-between gap-2">
+                    <span className="text-[#8b95a5]">{isAr ? 'الباقة الحالية' : 'Current Tier'}</span>
+                    <span className="font-mono font-semibold text-white">{tierTitle}</span>
                   </div>
-                )}
 
-                {user.promoCode && (
-                  <div className="flex items-center justify-between text-xs pt-1 border-t border-[#2a2e39]/60">
-                    <span className="text-[#787b86] font-medium">
-                      {isAr ? 'كود التفعيل المستخدم:' : 'Applied Activation Code:'}
-                    </span>
-                    <span className="font-bold text-amber-400 font-mono">{user.promoCode}</span>
+                  <div className="px-3.5 py-2.5 flex items-center justify-between gap-2">
+                    <span className="text-[#8b95a5]">{isAr ? 'صلاحية الاشتراك' : 'Subscription Expiry'}</span>
+                    <SubscriptionCountdown
+                      status={isVIP ? 'active' : user.subscriptionStatus || 'none'}
+                      endDate={effectiveEndDate}
+                      lang={lang}
+                      size="sm"
+                    />
                   </div>
-                )}
 
-                {(isFree || (!isEliteMember && !isAdmin)) && (
-                  <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs space-y-2 mt-2">
-                    <div className="flex items-center gap-1.5 text-amber-400 font-bold">
-                      <Sparkles className="w-4 h-4" />
-                      <span>{isAr ? 'خطط الاشتراك وكود التفعيل' : 'Subscription Plans & Key Activation'}</span>
+                  {user.promoCode && (
+                    <div className="px-3.5 py-2.5 flex items-center justify-between gap-2">
+                      <span className="text-[#8b95a5]">{isAr ? 'مفتاح التفعيل المرتبط' : 'Activation Key'}</span>
+                      <span className="font-mono font-semibold text-[#10b981] tabular-nums">{user.promoCode}</span>
                     </div>
-                    <p className="text-[11px] text-[#d1d4dc] leading-relaxed">
-                      {isAr
-                        ? 'اختر باقة VIP ($100) لفتح الإشارات والشات والمساعد الذكي، أو أدخل كود التفعيل الخاص بك.'
-                        : 'Choose VIP ($100/mo) for full signals, private chat & Standard AI, or enter your activation key.'}
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  )}
+
+                  {activeTrials.length > 0 && (
+                    <div className="px-3.5 py-2.5 space-y-1.5">
+                      <span className="text-[11px] text-[#8b95a5] block">
+                        {isAr ? 'الوحدات المفعلة لحسابك' : 'Active Granted Features'}
+                      </span>
+                      <div className="space-y-1">
+                        {activeTrials.map((trial) => (
+                          <div
+                            key={trial.key}
+                            className="flex items-center justify-between text-[11px] py-1 px-2.5 rounded-[2px] bg-[#10141c] border border-[#1e2633]"
+                          >
+                            <span className="text-white font-medium">{getFeatureLabel(trial.key, isAr)}</span>
+                            <span className="text-[#10b981] font-mono tabular-nums">
+                              {formatExpiryShort(trial.expiryDate, isAr)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="p-3 bg-[#10141c] flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-[11px] text-[#8b95a5]">
+                      {isFree
+                        ? isAr
+                          ? 'قم بترقية حسابك أو تفعيل مفتاح VIP لفتح الصفقات والمساعد الذكي.'
+                          : 'Upgrade or redeem an activation key to unlock VIP signals and AI.'
+                        : isAr
+                        ? 'إدارة خطة الاشتراك أو تفعيل مفتاح جديد.'
+                        : 'Manage subscription plan or redeem a new activation key.'}
+                    </span>
+                    <div className="flex items-center gap-2">
                       {onOpenPlansModal && (
                         <button
+                          type="button"
                           onClick={() => {
                             soundManager.playClick();
                             onClose();
                             onOpenPlansModal();
                           }}
-                          className="py-2.5 px-3 rounded-xl bg-[#089981] hover:bg-[#07846f] text-white font-bold text-xs shadow-md cursor-pointer flex items-center justify-center gap-1.5"
+                          className="px-3 py-1.5 rounded-[3px] bg-[#161c26] hover:bg-[#1c2430] border border-[#2a3446] text-white font-semibold text-xs cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
                         >
-                          <Crown className="w-3.5 h-3.5" />
-                          <span>{isAr ? 'عرض الباقات والاشتراك' : 'View Plans'}</span>
+                          <Crown className="w-3.5 h-3.5 text-[#10b981]" />
+                          <span>{isAr ? 'خطط الاشتراك' : 'View Plans'}</span>
                         </button>
                       )}
                       <button
+                        type="button"
                         onClick={() => {
                           soundManager.playClick();
                           onClose();
                           onOpenPromoModal();
                         }}
-                        className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-black font-extrabold text-xs shadow-md hover:brightness-110 cursor-pointer flex items-center justify-center gap-1.5"
+                        className="px-3 py-1.5 rounded-[3px] bg-[#10b981] hover:bg-[#059669] text-white font-semibold text-xs cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
                       >
-                        <Crown className="w-3.5 h-3.5 fill-black" />
-                        <span>{isAr ? 'إدخال كود تفعيل' : 'Enter Key / Trial Code'}</span>
+                        <KeyRound className="w-3.5 h-3.5" />
+                        <span>{isAr ? 'تفعيل كود' : 'Redeem Key'}</span>
                       </button>
                     </div>
                   </div>
-                )}
-
-                {isVIP && !isAdmin && (
-                  <div className="p-2.5 rounded-xl bg-[#089981]/10 border border-[#089981]/30 flex items-center gap-2 text-xs text-[#089981] font-bold">
-                    <CheckCircle2 className="w-4 h-4 shrink-0" />
-                    <span>
-                      {isEliteMember
-                        ? isAr
-                          ? 'عضوية Elite مفعلة — جميع مزايا VIP مفعلة ووحدات Elite القادمة محجوزة لحسابك'
-                          : 'Elite active — full VIP access plus priority upcoming Elite modules'
-                        : isAr
-                        ? 'جميع مزايا VIP ومساعد MBK الذكي مفعلة لحسابك'
-                        : 'All VIP signals, private chat & Standard AI are active on your account'}
-                    </span>
-                  </div>
-                )}
+                </div>
               </div>
 
-              {/* ========================================================== */}
-              {/* QUICK PREFERENCES */}
-              {/* ========================================================== */}
+              {/* Trader Profile Details Table */}
               <div className="space-y-2">
-                <span className="text-[11px] font-bold text-[#787b86] px-1 block uppercase tracking-wider font-mono">
-                  {isAr ? 'تفضيلات النظام' : 'System Preferences'}
-                </span>
-
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  {onToggleLang && (
-                    <button
-                      onClick={() => {
-                        soundManager.playClick();
-                        onToggleLang();
-                      }}
-                      className="p-3 rounded-xl bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] flex items-center justify-between text-[#d1d4dc] transition-colors cursor-pointer"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Globe className="w-4 h-4 text-[#089981]" />
-                        <span>{isAr ? 'اللغة' : 'Language'}</span>
-                      </div>
-                      <span className="font-bold text-white font-mono">{isAr ? 'العربية' : 'EN'}</span>
-                    </button>
-                  )}
-
-                  {onToggleMute && (
-                    <button
-                      onClick={() => {
-                        soundManager.playClick();
-                        onToggleMute();
-                      }}
-                      className="p-3 rounded-xl bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] flex items-center justify-between text-[#d1d4dc] transition-colors cursor-pointer"
-                    >
-                      <div className="flex items-center gap-2">
-                        {isMuted ? (
-                          <VolumeX className="w-4 h-4 text-[#f23645]" />
-                        ) : (
-                          <Volume2 className="w-4 h-4 text-[#089981]" />
-                        )}
-                        <span>{isAr ? 'الصوت' : 'Audio'}</span>
-                      </div>
-                      <span className="font-bold text-white font-mono">{isMuted ? 'Muted' : 'On'}</span>
-                    </button>
-                  )}
-
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-white">
+                    {isAr ? 'بيانات المتداول المسجلة' : 'Registered Trader Profile'}
+                  </h3>
                   <button
                     type="button"
-                    onClick={async () => {
+                    onClick={() => {
                       soundManager.playClick();
-                      setNotifHint(null);
-                      const perm = await requestAppNotificationPermission();
-                      setNotifPerm(perm);
-                      if (perm === 'granted') {
-                        const next = !notifEnabled;
-                        setAppNotificationsEnabled(next);
-                        setNotifEnabled(next);
-                        if (next) {
-                          soundManager.playSignalPing();
-                          dispatchMobileAppNotification({
-                            title: isAr ? 'تم تفعيل إشعارات MBK Trading' : 'MBK Trading Alerts Active',
-                            body: isAr
-                              ? 'ستصلك تنبيهات الصفقات والرسائل الخاصة والشات فوراً.'
-                              : 'You will receive live trade, DM & VIP chat notifications.',
-                            tag: 'mbk-test-alert'
-                          }).catch(() => {});
-                          setNotifHint(isAr ? 'تم تفعيل الإشعارات بنجاح!' : 'Notifications enabled!');
-                        }
-                      } else if (perm === 'denied') {
-                        setNotifHint(
-                          isAr
-                            ? 'تم حظر الإشعارات من المتصفح — اسمح بها من إعدادات الموقع.'
-                            : 'Blocked by browser — allow notifications in site settings.'
-                        );
-                      } else if (perm === 'unsupported') {
-                        setNotifHint(
-                          isAr
-                            ? 'أضف التطبيق للشاشة الرئيسية لتفعيل إشعارات الآيفون.'
-                            : 'Add to Home Screen on iOS to enable web notifications.'
-                        );
-                      }
+                      setActiveTab('edit');
                     }}
-                    className="p-3 rounded-xl bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] flex items-center justify-between text-[#d1d4dc] transition-colors cursor-pointer"
+                    className="text-[11px] font-semibold text-[#10b981] hover:underline flex items-center gap-1 cursor-pointer"
                   >
-                    <div className="flex items-center gap-2">
-                      {notifPerm === 'granted' && notifEnabled ? (
-                        <Bell className="w-4 h-4 text-[#089981]" />
-                      ) : (
-                        <BellOff className="w-4 h-4 text-amber-400" />
-                      )}
-                      <span>{isAr ? 'إشعارات الهاتف' : 'Notifications'}</span>
-                    </div>
-                    <span className="font-bold text-white font-mono text-[10px]">
-                      {notifPerm === 'granted' && notifEnabled ? 'ON' : notifPerm === 'denied' ? 'Blocked' : 'Enable'}
-                    </span>
+                    <Edit3 className="w-3 h-3" />
+                    <span>{isAr ? 'تعديل البيانات' : 'Edit Details'}</span>
                   </button>
+                </div>
 
-                  {!(
-                    typeof window !== 'undefined' &&
-                    (window.matchMedia('(display-mode: standalone)').matches ||
-                      (window.navigator as any).standalone === true)
-                  ) && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-[#1e2633] border border-[#1e2633] rounded-[3px] overflow-hidden text-xs">
+                  <div className="bg-[#0a0d12] px-3.5 py-2.5 flex items-center justify-between gap-2">
+                    <span className="text-[#8b95a5]">{isAr ? 'الهاتف' : 'Phone'}</span>
+                    <span className="font-mono text-white tabular-nums truncate">
+                      {mergedProfile.phone || (isAr ? 'غير محدد' : 'Not set')}
+                    </span>
+                  </div>
+                  <div className="bg-[#0a0d12] px-3.5 py-2.5 flex items-center justify-between gap-2">
+                    <span className="text-[#8b95a5]">{isAr ? 'الدولة' : 'Country'}</span>
+                    <span className="text-white truncate">
+                      {mergedProfile.country || (isAr ? 'غير محدد' : 'Not set')}
+                    </span>
+                  </div>
+                  <div className="bg-[#0a0d12] px-3.5 py-2.5 flex items-center justify-between gap-2">
+                    <span className="text-[#8b95a5]">{isAr ? 'مستوى الخبرة' : 'Experience'}</span>
+                    <span className="text-white font-medium">
+                      {mergedProfile.experienceLevel || 'Intermediate'}
+                    </span>
+                  </div>
+                  <div className="bg-[#0a0d12] px-3.5 py-2.5 flex items-center justify-between gap-2">
+                    <span className="text-[#8b95a5]">Telegram</span>
+                    <span className="font-mono text-white truncate">
+                      {mergedProfile.telegramUsername || (isAr ? 'غير محدد' : 'Not set')}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Trader Desk Tools & Support */}
+              <div className="space-y-2">
+                <h3 className="text-xs font-bold text-white">
+                  {isAr ? 'أدوات المكتب والدعم الفني' : 'Trader Desk Tools & Support'}
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                  {onOpenCalculatorModal && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        soundManager.playClick();
+                        onClose();
+                        onOpenCalculatorModal();
+                      }}
+                      className="p-3 rounded-[3px] bg-[#0a0d12] hover:bg-[#161c26] border border-[#1e2633] hover:border-[#2a3446] flex items-center gap-2.5 text-white transition-colors cursor-pointer text-start"
+                    >
+                      <Calculator className="w-4 h-4 text-[#10b981] shrink-0" />
+                      <div className="min-w-0">
+                        <div className="font-semibold truncate">{isAr ? 'حاسبة المخاطر' : 'Risk Calculator'}</div>
+                        <div className="text-[10px] text-[#8b95a5] truncate">{isAr ? 'حساب اللوت والوقف' : 'Position & Lot Size'}</div>
+                      </div>
+                    </button>
+                  )}
+
+                  {onOpenSessionsModal && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        soundManager.playClick();
+                        onClose();
+                        onOpenSessionsModal();
+                      }}
+                      className="p-3 rounded-[3px] bg-[#0a0d12] hover:bg-[#161c26] border border-[#1e2633] hover:border-[#2a3446] flex items-center gap-2.5 text-white transition-colors cursor-pointer text-start"
+                    >
+                      <Clock className="w-4 h-4 text-[#10b981] shrink-0" />
+                      <div className="min-w-0">
+                        <div className="font-semibold truncate">{isAr ? 'جلسات السوق' : 'Market Sessions'}</div>
+                        <div className="text-[10px] text-[#8b95a5] truncate">{isAr ? 'توقيت البورصات' : 'Global Desk Hours'}</div>
+                      </div>
+                    </button>
+                  )}
+
+                  {onOpenSupportModal && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        soundManager.playClick();
+                        onClose();
+                        onOpenSupportModal();
+                      }}
+                      className="p-3 rounded-[3px] bg-[#0a0d12] hover:bg-[#161c26] border border-[#1e2633] hover:border-[#2a3446] flex items-center gap-2.5 text-white transition-colors cursor-pointer text-start"
+                    >
+                      <Headphones className="w-4 h-4 text-[#10b981] shrink-0" />
+                      <div className="min-w-0">
+                        <div className="font-semibold truncate">{isAr ? 'الدعم الفني 24/7' : '24/7 Support Desk'}</div>
+                        <div className="text-[10px] text-[#8b95a5] truncate">{isAr ? 'تواصل مع الإدارة' : 'Direct Concierge'}</div>
+                      </div>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================== */}
+          {/* TAB 2: APP & WORKSPACE SETTINGS (CONSOLIDATED FROM TOP BAR) */}
+          {/* ========================================================== */}
+          {activeTab === 'settings' && (
+            <div className="space-y-5">
+              {/* Group 1: Appearance & Language */}
+              <div className="space-y-2">
+                <h3 className="text-xs font-bold text-white">
+                  {isAr ? 'المظهر واللغة' : 'Appearance & Localization'}
+                </h3>
+                <div className="rounded-[3px] bg-[#0a0d12] border border-[#1e2633] divide-y divide-[#1e2633] text-xs">
+                  {/* Theme Mode */}
+                  <div className="p-3.5 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <div className="font-semibold text-white">
+                        {isAr ? 'سمة المنصة (Theme Mode)' : 'Terminal Theme Mode'}
+                      </div>
+                      <div className="text-[11px] text-[#8b95a5]">
+                        {isAr
+                          ? 'اختر المظهر الليلي أو النهاري أو المطابقة التلقائية لنظام جهازك'
+                          : 'Switch between Obsidian Dark, Swiss Daylight, or System Auto'}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center bg-[#10141c] p-0.5 rounded-[3px] border border-[#1e2633]">
+                      <button
+                        type="button"
+                        onClick={() => setThemeMode('auto')}
+                        className={`px-2.5 py-1.5 rounded-[2px] text-[11px] font-semibold flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
+                          themeMode === 'auto'
+                            ? 'bg-[#161c26] text-white border border-[#2a3446]'
+                            : 'text-[#8b95a5] hover:text-white'
+                        }`}
+                      >
+                        <Monitor className="w-3.5 h-3.5" />
+                        <span>{isAr ? 'تلقائي' : 'Auto'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setThemeMode('dark')}
+                        className={`px-2.5 py-1.5 rounded-[2px] text-[11px] font-semibold flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
+                          themeMode === 'dark'
+                            ? 'bg-[#161c26] text-white border border-[#2a3446]'
+                            : 'text-[#8b95a5] hover:text-white'
+                        }`}
+                      >
+                        <Moon className="w-3.5 h-3.5" />
+                        <span>{isAr ? 'ليلي' : 'Dark'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setThemeMode('light')}
+                        className={`px-2.5 py-1.5 rounded-[2px] text-[11px] font-semibold flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
+                          themeMode === 'light'
+                            ? 'bg-[#161c26] text-white border border-[#2a3446]'
+                            : 'text-[#8b95a5] hover:text-white'
+                        }`}
+                      >
+                        <Sun className="w-3.5 h-3.5" />
+                        <span>{isAr ? 'نهاري' : 'Light'}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Language */}
+                  {onToggleLang && (
+                    <div className="p-3.5 flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <div className="font-semibold text-white">
+                          {isAr ? 'لغة واجهة المنصة' : 'Interface Language'}
+                        </div>
+                        <div className="text-[11px] text-[#8b95a5]">
+                          {isAr
+                            ? 'التبديل الفوري بين العربية (RTL) والإنجليزية (LTR)'
+                            : 'Switch between Arabic (RTL) and English (LTR)'}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center bg-[#10141c] p-0.5 rounded-[3px] border border-[#1e2633]">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!isAr) {
+                              soundManager.playClick();
+                              onToggleLang();
+                            }
+                          }}
+                          className={`px-3 py-1.5 rounded-[2px] text-[11px] font-semibold transition-colors cursor-pointer ${
+                            isAr
+                              ? 'bg-[#161c26] text-white border border-[#2a3446]'
+                              : 'text-[#8b95a5] hover:text-white'
+                          }`}
+                        >
+                          العربية
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (isAr) {
+                              soundManager.playClick();
+                              onToggleLang();
+                            }
+                          }}
+                          className={`px-3 py-1.5 rounded-[2px] text-[11px] font-semibold transition-colors cursor-pointer ${
+                            !isAr
+                              ? 'bg-[#161c26] text-white border border-[#2a3446]'
+                              : 'text-[#8b95a5] hover:text-white'
+                          }`}
+                        >
+                          English
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Group 2: Workspace Layout & Panels */}
+              <div className="space-y-2">
+                <h3 className="text-xs font-bold text-white">
+                  {isAr ? 'تخصيص مساحة العمل واللوحات' : 'Workspace Layout & Panels'}
+                </h3>
+                <div className="rounded-[3px] bg-[#0a0d12] border border-[#1e2633] divide-y divide-[#1e2633] text-xs">
+                  {/* Companion Panel Dock Position */}
+                  {onSetChatPosition && (
+                    <div className="p-3.5 flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <div className="font-semibold text-white">
+                          {isAr ? 'موضع اللوحة المساعدة (الإشارات والماسنجر)' : 'Companion Panel Dock Position'}
+                        </div>
+                        <div className="text-[11px] text-[#8b95a5]">
+                          {isAr
+                            ? 'تثبيت لوحة الإشارات والشات على اليسار أو الأسفل أو اليمين'
+                            : 'Dock the companion signals & messenger panel Left, Bottom, or Right'}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center bg-[#10141c] p-0.5 rounded-[3px] border border-[#1e2633]">
+                        {(
+                          [
+                            { id: 'left' as const, labelAr: 'يسار', labelEn: 'Left', icon: PanelLeft },
+                            { id: 'bottom' as const, labelAr: 'أسفل', labelEn: 'Bottom', icon: PanelBottom },
+                            { id: 'right' as const, labelAr: 'يمين', labelEn: 'Right', icon: PanelRight }
+                          ]
+                        ).map((pos) => {
+                          const Icon = pos.icon;
+                          const active = chatPosition === pos.id;
+                          return (
+                            <button
+                              key={pos.id}
+                              type="button"
+                              onClick={() => onSetChatPosition(pos.id)}
+                              className={`px-2.5 py-1.5 rounded-[2px] text-[11px] font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                                active
+                                  ? 'bg-[#161c26] text-white border border-[#2a3446]'
+                                  : 'text-[#8b95a5] hover:text-white'
+                              }`}
+                            >
+                              <Icon className="w-3.5 h-3.5" />
+                              <span>{isAr ? pos.labelAr : pos.labelEn}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Price Ticker Visibility */}
+                  {onTogglePriceTicker && (
+                    <div className="p-3.5 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5">
+                        <Activity className="w-4 h-4 text-[#8b95a5]" />
+                        <div>
+                          <div className="font-semibold text-white">
+                            {isAr ? 'شريط الأسعار المباشر (Price Ticker)' : 'Live Market Price Ticker'}
+                          </div>
+                          <div className="text-[11px] text-[#8b95a5]">
+                            {isAr ? 'إظهار أو إخفاء شريط أسعار المؤشرات والذهب أعلى الشارت' : 'Show or hide the live market price strip'}
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={onTogglePriceTicker}
+                        className={`px-3 py-1.5 rounded-[3px] text-[11px] font-semibold border transition-colors cursor-pointer whitespace-nowrap ${
+                          showPriceTicker
+                            ? 'bg-[#10b981]/15 border-[#10b981]/40 text-[#10b981]'
+                            : 'bg-[#10141c] border-[#1e2633] text-[#8b95a5] hover:text-white'
+                        }`}
+                      >
+                        {showPriceTicker ? (isAr ? 'ظاهر' : 'Visible') : (isAr ? 'مخفي' : 'Hidden')}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Financial News Banner Visibility */}
+                  {onToggleNewsBanner && (
+                    <div className="p-3.5 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5">
+                        <Newspaper className="w-4 h-4 text-[#8b95a5]" />
+                        <div>
+                          <div className="font-semibold text-white">
+                            {isAr ? 'شريط الأخبار العاجلة (News Wire)' : 'Breaking Financial News Banner'}
+                          </div>
+                          <div className="text-[11px] text-[#8b95a5]">
+                            {isAr ? 'إظهار أو إخفاء شريط الأخبار الاقتصادية المباشر' : 'Show or hide the live RSS financial news ticker'}
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={onToggleNewsBanner}
+                        className={`px-3 py-1.5 rounded-[3px] text-[11px] font-semibold border transition-colors cursor-pointer whitespace-nowrap ${
+                          showNewsBanner
+                            ? 'bg-[#10b981]/15 border-[#10b981]/40 text-[#10b981]'
+                            : 'bg-[#10141c] border-[#1e2633] text-[#8b95a5] hover:text-white'
+                        }`}
+                      >
+                        {showNewsBanner ? (isAr ? 'ظاهر' : 'Visible') : (isAr ? 'مخفي' : 'Hidden')}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Full-Screen Chart Analysis Mode */}
+                  {onToggleAnalysisMode && (
+                    <div className="p-3.5 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5">
+                        <Maximize2 className="w-4 h-4 text-[#8b95a5]" />
+                        <div>
+                          <div className="font-semibold text-white">
+                            {isAr ? 'وضع الشارت الكامل (Full-Screen Chart)' : 'Full-Screen Chart Analysis Mode'}
+                          </div>
+                          <div className="text-[11px] text-[#8b95a5]">
+                            {isAr ? 'توسيع الشارت على كامل الشاشة للتحليل الفني المتقدم' : 'Expand live chart across the entire workspace'}
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onToggleAnalysisMode();
+                          onClose();
+                        }}
+                        className={`px-3 py-1.5 rounded-[3px] text-[11px] font-semibold border transition-colors cursor-pointer whitespace-nowrap ${
+                          isAnalysisMode
+                            ? 'bg-[#10b981] border-[#10b981] text-white'
+                            : 'bg-[#10141c] border-[#1e2633] text-[#8b95a5] hover:text-white'
+                        }`}
+                      >
+                        {isAnalysisMode ? (isAr ? 'مفعل (إيقاف)' : 'Active (Exit)') : (isAr ? 'تفعيل الشارت الكامل' : 'Enable Full Chart')}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Group 3: Audio, Notifications & App Installation */}
+              <div className="space-y-2">
+                <h3 className="text-xs font-bold text-white">
+                  {isAr ? 'الصوت والإشعارات والتطبيق' : 'Audio, Notifications & App'}
+                </h3>
+                <div className="rounded-[3px] bg-[#0a0d12] border border-[#1e2633] divide-y divide-[#1e2633] text-xs">
+                  {/* Sound Alerts */}
+                  {onToggleMute && (
+                    <div className="p-3.5 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5">
+                        {isMuted ? (
+                          <VolumeX className="w-4 h-4 text-[#e11d48]" />
+                        ) : (
+                          <Volume2 className="w-4 h-4 text-[#10b981]" />
+                        )}
+                        <div>
+                          <div className="font-semibold text-white">
+                            {isAr ? 'التنبيهات والمؤثرات الصوتية' : 'Audio Chimes & Sound Alerts'}
+                          </div>
+                          <div className="text-[11px] text-[#8b95a5]">
+                            {isAr ? 'صوت التنبيه عند وصول صفقة جديدة أو رسالة' : 'Play audio alert when new signals or messages arrive'}
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          soundManager.playClick();
+                          onToggleMute();
+                        }}
+                        className={`px-3 py-1.5 rounded-[3px] text-[11px] font-semibold border transition-colors cursor-pointer whitespace-nowrap ${
+                          !isMuted
+                            ? 'bg-[#10b981]/15 border-[#10b981]/40 text-[#10b981]'
+                            : 'bg-[#e11d48]/15 border-[#e11d48]/40 text-[#e11d48]'
+                        }`}
+                      >
+                        {isMuted ? (isAr ? 'مكتوم (Muted)' : 'Muted') : (isAr ? 'مفعل (Active)' : 'Active')}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Browser / Mobile Push Notifications */}
+                  <div className="p-3.5 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      {effectiveNotifPerm === 'granted' && effectiveNotifEnabled ? (
+                        <Bell className="w-4 h-4 text-[#10b981]" />
+                      ) : (
+                        <BellOff className="w-4 h-4 text-[#8b95a5]" />
+                      )}
+                      <div>
+                        <div className="font-semibold text-white">
+                          {isAr ? 'إشعارات المتصفح والهاتف الفورية' : 'Push & Browser Notifications'}
+                        </div>
+                        <div className="text-[11px] text-[#8b95a5]">
+                          {isAr
+                            ? 'إشعارات منبثقة للصفقات الجديدة والرسائل الخاصة والشات'
+                            : 'Receive OS/browser popup alerts for live signals and DMs'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleNotificationToggleClick}
+                      className={`px-3 py-1.5 rounded-[3px] text-[11px] font-semibold border transition-colors cursor-pointer whitespace-nowrap ${
+                        effectiveNotifPerm === 'granted' && effectiveNotifEnabled
+                          ? 'bg-[#10b981]/15 border-[#10b981]/40 text-[#10b981]'
+                          : 'bg-[#10141c] border-[#1e2633] text-[#8b95a5] hover:text-white'
+                      }`}
+                    >
+                      {effectiveNotifPerm === 'granted' && effectiveNotifEnabled
+                        ? isAr
+                          ? 'مفعل (ON)'
+                          : 'Enabled'
+                        : effectiveNotifPerm === 'denied'
+                        ? isAr
+                          ? 'محظور'
+                          : 'Blocked'
+                        : isAr
+                        ? 'تفعيل الإشعارات'
+                        : 'Enable Alerts'}
+                    </button>
+                  </div>
+
+                  {/* Install App Shortcut */}
+                  <div className="p-3.5 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <Download className="w-4 h-4 text-[#8b95a5]" />
+                      <div>
+                        <div className="font-semibold text-white">
+                          {isAr ? 'تثبيت تطبيق المنصة (Web App)' : 'Install Desktop / Mobile App'}
+                        </div>
+                        <div className="text-[11px] text-[#8b95a5]">
+                          {isAr
+                            ? 'إضافة اختصار MBK Trading مباشرة على الشاشة الرئيسية'
+                            : 'Add MBK Trading to your Home Screen or Desktop'}
+                        </div>
+                      </div>
+                    </div>
+
                     <button
                       type="button"
                       onClick={() => {
@@ -1074,140 +1362,117 @@ export const UserProfileModal: React.FC<Props> = ({
                         onClose();
                         window.dispatchEvent(new CustomEvent('mbk-open-pwa-install'));
                       }}
-                      className="p-3 rounded-xl bg-[#131722] hover:bg-[#2a2e39] border border-[#089981]/30 flex items-center justify-between text-[#d1d4dc] transition-colors cursor-pointer"
+                      className="px-3 py-1.5 rounded-[3px] bg-[#161c26] hover:bg-[#1c2430] border border-[#2a3446] text-white text-[11px] font-semibold transition-colors cursor-pointer whitespace-nowrap"
                     >
-                      <div className="flex items-center gap-2">
-                        <Smartphone className="w-4 h-4 text-[#089981]" />
-                        <span>{isAr ? 'اختصار التطبيق' : 'Home Shortcut'}</span>
-                      </div>
-                      <span className="font-bold text-[#089981] font-mono text-[10px]">
-                        {isAr ? 'تثبيت' : 'Install'}
-                      </span>
+                      {isAr ? 'تثبيت التطبيق' : 'Install App'}
                     </button>
-                  )}
+                  </div>
                 </div>
 
                 {notifHint && (
-                  <p className="text-[11px] text-amber-300 px-1 font-medium">{notifHint}</p>
-                )}
-
-                {onOpenSupportModal && (
-                  <button
-                    onClick={() => {
-                      soundManager.playClick();
-                      onClose();
-                      onOpenSupportModal();
-                    }}
-                    className="w-full p-3 rounded-xl bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] flex items-center justify-between text-xs text-[#d1d4dc] transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Headphones className="w-4 h-4 text-[#089981]" />
-                      <span>{isAr ? 'الدعم الفني والخدمة المباشرة' : 'Concierge Support Desk'}</span>
-                    </div>
-                    <span className="text-[10px] text-[#089981] font-bold font-mono">24/7 LIVE</span>
-                  </button>
+                  <p className="text-[11px] text-amber-400 px-1 font-medium">{notifHint}</p>
                 )}
               </div>
-            </>
+            </div>
           )}
 
           {/* ========================================================== */}
-          {/* TAB 2: EDIT PROFILE (EMAIL IMMUTABLE, NAME 1x/WEEK) */}
+          {/* TAB 3: EDIT PROFILE (EMAIL IMMUTABLE, NAME 1x/WEEK) */}
           {/* ========================================================== */}
           {activeTab === 'edit' && (
             <form onSubmit={handleSaveProfile} className="space-y-4 select-text">
               {profileError && (
-                <div className="p-3 rounded-xl bg-[#f23645]/10 border border-[#f23645]/40 text-[#f23645] text-xs flex items-start gap-2">
+                <div className="p-3 rounded-[3px] bg-[#e11d48]/10 border border-[#e11d48]/40 text-[#e11d48] text-xs flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                   <span>{profileError}</span>
                 </div>
               )}
 
               {profileSuccess && (
-                <div className="p-3 rounded-xl bg-[#089981]/15 border border-[#089981]/40 text-[#089981] text-xs flex items-start gap-2 font-semibold">
+                <div className="p-3 rounded-[3px] bg-[#10b981]/15 border border-[#10b981]/40 text-[#10b981] text-xs flex items-start gap-2 font-semibold">
                   <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
                   <span>{profileSuccess}</span>
                 </div>
               )}
 
-              {/* Immutable Email Field */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-[#d1d4dc]">
-                    {isAr ? 'البريد الإلكتروني' : 'Email Address'}
-                  </label>
-                  <span className="text-[10px] text-[#787b86] flex items-center gap-1">
-                    <Lock className="w-3 h-3" />
-                    {isAr ? 'غير قابل للتعديل' : 'Locked / Immutable'}
-                  </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {/* Immutable Email Field */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-[#f1f5f9]">
+                      {isAr ? 'البريد الإلكتروني' : 'Email Address'}
+                    </label>
+                    <span className="text-[10px] text-[#8b95a5] flex items-center gap-1">
+                      <Lock className="w-3 h-3" />
+                      {isAr ? 'ثابت' : 'Locked'}
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <Mail className="w-3.5 h-3.5 text-[#5e6878] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
+                    <input
+                      type="email"
+                      value={displayEmail}
+                      readOnly
+                      disabled
+                      dir="ltr"
+                      className="w-full ps-9 pe-3 py-2 rounded-[3px] bg-[#0a0d12]/60 border border-[#1e2633] text-[#8b95a5] text-xs font-mono cursor-not-allowed"
+                    />
+                  </div>
                 </div>
-                <div className="relative">
-                  <Mail className="w-4 h-4 text-[#787b86] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
-                  <input
-                    type="email"
-                    value={displayEmail}
-                    readOnly
-                    disabled
-                    dir="ltr"
-                    className="w-full ps-9 pe-3 py-2.5 rounded-xl bg-[#131722]/70 border border-[#2a2e39] text-[#787b86] text-xs font-mono cursor-not-allowed opacity-80"
-                  />
+
+                {/* Display Name with 7-Day Cooldown */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="text-xs font-semibold text-[#f1f5f9]">
+                      {isAr ? 'اسم المتداول' : 'Trader Display Name'}
+                    </label>
+                    {nameAvailability.canChange ? (
+                      <span className="text-[10px] text-[#10b981] font-mono">
+                        {isAr ? 'متاح (1x / 7d)' : 'Editable (1x/7d)'}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-amber-400 font-mono flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {isAr ? `${nameAvailability.remainingDays} يوم` : `${nameAvailability.remainingDays}d left`}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="relative">
+                    <User className="w-3.5 h-3.5 text-[#5e6878] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      disabled={!nameAvailability.canChange}
+                      maxLength={100}
+                      placeholder={isAr ? 'أدخل اسمك' : 'Enter your name'}
+                      className={`w-full ps-9 pe-3 py-2 rounded-[3px] border text-xs outline-none transition-colors ${
+                        nameAvailability.canChange
+                          ? 'bg-[#0a0d12] border-[#1e2633] focus:border-[#10b981] text-white'
+                          : 'bg-[#0a0d12]/60 border-[#1e2633] text-[#8b95a5] cursor-not-allowed'
+                      }`}
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* Display Name with 7-Day Cooldown */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between gap-2">
-                  <label className="text-xs font-bold text-[#d1d4dc]">
-                    {isAr ? 'الاسم الكامل / اسم المتداول' : 'Full Name / Trader Name'}
-                  </label>
-                  {nameAvailability.canChange ? (
-                    <span className="text-[10px] text-[#089981] font-semibold">
-                      {isAr ? 'متاح للتغيير (مرة كل 7 أيام)' : 'Editable (1x per 7 days)'}
-                    </span>
-                  ) : (
-                    <span className="text-[10px] text-amber-400 font-semibold flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {isAr
-                        ? `متاح بعد ${nameAvailability.remainingDays} يوم`
-                        : `Locked (${nameAvailability.remainingDays}d left)`}
-                    </span>
-                  )}
-                </div>
-
-                <div className="relative">
-                  <User className="w-4 h-4 text-[#787b86] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
-                  <input
-                    type="text"
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    disabled={!nameAvailability.canChange}
-                    maxLength={100}
-                    placeholder={isAr ? 'أدخل اسمك' : 'Enter your name'}
-                    className={`w-full ps-9 pe-3 py-2.5 rounded-xl border text-xs outline-none transition-colors ${
-                      nameAvailability.canChange
-                        ? 'bg-[#131722] border-[#2a2e39] focus:border-[#089981] text-white'
-                        : 'bg-[#131722]/70 border-[#2a2e39] text-[#787b86] cursor-not-allowed'
-                    }`}
-                  />
-                </div>
-
-                {!nameAvailability.canChange && (
-                  <p className="text-[10px] text-amber-400/90 leading-relaxed">
-                    {isAr
-                      ? `تم تغيير اسمك مؤخراً. يمكنك تغيير الاسم مرة واحدة كل أسبوع (التغيير القادم متاح في ${nextNameUnlockFormatted}). يمكنك تعديل باقي بياناتك بحرية الآن.`
-                      : `You changed your name recently. Display name can be updated once every 7 days (next available: ${nextNameUnlockFormatted}). All other info below can still be saved.`}
-                  </p>
-                )}
-              </div>
+              {!nameAvailability.canChange && (
+                <p className="text-[11px] text-amber-400/90 leading-relaxed">
+                  {isAr
+                    ? `يمكن تغيير الاسم مرة واحدة كل 7 أيام (متاح مجدداً في ${nextNameUnlockFormatted}).`
+                    : `Display name can be updated once every 7 days (next available: ${nextNameUnlockFormatted}).`}
+                </p>
+              )}
 
               {/* Phone & Country */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-[#d1d4dc]">
+                  <label className="text-xs font-semibold text-[#f1f5f9]">
                     {isAr ? 'رقم الهاتف / واتساب' : 'Phone / WhatsApp'}
                   </label>
                   <div className="relative">
-                    <Phone className="w-4 h-4 text-[#787b86] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
+                    <Phone className="w-3.5 h-3.5 text-[#5e6878] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
                     <input
                       type="tel"
                       value={editPhone}
@@ -1215,21 +1480,21 @@ export const UserProfileModal: React.FC<Props> = ({
                       maxLength={40}
                       dir="ltr"
                       placeholder="+971 50 000 0000"
-                      className="w-full ps-9 pe-3 py-2.5 rounded-xl bg-[#131722] border border-[#2a2e39] focus:border-[#089981] text-white text-xs font-mono outline-none transition-colors"
+                      className="w-full ps-9 pe-3 py-2 rounded-[3px] bg-[#0a0d12] border border-[#1e2633] focus:border-[#10b981] text-white text-xs font-mono outline-none transition-colors"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-[#d1d4dc]">
+                  <label className="text-xs font-semibold text-[#f1f5f9]">
                     {isAr ? 'الدولة' : 'Country'}
                   </label>
                   <div className="relative">
-                    <Globe className="w-4 h-4 text-[#787b86] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
+                    <Globe className="w-3.5 h-3.5 text-[#5e6878] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
                     <select
                       value={editCountry}
                       onChange={(e) => setEditCountry(e.target.value)}
-                      className="w-full ps-9 pe-3 py-2.5 rounded-xl bg-[#131722] border border-[#2a2e39] focus:border-[#089981] text-white text-xs outline-none transition-colors"
+                      className="w-full ps-9 pe-3 py-2 rounded-[3px] bg-[#0a0d12] border border-[#1e2633] focus:border-[#10b981] text-white text-xs outline-none transition-colors"
                     >
                       {editCountry && !COUNTRIES_LIST.includes(editCountry) && (
                         <option value={editCountry}>{editCountry}</option>
@@ -1245,33 +1510,33 @@ export const UserProfileModal: React.FC<Props> = ({
               </div>
 
               {/* Date of Birth & Experience Level */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-[#d1d4dc]">
+                  <label className="text-xs font-semibold text-[#f1f5f9]">
                     {isAr ? 'تاريخ الميلاد' : 'Date of Birth'}
                   </label>
                   <div className="relative">
-                    <Calendar className="w-4 h-4 text-[#787b86] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
+                    <Calendar className="w-3.5 h-3.5 text-[#5e6878] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
                     <input
                       type="date"
                       value={editDob}
                       onChange={(e) => setEditDob(e.target.value)}
                       dir="ltr"
-                      className="w-full ps-9 pe-3 py-2.5 rounded-xl bg-[#131722] border border-[#2a2e39] focus:border-[#089981] text-white text-xs outline-none transition-colors"
+                      className="w-full ps-9 pe-3 py-2 rounded-[3px] bg-[#0a0d12] border border-[#1e2633] focus:border-[#10b981] text-white text-xs outline-none transition-colors"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-[#d1d4dc]">
-                    {isAr ? 'مستوى الخبرة في التداول' : 'Trading Experience'}
+                  <label className="text-xs font-semibold text-[#f1f5f9]">
+                    {isAr ? 'مستوى الخبرة' : 'Trading Experience'}
                   </label>
                   <div className="relative">
-                    <Award className="w-4 h-4 text-[#787b86] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
+                    <Award className="w-3.5 h-3.5 text-[#5e6878] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
                     <select
                       value={editExperience}
                       onChange={(e) => setEditExperience(e.target.value)}
-                      className="w-full ps-9 pe-3 py-2.5 rounded-xl bg-[#131722] border border-[#2a2e39] focus:border-[#089981] text-white text-xs outline-none transition-colors"
+                      className="w-full ps-9 pe-3 py-2 rounded-[3px] bg-[#0a0d12] border border-[#1e2633] focus:border-[#10b981] text-white text-xs outline-none transition-colors"
                     >
                       <option value="Beginner">{isAr ? 'مبتدئ (Beginner)' : 'Beginner'}</option>
                       <option value="Intermediate">{isAr ? 'متوسط (Intermediate)' : 'Intermediate'}</option>
@@ -1283,13 +1548,13 @@ export const UserProfileModal: React.FC<Props> = ({
               </div>
 
               {/* Telegram Username & Favorite Pairs */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-[#d1d4dc]">
-                    {isAr ? 'معرف تيليجرام (اختياري)' : 'Telegram Username'}
+                  <label className="text-xs font-semibold text-[#f1f5f9]">
+                    {isAr ? 'معرف تيليجرام' : 'Telegram Username'}
                   </label>
                   <div className="relative">
-                    <Send className="w-4 h-4 text-[#787b86] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
+                    <Send className="w-3.5 h-3.5 text-[#5e6878] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
                     <input
                       type="text"
                       value={editTelegram}
@@ -1297,17 +1562,17 @@ export const UserProfileModal: React.FC<Props> = ({
                       maxLength={80}
                       dir="ltr"
                       placeholder="@username"
-                      className="w-full ps-9 pe-3 py-2.5 rounded-xl bg-[#131722] border border-[#2a2e39] focus:border-[#089981] text-white text-xs font-mono outline-none transition-colors"
+                      className="w-full ps-9 pe-3 py-2 rounded-[3px] bg-[#0a0d12] border border-[#1e2633] focus:border-[#10b981] text-white text-xs font-mono outline-none transition-colors"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-[#d1d4dc]">
-                    {isAr ? 'الأزواج والمؤشرات المفضلة' : 'Favorite Pairs / Markets'}
+                  <label className="text-xs font-semibold text-[#f1f5f9]">
+                    {isAr ? 'الأزواج المفضلة' : 'Favorite Pairs / Markets'}
                   </label>
                   <div className="relative">
-                    <TrendingUp className="w-4 h-4 text-[#787b86] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
+                    <TrendingUp className="w-3.5 h-3.5 text-[#5e6878] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
                     <input
                       type="text"
                       value={editPairs}
@@ -1315,7 +1580,7 @@ export const UserProfileModal: React.FC<Props> = ({
                       maxLength={200}
                       dir="ltr"
                       placeholder="US100, XAUUSD, BTCUSD"
-                      className="w-full ps-9 pe-3 py-2.5 rounded-xl bg-[#131722] border border-[#2a2e39] focus:border-[#089981] text-white text-xs font-mono outline-none transition-colors"
+                      className="w-full ps-9 pe-3 py-2 rounded-[3px] bg-[#0a0d12] border border-[#1e2633] focus:border-[#10b981] text-white text-xs font-mono outline-none transition-colors"
                     />
                   </div>
                 </div>
@@ -1323,8 +1588,8 @@ export const UserProfileModal: React.FC<Props> = ({
 
               {/* Asset Classes */}
               <div className="space-y-2">
-                <label className="text-xs font-bold text-[#d1d4dc] block">
-                  {isAr ? 'الأسواق والأصول المفضلة' : 'Preferred Asset Classes'}
+                <label className="text-xs font-semibold text-[#f1f5f9] block">
+                  {isAr ? 'فئات الأصول المفضلة' : 'Preferred Asset Classes'}
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {ASSET_OPTIONS.map((asset) => {
@@ -1334,14 +1599,14 @@ export const UserProfileModal: React.FC<Props> = ({
                         key={asset.id}
                         type="button"
                         onClick={() => handleToggleAsset(asset.id)}
-                        className={`px-3 py-2 rounded-xl border text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                        className={`px-3 py-2 rounded-[3px] border text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
                           checked
-                            ? 'bg-[#089981]/15 border-[#089981] text-white'
-                            : 'bg-[#131722] border-[#2a2e39] text-[#787b86] hover:text-white'
+                            ? 'bg-[#10b981]/15 border-[#10b981] text-white'
+                            : 'bg-[#0a0d12] border-[#1e2633] text-[#8b95a5] hover:text-white'
                         }`}
                       >
                         <span>{isAr ? asset.labelAr : asset.labelEn}</span>
-                        {checked && <Check className="w-3.5 h-3.5 text-[#089981] shrink-0" />}
+                        {checked && <Check className="w-3.5 h-3.5 text-[#10b981] shrink-0" />}
                       </button>
                     );
                   })}
@@ -1351,7 +1616,7 @@ export const UserProfileModal: React.FC<Props> = ({
               <button
                 type="submit"
                 disabled={savingProfile}
-                className="w-full py-3 rounded-xl bg-[#089981] hover:bg-[#07846f] disabled:opacity-60 text-white text-xs font-bold shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2"
+                className="w-full py-2.5 rounded-[3px] bg-[#10b981] hover:bg-[#059669] disabled:opacity-60 text-white text-xs font-semibold transition-colors cursor-pointer flex items-center justify-center gap-2"
               >
                 {savingProfile ? (
                   <span>{isAr ? 'جاري حفظ التغييرات...' : 'Saving changes...'}</span>
@@ -1366,19 +1631,19 @@ export const UserProfileModal: React.FC<Props> = ({
           )}
 
           {/* ========================================================== */}
-          {/* TAB 3: CHANGE PASSWORD & SECURITY */}
+          {/* TAB 4: CHANGE PASSWORD & SECURITY */}
           {/* ========================================================== */}
           {activeTab === 'password' && (
             <div className="space-y-4 select-text">
               {passwordError && (
-                <div className="p-3 rounded-xl bg-[#f23645]/10 border border-[#f23645]/40 text-[#f23645] text-xs flex items-start gap-2">
+                <div className="p-3 rounded-[3px] bg-[#e11d48]/10 border border-[#e11d48]/40 text-[#e11d48] text-xs flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                   <span>{passwordError}</span>
                 </div>
               )}
 
               {passwordSuccess && (
-                <div className="p-3 rounded-xl bg-[#089981]/15 border border-[#089981]/40 text-[#089981] text-xs flex items-start gap-2 font-semibold">
+                <div className="p-3 rounded-[3px] bg-[#10b981]/15 border border-[#10b981]/40 text-[#10b981] text-xs flex items-start gap-2 font-semibold">
                   <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
                   <span>{passwordSuccess}</span>
                 </div>
@@ -1386,19 +1651,19 @@ export const UserProfileModal: React.FC<Props> = ({
 
               {hasPasswordProvider ? (
                 <form onSubmit={handleSavePassword} className="space-y-3.5">
-                  <div className="p-3 rounded-xl bg-[#131722] border border-[#2a2e39] text-[11px] text-[#9db2c6] leading-relaxed">
+                  <div className="p-3 rounded-[3px] bg-[#0a0d12] border border-[#1e2633] text-[11px] text-[#8b95a5] leading-relaxed">
                     {isAr
-                      ? 'لحماية حسابك، يرجى إدخال كلمة المرور الحالية ثم اختيار كلمة مرور جديدة مكونة من 6 أحرف أو أرقام على الأقل.'
-                      : 'For your security, verify your current password before setting a new password (minimum 6 characters).'}
+                      ? 'أدخل كلمة المرور الحالية ثم اختر كلمة مرور جديدة مكونة من 6 أحرف أو أرقام على الأقل.'
+                      : 'Verify your current password before setting a new password (minimum 6 characters).'}
                   </div>
 
                   {/* Current Password */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-[#d1d4dc]">
+                    <label className="text-xs font-semibold text-[#f1f5f9]">
                       {isAr ? 'كلمة المرور الحالية' : 'Current Password'}
                     </label>
                     <div className="relative">
-                      <Lock className="w-4 h-4 text-[#787b86] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
+                      <Lock className="w-3.5 h-3.5 text-[#5e6878] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
                       <input
                         type={showCurrentPassword ? 'text' : 'password'}
                         value={currentPassword}
@@ -1406,12 +1671,12 @@ export const UserProfileModal: React.FC<Props> = ({
                         autoComplete="current-password"
                         dir="ltr"
                         placeholder="••••••••"
-                        className="w-full ps-9 pe-10 py-2.5 rounded-xl bg-[#131722] border border-[#2a2e39] focus:border-[#089981] text-white text-xs outline-none transition-colors"
+                        className="w-full ps-9 pe-10 py-2 rounded-[3px] bg-[#0a0d12] border border-[#1e2633] focus:border-[#10b981] text-white text-xs outline-none transition-colors"
                       />
                       <button
                         type="button"
                         onClick={() => setShowCurrentPassword((v) => !v)}
-                        className="absolute top-1/2 -translate-y-1/2 end-3 text-[#787b86] hover:text-white cursor-pointer"
+                        className="absolute top-1/2 -translate-y-1/2 end-3 text-[#8b95a5] hover:text-white cursor-pointer"
                       >
                         {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
@@ -1420,11 +1685,11 @@ export const UserProfileModal: React.FC<Props> = ({
 
                   {/* New Password */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-[#d1d4dc]">
+                    <label className="text-xs font-semibold text-[#f1f5f9]">
                       {isAr ? 'كلمة المرور الجديدة' : 'New Password'}
                     </label>
                     <div className="relative">
-                      <KeyRound className="w-4 h-4 text-[#787b86] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
+                      <KeyRound className="w-3.5 h-3.5 text-[#5e6878] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
                       <input
                         type={showNewPassword ? 'text' : 'password'}
                         value={newPassword}
@@ -1432,12 +1697,12 @@ export const UserProfileModal: React.FC<Props> = ({
                         autoComplete="new-password"
                         dir="ltr"
                         placeholder="••••••••"
-                        className="w-full ps-9 pe-10 py-2.5 rounded-xl bg-[#131722] border border-[#2a2e39] focus:border-[#089981] text-white text-xs outline-none transition-colors"
+                        className="w-full ps-9 pe-10 py-2 rounded-[3px] bg-[#0a0d12] border border-[#1e2633] focus:border-[#10b981] text-white text-xs outline-none transition-colors"
                       />
                       <button
                         type="button"
                         onClick={() => setShowNewPassword((v) => !v)}
-                        className="absolute top-1/2 -translate-y-1/2 end-3 text-[#787b86] hover:text-white cursor-pointer"
+                        className="absolute top-1/2 -translate-y-1/2 end-3 text-[#8b95a5] hover:text-white cursor-pointer"
                       >
                         {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
@@ -1446,11 +1711,11 @@ export const UserProfileModal: React.FC<Props> = ({
 
                   {/* Confirm New Password */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-[#d1d4dc]">
+                    <label className="text-xs font-semibold text-[#f1f5f9]">
                       {isAr ? 'تأكيد كلمة المرور الجديدة' : 'Confirm New Password'}
                     </label>
                     <div className="relative">
-                      <KeyRound className="w-4 h-4 text-[#787b86] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
+                      <KeyRound className="w-3.5 h-3.5 text-[#5e6878] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
                       <input
                         type={showNewPassword ? 'text' : 'password'}
                         value={confirmNewPassword}
@@ -1458,7 +1723,7 @@ export const UserProfileModal: React.FC<Props> = ({
                         autoComplete="new-password"
                         dir="ltr"
                         placeholder="••••••••"
-                        className="w-full ps-9 pe-3 py-2.5 rounded-xl bg-[#131722] border border-[#2a2e39] focus:border-[#089981] text-white text-xs outline-none transition-colors"
+                        className="w-full ps-9 pe-3 py-2 rounded-[3px] bg-[#0a0d12] border border-[#1e2633] focus:border-[#10b981] text-white text-xs outline-none transition-colors"
                       />
                     </div>
                   </div>
@@ -1466,7 +1731,7 @@ export const UserProfileModal: React.FC<Props> = ({
                   <button
                     type="submit"
                     disabled={savingPassword}
-                    className="w-full py-3 rounded-xl bg-[#089981] hover:bg-[#07846f] disabled:opacity-60 text-white text-xs font-bold shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2"
+                    className="w-full py-2.5 rounded-[3px] bg-[#10b981] hover:bg-[#059669] disabled:opacity-60 text-white text-xs font-semibold transition-colors cursor-pointer flex items-center justify-center gap-2"
                   >
                     <KeyRound className="w-4 h-4" />
                     <span>
@@ -1480,13 +1745,13 @@ export const UserProfileModal: React.FC<Props> = ({
                     </span>
                   </button>
 
-                  <div className="pt-2 border-t border-[#2a2e39] flex items-center justify-between text-[11px] text-[#787b86]">
+                  <div className="pt-2 border-t border-[#1e2633] flex items-center justify-between text-[11px] text-[#8b95a5]">
                     <span>{isAr ? 'نسيت كلمة المرور الحالية؟' : 'Forgot your current password?'}</span>
                     <button
                       type="button"
                       disabled={sendingResetLink}
                       onClick={handleSendPasswordResetLink}
-                      className="text-[#089981] hover:underline font-bold cursor-pointer disabled:opacity-50"
+                      className="text-[#10b981] hover:underline font-semibold cursor-pointer disabled:opacity-50"
                     >
                       {sendingResetLink
                         ? isAr
@@ -1499,23 +1764,21 @@ export const UserProfileModal: React.FC<Props> = ({
                   </div>
                 </form>
               ) : (
-                <div className="p-4 rounded-2xl bg-[#131722] border border-[#2a2e39] space-y-3">
+                <div className="p-4 rounded-[3px] bg-[#0a0d12] border border-[#1e2633] space-y-3">
                   <div className="flex items-center gap-2 text-xs font-bold text-white">
-                    <Shield className="w-4 h-4 text-[#089981]" />
-                    <span>
-                      {isAr ? 'حساب مرتبط عبر Google' : 'Google-Linked Account'}
-                    </span>
+                    <Shield className="w-4 h-4 text-[#10b981]" />
+                    <span>{isAr ? 'حساب مرتبط عبر Google' : 'Google-Linked Account'}</span>
                   </div>
-                  <p className="text-xs text-[#9db2c6] leading-relaxed">
+                  <p className="text-xs text-[#8b95a5] leading-relaxed">
                     {isAr
-                      ? `أنت مسجل الدخول حالياً عبر Google (${displayEmail}). يمكنك إرسال رابط آمن إلى بريدك الإلكتروني لإضافة أو تغيير كلمة مرور خاصة بالدخول المباشر.`
-                      : `You currently sign in using Google (${displayEmail}). Send a secure link to your email if you would like to set a password for direct email sign-in.`}
+                      ? `أنت مسجل الدخول حالياً عبر Google (${displayEmail}). يمكنك إرسال رابط آمن إلى بريدك الإلكتروني لإضافة كلمة مرور خاصة بالدخول المباشر.`
+                      : `You currently sign in using Google (${displayEmail}). Send a secure link to your email to configure a direct password.`}
                   </p>
                   <button
                     type="button"
                     disabled={sendingResetLink}
                     onClick={handleSendPasswordResetLink}
-                    className="w-full py-2.5 rounded-xl bg-[#089981] hover:bg-[#07846f] disabled:opacity-60 text-white text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2"
+                    className="w-full py-2.5 rounded-[3px] bg-[#10b981] hover:bg-[#059669] disabled:opacity-60 text-white text-xs font-semibold transition-colors cursor-pointer flex items-center justify-center gap-2"
                   >
                     <Mail className="w-4 h-4" />
                     <span>
@@ -1524,7 +1787,7 @@ export const UserProfileModal: React.FC<Props> = ({
                           ? 'جاري إرسال الرابط...'
                           : 'Sending Link...'
                         : isAr
-                        ? 'إرسال رابط تعيين كلمة المرور إلى بريدي'
+                        ? 'إرسال رابط تعيين كلمة المرور'
                         : 'Send Password Setup Email'}
                     </span>
                   </button>
@@ -1534,25 +1797,27 @@ export const UserProfileModal: React.FC<Props> = ({
           )}
         </div>
 
-        {/* Modal Footer */}
-        <div className="p-4 bg-[#181c27] border-t border-[#2a2e39] flex items-center justify-between shrink-0">
+        {/* 4. INSTITUTIONAL FOOTER */}
+        <div className="px-4 py-3 bg-[#0a0d12] border-t border-[#1e2633] flex items-center justify-between shrink-0">
           <button
+            type="button"
             onClick={() => {
               soundManager.playClick();
               onLogout();
             }}
-            className="px-3.5 py-2 rounded-xl bg-[#f23645]/15 hover:bg-[#f23645]/25 text-[#f23645] border border-[#f23645]/30 text-xs font-bold transition-all cursor-pointer flex items-center gap-2"
+            className="px-3 py-1.5 rounded-[3px] bg-[#e11d48]/12 hover:bg-[#e11d48]/20 text-[#e11d48] border border-[#e11d48]/30 text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
           >
             <LogOut className="w-3.5 h-3.5" />
             <span>{isAr ? 'تسجيل الخروج' : 'Sign Out'}</span>
           </button>
 
           <button
+            type="button"
             onClick={() => {
               soundManager.playClick();
               onClose();
             }}
-            className="px-4 py-2 rounded-xl bg-[#2a2e39] hover:bg-[#363a45] text-white text-xs font-bold transition-colors cursor-pointer"
+            className="px-4 py-1.5 rounded-[3px] bg-[#161c26] hover:bg-[#1c2430] border border-[#2a3446] text-white text-xs font-semibold transition-colors cursor-pointer"
           >
             {isAr ? 'إغلاق' : 'Close'}
           </button>
