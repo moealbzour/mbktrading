@@ -35,16 +35,92 @@ export interface ServerPushDispatchInput {
 
 export interface ServerPushDispatchResult {
   ok: boolean;
+  totalDocsRead: number;
+  matchedUsers: number;
+  matchedDevices: number;
   sentCount: number;
+  failedCount: number;
   sent: number;
   failed: number;
   pruned: number;
-  matchedUsers: number;
-  matchedDevices: number;
+  rateLimited?: boolean;
   storageMode?: string;
   skipped?: string;
   error?: string;
   errors?: string[];
+}
+
+// Parallel batching, per-request timeout, dead endpoint cache, and Chat push rate guard
+const PUSH_BATCH_SIZE = 50;
+const PUSH_REQUEST_TIMEOUT_MS = 5000;
+const DEAD_ENDPOINT_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+const DEAD_ENDPOINT_CACHE_MAX = 2000;
+const deadEndpointCache = new Map<string, number>();
+
+const CHAT_GLOBAL_COOLDOWN_MS = 20_000; // Max 1 Public Chat push broadcast per 20s
+const CHAT_SENDER_COOLDOWN_MS = 45_000; // Max 1 Public Chat push per sender per 45s
+const CHAT_HOURLY_WINDOW_MS = 60 * 60 * 1000;
+const CHAT_MAX_BROADCASTS_PER_HOUR = 40;
+let lastGlobalChatPushAtMs = 0;
+const lastSenderChatPushMap = new Map<string, number>();
+let recentChatPushTimestamps: number[] = [];
+
+function isEndpointCachedDead(endpoint: string, nowMs: number): boolean {
+  const deadAt = deadEndpointCache.get(endpoint);
+  if (!deadAt) return false;
+  if (nowMs - deadAt > DEAD_ENDPOINT_CACHE_TTL_MS) {
+    deadEndpointCache.delete(endpoint);
+    return false;
+  }
+  return true;
+}
+
+function markEndpointDead(endpoint: string, nowMs: number): void {
+  if (deadEndpointCache.size >= DEAD_ENDPOINT_CACHE_MAX) {
+    const oldestKey = deadEndpointCache.keys().next().value;
+    if (oldestKey) deadEndpointCache.delete(oldestKey);
+  }
+  deadEndpointCache.set(endpoint, nowMs);
+}
+
+function checkAndRecordChatRateLimit(senderUid: string | null): { allowed: boolean; reason?: string } {
+  const nowMs = Date.now();
+  recentChatPushTimestamps = recentChatPushTimestamps.filter((ts) => nowMs - ts < CHAT_HOURLY_WINDOW_MS);
+
+  if (nowMs - lastGlobalChatPushAtMs < CHAT_GLOBAL_COOLDOWN_MS) {
+    return {
+      allowed: false,
+      reason: 'Chat push throttled (global 20s cooldown) to protect VIP/Bot trade signal push quota'
+    };
+  }
+
+  if (senderUid) {
+    const lastSenderAt = lastSenderChatPushMap.get(senderUid) || 0;
+    if (nowMs - lastSenderAt < CHAT_SENDER_COOLDOWN_MS) {
+      return {
+        allowed: false,
+        reason: 'Chat push throttled (per-sender 45s cooldown) to protect trade signal push quota'
+      };
+    }
+  }
+
+  if (recentChatPushTimestamps.length >= CHAT_MAX_BROADCASTS_PER_HOUR) {
+    return {
+      allowed: false,
+      reason: 'Hourly chat push cap reached to prevent browser push rate-limiting of trade alerts'
+    };
+  }
+
+  lastGlobalChatPushAtMs = nowMs;
+  if (senderUid) {
+    if (lastSenderChatPushMap.size > 500) {
+      const oldestUid = lastSenderChatPushMap.keys().next().value;
+      if (oldestUid) lastSenderChatPushMap.delete(oldestUid);
+    }
+    lastSenderChatPushMap.set(senderUid, nowMs);
+  }
+  recentChatPushTimestamps.push(nowMs);
+  return { allowed: true };
 }
 
 function timingSafeSecretEqual(a: string, b: string): boolean {
@@ -75,6 +151,7 @@ function parseRestPushDoc(rawDoc: any): PushSubscriptionDoc | null {
     uid,
     isVip: Boolean(f.isVip?.booleanValue),
     isAdmin: Boolean(f.isAdmin?.booleanValue),
+    muteChatPush: Boolean(f.muteChatPush?.booleanValue),
     subscriptions,
     updatedAt: Number(f.updatedAt?.integerValue || f.updatedAt?.doubleValue || Date.now())
   };
@@ -123,11 +200,13 @@ function filterDocsByAudience(
   docs: PushSubscriptionDoc[],
   audience: PushAudience,
   targetUid: string | null,
-  excludeUid: string | null
+  excludeUid: string | null,
+  category?: PushCategory
 ): PushSubscriptionDoc[] {
   const result: PushSubscriptionDoc[] = [];
   for (const d of docs) {
     if (!d || !Array.isArray(d.subscriptions) || d.subscriptions.length === 0) continue;
+    if (category === 'chat' && d.muteChatPush) continue;
     if (audience === 'targetUid') {
       if (targetUid && d.uid === targetUid) {
         result.push(d);
@@ -177,12 +256,12 @@ async function fetchPushDocsViaRest(
     return { docs: parsed ? [parsed] : [] };
   }
 
-  // Paginated list of push_subscriptions via stateless Firestore REST API
+  // Paginated list of push_subscriptions via stateless Firestore REST API (pageSize=300 across all pages)
   const allDocs: PushSubscriptionDoc[] = [];
   let pageToken: string | undefined;
   let pages = 0;
 
-  while (pages < 5) {
+  while (pages < 50) {
     pages += 1;
     const queryParts = ['pageSize=300'];
     if (pageToken) queryParts.push(`pageToken=${encodeURIComponent(pageToken)}`);
@@ -199,8 +278,12 @@ async function fetchPushDocsViaRest(
       const parsed = parseRestPushDoc(rawDoc);
       if (parsed) allDocs.push(parsed);
     }
-    pageToken = typeof json?.nextPageToken === 'string' && json.nextPageToken ? json.nextPageToken : undefined;
-    if (!pageToken) break;
+    const nextToken =
+      typeof json?.nextPageToken === 'string' && json.nextPageToken.trim()
+        ? json.nextPageToken.trim()
+        : undefined;
+    if (!nextToken || nextToken === pageToken) break;
+    pageToken = nextToken;
   }
 
   return { docs: allDocs };
@@ -219,12 +302,14 @@ export async function dispatchServerWebPush(
   if (!vapid) {
     return {
       ok: true,
+      totalDocsRead: 0,
+      matchedUsers: 0,
+      matchedDevices: 0,
       sentCount: 0,
+      failedCount: 0,
       sent: 0,
       failed: 0,
       pruned: 0,
-      matchedUsers: 0,
-      matchedDevices: 0,
       skipped: 'VAPID keys not configured',
       error: 'VAPID_PUBLIC_KEY or VAPID_PRIVATE_KEY is missing in server environment variables'
     };
@@ -235,20 +320,24 @@ export async function dispatchServerWebPush(
   } catch (err: any) {
     return {
       ok: false,
+      totalDocsRead: 0,
+      matchedUsers: 0,
+      matchedDevices: 0,
       sentCount: 0,
+      failedCount: 0,
       sent: 0,
       failed: 0,
       pruned: 0,
-      matchedUsers: 0,
-      matchedDevices: 0,
       error: `Invalid VAPID keys: ${err?.message || 'setVapidDetails failed'}`
     };
   }
 
+  const category = input.category;
   const title = String(input.title || '').trim().slice(0, 140);
   const body = String(input.body || '').trim().slice(0, 260);
   const url = String(input.url || '/').trim().slice(0, 300) || '/';
-  const tag = String(input.tag || `mbk-push-${Date.now()}`).trim().slice(0, 120);
+  const uniqueFallbackTag = `${category || 'mbk'}-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`;
+  const tag = String(input.tag || uniqueFallbackTag).trim().slice(0, 120) || uniqueFallbackTag;
   const audience = input.audience;
   const targetUid = input.targetUid ? String(input.targetUid).trim() : null;
   const excludeUid = input.excludeUid ? String(input.excludeUid).trim() : null;
@@ -256,14 +345,37 @@ export async function dispatchServerWebPush(
   if (!title) {
     return {
       ok: false,
+      totalDocsRead: 0,
+      matchedUsers: 0,
+      matchedDevices: 0,
       sentCount: 0,
+      failedCount: 0,
       sent: 0,
       failed: 0,
       pruned: 0,
-      matchedUsers: 0,
-      matchedDevices: 0,
       error: 'Notification title is required'
     };
+  }
+
+  // Lightweight rate guard ONLY for high-frequency Public Chat broadcasts so Chrome/FCM
+  // never rate-limits critical VIP/Bot trading signals or direct messages.
+  if (category === 'chat') {
+    const rateCheck = checkAndRecordChatRateLimit(excludeUid);
+    if (!rateCheck.allowed) {
+      return {
+        ok: true,
+        totalDocsRead: 0,
+        matchedUsers: 0,
+        matchedDevices: 0,
+        sentCount: 0,
+        failedCount: 0,
+        sent: 0,
+        failed: 0,
+        pruned: 0,
+        rateLimited: true,
+        skipped: rateCheck.reason
+      };
+    }
   }
 
   let rawDocs: PushSubscriptionDoc[] = [];
@@ -320,12 +432,14 @@ export async function dispatchServerWebPush(
   if (storageMode === 'none') {
     return {
       ok: false,
+      totalDocsRead: 0,
+      matchedUsers: 0,
+      matchedDevices: 0,
       sentCount: 0,
+      failedCount: 0,
       sent: 0,
       failed: 0,
       pruned: 0,
-      matchedUsers: 0,
-      matchedDevices: 0,
       storageMode,
       error:
         firestoreReadError ||
@@ -333,114 +447,168 @@ export async function dispatchServerWebPush(
     };
   }
 
-  const matchingDocs = filterDocsByAudience(rawDocs, audience, targetUid, excludeUid);
+  const totalDocsRead = rawDocs.length;
+  const matchingDocs = filterDocsByAudience(rawDocs, audience, targetUid, excludeUid, category);
   const matchedUsers = matchingDocs.length;
-  const matchedDevices = matchingDocs.reduce((sum, d) => sum + (d.subscriptions?.length || 0), 0);
+  const nowMs = Date.now();
+
+  // Flatten all active target devices (skipping endpoints already known dead in warm memory)
+  const deliveryQueue: Array<{ userDoc: PushSubscriptionDoc; sub: PushSubscriptionDoc['subscriptions'][number] }> = [];
+  for (const userDoc of matchingDocs) {
+    for (const sub of userDoc.subscriptions) {
+      if (!sub?.endpoint || !sub?.keys?.p256dh || !sub?.keys?.auth) continue;
+      if (isEndpointCachedDead(sub.endpoint, nowMs)) continue;
+      deliveryQueue.push({ userDoc, sub });
+    }
+  }
+
+  const matchedDevices = deliveryQueue.length;
 
   if (matchedDevices === 0) {
     return {
       ok: true,
+      totalDocsRead,
+      matchedUsers,
+      matchedDevices: 0,
       sentCount: 0,
+      failedCount: 0,
       sent: 0,
       failed: 0,
       pruned: 0,
-      matchedUsers,
-      matchedDevices: 0,
       storageMode,
       skipped:
         audience === 'targetUid'
           ? `No saved push device subscription found in push_subscriptions/${targetUid}`
-          : 'No matching push subscribers found'
+          : 'No matching active push subscribers found'
     };
   }
 
-  const payloadString = JSON.stringify({ title, body, url, tag });
+  const payloadString = JSON.stringify({
+    title,
+    body,
+    url,
+    tag,
+    category: category || 'mbk'
+  });
+
+  // Preserve Android/Chrome high-priority wake-up budget for VIP/Bot trading signals & DMs;
+  // use normal urgency + shorter TTL for Public Chat messages.
+  const pushOptions =
+    category === 'chat'
+      ? { TTL: 300, urgency: 'normal' as const, timeout: PUSH_REQUEST_TIMEOUT_MS }
+      : { TTL: 86400, urgency: 'high' as const, timeout: PUSH_REQUEST_TIMEOUT_MS };
+
   let sent = 0;
   let failed = 0;
   let pruned = 0;
   const sendErrors: string[] = [];
+  const expiredByUid = new Map<string, { userDoc: PushSubscriptionDoc; endpoints: Set<string> }>();
 
-  await Promise.all(
-    matchingDocs.map(async (userDoc) => {
-      const expiredEndpoints = new Set<string>();
-
-      await Promise.all(
-        userDoc.subscriptions.map(async (sub) => {
-          if (!sub?.endpoint || !sub?.keys?.p256dh || !sub?.keys?.auth) return;
-          try {
-            await webpush.sendNotification(
-              {
-                endpoint: sub.endpoint,
-                keys: {
-                  p256dh: sub.keys.p256dh,
-                  auth: sub.keys.auth
-                }
-              },
-              payloadString,
-              { TTL: 86400, urgency: 'high' }
-            );
-            sent += 1;
-          } catch (err: any) {
-            failed += 1;
-            const statusCode = Number(err?.statusCode || 0);
-            const errBody = typeof err?.body === 'string' ? err.body.slice(0, 160) : '';
-            sendErrors.push(
-              `HTTP ${statusCode || 'ERR'}: ${err?.message || 'webpush failed'}${errBody ? ` (${errBody})` : ''}`
-            );
-            if (statusCode === 404 || statusCode === 410) {
-              expiredEndpoints.add(sub.endpoint);
-            }
+  const sendWithTimeout = (sub: PushSubscriptionDoc['subscriptions'][number]): Promise<void> => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const sendPromise = webpush
+      .sendNotification(
+        {
+          endpoint: sub.endpoint,
+          keys: {
+            p256dh: sub.keys.p256dh,
+            auth: sub.keys.auth
           }
-        })
+        },
+        payloadString,
+        pushOptions
+      )
+      .then(() => undefined);
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        const timeoutErr: any = new Error(`Push relay timeout after ${PUSH_REQUEST_TIMEOUT_MS}ms`);
+        timeoutErr.statusCode = 408;
+        reject(timeoutErr);
+      }, PUSH_REQUEST_TIMEOUT_MS + 500);
+    });
+
+    return Promise.race([sendPromise, timeoutPromise]).finally(() => {
+      if (timer) clearTimeout(timer);
+    });
+  };
+
+  // Concurrent batched delivery (50 devices per batch via Promise.allSettled)
+  for (let i = 0; i < deliveryQueue.length; i += PUSH_BATCH_SIZE) {
+    const batch = deliveryQueue.slice(i, i + PUSH_BATCH_SIZE);
+    const settled = await Promise.allSettled(batch.map((item) => sendWithTimeout(item.sub)));
+
+    settled.forEach((outcome, idx) => {
+      const { userDoc, sub } = batch[idx];
+      if (outcome.status === 'fulfilled') {
+        sent += 1;
+        return;
+      }
+
+      failed += 1;
+      const err: any = outcome.reason;
+      const statusCode = Number(err?.statusCode || 0);
+      const errBody = typeof err?.body === 'string' ? err.body.slice(0, 160) : '';
+      sendErrors.push(
+        `HTTP ${statusCode || 'ERR'}: ${err?.message || 'webpush failed'}${errBody ? ` (${errBody})` : ''}`
       );
 
-      // Automatically prune expired / unsubscribed endpoints (HTTP 404 or 410)
-      if (expiredEndpoints.size > 0) {
-        pruned += expiredEndpoints.size;
-        const remaining = userDoc.subscriptions.filter((s) => !expiredEndpoints.has(s.endpoint));
-        const updatedDoc: PushSubscriptionDoc = {
-          uid: userDoc.uid,
-          isVip: userDoc.isVip,
-          isAdmin: userDoc.isAdmin,
-          subscriptions: remaining,
-          updatedAt: Date.now()
-        };
-
-        if (storageMode === 'firebase_admin' && adminDb) {
-          try {
-            await adminDb.collection('push_subscriptions').doc(userDoc.uid).set(updatedDoc, { merge: true });
-          } catch {
-            // ignore cleanup failure
-          }
-        } else if (callerIdToken) {
-          try {
-            const docUrl = `${getFirestoreRestBaseUrl()}/push_subscriptions/${encodeURIComponent(userDoc.uid)}`;
-            await fetch(docUrl, {
-              method: 'PATCH',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${callerIdToken}`
-              },
-              body: JSON.stringify(toFirestoreRestPushDoc(updatedDoc)),
-              signal: AbortSignal.timeout(5000)
-            });
-          } catch {
-            // ignore cleanup failure
-          }
+      if (statusCode === 404 || statusCode === 410) {
+        markEndpointDead(sub.endpoint, Date.now());
+        let entry = expiredByUid.get(userDoc.uid);
+        if (!entry) {
+          entry = { userDoc, endpoints: new Set<string>() };
+          expiredByUid.set(userDoc.uid, entry);
         }
+        entry.endpoints.add(sub.endpoint);
       }
-    })
-  );
+    });
+  }
+
+  // Automatically prune expired / unsubscribed endpoints (HTTP 404 or 410) in parallel
+  if (expiredByUid.size > 0) {
+    const pruneTasks = Array.from(expiredByUid.values()).map(async ({ userDoc, endpoints }) => {
+      pruned += endpoints.size;
+      const remaining = userDoc.subscriptions.filter((s) => !endpoints.has(s.endpoint));
+      const updatedDoc: PushSubscriptionDoc = {
+        uid: userDoc.uid,
+        isVip: userDoc.isVip,
+        isAdmin: userDoc.isAdmin,
+        muteChatPush: Boolean(userDoc.muteChatPush),
+        subscriptions: remaining,
+        updatedAt: Date.now()
+      };
+
+      if (storageMode === 'firebase_admin' && adminDb) {
+        await adminDb.collection('push_subscriptions').doc(userDoc.uid).set(updatedDoc, { merge: true });
+      } else if (callerIdToken) {
+        const docUrl = `${getFirestoreRestBaseUrl()}/push_subscriptions/${encodeURIComponent(userDoc.uid)}`;
+        await fetch(docUrl, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${callerIdToken}`
+          },
+          body: JSON.stringify(toFirestoreRestPushDoc(updatedDoc)),
+          signal: AbortSignal.timeout(3500)
+        });
+      }
+    });
+
+    await Promise.allSettled(pruneTasks);
+  }
 
   const allFailed = sent === 0 && failed > 0;
   return {
     ok: !allFailed,
+    totalDocsRead,
+    matchedUsers,
+    matchedDevices,
     sentCount: sent,
+    failedCount: failed,
     sent,
     failed,
     pruned,
-    matchedUsers,
-    matchedDevices,
     storageMode,
     ...(allFailed ? { error: sendErrors[0] || 'All push deliveries failed' } : {}),
     ...(sendErrors.length > 0 ? { errors: sendErrors.slice(0, 5) } : {})

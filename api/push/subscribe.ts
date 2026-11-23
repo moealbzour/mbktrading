@@ -31,6 +31,7 @@ export interface PushSubscriptionDoc {
   uid: string;
   isVip: boolean;
   isAdmin: boolean;
+  muteChatPush?: boolean;
   subscriptions: StoredPushEndpoint[];
   updatedAt: number;
 }
@@ -259,6 +260,7 @@ export function toFirestoreRestPushDoc(docData: PushSubscriptionDoc) {
       uid: { stringValue: docData.uid },
       isVip: { booleanValue: docData.isVip },
       isAdmin: { booleanValue: docData.isAdmin },
+      muteChatPush: { booleanValue: Boolean(docData.muteChatPush) },
       updatedAt: { integerValue: String(Math.trunc(docData.updatedAt)) },
       subscriptions: {
         arrayValue: {
@@ -364,6 +366,7 @@ export default async function handler(req: Req, res: ServerResponse) {
     const docUrl = `${getFirestoreRestBaseUrl()}/push_subscriptions/${encodeURIComponent(verifiedUser.uid)}`;
 
     let existingEndpoints: StoredPushEndpoint[] = [];
+    let existingMuteChatPush = false;
     const getRes = await fetch(docUrl, {
       method: 'GET',
       headers: { Authorization: `Bearer ${idToken}` },
@@ -372,12 +375,17 @@ export default async function handler(req: Req, res: ServerResponse) {
     if (getRes.ok) {
       const existingJson = await getRes.json();
       existingEndpoints = extractRestSubscriptions(existingJson?.fields);
+      existingMuteChatPush = Boolean(existingJson?.fields?.muteChatPush?.booleanValue);
     }
+
+    const muteChatPush =
+      typeof body?.muteChatPush === 'boolean' ? body.muteChatPush : existingMuteChatPush;
 
     const nextDoc: PushSubscriptionDoc = {
       uid: verifiedUser.uid,
       isVip,
       isAdmin,
+      muteChatPush,
       subscriptions: mergeEndpoints(existingEndpoints),
       updatedAt: nowMs
     };
@@ -411,10 +419,15 @@ export default async function handler(req: Req, res: ServerResponse) {
       const snap = await docRef.get();
       const adminExisting: StoredPushEndpoint[] =
         snap.exists && Array.isArray(snap.data()?.subscriptions) ? snap.data()!.subscriptions : [];
+      const adminMuteChat =
+        typeof body?.muteChatPush === 'boolean'
+          ? body.muteChatPush
+          : Boolean(snap.exists ? snap.data()?.muteChatPush : false);
       const mergedAdminDoc: PushSubscriptionDoc = {
         uid: verifiedUser.uid,
         isVip,
         isAdmin,
+        muteChatPush: adminMuteChat,
         subscriptions: mergeEndpoints(adminExisting),
         updatedAt: nowMs
       };

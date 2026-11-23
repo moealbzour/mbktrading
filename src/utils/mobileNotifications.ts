@@ -14,10 +14,13 @@ export interface WebPushSubscribeResult {
 }
 
 const NOTIFICATION_PREF_KEY = 'mbk_app_notifications_enabled';
+const CHAT_PUSH_MUTE_KEY = 'mbk_chat_push_muted';
 const RECENT_ACTIVITY_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+const CLIENT_CHAT_PUSH_COOLDOWN_MS = 20_000; // 20 seconds client-side guard for high-frequency chat
 
 let cachedSwRegistration: ServiceWorkerRegistration | null = null;
 let lastWebPushSyncMeta: { isVip?: boolean; isAdmin?: boolean } = {};
+let lastClientChatPushAtMs = 0;
 
 function cleanClientVapidKey(raw?: string): string {
   return String(raw || '')
@@ -181,7 +184,8 @@ export async function registerWebPushSubscription(
       body: JSON.stringify({
         subscription: subJson,
         isVip: Boolean(meta?.isVip ?? lastWebPushSyncMeta.isVip),
-        isAdmin: Boolean(meta?.isAdmin ?? lastWebPushSyncMeta.isAdmin)
+        isAdmin: Boolean(meta?.isAdmin ?? lastWebPushSyncMeta.isAdmin),
+        muteChatPush: isChatPushMuted()
       })
     });
 
@@ -251,6 +255,16 @@ export function triggerServerWebPush(params: {
   const currentUser = auth.currentUser;
   if (!currentUser) return;
 
+  // Lightweight client-side cooldown for high-frequency Public Chat messages so rapid chat
+  // bursts do not burn push quota needed for VIP/Bot trade signals.
+  if (params.category === 'chat') {
+    const nowMs = Date.now();
+    if (nowMs - lastClientChatPushAtMs < CLIENT_CHAT_PUSH_COOLDOWN_MS) {
+      return;
+    }
+    lastClientChatPushAtMs = nowMs;
+  }
+
   currentUser
     .getIdToken()
     .then((idToken) => {
@@ -314,6 +328,26 @@ export function isAppNotificationsEnabled(): boolean {
     return saved !== 'false';
   } catch {
     return true;
+  }
+}
+
+export function isChatPushMuted(): boolean {
+  try {
+    return localStorage.getItem(CHAT_PUSH_MUTE_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export function setChatPushMuted(muted: boolean): void {
+  try {
+    localStorage.setItem(CHAT_PUSH_MUTE_KEY, String(Boolean(muted)));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('mbk-chat-push-mute-changed', { detail: { muted: Boolean(muted) } }));
+    }
+    syncCurrentUserWebPush().catch(() => {});
+  } catch {
+    // ignore
   }
 }
 

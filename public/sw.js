@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mbk-trading-v12';
+const CACHE_NAME = 'mbk-trading-v13';
 const PRECACHE_URLS = ['/favicon.svg', '/manifest.json', '/icon-192.png', '/mbk-logo.png'];
 
 self.addEventListener('install', (event) => {
@@ -59,10 +59,23 @@ self.addEventListener('fetch', (event) => {
 });
 
 // Handle real closed-app Web Push API (VAPID) payloads
+const GENERIC_PUSH_TAGS = new Set([
+  'mbk',
+  'mbk-push',
+  'mbk-alert',
+  'mbk-chat',
+  'mbk-signal',
+  'mbk-dm',
+  'bot-alert',
+  'default',
+  'notification'
+]);
+
 self.addEventListener('push', (event) => {
   let title = 'MBK Trading 🔔';
   let body = 'تحديث جديد في منصة MBK Trading';
-  let tag = 'mbk-push-' + Date.now();
+  let category = 'mbk';
+  let rawTag = '';
   let url = '/';
 
   if (event.data) {
@@ -71,7 +84,8 @@ self.addEventListener('push', (event) => {
       if (parsed && typeof parsed === 'object') {
         title = String(parsed.title || title).trim() || title;
         body = String(parsed.body || parsed.message || body).trim() || body;
-        tag = String(parsed.tag || tag).trim() || tag;
+        category = String(parsed.category || category).trim().toLowerCase() || 'mbk';
+        rawTag = typeof parsed.tag === 'string' ? parsed.tag.trim() : '';
         url = String(parsed.url || '/').trim() || '/';
       }
     } catch {
@@ -86,6 +100,11 @@ self.addEventListener('push', (event) => {
     }
   }
 
+  const isGenericTag = !rawTag || GENERIC_PUSH_TAGS.has(rawTag.toLowerCase());
+  const tag = isGenericTag
+    ? `${category}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+    : rawTag;
+
   event.waitUntil(
     self.registration.showNotification(title, {
       body,
@@ -94,7 +113,7 @@ self.addEventListener('push', (event) => {
       tag,
       renotify: true,
       vibrate: [200, 100, 200],
-      data: { url: url || '/' }
+      data: { url: url || '/', category }
     })
   );
 });
