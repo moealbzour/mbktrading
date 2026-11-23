@@ -205,13 +205,16 @@ export default async function handler(req: Req, res: Res | ServerResponse) {
 
       try {
         await writeBotAlertToFirestore(alertDoc);
-        dispatchServerWebPush({
-          title: 'بوت MBK 🤖',
-          body: alertDoc.text.slice(0, 180),
-          tag: `bot-alert-${alertDoc.id}`,
-          url: '/',
-          audience: 'vip'
-        }).catch(() => {});
+        await Promise.race([
+          dispatchServerWebPush({
+            title: 'بوت MBK 🤖',
+            body: alertDoc.text.slice(0, 180),
+            tag: `bot-alert-${alertDoc.id}`,
+            url: '/',
+            audience: 'vip'
+          }).catch(() => null),
+          new Promise((resolve) => setTimeout(resolve, 4000))
+        ]);
         return sendJson(res, 200, {
           success: true,
           message: 'Test TradingView webhook alert generated and saved to bot_alerts successfully! Check your app.',
@@ -309,14 +312,17 @@ export default async function handler(req: Req, res: Res | ServerResponse) {
     const alertDoc = buildAlertDoc(text, chatId || null);
     await writeBotAlertToFirestore(alertDoc);
 
-    // Fire-and-forget Web Push notification to VIP & Admin subscribers
-    dispatchServerWebPush({
-      title: 'بوت MBK 🤖',
-      body: alertDoc.text.slice(0, 180),
-      tag: `bot-alert-${alertDoc.id}`,
-      url: '/',
-      audience: 'vip'
-    }).catch(() => {});
+    // Await Web Push delivery (capped at 4s) before Vercel Serverless freezes the invocation
+    await Promise.race([
+      dispatchServerWebPush({
+        title: 'بوت MBK 🤖',
+        body: alertDoc.text.slice(0, 180),
+        tag: `bot-alert-${alertDoc.id}`,
+        url: '/',
+        audience: 'vip'
+      }).catch(() => null),
+      new Promise((resolve) => setTimeout(resolve, 4000))
+    ]);
 
     let telegramForwarded = false;
     const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_TOKEN || '';

@@ -46,11 +46,16 @@ import {
   Save,
   MessageCircle,
   Radio,
-  Megaphone
+  Megaphone,
+  BellRing
 } from 'lucide-react';
 import { doc, setDoc, onSnapshot, collection, deleteDoc, writeBatch, serverTimestamp, getDocs, query, limit } from 'firebase/firestore';
 import { auth, db, getActiveDatabaseMode, setActiveDatabaseMode, ActiveDatabaseMode } from '../../lib/firebase';
 import { soundManager } from '../../utils/audio';
+import {
+  registerWebPushSubscription,
+  requestAppNotificationPermission
+} from '../../utils/mobileNotifications';
 import { formatKeyDurationLabel } from '../../utils/activationKeyService';
 import { subscribeToAuth } from '../../services/firebaseAuthService';
 import {
@@ -313,12 +318,98 @@ export const AdminDashboard: React.FC<Props> = ({
   const [isWipingBotAlerts, setIsWipingBotAlerts] = useState<boolean>(false);
   const [confirmWipeBots, setConfirmWipeBots] = useState<boolean>(false);
   const [isPushingAppUpdate, setIsPushingAppUpdate] = useState<boolean>(false);
+  const [isTestingBackgroundPush, setIsTestingBackgroundPush] = useState<boolean>(false);
+  const [backgroundPushResult, setBackgroundPushResult] = useState<Record<string, any> | null>(null);
   const [remoteAppVersionInfo, setRemoteAppVersionInfo] = useState<{
     versionId?: string;
     versionLabel?: string;
     updatedAt?: string;
     updatedBy?: string;
   } | null>(null);
+
+  const handleTestBackgroundPush = async () => {
+    if (!isFullAdmin || isTestingBackgroundPush) return;
+    soundManager.playClick();
+    setIsTestingBackgroundPush(true);
+    setBackgroundPushResult(null);
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        setBackgroundPushResult({
+          subscribed: false,
+          sentCount: 0,
+          error: 'No signed-in Firebase user'
+        });
+        return;
+      }
+
+      if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+        await requestAppNotificationPermission();
+      }
+
+      const idToken = await currentUser.getIdToken(true);
+      const subRes = await registerWebPushSubscription(idToken, {
+        isVip: true,
+        isAdmin: true
+      });
+
+      if (!subRes.subscribed) {
+        setBackgroundPushResult({
+          subscribed: false,
+          sentCount: 0,
+          error: subRes.error || 'Web Push subscription failed',
+          subscribeResponse: subRes
+        });
+        return;
+      }
+
+      // Wait 1 second before dispatching test push to confirm persistence
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      const sendHttpRes = await fetch('/api/push/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`
+        },
+        body: JSON.stringify({
+          title: 'MBK Trading 🔔 • اختبار إشعار الخلفية',
+          body: isAr
+            ? 'نجح إرسال إشعار Web Push الحقيقي بنجاح! سيصل هذا الإشعار حتى عند إغلاق التطبيق.'
+            : 'Real background Web Push delivered! Lock-screen notifications are active.',
+          url: '/',
+          tag: `mbk-test-push-${Date.now()}`,
+          audience: 'targetUid',
+          targetUid: currentUser.uid,
+          excludeUid: null
+        })
+      });
+
+      const sendJson = await sendHttpRes.json().catch(() => ({
+        ok: false,
+        sentCount: 0,
+        error: `Non-JSON response (HTTP ${sendHttpRes.status})`
+      }));
+
+      setBackgroundPushResult({
+        subscribed: subRes.subscribed,
+        sentCount: Number(sendJson?.sentCount ?? sendJson?.sent ?? 0),
+        deviceCount: subRes.deviceCount,
+        storageMode: sendJson?.storageMode || subRes.storageMode,
+        ...(sendJson?.error ? { error: sendJson.error } : {}),
+        ...(sendJson?.skipped ? { skipped: sendJson.skipped } : {}),
+        ...(sendJson?.errors ? { errors: sendJson.errors } : {})
+      });
+    } catch (err: any) {
+      setBackgroundPushResult({
+        subscribed: false,
+        sentCount: 0,
+        error: err?.message || 'Unexpected error during push test'
+      });
+    } finally {
+      setIsTestingBackgroundPush(false);
+    }
+  };
 
   useEffect(() => {
     if (!isStaff) return;
@@ -1822,6 +1913,33 @@ export const AdminDashboard: React.FC<Props> = ({
                 <RefreshCw className={`w-3.5 h-3.5 ${isPushingAppUpdate ? 'animate-spin' : ''}`} />
                 <span>{isAr ? '🚀 دفع التحديث لجميع المستخدمين' : '🚀 Push Update to All Users'}</span>
               </button>
+              <div className="flex flex-col items-start gap-1">
+                <button
+                  type="button"
+                  disabled={isTestingBackgroundPush}
+                  onClick={handleTestBackgroundPush}
+                  className="px-3 py-1.5 rounded-xl bg-[#1e222d] hover:bg-[#2a2e39] border border-sky-500/50 text-sky-300 hover:text-white disabled:opacity-50 text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <BellRing className={`w-3.5 h-3.5 text-sky-400 ${isTestingBackgroundPush ? 'animate-pulse' : ''}`} />
+                  <span>
+                    {isTestingBackgroundPush
+                      ? isAr
+                        ? 'جاري الاختبار...'
+                        : 'Testing Push...'
+                      : isAr
+                      ? '🔔 اختبار إشعار الخلفية (Web Push)'
+                      : '🔔 Test Background Push'}
+                  </span>
+                </button>
+                {backgroundPushResult && (
+                  <pre
+                    dir="ltr"
+                    className="max-w-xs sm:max-w-md overflow-x-auto rounded-lg bg-[#0b0e14] border border-white/10 px-2.5 py-1.5 text-[10px] font-mono text-slate-200 select-text whitespace-pre-wrap break-all"
+                  >
+                    {JSON.stringify(backgroundPushResult, null, 2)}
+                  </pre>
+                )}
+              </div>
             </>
           )}
           {onClose && (

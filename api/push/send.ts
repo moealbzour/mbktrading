@@ -2,11 +2,14 @@ import type { IncomingMessage, ServerResponse } from 'http';
 import crypto from 'crypto';
 import * as webpush from 'web-push';
 import {
+  cleanEnvKey,
+  cleanEnvSubject,
+  extractRestSubscriptions,
+  getFirestoreRestBaseUrl,
   getOptionalAdminFirestore,
-  loadPushFirebaseConfig,
+  toFirestoreRestPushDoc,
   verifyFirebaseIdToken,
-  type PushSubscriptionDoc,
-  type StoredPushEndpoint
+  type PushSubscriptionDoc
 } from './subscribe.js';
 
 type Req = IncomingMessage & {
@@ -29,10 +32,16 @@ export interface ServerPushDispatchInput {
 
 export interface ServerPushDispatchResult {
   ok: boolean;
+  sentCount: number;
   sent: number;
   failed: number;
   pruned: number;
+  matchedUsers: number;
+  matchedDevices: number;
+  storageMode?: string;
   skipped?: string;
+  error?: string;
+  errors?: string[];
 }
 
 function timingSafeSecretEqual(a: string, b: string): boolean {
@@ -44,54 +53,52 @@ function timingSafeSecretEqual(a: string, b: string): boolean {
 }
 
 function getVapidConfig(): { publicKey: string; privateKey: string; subject: string } | null {
-  const publicKey = (process.env.VAPID_PUBLIC_KEY || process.env.VITE_VAPID_PUBLIC_KEY || '').trim();
-  const privateKey = (process.env.VAPID_PRIVATE_KEY || '').trim();
-  const rawSubject = (process.env.VAPID_SUBJECT || '').trim();
-  const subject =
-    rawSubject.startsWith('mailto:') || rawSubject.startsWith('https://')
-      ? rawSubject
-      : 'mailto:support@mbktrading.com';
+  const publicKey = cleanEnvKey(process.env.VAPID_PUBLIC_KEY || process.env.VITE_VAPID_PUBLIC_KEY);
+  const privateKey = cleanEnvKey(process.env.VAPID_PRIVATE_KEY);
+  const subject = cleanEnvSubject(process.env.VAPID_SUBJECT);
   if (!publicKey || !privateKey || publicKey.length < 20 || privateKey.length < 20) return null;
   return { publicKey, privateKey, subject };
 }
 
-function extractDocsFromRest(rawDoc: any): PushSubscriptionDoc | null {
+function parseRestPushDoc(rawDoc: any): PushSubscriptionDoc | null {
   const f = rawDoc?.fields;
   if (!f) return null;
-  const uid = f.uid?.stringValue || '';
+  const namePath = typeof rawDoc?.name === 'string' ? rawDoc.name : '';
+  const fallbackUid = namePath ? namePath.split('/').pop() || '' : '';
+  const uid = String(f.uid?.stringValue || fallbackUid || '').trim();
   if (!uid) return null;
-  const values = f.subscriptions?.arrayValue?.values;
-  const subscriptions: StoredPushEndpoint[] = [];
-  if (Array.isArray(values)) {
-    for (const item of values) {
-      const sf = item?.mapValue?.fields;
-      if (!sf) continue;
-      const endpoint = sf.endpoint?.stringValue;
-      const p256dh = sf.keys?.mapValue?.fields?.p256dh?.stringValue;
-      const auth = sf.keys?.mapValue?.fields?.auth?.stringValue;
-      const updatedAt = Number(sf.updatedAt?.integerValue || sf.updatedAt?.doubleValue || Date.now());
-      if (endpoint && p256dh && auth) {
-        subscriptions.push({
-          endpoint,
-          expirationTime: null,
-          keys: { p256dh, auth },
-          updatedAt
-        });
-      }
-    }
-  }
+  const subscriptions = extractRestSubscriptions(f);
   return {
     uid,
-    email: f.email?.stringValue || '',
     isVip: Boolean(f.isVip?.booleanValue),
     isAdmin: Boolean(f.isAdmin?.booleanValue),
     subscriptions,
-    updatedAt: Number(f.updatedAt?.integerValue || Date.now())
+    updatedAt: Number(f.updatedAt?.integerValue || f.updatedAt?.doubleValue || Date.now())
   };
 }
 
 async function isCallerAdminOrAnalyser(uid: string, email: string, idToken: string): Promise<boolean> {
   if (email.toLowerCase() === 'moe.albzour@gmail.com') return true;
+
+  try {
+    const userDocUrl = `${getFirestoreRestBaseUrl()}/users/${encodeURIComponent(uid)}`;
+    const res = await fetch(userDocUrl, {
+      headers: { Authorization: `Bearer ${idToken}` },
+      signal: AbortSignal.timeout(5000)
+    });
+    if (res.ok) {
+      const json = await res.json();
+      const fields = json?.fields || {};
+      const isAdminFlag = Boolean(fields.isAdmin?.booleanValue);
+      const role = String(fields.role?.stringValue || '').toUpperCase();
+      if (isAdminFlag || role === 'ADMIN' || role === 'ANALYSER' || role === 'ANALYST') {
+        return true;
+      }
+    }
+  } catch {
+    // fall through
+  }
+
   const adminDb = getOptionalAdminFirestore();
   if (adminDb) {
     try {
@@ -99,42 +106,100 @@ async function isCallerAdminOrAnalyser(uid: string, email: string, idToken: stri
       if (snap.exists) {
         const data = snap.data() || {};
         const role = String(data.role || '').toUpperCase();
-        if (data.isAdmin === true || role === 'ADMIN' || role === 'ANALYSER' || role === 'ANALYST') {
-          return true;
-        }
+        return data.isAdmin === true || role === 'ADMIN' || role === 'ANALYSER' || role === 'ANALYST';
       }
     } catch {
-      // fall through
+      // ignore
     }
   }
 
-  try {
-    const config = loadPushFirebaseConfig();
-    const dbId =
-      config.firestoreDatabaseId && config.firestoreDatabaseId !== '(default)'
-        ? config.firestoreDatabaseId
-        : '(default)';
-    const userDocUrl = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(
-      config.projectId
-    )}/databases/${encodeURIComponent(dbId)}/documents/users/${encodeURIComponent(uid)}`;
-    const res = await fetch(userDocUrl, {
-      headers: { Authorization: `Bearer ${idToken}` },
-      signal: AbortSignal.timeout(5000)
-    });
-    if (!res.ok) return false;
-    const json = await res.json();
-    const fields = json?.fields || {};
-    const isAdminFlag = Boolean(fields.isAdmin?.booleanValue);
-    const role = String(fields.role?.stringValue || '').toUpperCase();
-    return isAdminFlag || role === 'ADMIN' || role === 'ANALYSER' || role === 'ANALYST';
-  } catch {
-    return false;
+  return false;
+}
+
+function filterDocsByAudience(
+  docs: PushSubscriptionDoc[],
+  audience: PushAudience,
+  targetUid: string | null,
+  excludeUid: string | null
+): PushSubscriptionDoc[] {
+  const result: PushSubscriptionDoc[] = [];
+  for (const d of docs) {
+    if (!d || !Array.isArray(d.subscriptions) || d.subscriptions.length === 0) continue;
+    if (audience === 'targetUid') {
+      if (targetUid && d.uid === targetUid) {
+        result.push(d);
+      }
+      continue;
+    }
+    if (excludeUid && d.uid === excludeUid) continue;
+    if (audience === 'admins' && d.isAdmin) {
+      result.push(d);
+    } else if (audience === 'vip' && (d.isVip || d.isAdmin)) {
+      result.push(d);
+    } else if (audience === 'all') {
+      result.push(d);
+    }
   }
+  return result;
+}
+
+async function fetchPushDocsViaRest(
+  audience: PushAudience,
+  targetUid: string | null,
+  callerIdToken: string
+): Promise<{ docs: PushSubscriptionDoc[]; error?: string }> {
+  const baseUrl = getFirestoreRestBaseUrl();
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${callerIdToken}`
+  };
+
+  if (audience === 'targetUid') {
+    if (!targetUid) return { docs: [] };
+    const docUrl = `${baseUrl}/push_subscriptions/${encodeURIComponent(targetUid)}`;
+    const res = await fetch(docUrl, { headers, signal: AbortSignal.timeout(6000) });
+    if (res.status === 404) {
+      return { docs: [] };
+    }
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      return { docs: [], error: `Firestore REST get failed (HTTP ${res.status}): ${errText.slice(0, 240)}` };
+    }
+    const parsed = parseRestPushDoc(await res.json());
+    return { docs: parsed ? [parsed] : [] };
+  }
+
+  // Paginated list of push_subscriptions via stateless Firestore REST API
+  const allDocs: PushSubscriptionDoc[] = [];
+  let pageToken: string | undefined;
+  let pages = 0;
+
+  while (pages < 5) {
+    pages += 1;
+    const listUrl = `${baseUrl}/push_subscriptions?pageSize=300${
+      pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''
+    }`;
+    const res = await fetch(listUrl, { headers, signal: AbortSignal.timeout(6000) });
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      return { docs: [], error: `Firestore REST list failed (HTTP ${res.status}): ${errText.slice(0, 240)}` };
+    }
+    const json = await res.json();
+    const rawDocs = Array.isArray(json?.documents) ? json.documents : [];
+    for (const rawDoc of rawDocs) {
+      const parsed = parseRestPushDoc(rawDoc);
+      if (parsed) allDocs.push(parsed);
+    }
+    pageToken = typeof json?.nextPageToken === 'string' && json.nextPageToken ? json.nextPageToken : undefined;
+    if (!pageToken) break;
+  }
+
+  return { docs: allDocs };
 }
 
 /**
  * Shared server-side Web Push dispatcher.
- * Called by POST /api/push/send AND directly by api/webhooks/tradingview.ts & server.ts.
+ * Uses stateless Firestore REST API when callerIdToken is provided (100% Vercel Serverless safe),
+ * and Firebase Admin SDK when explicit credentials exist (for unauthenticated webhooks).
  */
 export async function dispatchServerWebPush(
   input: ServerPushDispatchInput,
@@ -144,22 +209,29 @@ export async function dispatchServerWebPush(
   if (!vapid) {
     return {
       ok: true,
+      sentCount: 0,
       sent: 0,
       failed: 0,
       pruned: 0,
-      skipped: 'VAPID keys not configured'
+      matchedUsers: 0,
+      matchedDevices: 0,
+      skipped: 'VAPID keys not configured',
+      error: 'VAPID_PUBLIC_KEY or VAPID_PRIVATE_KEY is missing in server environment variables'
     };
   }
 
   try {
     webpush.setVapidDetails(vapid.subject, vapid.publicKey, vapid.privateKey);
-  } catch {
+  } catch (err: any) {
     return {
-      ok: true,
+      ok: false,
+      sentCount: 0,
       sent: 0,
       failed: 0,
       pruned: 0,
-      skipped: 'Invalid VAPID key configuration'
+      matchedUsers: 0,
+      matchedDevices: 0,
+      error: `Invalid VAPID keys: ${err?.message || 'setVapidDetails failed'}`
     };
   }
 
@@ -172,79 +244,99 @@ export async function dispatchServerWebPush(
   const excludeUid = input.excludeUid ? String(input.excludeUid).trim() : null;
 
   if (!title) {
-    return { ok: true, sent: 0, failed: 0, pruned: 0, skipped: 'Empty title' };
+    return {
+      ok: false,
+      sentCount: 0,
+      sent: 0,
+      failed: 0,
+      pruned: 0,
+      matchedUsers: 0,
+      matchedDevices: 0,
+      error: 'Notification title is required'
+    };
   }
 
-  const adminDb = getOptionalAdminFirestore();
-  let matchingDocs: PushSubscriptionDoc[] = [];
+  let rawDocs: PushSubscriptionDoc[] = [];
+  let storageMode = 'none';
+  let firestoreReadError: string | undefined;
 
-  if (adminDb) {
+  // Path 1: Stateless Firestore REST API (primary path on Vercel Serverless when user token is present)
+  if (callerIdToken) {
+    const restResult = await fetchPushDocsViaRest(audience, targetUid, callerIdToken);
+    if (!restResult.error) {
+      rawDocs = restResult.docs;
+      storageMode = 'firestore_rest';
+    } else {
+      firestoreReadError = restResult.error;
+    }
+  }
+
+  // Path 2: Firebase Admin SDK (for webhooks without user token, or fallback when credentials exist)
+  const adminDb = getOptionalAdminFirestore();
+  if (storageMode === 'none' && adminDb) {
     try {
-      if (audience === 'targetUid') {
-        if (targetUid) {
-          const snap = await adminDb.collection('push_subscriptions').doc(targetUid).get();
-          if (snap.exists) {
-            const d = snap.data() as PushSubscriptionDoc;
-            if (d && Array.isArray(d.subscriptions) && d.subscriptions.length > 0) {
-              matchingDocs = [d];
-            }
-          }
+      if (audience === 'targetUid' && targetUid) {
+        const snap = await adminDb.collection('push_subscriptions').doc(targetUid).get();
+        if (snap.exists) {
+          const d = snap.data() as PushSubscriptionDoc;
+          if (d) rawDocs = [{ ...d, uid: d.uid || targetUid }];
         }
       } else {
         const snap = await adminDb.collection('push_subscriptions').get();
         snap.forEach((docSnap) => {
           const d = docSnap.data() as PushSubscriptionDoc;
-          if (!d || !Array.isArray(d.subscriptions) || d.subscriptions.length === 0) return;
-          if (excludeUid && d.uid === excludeUid) return;
-
-          if (audience === 'admins' && d.isAdmin) {
-            matchingDocs.push(d);
-          } else if (audience === 'vip' && (d.isVip || d.isAdmin)) {
-            matchingDocs.push(d);
-          } else if (audience === 'all') {
-            matchingDocs.push(d);
-          }
+          if (d) rawDocs.push({ ...d, uid: d.uid || docSnap.id });
         });
       }
-    } catch {
-      // Fall through to REST fallback below if Admin SDK lacks IAM permissions
+      storageMode = 'firebase_admin';
+      firestoreReadError = undefined;
+    } catch (err: any) {
+      firestoreReadError = firestoreReadError || `Admin Firestore read failed: ${err?.message || 'Unknown error'}`;
     }
   }
 
-  // Fallback for self-targeted push when Admin SDK is unavailable
-  if (matchingDocs.length === 0 && audience === 'targetUid' && targetUid && callerIdToken) {
-    try {
-      const config = loadPushFirebaseConfig();
-      const dbId =
-        config.firestoreDatabaseId && config.firestoreDatabaseId !== '(default)'
-          ? config.firestoreDatabaseId
-          : '(default)';
-      const docUrl = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(
-        config.projectId
-      )}/databases/${encodeURIComponent(dbId)}/documents/push_subscriptions/${encodeURIComponent(targetUid)}`;
-      const res = await fetch(docUrl, {
-        headers: { Authorization: `Bearer ${callerIdToken}` },
-        signal: AbortSignal.timeout(5000)
-      });
-      if (res.ok) {
-        const parsed = extractDocsFromRest(await res.json());
-        if (parsed && parsed.subscriptions.length > 0) {
-          matchingDocs = [parsed];
-        }
-      }
-    } catch {
-      // ignore
-    }
+  if (storageMode === 'none') {
+    return {
+      ok: false,
+      sentCount: 0,
+      sent: 0,
+      failed: 0,
+      pruned: 0,
+      matchedUsers: 0,
+      matchedDevices: 0,
+      storageMode,
+      error:
+        firestoreReadError ||
+        'Unable to read push_subscriptions: provide a signed-in Bearer token or configure FIREBASE_SERVICE_ACCOUNT_JSON on server'
+    };
   }
 
-  if (matchingDocs.length === 0) {
-    return { ok: true, sent: 0, failed: 0, pruned: 0 };
+  const matchingDocs = filterDocsByAudience(rawDocs, audience, targetUid, excludeUid);
+  const matchedUsers = matchingDocs.length;
+  const matchedDevices = matchingDocs.reduce((sum, d) => sum + (d.subscriptions?.length || 0), 0);
+
+  if (matchedDevices === 0) {
+    return {
+      ok: true,
+      sentCount: 0,
+      sent: 0,
+      failed: 0,
+      pruned: 0,
+      matchedUsers,
+      matchedDevices: 0,
+      storageMode,
+      skipped:
+        audience === 'targetUid'
+          ? `No saved push device subscription found in push_subscriptions/${targetUid}`
+          : 'No matching push subscribers found'
+    };
   }
 
   const payloadString = JSON.stringify({ title, body, url, tag });
   let sent = 0;
   let failed = 0;
   let pruned = 0;
+  const sendErrors: string[] = [];
 
   await Promise.all(
     matchingDocs.map(async (userDoc) => {
@@ -269,6 +361,10 @@ export async function dispatchServerWebPush(
           } catch (err: any) {
             failed += 1;
             const statusCode = Number(err?.statusCode || 0);
+            const errBody = typeof err?.body === 'string' ? err.body.slice(0, 160) : '';
+            sendErrors.push(
+              `HTTP ${statusCode || 'ERR'}: ${err?.message || 'webpush failed'}${errBody ? ` (${errBody})` : ''}`
+            );
             if (statusCode === 404 || statusCode === 410) {
               expiredEndpoints.add(sub.endpoint);
             }
@@ -276,26 +372,57 @@ export async function dispatchServerWebPush(
         })
       );
 
-      // Automatically remove expired / unsubscribed endpoints (HTTP 404 or 410)
-      if (expiredEndpoints.size > 0 && adminDb) {
+      // Automatically prune expired / unsubscribed endpoints (HTTP 404 or 410)
+      if (expiredEndpoints.size > 0) {
         pruned += expiredEndpoints.size;
-        try {
-          const remaining = userDoc.subscriptions.filter((s) => !expiredEndpoints.has(s.endpoint));
-          await adminDb.collection('push_subscriptions').doc(userDoc.uid).set(
-            {
-              subscriptions: remaining,
-              updatedAt: Date.now()
-            },
-            { merge: true }
-          );
-        } catch {
-          // ignore cleanup failure
+        const remaining = userDoc.subscriptions.filter((s) => !expiredEndpoints.has(s.endpoint));
+        const updatedDoc: PushSubscriptionDoc = {
+          uid: userDoc.uid,
+          isVip: userDoc.isVip,
+          isAdmin: userDoc.isAdmin,
+          subscriptions: remaining,
+          updatedAt: Date.now()
+        };
+
+        if (storageMode === 'firebase_admin' && adminDb) {
+          try {
+            await adminDb.collection('push_subscriptions').doc(userDoc.uid).set(updatedDoc, { merge: true });
+          } catch {
+            // ignore cleanup failure
+          }
+        } else if (callerIdToken) {
+          try {
+            const docUrl = `${getFirestoreRestBaseUrl()}/push_subscriptions/${encodeURIComponent(userDoc.uid)}`;
+            await fetch(docUrl, {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${callerIdToken}`
+              },
+              body: JSON.stringify(toFirestoreRestPushDoc(updatedDoc)),
+              signal: AbortSignal.timeout(5000)
+            });
+          } catch {
+            // ignore cleanup failure
+          }
         }
       }
     })
   );
 
-  return { ok: true, sent, failed, pruned };
+  const allFailed = sent === 0 && failed > 0;
+  return {
+    ok: !allFailed,
+    sentCount: sent,
+    sent,
+    failed,
+    pruned,
+    matchedUsers,
+    matchedDevices,
+    storageMode,
+    ...(allFailed ? { error: sendErrors[0] || 'All push deliveries failed' } : {}),
+    ...(sendErrors.length > 0 ? { errors: sendErrors.slice(0, 5) } : {})
+  };
 }
 
 async function readJsonBody(req: Req): Promise<any> {
@@ -337,12 +464,12 @@ export default async function handler(req: Req, res: ServerResponse) {
     return;
   }
   if (method !== 'POST') {
-    return sendJson(res, 405, { error: 'Method not allowed' });
+    return sendJson(res, 405, { ok: false, sentCount: 0, error: 'Method not allowed' });
   }
 
   // Authorize via EITHER valid Firebase ID Token OR internal x-webhook-secret
-  const configuredWebhookSecret = (process.env.TRADINGVIEW_WEBHOOK_SECRET || '').trim();
-  const providedWebhookSecret = String(req.headers['x-webhook-secret'] || '').trim();
+  const configuredWebhookSecret = cleanEnvKey(process.env.TRADINGVIEW_WEBHOOK_SECRET);
+  const providedWebhookSecret = cleanEnvKey(String(req.headers['x-webhook-secret'] || ''));
   const isWebhookAuthorized =
     Boolean(configuredWebhookSecret) &&
     Boolean(providedWebhookSecret) &&
@@ -356,11 +483,19 @@ export default async function handler(req: Req, res: ServerResponse) {
     const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i);
     idToken = bearerMatch?.[1]?.trim() || '';
     if (!idToken) {
-      return sendJson(res, 401, { error: 'Unauthorized: missing Bearer token or webhook secret' });
+      return sendJson(res, 401, {
+        ok: false,
+        sentCount: 0,
+        error: 'Unauthorized: missing Bearer token or webhook secret'
+      });
     }
     verifiedUser = await verifyFirebaseIdToken(idToken);
     if (!verifiedUser) {
-      return sendJson(res, 401, { error: 'Unauthorized: invalid Firebase ID token' });
+      return sendJson(res, 401, {
+        ok: false,
+        sentCount: 0,
+        error: 'Unauthorized: invalid Firebase ID token'
+      });
     }
   }
 
@@ -368,13 +503,13 @@ export default async function handler(req: Req, res: ServerResponse) {
   try {
     body = await readJsonBody(req);
   } catch {
-    return sendJson(res, 400, { error: 'Invalid JSON request body' });
+    return sendJson(res, 400, { ok: false, sentCount: 0, error: 'Invalid JSON request body' });
   }
 
   const rawAudience = String(body?.audience || 'all').trim();
   const allowedAudiences: PushAudience[] = ['targetUid', 'admins', 'vip', 'all'];
   if (!allowedAudiences.includes(rawAudience as PushAudience)) {
-    return sendJson(res, 400, { error: 'Invalid audience parameter' });
+    return sendJson(res, 400, { ok: false, sentCount: 0, error: 'Invalid audience parameter' });
   }
   const audience = rawAudience as PushAudience;
 
@@ -382,7 +517,11 @@ export default async function handler(req: Req, res: ServerResponse) {
   if (!isWebhookAuthorized && verifiedUser && (audience === 'all' || audience === 'vip')) {
     const canBroadcast = await isCallerAdminOrAnalyser(verifiedUser.uid, verifiedUser.email, idToken);
     if (!canBroadcast) {
-      return sendJson(res, 403, { error: 'Forbidden: Admin or Analyser role required for broadcast push' });
+      return sendJson(res, 403, {
+        ok: false,
+        sentCount: 0,
+        error: 'Forbidden: Admin or Analyser role required for broadcast push'
+      });
     }
   }
 
@@ -396,18 +535,21 @@ export default async function handler(req: Req, res: ServerResponse) {
         audience,
         targetUid: typeof body?.targetUid === 'string' ? body.targetUid : null,
         excludeUid:
-          typeof body?.excludeUid === 'string'
+          body?.excludeUid === null
+            ? null
+            : typeof body?.excludeUid === 'string'
             ? body.excludeUid
             : verifiedUser?.uid || null
       },
       idToken || undefined
     );
 
-    return sendJson(res, 200, result);
+    return sendJson(res, result.ok ? 200 : 502, result);
   } catch (err: any) {
     return sendJson(res, 500, {
-      error: 'Push dispatch failed',
-      message: err?.message || 'Unknown error'
+      ok: false,
+      sentCount: 0,
+      error: `Push dispatch failed: ${err?.message || 'Unknown error'}`
     });
   }
 }

@@ -29,7 +29,6 @@ export interface StoredPushEndpoint {
 
 export interface PushSubscriptionDoc {
   uid: string;
-  email: string;
   isVip: boolean;
   isAdmin: boolean;
   subscriptions: StoredPushEndpoint[];
@@ -41,6 +40,22 @@ const FALLBACK_FIREBASE_CONFIG = {
   firestoreDatabaseId: '(default)',
   apiKey: 'AIzaSyCgNCyANwJ9CJmTJX0HKH-ssGHlfktF0L8'
 };
+
+export function cleanEnvKey(raw?: string): string {
+  return String(raw || '')
+    .replace(/[\r\n\s"']+/g, '')
+    .trim();
+}
+
+export function cleanEnvSubject(raw?: string): string {
+  const cleaned = String(raw || '')
+    .replace(/[\r\n"']+/g, '')
+    .trim();
+  if (cleaned.startsWith('mailto:') || cleaned.startsWith('https://')) {
+    return cleaned;
+  }
+  return 'mailto:support@mbktrading.com';
+}
 
 export function loadPushFirebaseConfig() {
   try {
@@ -68,15 +83,31 @@ export function loadPushFirebaseConfig() {
 
 let cachedAdminDb: AdminFirestore | null | undefined = undefined;
 
+/**
+ * Initializes Firebase Admin Firestore ONLY when explicit service account credentials exist
+ * (or when running in a GCP/AI Studio runtime with ADC). On Vercel Serverless without
+ * FIREBASE_SERVICE_ACCOUNT_JSON, immediately returns null so we use the fast stateless
+ * Firestore REST API without waiting for GCP metadata timeouts.
+ */
 export function getOptionalAdminFirestore(): AdminFirestore | null {
   if (cachedAdminDb !== undefined) return cachedAdminDb;
+
+  const hasExplicitServiceAccount = Boolean((process.env.FIREBASE_SERVICE_ACCOUNT_JSON || '').trim());
+  const hasGoogleAppCreds = Boolean((process.env.GOOGLE_APPLICATION_CREDENTIALS || '').trim());
+  const isVercel = Boolean(process.env.VERCEL || process.env.VERCEL_ENV);
+
+  if (isVercel && !hasExplicitServiceAccount && !hasGoogleAppCreds) {
+    cachedAdminDb = null;
+    return null;
+  }
+
   try {
     const config = loadPushFirebaseConfig();
     let app;
     if (getAdminApps().length > 0) {
       app = getAdminApp();
-    } else if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
-      const parsedSa = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+    } else if (hasExplicitServiceAccount) {
+      const parsedSa = JSON.parse(String(process.env.FIREBASE_SERVICE_ACCOUNT_JSON).trim());
       app = initAdminApp({
         credential: cert(parsedSa),
         projectId: config.projectId
@@ -103,6 +134,17 @@ export function getOptionalAdminFirestore(): AdminFirestore | null {
     cachedAdminDb = null;
     return null;
   }
+}
+
+export function getFirestoreRestBaseUrl(): string {
+  const config = loadPushFirebaseConfig();
+  const dbId =
+    config.firestoreDatabaseId && config.firestoreDatabaseId !== '(default)'
+      ? config.firestoreDatabaseId
+      : '(default)';
+  return `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(
+    config.projectId
+  )}/databases/${encodeURIComponent(dbId)}/documents`;
 }
 
 export async function verifyFirebaseIdToken(
@@ -188,7 +230,7 @@ function sendJson(res: ServerResponse, statusCode: number, data: Record<string, 
   res.end(JSON.stringify(data));
 }
 
-function extractRestSubscriptions(fields: Record<string, any> | undefined): StoredPushEndpoint[] {
+export function extractRestSubscriptions(fields: Record<string, any> | undefined): StoredPushEndpoint[] {
   const values = fields?.subscriptions?.arrayValue?.values;
   if (!Array.isArray(values)) return [];
   const result: StoredPushEndpoint[] = [];
@@ -211,11 +253,10 @@ function extractRestSubscriptions(fields: Record<string, any> | undefined): Stor
   return result;
 }
 
-function toFirestoreRestDoc(docData: PushSubscriptionDoc) {
+export function toFirestoreRestPushDoc(docData: PushSubscriptionDoc) {
   return {
     fields: {
       uid: { stringValue: docData.uid },
-      email: { stringValue: docData.email },
       isVip: { booleanValue: docData.isVip },
       isAdmin: { booleanValue: docData.isAdmin },
       updatedAt: { integerValue: String(Math.trunc(docData.updatedAt)) },
@@ -252,7 +293,7 @@ export default async function handler(req: Req, res: ServerResponse) {
     return;
   }
   if (method !== 'POST') {
-    return sendJson(res, 405, { error: 'Method not allowed' });
+    return sendJson(res, 405, { ok: false, subscribed: false, error: 'Method not allowed' });
   }
 
   const authHeader = String(req.headers.authorization || req.headers.Authorization || '');
@@ -260,19 +301,31 @@ export default async function handler(req: Req, res: ServerResponse) {
   const idToken = bearerMatch?.[1]?.trim() || '';
 
   if (!idToken) {
-    return sendJson(res, 401, { error: 'Missing Authorization Bearer token' });
+    return sendJson(res, 401, {
+      ok: false,
+      subscribed: false,
+      error: 'Missing Authorization Bearer token'
+    });
   }
 
   const verifiedUser = await verifyFirebaseIdToken(idToken);
   if (!verifiedUser) {
-    return sendJson(res, 401, { error: 'Invalid or expired Firebase ID token' });
+    return sendJson(res, 401, {
+      ok: false,
+      subscribed: false,
+      error: 'Invalid or expired Firebase ID token'
+    });
   }
 
   let body: any;
   try {
     body = await readJsonBody(req);
   } catch {
-    return sendJson(res, 400, { error: 'Invalid JSON request body' });
+    return sendJson(res, 400, {
+      ok: false,
+      subscribed: false,
+      error: 'Invalid JSON request body'
+    });
   }
 
   const sub = body?.subscription;
@@ -281,7 +334,11 @@ export default async function handler(req: Req, res: ServerResponse) {
   const authKey = typeof sub?.keys?.auth === 'string' ? sub.keys.auth.trim() : '';
 
   if (!endpoint || !isValidPushEndpointUrl(endpoint) || !p256dh || !authKey) {
-    return sendJson(res, 400, { error: 'Invalid Web Push subscription payload' });
+    return sendJson(res, 400, {
+      ok: false,
+      subscribed: false,
+      error: 'Invalid Web Push subscription payload (missing valid https endpoint or keys)'
+    });
   }
 
   const isSuperAdmin = verifiedUser.email === 'moe.albzour@gmail.com';
@@ -303,45 +360,8 @@ export default async function handler(req: Req, res: ServerResponse) {
   };
 
   try {
-    // Path 1: Firebase Admin SDK (if initialized with credentials)
-    const adminDb = getOptionalAdminFirestore();
-    if (adminDb) {
-      try {
-        const docRef = adminDb.collection('push_subscriptions').doc(verifiedUser.uid);
-        const snap = await docRef.get();
-        const existingList: StoredPushEndpoint[] = snap.exists && Array.isArray(snap.data()?.subscriptions)
-          ? snap.data()!.subscriptions
-          : [];
-
-        const nextDoc: PushSubscriptionDoc = {
-          uid: verifiedUser.uid,
-          email: verifiedUser.email,
-          isVip,
-          isAdmin,
-          subscriptions: mergeEndpoints(existingList),
-          updatedAt: nowMs
-        };
-
-        await docRef.set(nextDoc, { merge: true });
-        return sendJson(res, 200, {
-          ok: true,
-          uid: verifiedUser.uid,
-          deviceCount: nextDoc.subscriptions.length
-        });
-      } catch {
-        // Fall through to Firestore REST API using caller's verified Firebase ID token
-      }
-    }
-
-    // Path 2: Stateless Firestore REST API forwarding caller's verified Bearer token
-    const config = loadPushFirebaseConfig();
-    const dbId =
-      config.firestoreDatabaseId && config.firestoreDatabaseId !== '(default)'
-        ? config.firestoreDatabaseId
-        : '(default)';
-    const docUrl = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(
-      config.projectId
-    )}/databases/${encodeURIComponent(dbId)}/documents/push_subscriptions/${encodeURIComponent(verifiedUser.uid)}`;
+    // Path 1: Stateless Firestore REST API (works identically on Vercel Serverless and AI Studio)
+    const docUrl = `${getFirestoreRestBaseUrl()}/push_subscriptions/${encodeURIComponent(verifiedUser.uid)}`;
 
     let existingEndpoints: StoredPushEndpoint[] = [];
     const getRes = await fetch(docUrl, {
@@ -356,7 +376,6 @@ export default async function handler(req: Req, res: ServerResponse) {
 
     const nextDoc: PushSubscriptionDoc = {
       uid: verifiedUser.uid,
-      email: verifiedUser.email,
       isVip,
       isAdmin,
       subscriptions: mergeEndpoints(existingEndpoints),
@@ -369,27 +388,56 @@ export default async function handler(req: Req, res: ServerResponse) {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${idToken}`
       },
-      body: JSON.stringify(toFirestoreRestDoc(nextDoc)),
+      body: JSON.stringify(toFirestoreRestPushDoc(nextDoc)),
       signal: AbortSignal.timeout(6000)
     });
 
-    if (!patchRes.ok) {
-      const errText = await patchRes.text().catch(() => '');
-      return sendJson(res, 502, {
-        error: 'Failed to persist push subscription',
-        detail: errText.slice(0, 200)
+    if (patchRes.ok) {
+      return sendJson(res, 200, {
+        ok: true,
+        subscribed: true,
+        uid: verifiedUser.uid,
+        deviceCount: nextDoc.subscriptions.length,
+        storageMode: 'firestore_rest'
       });
     }
 
-    return sendJson(res, 200, {
-      ok: true,
-      uid: verifiedUser.uid,
-      deviceCount: nextDoc.subscriptions.length
+    const restErrText = await patchRes.text().catch(() => '');
+
+    // Path 2: Fallback to Firebase Admin SDK if available
+    const adminDb = getOptionalAdminFirestore();
+    if (adminDb) {
+      const docRef = adminDb.collection('push_subscriptions').doc(verifiedUser.uid);
+      const snap = await docRef.get();
+      const adminExisting: StoredPushEndpoint[] =
+        snap.exists && Array.isArray(snap.data()?.subscriptions) ? snap.data()!.subscriptions : [];
+      const mergedAdminDoc: PushSubscriptionDoc = {
+        uid: verifiedUser.uid,
+        isVip,
+        isAdmin,
+        subscriptions: mergeEndpoints(adminExisting),
+        updatedAt: nowMs
+      };
+      await docRef.set(mergedAdminDoc, { merge: true });
+      return sendJson(res, 200, {
+        ok: true,
+        subscribed: true,
+        uid: verifiedUser.uid,
+        deviceCount: mergedAdminDoc.subscriptions.length,
+        storageMode: 'firebase_admin'
+      });
+    }
+
+    return sendJson(res, 502, {
+      ok: false,
+      subscribed: false,
+      error: `Firestore REST write failed (HTTP ${patchRes.status}): ${restErrText.slice(0, 300)}`
     });
   } catch (err: any) {
     return sendJson(res, 500, {
-      error: 'Internal error saving push subscription',
-      message: err?.message || 'Unknown error'
+      ok: false,
+      subscribed: false,
+      error: `Failed to persist push subscription: ${err?.message || 'Unknown error'}`
     });
   }
 }

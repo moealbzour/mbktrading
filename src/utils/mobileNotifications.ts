@@ -4,25 +4,48 @@ import { auth } from '../lib/firebase';
 export type AppNotificationPermission = NotificationPermission | 'unsupported';
 export type WebPushAudience = 'targetUid' | 'admins' | 'vip' | 'all';
 
+export interface WebPushSubscribeResult {
+  ok: boolean;
+  subscribed: boolean;
+  deviceCount?: number;
+  storageMode?: string;
+  error?: string;
+}
+
 const NOTIFICATION_PREF_KEY = 'mbk_app_notifications_enabled';
 const RECENT_ACTIVITY_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 
 let cachedSwRegistration: ServiceWorkerRegistration | null = null;
 let lastWebPushSyncMeta: { isVip?: boolean; isAdmin?: boolean } = {};
 
+function cleanClientVapidKey(raw?: string): string {
+  return String(raw || '')
+    .replace(/[\r\n\s"']+/g, '')
+    .trim();
+}
+
 /**
  * Converts a URL-safe base64 VAPID public key string into a Uint8Array
  * suitable for PushManager.subscribe({ applicationServerKey }).
  */
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const clean = cleanClientVapidKey(base64String);
+  const padding = '='.repeat((4 - (clean.length % 4)) % 4);
+  const base64 = (clean + padding).replace(/-/g, '+').replace(/_/g, '/');
   const rawData = window.atob(base64);
   const outputArray = new Uint8Array(rawData.length);
   for (let i = 0; i < rawData.length; ++i) {
     outputArray[i] = rawData.charCodeAt(i);
   }
   return outputArray;
+}
+
+function uint8ArraysEqual(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
 }
 
 /**
@@ -34,14 +57,21 @@ export async function ensureBackgroundNotificationWorkerReady(): Promise<Service
   }
   try {
     if (!cachedSwRegistration) {
-      cachedSwRegistration = (await navigator.serviceWorker.getRegistration()) || null;
+      cachedSwRegistration = (await navigator.serviceWorker.getRegistration('/sw.js')) || (await navigator.serviceWorker.getRegistration()) || null;
     }
     if (!cachedSwRegistration) {
-      cachedSwRegistration =
-        (await Promise.race([
-          navigator.serviceWorker.ready,
-          new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500))
-        ])) || null;
+      try {
+        cachedSwRegistration = await navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
+      } catch {
+        // ignore if unsupported in current preview origin
+      }
+    }
+    const readyReg = await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000))
+    ]);
+    if (readyReg) {
+      cachedSwRegistration = readyReg;
     }
     return cachedSwRegistration;
   } catch {
@@ -51,12 +81,12 @@ export async function ensureBackgroundNotificationWorkerReady(): Promise<Service
 
 /**
  * Registers or syncs the browser's native Web Push (VAPID) subscription to POST /api/push/subscribe.
- * Exits silently if VITE_VAPID_PUBLIC_KEY is not configured or notification permission is not granted.
+ * Safely skips without throwing if VITE_VAPID_PUBLIC_KEY is not configured or permission is not granted.
  */
 export async function registerWebPushSubscription(
   idToken: string,
   meta?: { isVip?: boolean; isAdmin?: boolean }
-): Promise<boolean> {
+): Promise<WebPushSubscribeResult> {
   if (meta) {
     lastWebPushSyncMeta = {
       isVip: Boolean(meta.isVip),
@@ -64,33 +94,81 @@ export async function registerWebPushSubscription(
     };
   }
 
-  if (typeof window === 'undefined' || !idToken) return false;
-  if (!('Notification' in window) || Notification.permission !== 'granted') return false;
-  if (!isAppNotificationsEnabled()) return false;
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+  if (typeof window === 'undefined' || !idToken) {
+    return { ok: false, subscribed: false, error: 'Missing browser context or Firebase ID token' };
+  }
+  if (!('Notification' in window)) {
+    return { ok: false, subscribed: false, error: 'Notifications API is not supported in this browser' };
+  }
+  if (Notification.permission !== 'granted') {
+    return {
+      ok: false,
+      subscribed: false,
+      error: `Notification permission is "${Notification.permission}" (must be "granted")`
+    };
+  }
+  if (!isAppNotificationsEnabled()) {
+    return { ok: false, subscribed: false, error: 'App notifications are muted in settings' };
+  }
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    return {
+      ok: false,
+      subscribed: false,
+      error: 'PushManager or ServiceWorker is not available (on iOS, install to Home Screen first)'
+    };
+  }
 
-  const vapidPublicKey = String(import.meta.env?.VITE_VAPID_PUBLIC_KEY || '').trim();
+  const vapidPublicKey = cleanClientVapidKey(import.meta.env?.VITE_VAPID_PUBLIC_KEY);
   if (!vapidPublicKey || vapidPublicKey.length < 20) {
-    return false;
+    return {
+      ok: false,
+      subscribed: false,
+      error: 'VITE_VAPID_PUBLIC_KEY is empty or missing in frontend environment variables'
+    };
   }
 
   try {
-    const registration = await navigator.serviceWorker.ready;
-    if (!registration || !registration.pushManager) return false;
-    cachedSwRegistration = registration;
+    const registration = await ensureBackgroundNotificationWorkerReady();
+    if (!registration || !registration.pushManager) {
+      return { ok: false, subscribed: false, error: 'Active Service Worker registration with PushManager not ready' };
+    }
 
+    const expectedKeyBytes = urlBase64ToUint8Array(vapidPublicKey);
     let subscription = await registration.pushManager.getSubscription();
+
+    // If an old subscription exists with a different VAPID key, unsubscribe and re-subscribe cleanly
+    if (subscription && subscription.options?.applicationServerKey) {
+      const existingKeyBytes = new Uint8Array(subscription.options.applicationServerKey);
+      if (!uint8ArraysEqual(existingKeyBytes, expectedKeyBytes)) {
+        await subscription.unsubscribe().catch(() => {});
+        subscription = null;
+      }
+    }
+
     if (!subscription) {
-      const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
-      subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: applicationServerKey as BufferSource
-      });
+      try {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: expectedKeyBytes as BufferSource
+        });
+      } catch (subErr: any) {
+        // Handle InvalidStateError caused by an existing mismatched subscription
+        const staleSub = await registration.pushManager.getSubscription().catch(() => null);
+        if (staleSub) {
+          await staleSub.unsubscribe().catch(() => {});
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: expectedKeyBytes as BufferSource
+          });
+        } else {
+          throw subErr;
+        }
+      }
     }
 
     const subJson = subscription.toJSON();
     if (!subJson?.endpoint || !subJson?.keys?.p256dh || !subJson?.keys?.auth) {
-      return false;
+      return { ok: false, subscribed: false, error: 'Browser returned incomplete PushSubscription keys' };
     }
 
     const res = await fetch('/api/push/subscribe', {
@@ -106,9 +184,27 @@ export async function registerWebPushSubscription(
       })
     });
 
-    return res.ok;
-  } catch {
-    return false;
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data?.ok) {
+      return {
+        ok: false,
+        subscribed: false,
+        error: data?.error || `Subscribe endpoint failed (HTTP ${res.status})`
+      };
+    }
+
+    return {
+      ok: true,
+      subscribed: true,
+      deviceCount: Number(data.deviceCount || 1),
+      storageMode: data.storageMode
+    };
+  } catch (err: any) {
+    return {
+      ok: false,
+      subscribed: false,
+      error: err?.message || 'Web Push subscription failed'
+    };
   }
 }
 
@@ -118,7 +214,7 @@ export async function registerWebPushSubscription(
 export async function syncCurrentUserWebPush(meta?: {
   isVip?: boolean;
   isAdmin?: boolean;
-}): Promise<boolean> {
+}): Promise<WebPushSubscribeResult> {
   if (meta) {
     lastWebPushSyncMeta = {
       isVip: Boolean(meta.isVip),
@@ -127,11 +223,13 @@ export async function syncCurrentUserWebPush(meta?: {
   }
   try {
     const currentUser = auth.currentUser;
-    if (!currentUser) return false;
+    if (!currentUser) {
+      return { ok: false, subscribed: false, error: 'No signed-in Firebase user' };
+    }
     const idToken = await currentUser.getIdToken();
     return await registerWebPushSubscription(idToken, lastWebPushSyncMeta);
-  } catch {
-    return false;
+  } catch (err: any) {
+    return { ok: false, subscribed: false, error: err?.message || 'Failed to get Firebase ID token' };
   }
 }
 
