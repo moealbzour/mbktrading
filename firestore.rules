@@ -330,6 +330,14 @@ service cloud.firestore {
         || (isSignedIn()
             && !isBanned()
             && incoming().diff(existing()).affectedKeys().hasOnly(['reactions', 'likes']))
+        || (isSignedIn()
+            && !isBanned()
+            && !isMutedFromChat()
+            && existing().uid == request.auth.uid
+            && incoming().diff(existing()).affectedKeys().hasOnly(['text', 'editedAt'])
+            && incoming().text is string
+            && incoming().text.size() >= 1
+            && incoming().text.size() <= 500)
       );
       allow delete: if isValidId(messageId) && (
         isModeratorOrAdmin()
@@ -469,7 +477,18 @@ service cloud.firestore {
               && incoming().timestampMs is number
             )
           );
-        allow update: if isValidId(convoId) && isValidId(msgId) && isAdmin();
+        allow update: if isValidId(convoId) && isValidId(msgId) && (
+          isAdmin()
+          || (
+            isSignedIn()
+            && !isBanned()
+            && existing().senderUid == request.auth.uid
+            && incoming().diff(existing()).affectedKeys().hasOnly(['text', 'editedAt'])
+            && incoming().text is string
+            && incoming().text.size() >= 1
+            && incoming().text.size() <= 1000
+          )
+        );
         allow delete: if isValidId(convoId) && isValidId(msgId) && (
           isModeratorOrAdmin()
           || (isSignedIn() && !isBanned() && existing().senderUid == request.auth.uid)
@@ -546,30 +565,44 @@ service cloud.firestore {
     }
 
     // ---------------------------------------------------------------
-    // 5. MARKET IDEAS & WAITLIST
+    // 5. MARKET IDEAS & ANALYSIS HUB
     // ---------------------------------------------------------------
+    function canPublishMarketAnalysis() {
+      return isAdmin()
+        || isAnalyser()
+        || (userDocExists()
+            && userDoc().get('isBanned', false) != true
+            && userDoc().get('grantedFeatures', {}) is map
+            && 'publishAnalysis' in userDoc().get('grantedFeatures', {})
+            && userDoc().get('grantedFeatures', {})['publishAnalysis'] is string);
+    }
+
     match /market_ideas/{ideaId} {
-      allow get: if isValidId(ideaId);
-      allow list: if true;
+      allow get: if isValidId(ideaId) && isSignedIn();
+      allow list: if isSignedIn();
       allow create: if isValidId(ideaId)
         && isSignedIn()
         && !isBanned()
-        && isActiveVIP()
-        && incoming().authorId == request.auth.uid
+        && canPublishMarketAnalysis()
         && incoming().title is string
         && incoming().title.size() >= 1
         && incoming().title.size() <= 200
         && incoming().content is string
         && incoming().content.size() >= 1
-        && incoming().content.size() <= 5000;
+        && incoming().content.size() <= 8000;
       allow update: if isValidId(ideaId) && (
-        isAdmin()
-        || isAnalyser()
+        canPublishMarketAnalysis()
         || (isSignedIn()
             && !isBanned()
             && incoming().diff(existing()).affectedKeys().hasOnly(['likedBy', 'likesCount', 'comments', 'commentsCount']))
       );
-      allow delete: if isValidId(ideaId) && (isAdmin() || (isSignedIn() && existing().authorId == request.auth.uid));
+      allow delete: if isValidId(ideaId) && (isAdmin() || (canPublishMarketAnalysis() && existing().authorId == request.auth.uid));
+    }
+
+    match /market_analysis/{analysisId} {
+      allow get, list: if isSignedIn();
+      allow create, update: if isValidId(analysisId) && canPublishMarketAnalysis();
+      allow delete: if isValidId(analysisId) && (isAdmin() || canPublishMarketAnalysis());
     }
 
     match /waitlist/{docId} {

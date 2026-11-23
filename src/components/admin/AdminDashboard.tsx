@@ -287,13 +287,15 @@ export const AdminDashboard: React.FC<Props> = ({
     botSignals: 3,
     vipSignals: 3,
     vipChat: 3,
-    standardAi: 3
+    standardAi: 3,
+    publishAnalysis: 30
   });
   const [featureGrantDates, setFeatureGrantDates] = useState<Record<FeatureKey, string>>({
     botSignals: '',
     vipSignals: '',
     vipChat: '',
-    standardAi: ''
+    standardAi: '',
+    publishAnalysis: ''
   });
   const [busyFeatureKey, setBusyFeatureKey] = useState<FeatureKey | null>(null);
 

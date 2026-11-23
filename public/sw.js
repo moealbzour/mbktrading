@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mbk-trading-v8';
+const CACHE_NAME = 'mbk-trading-v9';
 const PRECACHE_URLS = ['/favicon.svg', '/manifest.json', '/icon-192.png', '/mbk-logo.png'];
 
 self.addEventListener('install', (event) => {
@@ -58,6 +58,71 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
+// Handle Web Push API payloads when app is closed or in background
+self.addEventListener('push', (event) => {
+  let payload = {
+    title: 'MBK Trading 🔔',
+    body: 'تحديث جديد في منصة MBK Trading',
+    tag: 'mbk-push-' + Date.now(),
+    url: '/'
+  };
+
+  if (event.data) {
+    try {
+      const parsed = event.data.json();
+      payload = {
+        title: parsed.title || payload.title,
+        body: parsed.body || parsed.message || payload.body,
+        tag: parsed.tag || payload.tag,
+        url: parsed.url || '/'
+      };
+    } catch {
+      try {
+        payload.body = event.data.text() || payload.body;
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(payload.title, {
+      body: payload.body,
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      tag: payload.tag,
+      renotify: true,
+      requireInteraction: false,
+      vibrate: [200, 100, 200],
+      data: { url: payload.url || '/' }
+    })
+  );
+});
+
+// Wake up any backgrounded client windows on periodic sync or background sync to flush real-time alerts
+async function notifyClientsToSync() {
+  try {
+    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of clients) {
+      client.postMessage({ type: 'MBK_BACKGROUND_SYNC_WAKE' });
+    }
+  } catch {
+    // ignore
+  }
+}
+
+self.addEventListener('periodicsync', (event) => {
+  if (event.tag === 'mbk-bg-notifications') {
+    event.waitUntil(notifyClientsToSync());
+  }
+});
+
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'mbk-sync-notifications') {
+    event.waitUntil(notifyClientsToSync());
+  }
+});
+
 // Handle OS/Mobile PWA notification clicks: focus open window or launch app
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
@@ -80,21 +145,40 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-// Sync PWA App Shortcut Badge from active client tabs
+// Handle instant SHOW_NOTIFICATION & SET_BADGE messages from client tabs
 self.addEventListener('message', (event) => {
   const data = event.data;
   if (!data) return;
+
   if (data.type === 'SKIP_WAITING') {
     self.skipWaiting();
     return;
   }
-  if (data.type !== 'SET_BADGE') return;
-  const count = Number(data.count || 0);
-  if (self.navigator && 'setAppBadge' in self.navigator) {
-    if (count > 0) {
-      self.navigator.setAppBadge(count).catch(() => {});
-    } else if ('clearAppBadge' in self.navigator) {
-      self.navigator.clearAppBadge().catch(() => {});
+
+  if (data.type === 'SHOW_NOTIFICATION' && data.title) {
+    const options = {
+      body: data.body || '',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      tag: data.tag || 'mbk-alert-' + Date.now(),
+      renotify: true,
+      requireInteraction: false,
+      vibrate: [200, 100, 200],
+      timestamp: Date.now(),
+      data: { url: data.url || '/' }
+    };
+    event.waitUntil(self.registration.showNotification(data.title, options).catch(() => {}));
+    return;
+  }
+
+  if (data.type === 'SET_BADGE') {
+    const count = Number(data.count || 0);
+    if (self.navigator && 'setAppBadge' in self.navigator) {
+      if (count > 0) {
+        self.navigator.setAppBadge(count).catch(() => {});
+      } else if ('clearAppBadge' in self.navigator) {
+        self.navigator.clearAppBadge().catch(() => {});
+      }
     }
   }
 });

@@ -390,7 +390,8 @@ export function subscribeToDmMessages(
     senderName: d.senderName || 'Trader',
     text: d.text || '',
     timestampMs: Number(d.timestampMs || 0),
-    createdAt: d.createdAt
+    createdAt: d.createdAt,
+    editedAt: d.editedAt || undefined
   });
 
   const q = query(
@@ -412,6 +413,37 @@ export function subscribeToDmMessages(
       onChange(readCachedArray<DmMessage>(cacheKey));
     }
   );
+}
+
+export async function editDirectMessage(params: {
+  convoId: string;
+  msgId: string;
+  newText: string;
+  isLatestMessage?: boolean;
+}): Promise<void> {
+  const { convoId, msgId, newText, isLatestMessage = false } = params;
+  const cleanText = newText.trim().slice(0, 1000);
+  if (!convoId || !msgId || !cleanText) {
+    throw new Error('لا يمكن حفظ رسالة فارغة.');
+  }
+  const nowIso = new Date().toISOString();
+  const msgRef = doc(db, 'dm_conversations', convoId, 'messages', msgId);
+  await updateDoc(msgRef, {
+    text: cleanText,
+    editedAt: nowIso
+  });
+
+  if (isLatestMessage) {
+    try {
+      const convoRef = doc(db, 'dm_conversations', convoId);
+      await updateDoc(convoRef, {
+        lastMessage: cleanText.slice(0, 500),
+        updatedAt: nowIso
+      });
+    } catch {
+      // ignore if parent conversation update is skipped
+    }
+  }
 }
 
 export async function markDmConversationRead(convoId: string, uid: string): Promise<void> {

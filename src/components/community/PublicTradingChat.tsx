@@ -33,7 +33,8 @@ import {
   Pause,
   BarChart2,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  Edit3
 } from 'lucide-react';
 import {
   collection,
@@ -93,6 +94,7 @@ export interface ChatMessageItem {
   replyTo?: ChatReplyTo;
   isPinned?: boolean;
   timestampMs?: number;
+  editedAt?: string;
 }
 
 interface ChatRoomSettingsState {
@@ -261,6 +263,9 @@ export const PublicTradingChat: React.FC<Props> = ({
   const [lightboxImage, setLightboxImage] = useState<{ url: string; caption?: string; user?: string } | null>(null);
   const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
   const [showEmojiPickerFor, setShowEmojiPickerFor] = useState<string | null>(null);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editingMessageText, setEditingMessageText] = useState<string>('');
+  const [savingEdit, setSavingEdit] = useState<boolean>(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -730,6 +735,33 @@ export const PublicTradingChat: React.FC<Props> = ({
     } catch (err: any) {
       console.error('Delete message error:', err);
       showToastNotice('error', err?.message || 'Delete failed');
+    }
+  };
+
+  const handleStartEditMessage = (msg: ChatMessageItem) => {
+    soundManager.playClick();
+    setEditingMessageId(msg.id);
+    setEditingMessageText(msg.text || '');
+  };
+
+  const handleSaveEditMessage = async (messageId: string) => {
+    const cleanText = editingMessageText.trim().slice(0, MAX_CHAT_CHARS);
+    if (!cleanText || savingEdit) return;
+    setSavingEdit(true);
+    soundManager.playClick();
+    try {
+      await updateDoc(doc(db, 'public_chat', messageId), {
+        text: cleanText,
+        editedAt: new Date().toISOString()
+      });
+      setEditingMessageId(null);
+      setEditingMessageText('');
+      soundManager.playSuccess();
+      showToastNotice('success', isAr ? 'تم تعديل الرسالة بنجاح' : 'Message updated');
+    } catch (err: any) {
+      showToastNotice('error', err?.message || (isAr ? 'تعذر تعديل الرسالة' : 'Could not edit message'));
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -1613,13 +1645,61 @@ export const PublicTradingChat: React.FC<Props> = ({
                     </div>
                   )}
 
-                  {msg.text && (
-                    <p className="text-xs text-[#e1e4ea] leading-relaxed break-words whitespace-pre-wrap">
-                      {msg.text}
-                    </p>
-                  )}
+                  {editingMessageId === msg.id ? (
+                    <div className="space-y-2 mt-1">
+                      <textarea
+                        rows={2}
+                        maxLength={MAX_CHAT_CHARS}
+                        value={editingMessageText}
+                        onChange={(e) => setEditingMessageText(e.target.value.slice(0, MAX_CHAT_CHARS))}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSaveEditMessage(msg.id);
+                          } else if (e.key === 'Escape') {
+                            setEditingMessageId(null);
+                            setEditingMessageText('');
+                          }
+                        }}
+                        className="w-full bg-[#131722] border border-[#089981] rounded-xl p-2 text-xs text-white focus:outline-none resize-none"
+                        autoFocus
+                      />
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            soundManager.playClick();
+                            setEditingMessageId(null);
+                            setEditingMessageText('');
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-[#131722] border border-[#2a2e39] text-[#787b86] hover:text-white text-[10px] font-bold cursor-pointer"
+                        >
+                          {isAr ? 'إلغاء' : 'Cancel'}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!editingMessageText.trim() || savingEdit}
+                          onClick={() => handleSaveEditMessage(msg.id)}
+                          className="px-2.5 py-1 rounded-lg bg-[#089981] hover:bg-[#07846f] disabled:opacity-50 text-white text-[10px] font-bold cursor-pointer"
+                        >
+                          {savingEdit ? (isAr ? 'حفظ...' : 'Saving...') : isAr ? 'حفظ التعديل' : 'Save'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : msg.text ? (
+                    <div>
+                      <p className="text-xs text-[#e1e4ea] leading-relaxed break-words whitespace-pre-wrap">
+                        {msg.text}
+                      </p>
+                      {msg.editedAt && (
+                        <span className="text-[9px] text-[#787b86] italic block mt-0.5">
+                          {isAr ? '(تم التعديل)' : '(edited)'}
+                        </span>
+                      )}
+                    </div>
+                  ) : null}
 
-                  {/* Footer: Reactions + Admin quick moderation actions */}
+                  {/* Footer: Reactions + Admin/User quick actions */}
                   <div className="flex items-center justify-between gap-2 mt-2 pt-1 border-t border-white/5">
                     <div className="flex items-center gap-1 flex-wrap">
                       {msg.reactions &&
@@ -1646,6 +1726,17 @@ export const PublicTradingChat: React.FC<Props> = ({
                     </div>
 
                     <div className="flex items-center gap-1.5 text-[#787b86]">
+                      {isMe && msg.text && editingMessageId !== msg.id && (
+                        <button
+                          type="button"
+                          onClick={() => handleStartEditMessage(msg)}
+                          className="px-1.5 py-0.5 rounded-md bg-[#131722]/70 hover:bg-[#089981]/20 border border-[#2a2e39] hover:border-[#089981]/50 text-[#9db2c6] hover:text-[#089981] text-[9px] font-bold inline-flex items-center gap-1 cursor-pointer transition-colors"
+                          title={isAr ? 'تعديل الرسالة' : 'Edit message'}
+                        >
+                          <Edit3 className="w-2.5 h-2.5" />
+                          <span>{isAr ? 'تعديل' : 'Edit'}</span>
+                        </button>
+                      )}
                       {!isMe && msg.uid && onStartDirectMessage && (
                         <button
                           type="button"
@@ -1665,7 +1756,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                           <span>{isAr ? 'خاص' : 'DM'}</span>
                         </button>
                       )}
-                      {isCurrentAdmin && (
+                      {(isCurrentAdmin || isMe) && (
                         <button
                           onClick={() => handleDeleteMessage(msg.id)}
                           className="p-1 rounded hover:bg-[#f23645]/20 text-[#787b86] hover:text-[#f23645] cursor-pointer"

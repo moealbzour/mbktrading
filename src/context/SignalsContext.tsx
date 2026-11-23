@@ -9,6 +9,7 @@ import { subscribeToAuth } from '../services/firebaseAuthService';
 import {
   AppNotificationPermission,
   dispatchMobileAppNotification,
+  ensureBackgroundNotificationWorkerReady,
   getNotificationPermissionState,
   requestAppNotificationPermission
 } from '../utils/mobileNotifications';
@@ -158,6 +159,32 @@ function readCachedJson<T extends Array<{ id: string }>>(key: string, fallback: 
     // ignore
   }
   return fallback;
+}
+
+function getLastNotifiedMs(storageKey: string): number {
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (raw) {
+      const n = Number(raw);
+      if (Number.isFinite(n) && n > 0) return n;
+    }
+    const initNow = Date.now();
+    localStorage.setItem(storageKey, String(initNow));
+    return initNow;
+  } catch {
+    return Date.now();
+  }
+}
+
+function setLastNotifiedMs(storageKey: string, tsMs: number): void {
+  try {
+    const current = Number(localStorage.getItem(storageKey) || 0);
+    if (tsMs > current) {
+      localStorage.setItem(storageKey, String(tsMs));
+    }
+  } catch {
+    // ignore
+  }
 }
 
 export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -365,11 +392,21 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   useEffect(() => {
     const syncPermission = () => {
       setNotificationPermission(getNotificationPermissionState());
+      ensureBackgroundNotificationWorkerReady().catch(() => {});
     };
     syncPermission();
 
+    const onServiceWorkerMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === 'MBK_BACKGROUND_SYNC_WAKE') {
+        ensureBackgroundNotificationWorkerReady().catch(() => {});
+      }
+    };
+
     window.addEventListener('focus', syncPermission);
     document.addEventListener('visibilitychange', syncPermission);
+    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', onServiceWorkerMessage);
+    }
 
     let permStatus: PermissionStatus | null = null;
     if (typeof navigator !== 'undefined' && navigator.permissions?.query) {
@@ -385,6 +422,9 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return () => {
       window.removeEventListener('focus', syncPermission);
       document.removeEventListener('visibilitychange', syncPermission);
+      if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+        navigator.serviceWorker.removeEventListener('message', onServiceWorkerMessage);
+      }
       if (permStatus) {
         permStatus.onchange = null;
       }
@@ -456,16 +496,33 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       signalsQuery,
       (snapshot) => {
         try {
-          snapshot.docChanges().forEach((change) => {
-            if (change.type === 'added') {
-              const data = change.doc.data();
-              const symbol = data.symbol || 'US100';
-              const action = (data.action || 'BUY').toUpperCase() as 'BUY' | 'SELL';
-              const entryPrice = Number(data.entryPrice || 0);
-              const channel = data.channel || 'vip';
-              const isRecent = data.timestampMs ? data.timestampMs > Date.now() - 5 * 60 * 1000 : true;
+          const lastSignalNotifMs = getLastNotifiedMs('mbk_last_notif_signal_ms');
+          let maxSeenSignalMs = lastSignalNotifMs;
+          const statusMapKey = 'mbk_seen_signal_status_map_v1';
+          let seenStatuses: Record<string, string> = {};
+          try {
+            seenStatuses = JSON.parse(localStorage.getItem(statusMapKey) || '{}') || {};
+          } catch {
+            seenStatuses = {};
+          }
 
-              if (!isFirstSignalsSnapshot && isRecent) {
+          snapshot.docChanges().forEach((change) => {
+            const docId = change.doc.id;
+            if (isSignalIdDeleted(docId)) return;
+            const data = change.doc.data();
+            const symbol = data.symbol || 'US100';
+            const action = (data.action || 'BUY').toUpperCase() as 'BUY' | 'SELL';
+            const entryPrice = Number(data.entryPrice || 0);
+            const channel = data.channel || 'vip';
+            const status = String(data.status || 'RUNNING').toUpperCase();
+            const tsMs = Number(data.timestampMs || Date.now());
+            const prevStatus = seenStatuses[docId];
+            seenStatuses[docId] = status;
+
+            if (change.type === 'added') {
+              const isNewerThanLastNotified = tsMs > lastSignalNotifMs && tsMs > Date.now() - 12 * 60 * 60 * 1000;
+              if (!isFirstSignalsSnapshot || isNewerThanLastNotified) {
+                if (tsMs > maxSeenSignalMs) maxSeenSignalMs = tsMs;
                 setUnreadTradesCount((prev) => prev + 1);
                 triggerAudioAlert();
 
@@ -479,12 +536,38 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 });
 
                 sendBrowserNotification(
-                  `MBK Trading Alert - ${symbol}`,
-                  `New Signal: ${action} ${symbol} @ ${entryPrice}`
+                  channel === 'bot' ? `بوت MBK ⚡ ${symbol}` : `توصية جديدة 🚀 ${symbol}`,
+                  `صفقة ${action === 'BUY' ? 'شراء (BUY)' : 'بيع (SELL)'} على ${symbol} @ ${entryPrice}`,
+                  `signal-new-${docId}`
                 );
               }
+            } else if (change.type === 'modified' && prevStatus && prevStatus !== status) {
+              const statusLabel = getTradeStatusLabelAr(status);
+              triggerAudioAlert();
+              addToast({
+                title: `تحديث صفقة ${symbol} • ${statusLabel}`,
+                message: `تم تحديث حالة صفقة ${symbol} (${action}) إلى: ${statusLabel}`,
+                type: isTradeTpHitStatus(status) ? 'success' : 'info',
+                symbol,
+                action,
+                timestamp: 'الآن'
+              });
+              sendBrowserNotification(
+                `تحديث صفقة ${symbol} • ${statusLabel}`,
+                `صفقة ${symbol} (${action} @ ${entryPrice}): ${statusLabel}`,
+                `signal-status-${docId}-${status}`
+              );
             }
           });
+
+          if (maxSeenSignalMs > lastSignalNotifMs) {
+            setLastNotifiedMs('mbk_last_notif_signal_ms', maxSeenSignalMs);
+          }
+          try {
+            localStorage.setItem(statusMapKey, JSON.stringify(seenStatuses));
+          } catch {
+            // ignore
+          }
 
           const liveSignals: ChannelSignalItem[] = [];
           const liveTrades: DailyTrade[] = [];
@@ -631,13 +714,20 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         botAlertsQuery,
         (snapshot) => {
           try {
+            const lastBotNotifMs = getLastNotifiedMs('mbk_last_notif_bot_ms');
+            let maxSeenBotMs = lastBotNotifMs;
+
             snapshot.docChanges().forEach((change) => {
               if (change.type === 'added') {
+                const docId = change.doc.id;
+                if (isSignalIdDeleted(docId)) return;
                 const data = change.doc.data();
                 const text = data.text || 'MBK Bot Alert';
-                const isRecent = data.timestampMs ? data.timestampMs > Date.now() - 5 * 60 * 1000 : true;
+                const tsMs = Number(data.timestampMs || Date.now());
+                const isNewerThanLastNotified = tsMs > lastBotNotifMs && tsMs > Date.now() - 12 * 60 * 60 * 1000;
 
-                if (!isFirstBotSnapshot && isRecent) {
+                if (!isFirstBotSnapshot || isNewerThanLastNotified) {
+                  if (tsMs > maxSeenBotMs) maxSeenBotMs = tsMs;
                   setUnreadTradesCount((prev) => prev + 1);
                   triggerAudioAlert();
 
@@ -649,12 +739,17 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
                   });
 
                   sendBrowserNotification(
-                    'MBK Bot Alert',
-                    text.length > 100 ? `${text.slice(0, 100)}...` : text
+                    'بوت MBK 🤖',
+                    text.length > 120 ? `${text.slice(0, 120)}...` : text,
+                    `bot-alert-${docId}`
                   );
                 }
               }
             });
+
+            if (maxSeenBotMs > lastBotNotifMs) {
+              setLastNotifiedMs('mbk_last_notif_bot_ms', maxSeenBotMs);
+            }
 
             const rawAlerts: BotAlertItem[] = [];
             snapshot.forEach((docSnap) => {
@@ -799,16 +894,18 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
           });
 
           const msgMs = Number(d.lastMessageAtMs || 0);
-          const prevMs = lastSeenConvoMsgMs.get(docSnap.id) || 0;
+          const prevMs = lastSeenConvoMsgMs.get(docSnap.id) || getLastNotifiedMs(`mbk_last_notif_dm_${docSnap.id}`);
           lastSeenConvoMsgMs.set(docSnap.id, msgMs);
+          const unreadForMe = Number(unreadMap[currentUserUid] || 0);
 
           if (
-            !isFirstDmSnapshot &&
             msgMs > prevMs &&
             d.lastSenderUid &&
             d.lastSenderUid !== currentUserUid &&
-            d.lastMessage
+            d.lastMessage &&
+            (!isFirstDmSnapshot || unreadForMe > 0)
           ) {
+            setLastNotifiedMs(`mbk_last_notif_dm_${docSnap.id}`, msgMs);
             const senderName =
               d.lastSenderUid === 'mbktrading'
                 ? 'mbktrading'
@@ -822,7 +919,11 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
               type: 'info',
               timestamp: 'الآن'
             });
-            sendBrowserNotification(`رسالة خاصة • ${senderName}`, preview, `dm-${docSnap.id}`);
+            sendBrowserNotification(
+              `رسالة خاصة • ${senderName}`,
+              preview,
+              `dm-${docSnap.id}-${msgMs}`
+            );
           }
         });
 
@@ -864,17 +965,21 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
             });
 
             const msgMs = Number(d.lastMessageAtMs || 0);
-            const prevMs = lastSeenConvoMsgMs.get(`platform_${docSnap.id}`) || 0;
+            const prevMs =
+              lastSeenConvoMsgMs.get(`platform_${docSnap.id}`) ||
+              getLastNotifiedMs(`mbk_last_notif_platform_dm_${docSnap.id}`);
             lastSeenConvoMsgMs.set(`platform_${docSnap.id}`, msgMs);
+            const unreadForPlatform = Number(unreadMap['mbktrading'] || 0);
 
             if (
-              !isFirstPlatformSnapshot &&
               msgMs > prevMs &&
               d.lastSenderUid &&
               d.lastSenderUid !== 'mbktrading' &&
               d.lastSenderUid !== currentUserUid &&
-              d.lastMessage
+              d.lastMessage &&
+              (!isFirstPlatformSnapshot || unreadForPlatform > 0)
             ) {
+              setLastNotifiedMs(`mbk_last_notif_platform_dm_${docSnap.id}`, msgMs);
               const senderName = d.participantNames?.[d.lastSenderUid] || 'متداول MBK';
               const preview = String(d.lastMessage).slice(0, 120);
 
@@ -888,7 +993,7 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
               sendBrowserNotification(
                 `بريد المنصة (mbktrading) • ${senderName}`,
                 preview,
-                `platform-dm-${docSnap.id}`
+                `platform-dm-${docSnap.id}-${msgMs}`
               );
             }
           });
@@ -909,32 +1014,44 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const latestChatQuery = query(
         collection(db, 'public_chat'),
         orderBy('timestampMs', 'desc'),
-        limit(1)
+        limit(3)
       );
 
       unsubChat = onSnapshot(
         latestChatQuery,
         (snap) => {
-          if (!isFirstChatSnapshot) {
-            snap.docChanges().forEach((change) => {
-              if (change.type !== 'added') return;
-              const d = change.doc.data();
-              const isRecent = d.timestampMs ? d.timestampMs > Date.now() - 2 * 60 * 1000 : true;
-              if (d.uid && d.uid !== currentUserUid && isRecent) {
-                setUnreadChatCount((prev) => prev + 1);
-                const senderName = d.displayName || 'Trader';
-                const msgBody = (d.text || '[صورة شارت]').toString().slice(0, 120);
+          const lastChatNotifMs = getLastNotifiedMs('mbk_last_notif_chat_ms');
+          let maxChatMs = lastChatNotifMs;
 
-                triggerAudioAlert();
-                addToast({
-                  title: `الشات العام • ${senderName} 💬`,
-                  message: msgBody,
-                  type: 'info',
-                  timestamp: 'الآن'
-                });
-                sendBrowserNotification(`الشات العام • ${senderName}`, msgBody, `general-chat-${change.doc.id}`);
-              }
-            });
+          snap.docChanges().forEach((change) => {
+            if (change.type !== 'added') return;
+            const d = change.doc.data();
+            const tsMs = Number(d.timestampMs || Date.now());
+            const isNewerThanLastSeen = tsMs > lastChatNotifMs && tsMs > Date.now() - 4 * 60 * 60 * 1000;
+
+            if (d.uid && d.uid !== currentUserUid && (!isFirstChatSnapshot || isNewerThanLastSeen)) {
+              if (tsMs > maxChatMs) maxChatMs = tsMs;
+              setUnreadChatCount((prev) => prev + 1);
+              const senderName = d.displayName || 'Trader';
+              const msgBody = (d.text || '[صورة شارت]').toString().slice(0, 120);
+
+              triggerAudioAlert();
+              addToast({
+                title: `الشات العام • ${senderName} 💬`,
+                message: msgBody,
+                type: 'info',
+                timestamp: 'الآن'
+              });
+              sendBrowserNotification(
+                `الشات العام • ${senderName}`,
+                msgBody,
+                `general-chat-${change.doc.id}`
+              );
+            }
+          });
+
+          if (maxChatMs > lastChatNotifMs) {
+            setLastNotifiedMs('mbk_last_notif_chat_ms', maxChatMs);
           }
           isFirstChatSnapshot = false;
         },
@@ -944,10 +1061,109 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       );
     }
 
+    // Live Popup Announcements Push Notifications
+    let isFirstAnnouncementSnap = true;
+    const latestAnnouncementsQuery = query(
+      collection(db, 'announcements'),
+      orderBy('timestampMs', 'desc'),
+      limit(3)
+    );
+    const unsubAnnouncements = onSnapshot(
+      latestAnnouncementsQuery,
+      (snap) => {
+        const lastAnnMs = getLastNotifiedMs('mbk_last_notif_announcement_ms');
+        let maxAnnMs = lastAnnMs;
+
+        snap.docChanges().forEach((change) => {
+          if (change.type !== 'added') return;
+          const d = change.doc.data();
+          if (d.isActive === false) return;
+          const tsMs = Number(d.timestampMs || Date.now());
+          const isNewer = tsMs > lastAnnMs && tsMs > Date.now() - 12 * 60 * 60 * 1000;
+
+          if (!isFirstAnnouncementSnap || isNewer) {
+            if (tsMs > maxAnnMs) maxAnnMs = tsMs;
+            const title = String(d.titleAr || d.title || 'إعلان هام من إدارة MBK 📢').trim();
+            const body = String(d.messageAr || d.message || '').trim().slice(0, 140);
+
+            triggerAudioAlert();
+            addToast({
+              title: `📢 ${title}`,
+              message: body || 'يرجى مراجعة الإعلان الجديد في المنصة.',
+              type: 'info',
+              timestamp: 'الآن'
+            });
+            sendBrowserNotification(
+              `📢 ${title}`,
+              body || 'إعلان جديد في منصة MBK Trading',
+              `announcement-${change.doc.id}`
+            );
+          }
+        });
+
+        if (maxAnnMs > lastAnnMs) {
+          setLastNotifiedMs('mbk_last_notif_announcement_ms', maxAnnMs);
+        }
+        isFirstAnnouncementSnap = false;
+      },
+      () => {}
+    );
+
+    // Live Market Analysis Posts Push Notifications
+    let isFirstAnalysisSnap = true;
+    const latestAnalysisQuery = query(
+      collection(db, 'market_analysis'),
+      orderBy('timestampMs', 'desc'),
+      limit(3)
+    );
+    const unsubAnalysis = onSnapshot(
+      latestAnalysisQuery,
+      (snap) => {
+        const lastAnMs = getLastNotifiedMs('mbk_last_notif_analysis_ms');
+        let maxAnMs = lastAnMs;
+
+        snap.docChanges().forEach((change) => {
+          if (change.type !== 'added') return;
+          const d = change.doc.data();
+          if (d.isPublished === false) return;
+          const tsMs = Number(d.timestampMs || Date.now());
+          const isNewer = tsMs > lastAnMs && tsMs > Date.now() - 12 * 60 * 60 * 1000;
+
+          if (d.authorUid !== currentUserUid && (!isFirstAnalysisSnap || isNewer)) {
+            if (tsMs > maxAnMs) maxAnMs = tsMs;
+            const sym = String(d.symbol || 'XAUUSD').toUpperCase();
+            const title = String(d.titleAr || d.titleEn || `تحليل فني جديد • ${sym}`).trim();
+            const body = String(d.summaryAr || d.summaryEn || '').trim().slice(0, 130);
+
+            triggerAudioAlert();
+            addToast({
+              title: `📊 تحليل جديد (${sym}): ${title}`,
+              message: body,
+              type: 'info',
+              timestamp: 'الآن'
+            });
+            sendBrowserNotification(
+              `📊 تحليل السوق (${sym}) • ${title}`,
+              body,
+              `market-analysis-${change.doc.id}`
+            );
+          }
+        });
+
+        if (maxAnMs > lastAnMs) {
+          setLastNotifiedMs('mbk_last_notif_analysis_ms', maxAnMs);
+        }
+        isFirstAnalysisSnap = false;
+      },
+      () => {}
+    );
+
     return () => {
       unsubDm();
       if (unsubPlatformDm) unsubPlatformDm();
       if (unsubChat) unsubChat();
+      unsubAnnouncements();
+      unsubAnalysis();
     };
   }, [authResolved, currentUserUid, isAdminUser, canReadVipChat, addToast, sendBrowserNotification, triggerAudioAlert]);
 

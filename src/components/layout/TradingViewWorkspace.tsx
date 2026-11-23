@@ -82,6 +82,7 @@ import { TradingAcademyPanel } from '../tic/TradingAcademyPanel';
 import { CopyTradingPanel } from '../CopyTradingPanel';
 import { AutoBotPanel } from '../AutoBotPanel';
 import { IndicatorsStorePanel } from '../store/IndicatorsStorePanel';
+import { MarketAnalysisHub } from '../analysis/MarketAnalysisHub';
 import { EliteLockedModule } from '../common/EliteLockedModule';
 import { MacroEventAndAnnouncementPopup } from '../common/MacroEventAndAnnouncementPopup';
 
@@ -95,6 +96,7 @@ import { PaymentModal } from '../modals/PaymentModal';
 
 export type WorkspaceView =
   | 'signals'
+  | 'analysis'
   | 'chat'
   | 'dm'
   | 'news'
@@ -422,7 +424,49 @@ export const TradingViewWorkspace: React.FC<Props> = ({
   });
 
   const [isResizingBottom, setIsResizingBottom] = useState(false);
-  const [mobileWorkspaceMenuOpen, setMobileWorkspaceMenuOpen] = useState(false);
+  const [rightMenuDrawerOpen, setRightMenuDrawerOpen] = useState(false);
+  const touchSwipeRef = React.useRef<{ startX: number; startY: number; startTime: number } | null>(null);
+
+  const handleWorkspaceTouchStart = (e: React.TouchEvent) => {
+    if (isResizingSidebar || isResizingBottom || e.touches.length !== 1) return;
+    const t = e.touches[0];
+    touchSwipeRef.current = {
+      startX: t.clientX,
+      startY: t.clientY,
+      startTime: Date.now()
+    };
+  };
+
+  const handleWorkspaceTouchEnd = (e: React.TouchEvent) => {
+    if (!touchSwipeRef.current || isResizingSidebar || isResizingBottom) return;
+    const start = touchSwipeRef.current;
+    touchSwipeRef.current = null;
+    if (e.changedTouches.length === 0) return;
+
+    const endTouch = e.changedTouches[0];
+    const deltaX = endTouch.clientX - start.startX;
+    const deltaY = endTouch.clientY - start.startY;
+    const elapsed = Date.now() - start.startTime;
+
+    if (elapsed > 650) return;
+    if (Math.abs(deltaX) < 55 || Math.abs(deltaX) < Math.abs(deltaY) * 1.4) return;
+
+    // Ignore swipes originating inside form inputs or horizontal scroll containers
+    const targetEl = e.target as HTMLElement | null;
+    if (targetEl && targetEl.closest('input, textarea, select, [data-no-drawer-swipe="true"]')) {
+      return;
+    }
+
+    // Swiping left (deltaX < -55) opens the right-side transparent menu drawer
+    if (!rightMenuDrawerOpen && deltaX < -55 && start.startX > window.innerWidth * 0.25) {
+      soundManager.playClick();
+      setRightMenuDrawerOpen(true);
+    } else if (rightMenuDrawerOpen && deltaX > 50) {
+      // Swiping right closes the right-side drawer
+      soundManager.playClick();
+      setRightMenuDrawerOpen(false);
+    }
+  };
 
   // Extremely foldable state for bottom helping panel (persisted)
   const [isBottomFolded, setIsBottomFolded] = useState<boolean>(() => {
@@ -690,6 +734,16 @@ export const TradingViewWorkspace: React.FC<Props> = ({
       icon: BarChart2
     },
     {
+      id: 'analysis' as WorkspaceView | 'heatmap',
+      labelAr: 'تحليلات السوق (Analysis)',
+      labelEn: 'Market Analysis',
+      shortAr: 'التحليلات',
+      shortEn: 'Analysis',
+      topicAr: 'تحليلات الشارت والسيولة من فريق MBK',
+      topicEn: 'MBK Team Chart & Liquidity Analysis',
+      icon: BarChart3
+    },
+    {
       id: 'chat' as WorkspaceView | 'heatmap',
       labelAr: 'ماسنجر المتداولين',
       labelEn: 'MBK Messenger',
@@ -803,15 +857,26 @@ export const TradingViewWorkspace: React.FC<Props> = ({
     })())
   ];
 
+  const currentNavItem =
+    navItems.find((item) =>
+      item.id === 'heatmap'
+        ? activeMainView === 'heatmap'
+        : activeMainView === 'chart' && activeView === item.id
+    ) || navItems[0];
+  const CurrentNavIcon = currentNavItem.icon;
+  const totalMenuUnread = (unreadTradesCount || 0) + (unreadChatCount || 0) + (unreadDmCount || 0);
+
   return (
     <div
-      className="h-screen h-[100dvh] max-h-[100dvh] w-full max-w-full bg-[#0a0d12] text-[#f1f5f9] flex flex-col font-sans select-none overflow-hidden antialiased"
+      onTouchStart={handleWorkspaceTouchStart}
+      onTouchEnd={handleWorkspaceTouchEnd}
+      className="h-screen h-[100dvh] max-h-[100dvh] w-full max-w-full bg-[#0a0d12] text-[#f1f5f9] flex flex-col font-sans select-none overflow-hidden antialiased relative"
       dir={isAr ? 'rtl' : 'ltr'}
     >
-      {/* 1. UNIFIED SINGLE TOP BAR — FIXED LOGO + DOWNLOAD | SCROLLABLE TABS MENU | FIXED PROFILE & SETTINGS */}
+      {/* 1. CLEAN TOP BAR — BRAND LOGO + INSTALL | ACTIVE SECTION INDICATOR | PROFILE & SLIDABLE RIGHT MENU TRIGGER */}
       <header className="h-12 bg-[#10141c] border-b border-[#1e2633] px-2 sm:px-3 flex items-center justify-between shrink-0 z-40 gap-2">
-        {/* Start Side (Fixed): Brand Logo + Download App Button */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 border-e border-[#1e2633] pe-2 sm:pe-3">
+        {/* Start Side: Brand Logo + Download App + Current Active Section */}
+        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
           <div className="flex items-center gap-1.5 shrink-0">
             <img
               src="/mbk-logo.png"
@@ -836,68 +901,32 @@ export const TradingViewWorkspace: React.FC<Props> = ({
             <Download className="w-3.5 h-3.5 text-[#10b981] shrink-0" />
             <span className="hidden lg:inline">{isAr ? 'تثبيت التطبيق' : 'Install'}</span>
           </button>
+
+          {/* Current Active Section Badge (Clicking opens the right-side slidable menu) */}
+          <button
+            type="button"
+            onClick={() => {
+              soundManager.playClick();
+              setRightMenuDrawerOpen(true);
+            }}
+            className="ms-1 px-2.5 py-1 rounded-[4px] bg-[#0a0d12]/90 hover:bg-[#161c26] border border-[#10b981]/35 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer truncate transition-colors"
+            title={isAr ? 'فتح قائمة الأقسام' : 'Open Sections Menu'}
+          >
+            <CurrentNavIcon className="w-3.5 h-3.5 text-[#10b981] shrink-0" />
+            <span className="truncate">{isAr ? currentNavItem.labelAr : currentNavItem.labelEn}</span>
+            <ChevronDown className="w-3 h-3 text-[#8b95a5] shrink-0" />
+          </button>
         </div>
 
-        {/* Center (Scrollable Horizontally): Unified Navigation Tabs Menu */}
-        <nav
-          aria-label={isAr ? 'القائمة الرئيسية' : 'Main Navigation'}
-          className="flex-1 min-w-0 flex items-center gap-1 overflow-x-auto scrollbar-none py-1"
-        >
-          {navItems.map((item) => {
-            const isActive =
-              item.id === 'heatmap'
-                ? activeMainView === 'heatmap'
-                : activeMainView === 'chart' && activeView === item.id;
-            const Icon = item.icon;
-
-            return (
-              <button
-                key={`top-nav-${item.id}`}
-                type="button"
-                onClick={() => {
-                  soundManager.playClick();
-                  if (item.id === 'signals') markTradesAsRead();
-                  if (item.id === 'chat') markChatAsRead();
-                  if (item.id === 'dm') markDmAsRead();
-
-                  if (item.id === 'heatmap') {
-                    setActiveMainView('heatmap');
-                  } else {
-                    setActiveMainView('chart');
-                    setActiveView(item.id as WorkspaceView);
-                  }
-                }}
-                className={`px-2.5 py-1.5 rounded-[3px] text-[11px] sm:text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 whitespace-nowrap relative ${
-                  isActive
-                    ? 'bg-[#161c26] text-white border border-[#2a3446]'
-                    : 'text-[#8b95a5] hover:text-white hover:bg-[#161c26]/60 border border-transparent'
-                }`}
-                title={isAr ? item.labelAr : item.labelEn}
-              >
-                {isActive && (
-                  <span className="absolute bottom-0 inset-x-1.5 h-[2px] bg-[#10b981]" />
-                )}
-                <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-[#10b981]' : ''}`} />
-                <span>{isAr ? item.shortAr : item.shortEn}</span>
-                {'badge' in item && Number(item.badge) > 0 && (
-                  <span className="px-1 py-0.2 rounded-[2px] bg-[#e11d48] text-white font-mono tabular-nums text-[9px] font-bold">
-                    {Number(item.badge) > 99 ? '99+' : item.badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </nav>
-
-        {/* End Side (Fixed): Profile & App Settings Button */}
-        <div className="flex items-center shrink-0 border-s border-[#1e2633] ps-2 sm:ps-3">
+        {/* End Side: Profile & Right Menu Trigger */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <button
             type="button"
             onClick={() => {
               soundManager.playClick();
               setProfileModalOpen(true);
             }}
-            className="flex items-center gap-2 px-2.5 py-1.5 rounded-[3px] bg-[#0a0d12] hover:bg-[#161c26] border border-[#1e2633] hover:border-[#2a3446] text-xs transition-colors cursor-pointer shrink-0 whitespace-nowrap"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[3px] bg-[#0a0d12] hover:bg-[#161c26] border border-[#1e2633] hover:border-[#2a3446] text-xs transition-colors cursor-pointer shrink-0 whitespace-nowrap"
             title={isAr ? 'الملف الشخصي وإعدادات المنصة' : 'Profile & App Settings'}
           >
             <div className="w-5 h-5 rounded-[2px] bg-[#161c26] border border-[#2a3446] text-white flex items-center justify-center font-mono font-bold text-[10px] uppercase shrink-0 overflow-hidden">
@@ -914,7 +943,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                 <User className="w-3 h-3" />
               )}
             </div>
-            <span className="font-semibold text-white truncate max-w-[75px] sm:max-w-[120px] text-[11px]">
+            <span className="font-semibold text-white truncate max-w-[70px] sm:max-w-[115px] text-[11px]">
               {user.name || user.email.split('@')[0]}
             </span>
             <span className="text-[10px] font-mono text-[#10b981] hidden sm:inline">
@@ -922,8 +951,217 @@ export const TradingViewWorkspace: React.FC<Props> = ({
             </span>
             <Sliders className="w-3.5 h-3.5 text-[#8b95a5] shrink-0" />
           </button>
+
+          {/* Header Menu Trigger Button */}
+          <button
+            type="button"
+            onClick={() => {
+              soundManager.playClick();
+              setRightMenuDrawerOpen((prev) => !prev);
+            }}
+            className="px-2.5 py-1.5 rounded-[4px] bg-[#10b981]/15 hover:bg-[#10b981]/25 border border-[#10b981]/45 text-[#10b981] text-xs font-extrabold flex items-center gap-1.5 cursor-pointer transition-all shrink-0 relative"
+            title={isAr ? 'افتح القائمة الجانبية (أو اسحب الشاشة لليسار)' : 'Open Right Menu Drawer (or swipe left)'}
+          >
+            <ChevronLeft className="w-3.5 h-3.5" />
+            <span>{isAr ? 'القائمة' : 'Menu'}</span>
+            {totalMenuUnread > 0 && (
+              <span className="px-1 py-0.2 rounded-full bg-[#e11d48] text-white font-mono text-[9px] font-bold">
+                {totalMenuUnread > 99 ? '99+' : totalMenuUnread}
+              </span>
+            )}
+          </button>
         </div>
       </header>
+
+      {/* FIXED RIGHT-EDGE SLIDABLE HANDLE WITH ARROW & SMALL MENU LABEL */}
+      {!rightMenuDrawerOpen && (
+        <button
+          type="button"
+          onClick={() => {
+            soundManager.playClick();
+            setRightMenuDrawerOpen(true);
+          }}
+          className="fixed right-0 top-1/2 -translate-y-1/2 z-40 py-3 px-1.5 rounded-l-xl bg-[#06080c]/75 hover:bg-[#10b981]/25 backdrop-blur-xl border border-r-0 border-[#10b981]/45 text-white shadow-[0_0_24px_rgba(0,0,0,0.85)] flex flex-col items-center gap-1.5 cursor-pointer transition-all group"
+          title={isAr ? 'اسحب لليسار أو اضغط لفتح القائمة' : 'Swipe left or tap to open Menu'}
+        >
+          <ChevronLeft className="w-4 h-4 text-[#10b981] group-hover:-translate-x-0.5 transition-transform" />
+          <span className="text-[9px] font-extrabold tracking-wider text-[#e2e8f0] group-hover:text-[#10b981] leading-none">
+            {isAr ? 'القائمة' : 'MENU'}
+          </span>
+          {totalMenuUnread > 0 && (
+            <span className="w-2 h-2 rounded-full bg-[#e11d48] animate-ping" />
+          )}
+        </button>
+      )}
+
+      {/* RIGHT-SIDE SLIDABLE TRANSPARENT GLASS DRAWER MENU */}
+      {rightMenuDrawerOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/45 backdrop-blur-[2px] transition-opacity"
+          onClick={() => setRightMenuDrawerOpen(false)}
+        />
+      )}
+      <aside
+        dir={isAr ? 'rtl' : 'ltr'}
+        className={`fixed inset-y-0 right-0 z-50 w-72 sm:w-80 max-w-[86vw] bg-[#06080c]/75 backdrop-blur-2xl border-l border-white/15 shadow-[0_0_50px_rgba(0,0,0,0.9)] flex flex-col transition-transform duration-300 ease-out ${
+          rightMenuDrawerOpen ? 'translate-x-0' : 'translate-x-full pointer-events-none'
+        }`}
+      >
+        {/* Drawer Header */}
+        <div className="px-4 py-3 bg-[#06080c]/60 border-b border-white/10 flex items-center justify-between gap-2 shrink-0">
+          <div className="flex items-center gap-2">
+            <img
+              src="/mbk-logo.png"
+              alt="MBK Trading"
+              referrerPolicy="no-referrer"
+              className="h-6 w-auto rounded-[3px] object-contain border border-white/15 bg-[#06080c]"
+            />
+            <div>
+              <h3 className="text-xs sm:text-sm font-extrabold text-white">
+                {isAr ? 'قائمة أقسام المنصة' : 'Workspace Sections'}
+              </h3>
+              <p className="text-[10px] text-[#9db2c6]">
+                {isAr ? 'اسحب لليمين أو اضغط خارج القائمة للإغلاق' : 'Swipe right or tap outside to close'}
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              soundManager.playClick();
+              setRightMenuDrawerOpen(false);
+            }}
+            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/15 border border-white/10 text-[#9db2c6] hover:text-white cursor-pointer"
+            title={isAr ? 'إغلاق القائمة' : 'Close Menu'}
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Drawer Sections List */}
+        <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-1.5">
+          {navItems.map((item) => {
+            const isActive =
+              item.id === 'heatmap'
+                ? activeMainView === 'heatmap'
+                : activeMainView === 'chart' && activeView === item.id;
+            const Icon = item.icon;
+
+            return (
+              <button
+                key={`drawer-nav-${item.id}`}
+                type="button"
+                onClick={() => {
+                  soundManager.playClick();
+                  if (item.id === 'signals') markTradesAsRead();
+                  if (item.id === 'chat') markChatAsRead();
+                  if (item.id === 'dm') markDmAsRead();
+
+                  if (item.id === 'heatmap') {
+                    setActiveMainView('heatmap');
+                  } else {
+                    setActiveMainView('chart');
+                    setActiveView(item.id as WorkspaceView);
+                  }
+                  setRightMenuDrawerOpen(false);
+                }}
+                className={`w-full p-2.5 rounded-xl border text-start flex items-center justify-between gap-2.5 transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-[#10b981]/20 border-[#10b981]/50 text-white shadow-md'
+                    : 'bg-white/[0.03] hover:bg-white/[0.08] border-white/10 text-[#d1d4dc]'
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div
+                    className={`w-8 h-8 rounded-lg border flex items-center justify-center shrink-0 ${
+                      isActive
+                        ? 'bg-[#10b981] border-[#10b981] text-[#06080c]'
+                        : 'bg-[#0b0e14]/80 border-white/10 text-[#10b981]'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-extrabold text-white truncate">
+                      {isAr ? item.labelAr : item.labelEn}
+                    </div>
+                    <div className="text-[10px] text-[#9db2c6] truncate">
+                      {isAr ? item.topicAr : item.topicEn}
+                    </div>
+                  </div>
+                </div>
+
+                {'badge' in item && Number(item.badge) > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-full bg-[#e11d48] text-white font-mono text-[10px] font-bold shrink-0">
+                    {Number(item.badge) > 99 ? '99+' : item.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+
+          {/* Quick Utility Tools inside Right Drawer */}
+          <div className="pt-3 mt-2 border-t border-white/10 space-y-1.5">
+            <span className="px-1 text-[10px] font-mono font-bold text-[#8b95a5] uppercase tracking-wider block">
+              {isAr ? 'أدوات المتداول السريعة' : 'Quick Trader Tools'}
+            </span>
+            <div className="grid grid-cols-2 gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  soundManager.playClick();
+                  setRightMenuDrawerOpen(false);
+                  setCalculatorModalOpen(true);
+                }}
+                className="p-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer"
+              >
+                <Calculator className="w-3.5 h-3.5 text-[#10b981] shrink-0" />
+                <span className="truncate">{isAr ? 'حاسبة اللوت' : 'Lot Calc'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  soundManager.playClick();
+                  setRightMenuDrawerOpen(false);
+                  setSessionsModalOpen(true);
+                }}
+                className="p-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer"
+              >
+                <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span className="truncate">{isAr ? 'جلسات السوق' : 'Sessions'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  soundManager.playClick();
+                  setRightMenuDrawerOpen(false);
+                  setSupportModalOpen(true);
+                }}
+                className="p-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer"
+              >
+                <Headphones className="w-3.5 h-3.5 text-[#10b981] shrink-0" />
+                <span className="truncate">{isAr ? 'الدعم والبريد' : 'Support'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  soundManager.playClick();
+                  setRightMenuDrawerOpen(false);
+                  setPlansModalOpen(true);
+                }}
+                className="p-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 text-xs font-bold text-amber-300 flex items-center gap-1.5 cursor-pointer"
+              >
+                <Crown className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span className="truncate">{isAr ? 'باقات VIP' : 'VIP Plans'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </aside>
 
       {/* 2. LIVE PRICE TICKER */}
       <div className={`transition-all duration-200 relative group/ticker overflow-hidden shrink-0 ${
@@ -1266,6 +1504,15 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                       lang={lang}
                     />
                   </div>
+                )}
+
+                {/* MBK MARKET & CHART ANALYSIS HUB */}
+                {activeView === 'analysis' && (
+                  <MarketAnalysisHub
+                    lang={lang}
+                    userProfile={user}
+                    isAdmin={Boolean(user.isAdmin || roleUpperForAdmin === 'ADMIN')}
+                  />
                 )}
 
                 {/* MBK INDICATORS & ALGO BOTS STORE */}

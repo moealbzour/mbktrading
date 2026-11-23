@@ -70,6 +70,7 @@ export interface DmMessage {
   text: string;
   timestampMs: number;
   createdAt?: string;
+  editedAt?: string;
 }
 
 export interface TraderProfile {

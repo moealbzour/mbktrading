@@ -3,8 +3,10 @@ import {
   ArrowLeft,
   ArrowRight,
   Ban,
+  Check,
   CheckCheck,
   Crown,
+  Edit2,
   Headphones,
   Lock,
   Mail,
@@ -14,10 +16,12 @@ import {
   ShieldCheck,
   Sparkles,
   Unlock,
-  UserCheck
+  UserCheck,
+  X
 } from 'lucide-react';
 import { ChatProfile, DmConversation, DmMessage, UserProfile } from '../../types/trading';
 import {
+  editDirectMessage,
   getDmConversationId,
   getOtherParticipantUid,
   markDmConversationRead,
@@ -144,6 +148,9 @@ export const DirectMessagesPanel: React.FC<Props> = ({
   const [sending, setSending] = useState(false);
   const [updatingPrivacy, setUpdatingPrivacy] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
+  const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState<string>('');
+  const [savingEdit, setSavingEdit] = useState<boolean>(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -535,6 +542,39 @@ export const DirectMessagesPanel: React.FC<Props> = ({
     }
   };
 
+  const handleStartEditMessage = (msg: DmMessage) => {
+    soundManager.playClick();
+    setEditingMsgId(msg.id);
+    setEditingText(msg.text || '');
+  };
+
+  const handleCancelEditMessage = () => {
+    setEditingMsgId(null);
+    setEditingText('');
+  };
+
+  const handleSaveEditMessage = async (msgId: string) => {
+    const trimmed = editingText.trim().slice(0, 1000);
+    if (!trimmed || !activeConvoId || savingEdit) return;
+    setSavingEdit(true);
+    try {
+      const isLatestMessage = messages.length > 0 && messages[messages.length - 1]?.id === msgId;
+      await editDirectMessage({
+        convoId: activeConvoId,
+        msgId,
+        newText: trimmed,
+        isLatestMessage
+      });
+      setEditingMsgId(null);
+      setEditingText('');
+      soundManager.playSuccess();
+    } catch (err: any) {
+      showNotice('error', err?.message || (isAr ? 'تعذر تعديل الرسالة' : 'Could not edit message'));
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   return (
     <div
       className={`${
@@ -566,13 +606,9 @@ export const DirectMessagesPanel: React.FC<Props> = ({
               )}
             </div>
             <p className="text-[11px] text-[#787b86]">
-              {isAdminUser
-                ? isAr
-                  ? 'بريد المنصة الموحد (@mbktrading) للدعم والاقتراحات والأسئلة + محادثاتك'
-                  : 'Shared @mbktrading Support/Suggestions/Questions Desk + Direct Messages'
-                : isAr
-                ? 'تواصل مباشرة مع إدارة المنصة (@mbktrading) للدعم والاقتراحات والأسئلة'
-                : 'Message @mbktrading for Support, Suggestions & Questions or chat with traders'}
+              {isAr
+                ? 'الدعم الفني • الاقتراحات • الأسئلة والرسائل الخاصة'
+                : 'Support • Suggestions • Questions & Direct Messages'}
             </p>
           </div>
         </div>
@@ -793,7 +829,7 @@ export const DirectMessagesPanel: React.FC<Props> = ({
             )}
 
             {filteredConversations.length === 0 ? (
-              <div className="p-6 text-center space-y-2.5 text-[#787b86]">
+              <div className="p-6 text-center space-y-2 text-[#787b86]">
                 <MessageCircle className="w-8 h-8 mx-auto opacity-40 text-[#089981]" />
                 <p className="text-xs font-bold text-white">
                   {isAdminUser
@@ -801,17 +837,8 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                       ? 'لا توجد رسائل أو تذاكر دعم حالياً'
                       : 'No support tickets or messages yet'
                     : isAr
-                    ? 'اضغط على @mbktrading أعلاه لمراسلة الدعم والاقتراحات'
-                    : 'Click @mbktrading above for Support, Suggestions & Questions'}
-                </p>
-                <p className="text-[11px] leading-relaxed">
-                  {isAdminUser
-                    ? isAr
-                      ? 'جميع رسائل المتداولين المرسلة إلى حساب المنصة (@mbktrading) تظهر هنا لجميع المشرفين للرد عليها باسم mbktrading.'
-                      : 'All trader messages sent to @mbktrading appear here so any admin can reply under the official mbktrading username.'
-                    : isAr
-                    ? 'يمكنك إرسال استفساراتك، اقتراحاتك، أو طلبات الدعم الفني مباشرة إلى فريق @mbktrading.'
-                    : 'Send your support requests, platform suggestions, or trading questions directly to @mbktrading.'}
+                    ? 'اضغط على @mbktrading أعلاه للمراسلة'
+                    : 'Click @mbktrading above to start a conversation'}
                 </p>
               </div>
             ) : (
@@ -912,19 +939,8 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                 <Headphones className="w-7 h-7" />
               </div>
               <h3 className="text-sm font-bold text-white">
-                {isAr
-                  ? 'بريد المنصة المباشر (@mbktrading) للدعم والاقتراحات والأسئلة'
-                  : 'Official @mbktrading Inbox for Support, Suggestions & Questions'}
+                {isAr ? 'بريد المنصة (@mbktrading)' : '@mbktrading Inbox'}
               </h3>
-              <p className="text-xs text-[#787b86] max-w-sm leading-relaxed">
-                {isAdminUser
-                  ? isAr
-                    ? 'اختر أي تذكرة من القائمة للرد عليها مباشرة باسم الحساب الرسمي (mbktrading)، حيث يشترك جميع المشرفين في رؤية الرسائل والرد عليها.'
-                    : 'Select any platform ticket to reply under the official mbktrading username. All admins can view and reply to platform inbox threads.'
-                  : isAr
-                  ? 'اضغط على @mbktrading في القائمة لإرسال طلب دعم فني، اقتراح لتطوير المنصة، أو أي سؤال لفريق الإدارة.'
-                  : 'Select @mbktrading in the sidebar to submit a support request, platform suggestion, or trading question.'}
-              </p>
               {!isAdminUser && (
                 <button
                   type="button"
@@ -986,19 +1002,15 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                       {renderRoleBadge(activeRecipient.role, isOfficialThreadForUser)}
                       {isOfficialTicketForAdmin && (
                         <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/40">
-                          {isAr ? 'تذكرة @mbktrading (يرد باسم mbktrading)' : 'Replying as @mbktrading'}
+                          @mbktrading
                         </span>
                       )}
                     </div>
                     <span className="text-[10px] text-[#787b86] block">
-                      {isOfficialThreadForUser
+                      {isOfficialThreadForUser || isOfficialTicketForAdmin
                         ? isAr
-                          ? 'الدعم الفني • الاقتراحات • الأسئلة (يرد عليك جميع مشرفي المنصة باسم mbktrading)'
-                          : 'Official Support, Suggestions & Questions Desk (Admins reply as @mbktrading)'
-                        : isOfficialTicketForAdmin
-                        ? isAr
-                          ? 'بريد المنصة الموحد — ردك سيظهر للمستخدم باسم mbktrading'
-                          : 'Shared Platform Inbox — your reply appears as mbktrading'
+                          ? 'الدعم الفني • الاقتراحات • الأسئلة'
+                          : 'Support • Suggestions • Questions'
                         : !recipientAllowsDm
                         ? isAr
                           ? 'أغلق استقبال الرسائل الخاصة'
@@ -1048,20 +1060,11 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                     <Headphones className="w-8 h-8 opacity-50 text-[#10b981]" />
                     <p className="font-bold text-white">
                       {isOfficialThreadForUser
-                        ? isAr
-                          ? 'مرحباً بك في صندوق بريد المنصة الرسمي (@mbktrading)'
-                          : 'Welcome to the Official @mbktrading Platform Inbox'
+                        ? `@${OFFICIAL_PLATFORM_USERNAME}`
                         : isAr
                         ? `ابدأ محادثة مع ${activeRecipient.displayName}`
                         : `Start a chat with ${activeRecipient.displayName}`}
                     </p>
-                    {isOfficialThreadForUser && (
-                      <p className="text-[11px] text-[#787b86] leading-relaxed">
-                        {isAr
-                          ? 'اختر نوع الرسالة بالأسفل (دعم فني، اقتراح، أو سؤال) واكتب رسالتك. سيقوم فريق المشرفين بالرد عليك هنا مباشرة باسم mbktrading.'
-                          : 'Choose a category below (Support, Suggestion, or Question) and send your message. Our admin team will reply directly here under @mbktrading.'}
-                      </p>
-                    )}
                   </div>
                 ) : (
                   messages.map((msg) => {
@@ -1081,21 +1084,74 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                               : 'bg-[#1e222d] border border-[#2a2e39] text-[#e1e4ea] rounded-es-sm'
                           }`}
                         >
-                          <div className="flex items-center gap-1.5 mb-1">
-                            <span
-                              className={`text-[10px] font-mono font-bold ${
-                                isFromPlatformDesk ? 'text-[#10b981]' : 'text-[#8492a6]'
-                              }`}
-                            >
-                              {isFromPlatformDesk ? `@${OFFICIAL_PLATFORM_USERNAME}` : msg.senderName}
-                            </span>
-                            {isFromPlatformDesk && (
-                              <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-black bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/40">
-                                OFFICIAL
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className={`text-[10px] font-mono font-bold ${
+                                  isFromPlatformDesk ? 'text-[#10b981]' : 'text-[#8492a6]'
+                                }`}
+                              >
+                                {isFromPlatformDesk ? `@${OFFICIAL_PLATFORM_USERNAME}` : msg.senderName}
                               </span>
+                              {isFromPlatformDesk && (
+                                <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-black bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/40">
+                                  OFFICIAL
+                                </span>
+                              )}
+                            </div>
+
+                            {isMine && editingMsgId !== msg.id && (
+                              <button
+                                type="button"
+                                onClick={() => handleStartEditMessage(msg)}
+                                className="px-1.5 py-0.5 rounded bg-black/25 hover:bg-amber-500/20 text-[10px] text-[#9db2c6] hover:text-amber-300 border border-white/10 hover:border-amber-500/40 flex items-center gap-1 cursor-pointer transition-colors"
+                                title={isAr ? 'تعديل الرسالة' : 'Edit message'}
+                              >
+                                <Edit2 className="w-2.5 h-2.5" />
+                                <span>{isAr ? 'تعديل' : 'Edit'}</span>
+                              </button>
                             )}
                           </div>
-                          <p className="break-words whitespace-pre-wrap">{msg.text}</p>
+
+                          {editingMsgId === msg.id ? (
+                            <div className="space-y-1.5 mt-1 min-w-[200px]">
+                              <textarea
+                                value={editingText}
+                                onChange={(e) => setEditingText(e.target.value.slice(0, 1000))}
+                                rows={2}
+                                className="w-full rounded-xl bg-[#0b0e14] border border-amber-500/40 px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-amber-400 resize-none"
+                              />
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={handleCancelEditMessage}
+                                  className="px-2 py-1 rounded-lg bg-[#1e222d] hover:bg-[#2a2e39] text-[10px] font-bold text-[#9db2c6] flex items-center gap-1 cursor-pointer"
+                                >
+                                  <X className="w-3 h-3" />
+                                  <span>{isAr ? 'إلغاء' : 'Cancel'}</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={savingEdit || !editingText.trim()}
+                                  onClick={() => handleSaveEditMessage(msg.id)}
+                                  className="px-2.5 py-1 rounded-lg bg-[#10b981] hover:bg-[#059669] disabled:opacity-40 text-[10px] font-bold text-[#06080c] flex items-center gap-1 cursor-pointer"
+                                >
+                                  <Check className="w-3 h-3" />
+                                  <span>{isAr ? 'حفظ' : 'Save'}</span>
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="break-words whitespace-pre-wrap">
+                              {msg.text}
+                              {msg.editedAt && (
+                                <span className="ms-1.5 text-[9px] font-mono text-[#8b95a5] italic">
+                                  {isAr ? '(تم التعديل)' : '(edited)'}
+                                </span>
+                              )}
+                            </p>
+                          )}
+
                           <div className="mt-1 flex items-center justify-end gap-1 text-[9px] font-mono text-[#787b86]">
                             <span>{formatMessageTime(msg.timestampMs, isAr)}</span>
                             {isMine && <CheckCheck className="w-3 h-3 text-[#089981]" />}

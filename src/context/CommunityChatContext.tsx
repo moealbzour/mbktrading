@@ -84,6 +84,7 @@ function mapDocToChatItem(docId: string, d: Record<string, any>): ChatMessageIte
     likes: Number(d.likes || 0),
     reactions: d.reactions || {},
     timestampMs: tsMs,
+    editedAt: d.editedAt || undefined,
     time: d.createdAt?.toDate
       ? d.createdAt.toDate().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
       : new Date(tsMs).toLocaleTimeString('ar-SA', {

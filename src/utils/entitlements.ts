@@ -6,7 +6,8 @@ export type FeatureKey =
   | 'botSignals'
   | 'vipSignals'
   | 'vipChat'
-  | 'standardAi';
+  | 'standardAi'
+  | 'publishAnalysis';
 
 export type EliteModuleKey =
   | 'superAi'
@@ -51,6 +52,13 @@ export const FEATURE_CATALOG: FeatureMeta[] = [
     labelEn: 'MBK AI',
     descriptionAr: 'محادثة ذكية تفاعلية فورية للتحليل',
     descriptionEn: 'Interactive AI assistant inside the workspace'
+  },
+  {
+    key: 'publishAnalysis',
+    labelAr: 'نشر التحليلات',
+    labelEn: 'Publish Analysis',
+    descriptionAr: 'صلاحية إضافة ونشر تحليلات وصور الشارت في قسم التحليلات',
+    descriptionEn: 'Permission to publish market analysis & chart images in the Analysis tab'
   }
 ];
 

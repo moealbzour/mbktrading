@@ -11,46 +11,29 @@ interface ThemeContextValue {
   cycleThemeMode: () => void;
 }
 
-const THEME_STORAGE_KEY = 'mbk_theme_mode_v1';
+const THEME_STORAGE_KEY = 'mbk_theme_mode_v2';
 
 const ThemeContext = createContext<ThemeContextValue>({
-  themeMode: 'auto',
+  themeMode: 'dark',
   resolvedTheme: 'dark',
   setThemeMode: () => {},
   cycleThemeMode: () => {}
 });
 
-function getSystemTheme(): ResolvedTheme {
-  if (typeof window === 'undefined' || !window.matchMedia) return 'dark';
-  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-}
-
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [themeMode, setThemeModeState] = useState<ThemeMode>(() => {
     try {
       const saved = localStorage.getItem(THEME_STORAGE_KEY);
-      if (saved === 'auto' || saved === 'dark' || saved === 'light') {
+      if (saved === 'light' || saved === 'dark') {
         return saved;
       }
     } catch {
       // ignore
     }
-    return 'auto';
+    return 'dark';
   });
 
-  const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(() => getSystemTheme());
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || !window.matchMedia) return;
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: light)');
-    const handleChange = (e: MediaQueryListEvent) => {
-      setSystemTheme(e.matches ? 'light' : 'dark');
-    };
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, []);
-
-  const resolvedTheme: ResolvedTheme = themeMode === 'auto' ? systemTheme : themeMode;
+  const resolvedTheme: ResolvedTheme = themeMode === 'light' ? 'light' : 'dark';
 
   useEffect(() => {
     if (typeof document === 'undefined') return;

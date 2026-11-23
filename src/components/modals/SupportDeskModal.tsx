@@ -11,7 +11,9 @@ import {
   Mail,
   CheckCheck,
   ArrowRight,
-  ArrowLeft
+  ArrowLeft,
+  Edit2,
+  Check
 } from 'lucide-react';
 import { soundManager } from '../../utils/audio';
 import {
@@ -23,6 +25,7 @@ import {
   subscribeToPlatformSettings
 } from '../../services/platformSettingsService';
 import {
+  editDirectMessage,
   getDmConversationId,
   getOtherParticipantUid,
   markDmConversationRead,
@@ -75,6 +78,9 @@ export const SupportDeskModal: React.FC<Props> = ({
   const [messageInput, setMessageInput] = useState('');
   const [sending, setSending] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState<string>('');
+  const [savingEdit, setSavingEdit] = useState<boolean>(false);
 
   // Admin shared ticket selector inside Support modal
   const [adminTickets, setAdminTickets] = useState<DmConversation[]>([]);
@@ -228,12 +234,41 @@ export const SupportDeskModal: React.FC<Props> = ({
     }
   };
 
+  const handleStartEditMessage = (msg: DmMessage) => {
+    soundManager.playClick();
+    setEditingMsgId(msg.id);
+    setEditingText(msg.text || '');
+  };
+
+  const handleCancelEditMessage = () => {
+    setEditingMsgId(null);
+    setEditingText('');
+  };
+
+  const handleSaveEditMessage = async (msgId: string) => {
+    const trimmed = editingText.trim().slice(0, 1000);
+    if (!trimmed || !activeConvoId || savingEdit) return;
+    setSavingEdit(true);
+    try {
+      const isLatestMessage = messages.length > 0 && messages[messages.length - 1]?.id === msgId;
+      await editDirectMessage({
+        convoId: activeConvoId,
+        msgId,
+        newText: trimmed,
+        isLatestMessage
+      });
+      setEditingMsgId(null);
+      setEditingText('');
+      soundManager.playSuccess();
+    } catch (err: any) {
+      setFeedback(err?.message || (isAr ? 'تعذر تعديل الرسالة' : 'Failed to edit message'));
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   const faqs = isAr
     ? [
-        {
-          q: 'كيف يعمل صندوق بريد المنصة (@mbktrading)؟',
-          a: 'يمكنك إرسال طلبات الدعم الفني، الاقتراحات، أو أي سؤال مباشرة إلى حساب المنصة الرسمي (@mbktrading)، وسيقوم فريق المشرفين بالرد عليك فوراً داخل المنصة باسم mbktrading.'
-        },
         {
           q: 'كيف يتم ترقية الحساب إلى باقة VIP؟',
           a: 'يمكنك الترقية فوراً عبر إدخال مفتاح التفعيل الخاص بك (Activation Key) أو التواصل مع فريق الدعم عبر صندوق بريد المنصة (@mbktrading) أو الواتساب أو التيليجرام.'
@@ -248,10 +283,6 @@ export const SupportDeskModal: React.FC<Props> = ({
         }
       ]
     : [
-        {
-          q: 'How does the @mbktrading Platform Inbox work?',
-          a: 'You can send support requests, platform suggestions, or trading questions directly to @mbktrading inside the app. All admins can view and reply to your message under the official mbktrading username.'
-        },
         {
           q: 'How can I upgrade to VIP?',
           a: 'You can upgrade immediately by redeeming a single-use VIP Activation Key or messaging our concierge desk via the @mbktrading Inbox, WhatsApp, or Telegram.'
@@ -401,8 +432,8 @@ export const SupportDeskModal: React.FC<Props> = ({
                       </div>
                       <div className="text-xs text-[#8b95a5]">
                         {isAr
-                          ? 'تواصل داخل المنصة للدعم الفني، الاقتراحات، والأسئلة (يرد المشرفون باسم mbktrading)'
-                          : 'In-app Support, Suggestions & Questions (All admins reply as @mbktrading)'}
+                          ? 'الدعم الفني • الاقتراحات • الأسئلة'
+                          : 'Support • Suggestions • Questions'}
                       </div>
                     </div>
                   </div>
@@ -567,11 +598,7 @@ export const SupportDeskModal: React.FC<Props> = ({
                     </span>
                   </div>
                   <div className="text-[10px] text-[#787b86] truncate">
-                    {isAdminUser
-                      ? isAr
-                        ? 'يرى جميع المشرفين هذه التذاكر ويظهر الرد باسم mbktrading'
-                        : 'All admins view and reply under the mbktrading username'
-                      : isAr
+                    {isAr
                       ? 'الدعم الفني • الاقتراحات • الأسئلة والاستفسارات'
                       : 'Support • Suggestions • Questions'}
                   </div>
@@ -617,11 +644,6 @@ export const SupportDeskModal: React.FC<Props> = ({
                       {isAr
                         ? 'لا توجد تذاكر دعم أو اقتراحات واردة حالياً'
                         : 'No incoming support or suggestion tickets yet'}
-                    </p>
-                    <p className="text-[11px]">
-                      {isAr
-                        ? 'عندما يرسل أي متداول رسالة للدعم أو اقتراحاً أو سؤالاً، ستظهر هنا لجميع المشرفين للرد عليها باسم mbktrading.'
-                        : 'When any trader sends a support request, suggestion, or question, it appears here for all admins to reply as mbktrading.'}
                     </p>
                   </div>
                 ) : (
@@ -680,16 +702,7 @@ export const SupportDeskModal: React.FC<Props> = ({
                   {messages.length === 0 ? (
                     <div className="h-full py-8 flex flex-col items-center justify-center text-center text-[#787b86] text-xs space-y-1.5">
                       <Headphones className="w-7 h-7 text-[#10b981] opacity-60" />
-                      <p className="font-bold text-white">
-                        {isAr
-                          ? 'أرسل رسالتك مباشرة إلى فريق @mbktrading'
-                          : 'Send your message directly to @mbktrading'}
-                      </p>
-                      <p className="text-[11px] max-w-xs">
-                        {isAr
-                          ? 'اختر التصنيف بالأسفل (دعم فني، اقتراح، أو سؤال) واكتب رسالتك ليتم الرد عليك هنا مباشرة.'
-                          : 'Select a category below (Support, Suggestion, or Question) and write your message.'}
-                      </p>
+                      <p className="font-bold text-white">@{OFFICIAL_PLATFORM_USERNAME}</p>
                     </div>
                   ) : (
                     messages.map((msg) => {
@@ -707,7 +720,7 @@ export const SupportDeskModal: React.FC<Props> = ({
                                 : 'bg-[#1e222d] border border-[#2a2e39] text-[#e1e4ea] rounded-es-sm'
                             }`}
                           >
-                            <div className="flex items-center gap-1.5 mb-0.5">
+                            <div className="flex items-center justify-between gap-2 mb-0.5">
                               <span
                                 className={`text-[10px] font-mono font-bold ${
                                   isFromPlatform ? 'text-[#10b981]' : 'text-[#8492a6]'
@@ -715,8 +728,58 @@ export const SupportDeskModal: React.FC<Props> = ({
                               >
                                 {isFromPlatform ? `@${OFFICIAL_PLATFORM_USERNAME}` : msg.senderName}
                               </span>
+                              {isMine && editingMsgId !== msg.id && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleStartEditMessage(msg)}
+                                  className="px-1.5 py-0.5 rounded bg-black/25 hover:bg-amber-500/20 text-[10px] text-[#9db2c6] hover:text-amber-300 border border-white/10 hover:border-amber-500/40 flex items-center gap-1 cursor-pointer transition-colors"
+                                  title={isAr ? 'تعديل الرسالة' : 'Edit message'}
+                                >
+                                  <Edit2 className="w-2.5 h-2.5" />
+                                  <span>{isAr ? 'تعديل' : 'Edit'}</span>
+                                </button>
+                              )}
                             </div>
-                            <p className="break-words whitespace-pre-wrap">{msg.text}</p>
+
+                            {editingMsgId === msg.id ? (
+                              <div className="space-y-1.5 mt-1 min-w-[200px]">
+                                <textarea
+                                  value={editingText}
+                                  onChange={(e) => setEditingText(e.target.value.slice(0, 1000))}
+                                  rows={2}
+                                  className="w-full rounded-xl bg-[#0b0e14] border border-amber-500/40 px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-amber-400 resize-none"
+                                />
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={handleCancelEditMessage}
+                                    className="px-2 py-1 rounded-lg bg-[#1e222d] hover:bg-[#2a2e39] text-[10px] font-bold text-[#9db2c6] flex items-center gap-1 cursor-pointer"
+                                  >
+                                    <X className="w-3 h-3" />
+                                    <span>{isAr ? 'إلغاء' : 'Cancel'}</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={savingEdit || !editingText.trim()}
+                                    onClick={() => handleSaveEditMessage(msg.id)}
+                                    className="px-2.5 py-1 rounded-lg bg-[#10b981] hover:bg-[#059669] disabled:opacity-40 text-[10px] font-bold text-[#06080c] flex items-center gap-1 cursor-pointer"
+                                  >
+                                    <Check className="w-3 h-3" />
+                                    <span>{isAr ? 'حفظ' : 'Save'}</span>
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="break-words whitespace-pre-wrap">
+                                {msg.text}
+                                {msg.editedAt && (
+                                  <span className="ms-1.5 text-[9px] font-mono text-[#8b95a5] italic">
+                                    {isAr ? '(تم التعديل)' : '(edited)'}
+                                  </span>
+                                )}
+                              </p>
+                            )}
+
                             <div className="mt-1 flex items-center justify-end gap-1 text-[9px] font-mono text-[#787b86]">
                               <span>{formatMessageTime(msg.timestampMs, isAr)}</span>
                               {isMine && <CheckCheck className="w-3 h-3 text-[#089981]" />}
