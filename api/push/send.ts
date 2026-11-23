@@ -7,6 +7,7 @@ import {
   extractRestSubscriptions,
   getFirestoreRestBaseUrl,
   getOptionalAdminFirestore,
+  loadPushFirebaseConfig,
   toFirestoreRestPushDoc,
   verifyFirebaseIdToken,
   type PushSubscriptionDoc
@@ -19,6 +20,7 @@ type Req = IncomingMessage & {
 };
 
 export type PushAudience = 'targetUid' | 'admins' | 'vip' | 'all';
+export type PushCategory = 'chat' | 'dm' | 'signal' | 'announcement' | 'analysis' | 'bot';
 
 export interface ServerPushDispatchInput {
   title: string;
@@ -26,6 +28,7 @@ export interface ServerPushDispatchInput {
   url?: string;
   tag?: string;
   audience: PushAudience;
+  category?: PushCategory;
   targetUid?: string | null;
   excludeUid?: string | null;
 }
@@ -146,16 +149,22 @@ function filterDocsByAudience(
 async function fetchPushDocsViaRest(
   audience: PushAudience,
   targetUid: string | null,
-  callerIdToken: string
+  callerIdToken?: string
 ): Promise<{ docs: PushSubscriptionDoc[]; error?: string }> {
   const baseUrl = getFirestoreRestBaseUrl();
-  const headers: Record<string, string> = {
-    Authorization: `Bearer ${callerIdToken}`
-  };
+  const config = loadPushFirebaseConfig();
+  const headers: Record<string, string> = {};
+  const apiKeyParam = !callerIdToken && config.apiKey ? `key=${encodeURIComponent(config.apiKey)}` : '';
+
+  if (callerIdToken) {
+    headers.Authorization = `Bearer ${callerIdToken}`;
+  }
 
   if (audience === 'targetUid') {
     if (!targetUid) return { docs: [] };
-    const docUrl = `${baseUrl}/push_subscriptions/${encodeURIComponent(targetUid)}`;
+    const docUrl = `${baseUrl}/push_subscriptions/${encodeURIComponent(targetUid)}${
+      apiKeyParam ? `?${apiKeyParam}` : ''
+    }`;
     const res = await fetch(docUrl, { headers, signal: AbortSignal.timeout(6000) });
     if (res.status === 404) {
       return { docs: [] };
@@ -175,9 +184,10 @@ async function fetchPushDocsViaRest(
 
   while (pages < 5) {
     pages += 1;
-    const listUrl = `${baseUrl}/push_subscriptions?pageSize=300${
-      pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''
-    }`;
+    const queryParts = ['pageSize=300'];
+    if (pageToken) queryParts.push(`pageToken=${encodeURIComponent(pageToken)}`);
+    if (apiKeyParam) queryParts.push(apiKeyParam);
+    const listUrl = `${baseUrl}/push_subscriptions?${queryParts.join('&')}`;
     const res = await fetch(listUrl, { headers, signal: AbortSignal.timeout(6000) });
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
@@ -271,7 +281,7 @@ export async function dispatchServerWebPush(
     }
   }
 
-  // Path 2: Firebase Admin SDK (for webhooks without user token, or fallback when credentials exist)
+  // Path 2: Firebase Admin SDK (for webhooks when FIREBASE_SERVICE_ACCOUNT_JSON or ADC exists)
   const adminDb = getOptionalAdminFirestore();
   if (storageMode === 'none' && adminDb) {
     try {
@@ -292,6 +302,18 @@ export async function dispatchServerWebPush(
       firestoreReadError = undefined;
     } catch (err: any) {
       firestoreReadError = firestoreReadError || `Admin Firestore read failed: ${err?.message || 'Unknown error'}`;
+    }
+  }
+
+  // Path 3: Server-to-server Firestore REST API fallback via project apiKey (Vercel TradingView webhooks without service account JSON)
+  if (storageMode === 'none' && !callerIdToken) {
+    const serverRestResult = await fetchPushDocsViaRest(audience, targetUid, undefined);
+    if (!serverRestResult.error) {
+      rawDocs = serverRestResult.docs;
+      storageMode = 'firestore_rest_server';
+      firestoreReadError = undefined;
+    } else {
+      firestoreReadError = firestoreReadError || serverRestResult.error;
     }
   }
 
@@ -355,7 +377,7 @@ export async function dispatchServerWebPush(
                 }
               },
               payloadString,
-              { TTL: 3600 }
+              { TTL: 86400, urgency: 'high' }
             );
             sent += 1;
           } catch (err: any) {
@@ -513,33 +535,83 @@ export default async function handler(req: Req, res: ServerResponse) {
   }
   const audience = rawAudience as PushAudience;
 
-  // Enforce role check for broadcast audiences ('all' and 'vip') when invoked by client token
-  if (!isWebhookAuthorized && verifiedUser && (audience === 'all' || audience === 'vip')) {
-    const canBroadcast = await isCallerAdminOrAnalyser(verifiedUser.uid, verifiedUser.email, idToken);
-    if (!canBroadcast) {
-      return sendJson(res, 403, {
-        ok: false,
-        sentCount: 0,
-        error: 'Forbidden: Admin or Analyser role required for broadcast push'
-      });
+  const rawCategory = typeof body?.category === 'string' ? body.category.trim().toLowerCase() : '';
+  const allowedCategories: PushCategory[] = ['chat', 'dm', 'signal', 'announcement', 'analysis', 'bot'];
+  const category: PushCategory | undefined = allowedCategories.includes(rawCategory as PushCategory)
+    ? (rawCategory as PushCategory)
+    : undefined;
+
+  const rawTitle = String(body?.title || '').trim();
+  const rawBody = String(body?.body || '').trim();
+
+  if (!rawTitle || rawTitle.length > 160 || rawBody.length > 400) {
+    return sendJson(res, 400, {
+      ok: false,
+      sentCount: 0,
+      error: 'Invalid notification title or body length'
+    });
+  }
+
+  // Enforce Admin/Analyser role check for broadcast announcements/signals/analysis.
+  // Authenticated regular users may trigger pushes for their own Chat messages (category: 'chat')
+  // or Direct/Inbox messages (audience: 'targetUid' | 'admins'), always excluding their own UID.
+  let effectiveExcludeUid: string | null =
+    body?.excludeUid === null
+      ? null
+      : typeof body?.excludeUid === 'string'
+      ? body.excludeUid
+      : verifiedUser?.uid || null;
+
+  if (!isWebhookAuthorized && verifiedUser) {
+    const isBroadcastAudience = audience === 'all' || audience === 'vip';
+    const isChatPush = category === 'chat';
+
+    if (isBroadcastAudience && !isChatPush) {
+      const canBroadcast = await isCallerAdminOrAnalyser(verifiedUser.uid, verifiedUser.email, idToken);
+      if (!canBroadcast) {
+        return sendJson(res, 403, {
+          ok: false,
+          sentCount: 0,
+          error: 'Forbidden: Admin or Analyser role required for broadcast announcements and signals'
+        });
+      }
+    }
+
+    if (isChatPush) {
+      if (rawTitle.length > 120 || rawBody.length > 220) {
+        return sendJson(res, 400, {
+          ok: false,
+          sentCount: 0,
+          error: 'Chat notification payload exceeds allowed length'
+        });
+      }
+      // Never allow chat sender to notify themselves
+      effectiveExcludeUid = verifiedUser.uid;
+    }
+
+    if (audience === 'targetUid' && typeof body?.targetUid === 'string' && body.targetUid.trim() === verifiedUser.uid) {
+      const canSelfTest = await isCallerAdminOrAnalyser(verifiedUser.uid, verifiedUser.email, idToken);
+      if (!canSelfTest) {
+        return sendJson(res, 400, {
+          ok: false,
+          sentCount: 0,
+          error: 'Cannot send direct push notification to yourself'
+        });
+      }
     }
   }
 
   try {
     const result = await dispatchServerWebPush(
       {
-        title: String(body?.title || ''),
-        body: String(body?.body || ''),
+        title: rawTitle,
+        body: rawBody,
         url: typeof body?.url === 'string' ? body.url : '/',
         tag: typeof body?.tag === 'string' ? body.tag : undefined,
         audience,
+        category,
         targetUid: typeof body?.targetUid === 'string' ? body.targetUid : null,
-        excludeUid:
-          body?.excludeUid === null
-            ? null
-            : typeof body?.excludeUid === 'string'
-            ? body.excludeUid
-            : verifiedUser?.uid || null
+        excludeUid: effectiveExcludeUid
       },
       idToken || undefined
     );

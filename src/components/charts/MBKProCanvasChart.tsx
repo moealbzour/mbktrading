@@ -36,6 +36,8 @@ import {
 } from '../../services/chartBroadcastService';
 import { parsePlainTextSignal } from '../../utils/signalChartParser';
 import { useSignalsContext } from '../../context/SignalsContext';
+import { auth } from '../../lib/firebase';
+import { triggerServerWebPush } from '../../utils/mobileNotifications';
 
 export interface MBKProCanvasChartProps {
   lang: 'ar' | 'en';
@@ -771,6 +773,16 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
         overlays: serialized,
       });
 
+      triggerServerWebPush({
+        title: `📐 بث تحليل شارت VIP (${symbol} - ${interval})`,
+        body: `تم تحديث الرسومات ومناطق السيولة المباشرة على ${symbol} (${serialized.length} رسمة).`,
+        tag: `mbk-chart-draw-${symbol}-${Date.now()}`,
+        url: '/',
+        audience: 'vip',
+        category: 'signal',
+        excludeUid: auth.currentUser?.uid || null
+      });
+
       addToast({
         title: isAr ? 'تم بث الرسومات للـ VIP بنجاح' : 'Drawings Broadcasted to VIPs',
         message: isAr
@@ -882,6 +894,16 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
       await publishAdminChartSetup(symbol, {
         timeframe: interval,
         activeSetup,
+      });
+
+      triggerServerWebPush({
+        title: `${pinSide === 'BUY' ? '🟢 شراء' : '🔴 بيع'} ${symbol} (VIP) — صفقة مثبتة على الشارت`,
+        body: `الدخول: ${entryNum} | الوقف: ${slNum}${tp1Num ? ` | الهدف 1: ${tp1Num}` : ''}`,
+        tag: `mbk-chart-pin-${symbol}-${Date.now()}`,
+        url: '/',
+        audience: 'vip',
+        category: 'signal',
+        excludeUid: auth.currentUser?.uid || null
       });
 
       setPinDrawerOpen(false);

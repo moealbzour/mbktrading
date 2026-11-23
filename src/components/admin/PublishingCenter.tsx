@@ -258,6 +258,7 @@ export const PublishingCenter: React.FC<Props> = ({
         tag: `mbk-signal-${docRef.id}`,
         url: '/',
         audience: isVip ? 'vip' : 'all',
+        category: 'signal',
         excludeUid: auth.currentUser?.uid || null
       });
 
@@ -346,6 +347,7 @@ export const PublishingCenter: React.FC<Props> = ({
           tag: `signal-status-${id}-${newStatus}`,
           url: '/',
           audience: isVipTrade ? 'vip' : 'all',
+          category: 'signal',
           excludeUid: auth.currentUser?.uid || null
         });
       }

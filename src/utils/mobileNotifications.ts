@@ -3,6 +3,7 @@ import { auth } from '../lib/firebase';
 
 export type AppNotificationPermission = NotificationPermission | 'unsupported';
 export type WebPushAudience = 'targetUid' | 'admins' | 'vip' | 'all';
+export type WebPushCategory = 'chat' | 'dm' | 'signal' | 'announcement' | 'analysis' | 'bot';
 
 export interface WebPushSubscribeResult {
   ok: boolean;
@@ -242,6 +243,7 @@ export function triggerServerWebPush(params: {
   url?: string;
   tag?: string;
   audience: WebPushAudience;
+  category?: WebPushCategory;
   targetUid?: string | null;
   excludeUid?: string | null;
 }): void {
@@ -266,6 +268,7 @@ export function triggerServerWebPush(params: {
           url: params.url || '/',
           tag: params.tag || `mbk-push-${Date.now()}`,
           audience: params.audience,
+          ...(params.category ? { category: params.category } : {}),
           targetUid: params.targetUid || null,
           excludeUid: params.excludeUid !== undefined ? params.excludeUid : currentUser.uid
         })

@@ -233,6 +233,7 @@ export async function saveMarketAnalysisPost(
       tag: `mbk-analysis-${post.id}`,
       url: '/',
       audience: 'all',
+      category: 'analysis',
       excludeUid: post.authorUid
     });
   }

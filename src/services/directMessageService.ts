@@ -575,6 +575,7 @@ export async function sendDirectMessage(params: {
     tag: `mbk-dm-${convoId}-${nowMs}`,
     url: '/',
     audience: isIncomingPlatformTicket ? 'admins' : 'targetUid',
+    category: 'dm',
     targetUid: isIncomingPlatformTicket ? null : effectiveRecipient.uid,
     excludeUid: sender.uid
   });

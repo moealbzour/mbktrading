@@ -205,22 +205,25 @@ export default async function handler(req: Req, res: Res | ServerResponse) {
 
       try {
         await writeBotAlertToFirestore(alertDoc);
-        await Promise.race([
+        const pushResult = await Promise.race([
           dispatchServerWebPush({
             title: 'بوت MBK 🤖',
             body: alertDoc.text.slice(0, 180),
             tag: `bot-alert-${alertDoc.id}`,
             url: '/',
-            audience: 'vip'
-          }).catch(() => null),
-          new Promise((resolve) => setTimeout(resolve, 4000))
+            audience: 'vip',
+            category: 'bot'
+          }).catch((err: any) => ({ ok: false, sentCount: 0, error: err?.message || 'push error' })),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 6000))
         ]);
         return sendJson(res, 200, {
           success: true,
           message: 'Test TradingView webhook alert generated and saved to bot_alerts successfully! Check your app.',
           alertId: alertDoc.id,
           text: alertDoc.text,
-          timestamp: alertDoc.timestamp
+          timestamp: alertDoc.timestamp,
+          pushSent: pushResult && typeof pushResult === 'object' ? (pushResult as any).sentCount || 0 : 0,
+          pushStorageMode: pushResult && typeof pushResult === 'object' ? (pushResult as any).storageMode || null : null
         });
       } catch (err: any) {
         console.error('[Vercel Test Webhook Error]:', err);
@@ -312,16 +315,17 @@ export default async function handler(req: Req, res: Res | ServerResponse) {
     const alertDoc = buildAlertDoc(text, chatId || null);
     await writeBotAlertToFirestore(alertDoc);
 
-    // Await Web Push delivery (capped at 4s) before Vercel Serverless freezes the invocation
-    await Promise.race([
+    // Await Web Push delivery (capped at 6s) before Vercel Serverless freezes the invocation
+    const pushResult = await Promise.race([
       dispatchServerWebPush({
         title: 'بوت MBK 🤖',
         body: alertDoc.text.slice(0, 180),
         tag: `bot-alert-${alertDoc.id}`,
         url: '/',
-        audience: 'vip'
-      }).catch(() => null),
-      new Promise((resolve) => setTimeout(resolve, 4000))
+        audience: 'vip',
+        category: 'bot'
+      }).catch((err: any) => ({ ok: false, sentCount: 0, error: err?.message || 'push error' })),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 6000))
     ]);
 
     let telegramForwarded = false;
@@ -348,7 +352,9 @@ export default async function handler(req: Req, res: Res | ServerResponse) {
       success: true,
       message: 'Alert saved to bot_alerts',
       alertId: alertDoc.id,
-      telegramForwarded
+      telegramForwarded,
+      pushSent: pushResult && typeof pushResult === 'object' ? (pushResult as any).sentCount || 0 : 0,
+      pushStorageMode: pushResult && typeof pushResult === 'object' ? (pushResult as any).storageMode || null : null
     });
   } catch (err: any) {
     console.error('[Vercel TradingView Webhook Error]:', err);

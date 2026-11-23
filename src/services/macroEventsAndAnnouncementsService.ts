@@ -465,6 +465,7 @@ export async function createAdminPopupAnnouncement(input: {
     tag: `mbk-ann-${record.id}`,
     url: '/',
     audience: pushAudience,
+    category: 'announcement',
     excludeUid: auth.currentUser?.uid || null
   });
 
@@ -595,6 +596,17 @@ export async function sendBulkDirectMessageToUsers(params: {
         timestampMs: nowMs,
         createdAt: nowIso,
         timestamp: serverTimestamp()
+      });
+
+      triggerServerWebPush({
+        title: `🛡️ رسالة من ${adminName.slice(0, 60)}`,
+        body: personalizedText.slice(0, 180),
+        tag: `mbk-dm-${convoId}-${nowMs}`,
+        url: '/',
+        audience: 'targetUid',
+        category: 'dm',
+        targetUid: recipient.uid,
+        excludeUid: adminUid
       });
 
       sentCount++;

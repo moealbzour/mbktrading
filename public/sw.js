@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mbk-trading-v11';
+const CACHE_NAME = 'mbk-trading-v12';
 const PRECACHE_URLS = ['/favicon.svg', '/manifest.json', '/icon-192.png', '/mbk-logo.png'];
 
 self.addEventListener('install', (event) => {
@@ -69,16 +69,19 @@ self.addEventListener('push', (event) => {
     try {
       const parsed = event.data.json();
       if (parsed && typeof parsed === 'object') {
-        title = parsed.title || title;
-        body = parsed.body || parsed.message || body;
-        tag = parsed.tag || tag;
-        url = parsed.url || '/';
+        title = String(parsed.title || title).trim() || title;
+        body = String(parsed.body || parsed.message || body).trim() || body;
+        tag = String(parsed.tag || tag).trim() || tag;
+        url = String(parsed.url || '/').trim() || '/';
       }
     } catch {
       try {
-        body = event.data.text() || body;
+        const plain = event.data.text();
+        if (plain && plain.trim()) {
+          body = plain.trim();
+        }
       } catch {
-        // ignore
+        // ignore parse errors and show default alert
       }
     }
   }

@@ -715,10 +715,10 @@ service cloud.firestore {
     }
 
     // ---------------------------------------------------------------
-    // 10. WEB PUSH SUBSCRIPTIONS (Non-PII Endpoints — Self/Admin Writes, Signed-In Reads for Server REST Push)
+    // 10. WEB PUSH SUBSCRIPTIONS (Non-PII VAPID Endpoints — Self/Admin Writes, Server REST Reads)
     // ---------------------------------------------------------------
     match /push_subscriptions/{uid} {
-      allow get, list: if isSignedIn();
+      allow get, list: if true;
       allow create, update, delete: if isSignedIn() && (request.auth.uid == uid || isAdmin());
     }
   }

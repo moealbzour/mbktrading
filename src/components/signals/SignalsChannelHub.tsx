@@ -30,6 +30,7 @@ import {
 import { hasFeatureAccess } from '../../utils/entitlements';
 import { OperationType, reportFirestoreError } from '../../utils/firestoreError';
 import { markDocumentDeleted } from '../../utils/legacyDbRecovery';
+import { triggerServerWebPush } from '../../utils/mobileNotifications';
 
 export type { ChannelSignalItem, BotAlertItem };
 
@@ -266,6 +267,20 @@ export const SignalsChannelHub: React.FC<Props> = ({
         statusLabelAr,
         pips: nextPips
       });
+      if (isTradeTpHitStatus(newStatus) || isTradeSlHitStatus(newStatus)) {
+        const isVipTrade = signal.channel === 'vip';
+        triggerServerWebPush({
+          title: `تحديث صفقة ${signal.symbol} • ${statusLabelAr}`,
+          body: `تم تحديث حالة الصفقة (${signal.action}) إلى: ${statusLabelAr}${
+            nextPips !== 0 ? ` (${nextPips > 0 ? '+' : ''}${nextPips} نقطة)` : ''
+          }`,
+          tag: `signal-status-${cleanId}-${newStatus}`,
+          url: '/',
+          audience: isVipTrade ? 'vip' : 'all',
+          category: 'signal',
+          excludeUid: auth.currentUser?.uid || null
+        });
+      }
       soundManager.playProfitChime();
       addToast({
         title: isAr ? 'تم تحديث حالة الصفقة' : 'Trade Status Updated',
@@ -382,7 +397,17 @@ export const SignalsChannelHub: React.FC<Props> = ({
         createdAt: new Date().toISOString()
       };
 
-      await addDoc(collection(db, 'signals'), payload);
+      const docRef = await addDoc(collection(db, 'signals'), payload);
+
+      triggerServerWebPush({
+        title: `${newSigAction === 'BUY' ? '🟢 شراء' : '🔴 بيع'} ${newSigSymbol} (${isVip ? 'VIP' : 'عام'}) — صفقة جديدة`,
+        body: `الدخول: ${entryNum} | الهدف 1: ${tp1Num} | الوقف: ${slNum}`,
+        tag: `mbk-signal-${docRef.id}`,
+        url: '/',
+        audience: isVip ? 'vip' : 'all',
+        category: 'signal',
+        excludeUid: auth.currentUser?.uid || null
+      });
 
       soundManager.playProfitChime();
       confetti({ particleCount: 80, spread: 70 });

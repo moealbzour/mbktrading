@@ -178,7 +178,8 @@ app.get(['/api/webhooks/tradingview', '/api/webhook/tradingview'], async (req, r
         body: alertDoc.text.slice(0, 180),
         tag: `bot-alert-${alertId}`,
         url: '/',
-        audience: 'vip'
+        audience: 'vip',
+        category: 'bot'
       }).catch(() => {});
       return res.status(200).json({
         success: true,
@@ -275,7 +276,8 @@ app.post(['/api/webhooks/tradingview', '/api/webhook/tradingview'], async (req, 
       body: alertDoc.text.slice(0, 180),
       tag: `bot-alert-${alertId}`,
       url: '/',
-      audience: 'vip'
+      audience: 'vip',
+      category: 'bot'
     }).catch(() => {});
 
     let telegramForwarded = false;

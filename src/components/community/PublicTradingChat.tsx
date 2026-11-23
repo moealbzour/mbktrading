@@ -55,7 +55,7 @@ import { UserProfile, MarketSymbol } from '../../types/trading';
 import { markDocumentDeleted } from '../../utils/legacyDbRecovery';
 import { useSignalsContext } from '../../context/SignalsContext';
 import { useCommunityChat } from '../../context/CommunityChatContext';
-import { isUserCurrentlyOnline } from '../../utils/mobileNotifications';
+import { isUserCurrentlyOnline, triggerServerWebPush } from '../../utils/mobileNotifications';
 
 export interface ChatReplyTo {
   id: string;
@@ -802,7 +802,28 @@ export const PublicTradingChat: React.FC<Props> = ({
         timestampMs: Date.now()
       };
 
-      await addDoc(collection(db, 'public_chat'), payload);
+      const docRef = await addDoc(collection(db, 'public_chat'), payload);
+
+      const senderLabel = (currentUser.displayName || currentUserName || 'متداول').trim().slice(0, 50);
+      const pushBodyText = textToSend
+        ? textToSend.slice(0, 180)
+        : attachedTradeCard
+        ? `📊 صفقة ${attachedTradeCard.action} ${attachedTradeCard.symbol} @ ${attachedTradeCard.entry}`
+        : recordedAudioDataUrl
+        ? '🎙️ رسالة صوتية جديدة في الشات'
+        : selectedImage
+        ? '🖼️ صورة تحليل فني جديدة في الشات'
+        : 'رسالة جديدة في شات MBK';
+
+      triggerServerWebPush({
+        title: isCurrentAdmin ? `💬 [إدارة MBK] ${senderLabel}` : `💬 ${senderLabel} • شات MBK`,
+        body: pushBodyText,
+        tag: `mbk-chat-${docRef.id}`,
+        url: '/',
+        audience: 'all',
+        category: 'chat',
+        excludeUid: currentUser.uid
+      });
 
       setInputText('');
       setSelectedImage(null);
