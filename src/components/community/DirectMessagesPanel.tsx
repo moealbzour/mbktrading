@@ -41,10 +41,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../../lib/firebase';
 import { soundManager } from '../../utils/audio';
 import { useSignalsContext } from '../../context/SignalsContext';
-import {
-  isUserCurrentlyOnline,
-  subscribeToOnlinePresence
-} from '../../utils/mobileNotifications';
+import { isUserCurrentlyOnline } from '../../utils/mobileNotifications';
 
 export interface DmTargetUser {
   uid: string;
@@ -153,14 +150,6 @@ export const DirectMessagesPanel: React.FC<Props> = ({
   const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState<string>('');
   const [savingEdit, setSavingEdit] = useState<boolean>(false);
-  const [onlineUids, setOnlineUids] = useState<Set<string>>(() => new Set(['mbktrading']));
-
-  useEffect(() => {
-    const unsub = subscribeToOnlinePresence(myUid, (nextSet) => {
-      setOnlineUids(nextSet);
-    });
-    return () => unsub();
-  }, [myUid]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -866,7 +855,6 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                   uid: otherUid,
                   myUid,
                   lastActivityMs: convo.lastMessageAtMs,
-                  onlineUids,
                   role: otherRole
                 });
 
@@ -1027,7 +1015,6 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                       uid: isOfficialThreadForUser ? OFFICIAL_PLATFORM_UID : activeRecipient.uid,
                       myUid,
                       lastActivityMs: lastThreadMsgMs,
-                      onlineUids,
                       role: activeRecipient.role
                     });
 

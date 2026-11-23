@@ -85,6 +85,7 @@ import { IndicatorsStorePanel } from '../store/IndicatorsStorePanel';
 import { MarketAnalysisHub } from '../analysis/MarketAnalysisHub';
 import { EliteLockedModule } from '../common/EliteLockedModule';
 import { MacroEventAndAnnouncementPopup } from '../common/MacroEventAndAnnouncementPopup';
+import { MBKProCanvasChart } from '../charts/MBKProCanvasChart';
 
 // Utility Modals
 import { SupportDeskModal } from '../modals/SupportDeskModal';
@@ -103,6 +104,7 @@ export type WorkspaceView =
   | 'news'
   | 'ai'
   | 'chart'
+  | 'proChart'
   | 'paper'
   | 'calendar'
   | 'academy'
@@ -793,6 +795,16 @@ export const TradingViewWorkspace: React.FC<Props> = ({
       topicAr: 'شارت الأسواق اللحظي',
       topicEn: 'Real-Time Market Chart',
       icon: BarChart2
+    },
+    {
+      id: 'proChart' as WorkspaceView | 'heatmap',
+      labelAr: 'شارت MBK الاحترافي',
+      labelEn: 'MBK Pro Chart',
+      shortAr: 'شارت MBK',
+      shortEn: 'Pro Chart',
+      topicAr: 'لوحة رسم ومؤشرات حية',
+      topicEn: 'Live Canvas & VIP Levels',
+      icon: Activity
     },
     {
       id: 'analysis' as WorkspaceView | 'heatmap',
@@ -1521,6 +1533,21 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                         activeTicker={activeTicker}
                       />
                     </div>
+                  </div>
+                )}
+
+                {/* VIEW 3B: MBK PRO CANVAS CHART (Native Open-Source Canvas + Drawing Toolbar + Signal Plotter) */}
+                {activeView === 'proChart' && (
+                  <div className="h-[calc(100vh-150px)] min-h-[540px] rounded-xl overflow-hidden border border-white/10 shadow-2xl bg-[#06080c]">
+                    <MBKProCanvasChart
+                      lang={lang}
+                      activeSymbol={selectedSymbol}
+                      onSelectSymbol={(sym) => onSelectSymbol(sym as MarketSymbol)}
+                      isAdmin={Boolean(user.isAdmin || roleUpperForAdmin === 'ADMIN')}
+                      isAnalyser={['ANALYSER', 'ANALYST'].includes(roleUpperForAdmin)}
+                      isVip={isVIP}
+                      onOpenPlans={() => setPlansModalOpen(true)}
+                    />
                   </div>
                 )}
 

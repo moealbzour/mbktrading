@@ -705,5 +705,22 @@ service cloud.firestore {
       allow get, list: if isSignedIn();
       allow create, update, delete: if isAdmin();
     }
+
+    // ---------------------------------------------------------------
+    // 9. MBK PRO CHART SETUPS (Signed-In Reads, Admin/Analyser Writes)
+    // ---------------------------------------------------------------
+    match /chart_setups/{symbol} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isAdmin() || isAnalyser();
+    }
+
+    // ---------------------------------------------------------------
+    // 10. WEB PUSH SUBSCRIPTIONS (Self Read/Write Only)
+    // ---------------------------------------------------------------
+    match /push_subscriptions/{uid} {
+      allow read, write: if isSignedIn() && request.auth.uid == uid;
+    }
   }
 }
+
+

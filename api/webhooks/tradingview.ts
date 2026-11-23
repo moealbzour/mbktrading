@@ -4,7 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { initializeApp as initClientApp, getApps as getClientApps } from 'firebase/app';
 import { getFirestore as getClientFirestore, doc, setDoc } from 'firebase/firestore';
-import { recordServerNotificationPulse } from '../notifications/pulse.js';
+import { dispatchServerWebPush } from '../push/send.js';
 
 type Req = IncomingMessage & {
   method?: string;
@@ -205,6 +205,13 @@ export default async function handler(req: Req, res: Res | ServerResponse) {
 
       try {
         await writeBotAlertToFirestore(alertDoc);
+        dispatchServerWebPush({
+          title: 'بوت MBK 🤖',
+          body: alertDoc.text.slice(0, 180),
+          tag: `bot-alert-${alertDoc.id}`,
+          url: '/',
+          audience: 'vip'
+        }).catch(() => {});
         return sendJson(res, 200, {
           success: true,
           message: 'Test TradingView webhook alert generated and saved to bot_alerts successfully! Check your app.',
@@ -301,6 +308,15 @@ export default async function handler(req: Req, res: Res | ServerResponse) {
 
     const alertDoc = buildAlertDoc(text, chatId || null);
     await writeBotAlertToFirestore(alertDoc);
+
+    // Fire-and-forget Web Push notification to VIP & Admin subscribers
+    dispatchServerWebPush({
+      title: 'بوت MBK 🤖',
+      body: alertDoc.text.slice(0, 180),
+      tag: `bot-alert-${alertDoc.id}`,
+      url: '/',
+      audience: 'vip'
+    }).catch(() => {});
 
     let telegramForwarded = false;
     const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_TOKEN || '';

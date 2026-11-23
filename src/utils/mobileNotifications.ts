@@ -1,112 +1,37 @@
 import { soundManager } from './audio';
+import { auth } from '../lib/firebase';
 
 export type AppNotificationPermission = NotificationPermission | 'unsupported';
+export type WebPushAudience = 'targetUid' | 'admins' | 'vip' | 'all';
 
 const NOTIFICATION_PREF_KEY = 'mbk_app_notifications_enabled';
+const RECENT_ACTIVITY_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 
 let cachedSwRegistration: ServiceWorkerRegistration | null = null;
-let webLockHeld = false;
-let silentKeepAliveCtx: AudioContext | null = null;
-let bgHeartbeatInterval: ReturnType<typeof setInterval> | null = null;
-let currentSyncedUser: { uid: string; isAdmin: boolean } = { uid: '', isAdmin: false };
+let lastWebPushSyncMeta: { isVip?: boolean; isAdmin?: boolean } = {};
 
 /**
- * Holds a Web Lock + silent low-power Web Audio node + Service Worker heartbeat when backgrounded
- * so Android and iOS PWAs stay alive in the background without freezing real-time alerts,
- * using ZERO extra Firestore reads.
+ * Converts a URL-safe base64 VAPID public key string into a Uint8Array
+ * suitable for PushManager.subscribe({ applicationServerKey }).
  */
-function ensureMobileBackgroundKeepAlive(): void {
-  if (typeof window === 'undefined') return;
-
-  // 1. Web Locks API (prevents mobile browser tab/PWA discarding while backgrounded)
-  if (!webLockHeld && 'locks' in navigator && navigator.locks && typeof navigator.locks.request === 'function') {
-    webLockHeld = true;
-    navigator.locks
-      .request('mbk-realtime-background-alerts', { mode: 'shared' }, () => {
-        return new Promise<void>(() => {
-          // Hold lock for the lifetime of the session
-        });
-      })
-      .catch(() => {
-        webLockHeld = false;
-      });
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
   }
-
-  // 2. Service Worker Background Heartbeat (keeps SW thread awake when tab is hidden)
-  if (!bgHeartbeatInterval) {
-    bgHeartbeatInterval = setInterval(() => {
-      if (!isAppNotificationsEnabled()) return;
-      try {
-        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-          navigator.serviceWorker.controller.postMessage({
-            type: 'CLIENT_BACKGROUND_HEARTBEAT',
-            hidden: typeof document !== 'undefined' ? document.visibilityState === 'hidden' : false,
-            ts: Date.now()
-          });
-        }
-      } catch {
-        // ignore
-      }
-    }, 12000);
-  }
-}
-
-function startSilentAudioKeepAliveOnGesture(): void {
-  if (typeof window === 'undefined' || silentKeepAliveCtx) return;
-  if (!isAppNotificationsEnabled()) return;
-  try {
-    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    if (!AudioCtx) return;
-    const ctx = new AudioCtx();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    // Completely inaudible sub-threshold gain (0.00001) keeps mobile OS audio session alive in background
-    gain.gain.value = 0.00001;
-    osc.frequency.value = 1;
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    silentKeepAliveCtx = ctx;
-  } catch {
-    // ignore
-  }
-}
-
-if (typeof window !== 'undefined') {
-  const unlockKeepAlive = () => {
-    if (getNotificationPermissionState() === 'granted' && isAppNotificationsEnabled()) {
-      startSilentAudioKeepAliveOnGesture();
-      ensureMobileBackgroundKeepAlive();
-    }
-  };
-  window.addEventListener('pointerdown', unlockKeepAlive, { passive: true });
-  window.addEventListener('touchstart', unlockKeepAlive, { passive: true });
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden' && isAppNotificationsEnabled()) {
-      ensureMobileBackgroundKeepAlive();
-      if (silentKeepAliveCtx && silentKeepAliveCtx.state === 'suspended') {
-        silentKeepAliveCtx.resume().catch(() => {});
-      }
-      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({
-          type: 'CLIENT_BACKGROUND_HEARTBEAT',
-          hidden: true,
-          ts: Date.now()
-        });
-      }
-    }
-  });
+  return outputArray;
 }
 
 /**
- * Pre-warms and caches the Service Worker registration + registers Periodic Background Sync
- * so notifications fire with zero lookup latency even when the app is in the background or closed.
+ * Resolves and caches the active Service Worker registration (no polling, no keep-alive loops).
  */
 export async function ensureBackgroundNotificationWorkerReady(): Promise<ServiceWorkerRegistration | null> {
   if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
     return null;
   }
-  ensureMobileBackgroundKeepAlive();
   try {
     if (!cachedSwRegistration) {
       cachedSwRegistration = (await navigator.serviceWorker.getRegistration()) || null;
@@ -115,24 +40,9 @@ export async function ensureBackgroundNotificationWorkerReady(): Promise<Service
       cachedSwRegistration =
         (await Promise.race([
           navigator.serviceWorker.ready,
-          new Promise<null>((resolve) => setTimeout(() => resolve(null), 1200))
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500))
         ])) || null;
     }
-
-    if (cachedSwRegistration) {
-      const regAny = cachedSwRegistration as any;
-      if (regAny.periodicSync && typeof regAny.periodicSync.register === 'function') {
-        regAny.periodicSync
-          .register('mbk-bg-notifications', {
-            minInterval: 60 * 1000
-          })
-          .catch(() => {});
-      }
-      if (regAny.sync && typeof regAny.sync.register === 'function') {
-        regAny.sync.register('mbk-sync-notifications').catch(() => {});
-      }
-    }
-
     return cachedSwRegistration;
   } catch {
     return cachedSwRegistration;
@@ -140,192 +50,154 @@ export async function ensureBackgroundNotificationWorkerReady(): Promise<Service
 }
 
 /**
- * Syncs the logged-in user's UID and Admin status to the Service Worker's persistent Cache storage
- * so the Service Worker can filter and push personal DMs, @mbktrading inbox messages, and trade alerts
- * even when the app is closed.
+ * Registers or syncs the browser's native Web Push (VAPID) subscription to POST /api/push/subscribe.
+ * Exits silently if VITE_VAPID_PUBLIC_KEY is not configured or notification permission is not granted.
  */
-export function syncNotificationWorkerUserContext(uid: string, isAdmin: boolean): void {
-  currentSyncedUser = { uid: uid || '', isAdmin: Boolean(isAdmin) };
-  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
-  const payload = {
-    type: 'SYNC_USER_CONTEXT',
-    uid: currentSyncedUser.uid,
-    isAdmin: currentSyncedUser.isAdmin,
-    enabled: isAppNotificationsEnabled(),
-    lastPulseMs: Date.now()
-  };
+export async function registerWebPushSubscription(
+  idToken: string,
+  meta?: { isVip?: boolean; isAdmin?: boolean }
+): Promise<boolean> {
+  if (meta) {
+    lastWebPushSyncMeta = {
+      isVip: Boolean(meta.isVip),
+      isAdmin: Boolean(meta.isAdmin)
+    };
+  }
+
+  if (typeof window === 'undefined' || !idToken) return false;
+  if (!('Notification' in window) || Notification.permission !== 'granted') return false;
+  if (!isAppNotificationsEnabled()) return false;
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+
+  const vapidPublicKey = String(import.meta.env?.VITE_VAPID_PUBLIC_KEY || '').trim();
+  if (!vapidPublicKey || vapidPublicKey.length < 20) {
+    return false;
+  }
 
   try {
-    if (navigator.serviceWorker.controller) {
-      navigator.serviceWorker.controller.postMessage(payload);
+    const registration = await navigator.serviceWorker.ready;
+    if (!registration || !registration.pushManager) return false;
+    cachedSwRegistration = registration;
+
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: applicationServerKey as BufferSource
+      });
     }
-    navigator.serviceWorker.ready
-      .then((reg) => {
-        if (reg && reg.active) {
-          reg.active.postMessage(payload);
-        }
+
+    const subJson = subscription.toJSON();
+    if (!subJson?.endpoint || !subJson?.keys?.p256dh || !subJson?.keys?.auth) {
+      return false;
+    }
+
+    const res = await fetch('/api/push/subscribe', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${idToken}`
+      },
+      body: JSON.stringify({
+        subscription: subJson,
+        isVip: Boolean(meta?.isVip ?? lastWebPushSyncMeta.isVip),
+        isAdmin: Boolean(meta?.isAdmin ?? lastWebPushSyncMeta.isAdmin)
       })
-      .catch(() => {});
+    });
+
+    return res.ok;
   } catch {
-    // ignore
+    return false;
   }
 }
 
 /**
- * Publishes an event to the server's zero-quota in-memory notification pulse ring buffer (/api/notifications/pulse)
- * so closed/backgrounded Service Workers across other devices receive the alert with 0 Firestore reads.
+ * Convenience helper to automatically subscribe the currently signed-in Firebase user.
  */
-export function emitBackgroundNotificationPulse(params: {
+export async function syncCurrentUserWebPush(meta?: {
+  isVip?: boolean;
+  isAdmin?: boolean;
+}): Promise<boolean> {
+  if (meta) {
+    lastWebPushSyncMeta = {
+      isVip: Boolean(meta.isVip),
+      isAdmin: Boolean(meta.isAdmin)
+    };
+  }
+  try {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return false;
+    const idToken = await currentUser.getIdToken();
+    return await registerWebPushSubscription(idToken, lastWebPushSyncMeta);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Fire-and-forget real Web Push dispatch via POST /api/push/send (non-blocking, never delays UI).
+ */
+export function triggerServerWebPush(params: {
   title: string;
   body: string;
-  tag?: string;
   url?: string;
+  tag?: string;
+  audience: WebPushAudience;
   targetUid?: string | null;
   excludeUid?: string | null;
-  timestampMs?: number;
 }): void {
   if (typeof window === 'undefined') return;
-  const payload = JSON.stringify({
-    title: params.title,
-    body: params.body,
-    tag: params.tag || `mbk-pulse-${Date.now()}`,
-    url: params.url || '/',
-    targetUid: params.targetUid || null,
-    excludeUid: params.excludeUid || currentSyncedUser.uid || null,
-    timestampMs: params.timestampMs || Date.now()
-  });
+  const currentUser = auth.currentUser;
+  if (!currentUser) return;
 
-  try {
-    fetch('/api/notifications/pulse', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: payload,
-      keepalive: true
+  currentUser
+    .getIdToken()
+    .then((idToken) => {
+      if (!idToken) return;
+      return fetch('/api/push/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`
+        },
+        keepalive: true,
+        body: JSON.stringify({
+          title: params.title,
+          body: params.body,
+          url: params.url || '/',
+          tag: params.tag || `mbk-push-${Date.now()}`,
+          audience: params.audience,
+          targetUid: params.targetUid || null,
+          excludeUid: params.excludeUid !== undefined ? params.excludeUid : currentUser.uid
+        })
+      });
     })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data && Array.isArray(data.onlineUids)) {
-          updateLocalOnlineUids(data.onlineUids);
-        }
-      })
-      .catch(() => {});
-  } catch {
-    // ignore
-  }
-}
-
-// ================= ZERO-QUOTA IN-MEMORY ONLINE PRESENCE REGISTRY =================
-let cachedOnlineUidsSet = new Set<string>(['mbktrading']);
-const presenceListeners = new Set<(onlineSet: Set<string>) => void>();
-let presenceIntervalId: number | null = null;
-
-function updateLocalOnlineUids(list: string[]) {
-  const next = new Set<string>(['mbktrading']);
-  if (currentSyncedUser.uid) {
-    next.add(currentSyncedUser.uid);
-  }
-  for (const id of list) {
-    if (typeof id === 'string' && id.trim()) {
-      next.add(id.trim());
-    }
-  }
-  cachedOnlineUidsSet = next;
-  presenceListeners.forEach((cb) => {
-    try {
-      cb(new Set(cachedOnlineUidsSet));
-    } catch {
-      // ignore
-    }
-  });
-}
-
-async function pingServerPresenceOnce() {
-  if (typeof window === 'undefined') return;
-  try {
-    const uid = currentSyncedUser.uid || '';
-    const isAdminFlag = currentSyncedUser.isAdmin ? '1' : '0';
-    const res = await fetch(
-      `/api/notifications/pulse?since=${Date.now()}&uid=${encodeURIComponent(uid)}&isAdmin=${isAdminFlag}`,
-      {
-        method: 'GET',
-        headers: { Accept: 'application/json' },
-        cache: 'no-store'
-      }
-    );
-    if (res.ok) {
-      const data = await res.json();
-      if (data && Array.isArray(data.onlineUids)) {
-        updateLocalOnlineUids(data.onlineUids);
-      }
-    }
-  } catch {
-    // ignore
-  }
+    .catch(() => {
+      // Non-blocking fire-and-forget
+    });
 }
 
 /**
- * Subscribe to the zero-quota in-memory online presence set (0 Firestore reads/writes).
- */
-export function subscribeToOnlinePresence(
-  myUid: string | null | undefined,
-  onUpdate: (onlineUids: Set<string>) => void
-): () => void {
-  if (myUid && myUid.trim()) {
-    currentSyncedUser.uid = myUid.trim();
-    cachedOnlineUidsSet.add(myUid.trim());
-  }
-  presenceListeners.add(onUpdate);
-  onUpdate(new Set(cachedOnlineUidsSet));
-
-  if (typeof window !== 'undefined') {
-    pingServerPresenceOnce();
-    if (!presenceIntervalId) {
-      presenceIntervalId = window.setInterval(() => {
-        if (typeof document === 'undefined' || document.visibilityState === 'visible') {
-          pingServerPresenceOnce();
-        }
-      }, 35000);
-    }
-  }
-
-  return () => {
-    presenceListeners.delete(onUpdate);
-    if (presenceListeners.size === 0 && presenceIntervalId && typeof window !== 'undefined') {
-      window.clearInterval(presenceIntervalId);
-      presenceIntervalId = null;
-    }
-  };
-}
-
-/**
- * Determines whether a user is currently Online with 0 Firestore reads:
- * - True if in the server RAM onlineUids set
- * - True if it's the current user or official @mbktrading desk
- * - True if their last message/activity in the current stream was within 8 minutes
+ * Pure in-memory "Active Recently" presence check (0 Firestore reads, 0 server HTTP polling):
+ * - True if official @mbktrading desk or the current signed-in user
+ * - True if their last message timestamp already loaded in state was within the last 10 minutes
  */
 export function isUserCurrentlyOnline(params: {
   uid?: string | null;
   myUid?: string | null;
   lastActivityMs?: number | null;
-  onlineUids?: Set<string>;
   role?: string | null;
 }): boolean {
   const cleanUid = String(params.uid || '').trim();
   if (cleanUid === 'mbktrading') return true;
   if (cleanUid && params.myUid && cleanUid === params.myUid) return true;
-  const setToCheck = params.onlineUids || cachedOnlineUidsSet;
-  if (cleanUid && setToCheck.has(cleanUid)) return true;
   if (params.lastActivityMs && params.lastActivityMs > 0) {
-    if (Date.now() - params.lastActivityMs <= 8 * 60 * 1000) {
+    if (Date.now() - params.lastActivityMs <= RECENT_ACTIVITY_WINDOW_MS) {
       return true;
     }
   }
   return false;
-}
-
-// Pre-warm immediately when module loads in browser
-if (typeof window !== 'undefined') {
-  ensureBackgroundNotificationWorkerReady().catch(() => {});
 }
 
 export function getNotificationPermissionState(): AppNotificationPermission {
@@ -350,10 +222,8 @@ export function setAppNotificationsEnabled(enabled: boolean): void {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('mbk-notif-pref-changed', { detail: { enabled } }));
     }
-    syncNotificationWorkerUserContext(currentSyncedUser.uid, currentSyncedUser.isAdmin);
     if (enabled) {
-      startSilentAudioKeepAliveOnGesture();
-      ensureBackgroundNotificationWorkerReady().catch(() => {});
+      syncCurrentUserWebPush().catch(() => {});
     }
   } catch {
     // ignore
@@ -369,14 +239,12 @@ export async function requestAppNotificationPermission(): Promise<AppNotificatio
       const result = await Notification.requestPermission();
       if (result === 'granted') {
         setAppNotificationsEnabled(true);
-        startSilentAudioKeepAliveOnGesture();
-        ensureBackgroundNotificationWorkerReady().catch(() => {});
+        syncCurrentUserWebPush().catch(() => {});
       }
       return result;
     }
     if (Notification.permission === 'granted') {
-      startSilentAudioKeepAliveOnGesture();
-      ensureBackgroundNotificationWorkerReady().catch(() => {});
+      syncCurrentUserWebPush().catch(() => {});
     }
     return Notification.permission;
   } catch (err) {
@@ -393,12 +261,12 @@ export interface MobileNotificationPayload {
   playSound?: boolean;
 }
 
-// Deduplicate identical tags within 3 seconds so dual SW controller + registration paths never double-fire
+// Deduplicate identical tags within 3 seconds
 const recentNotificationTags = new Map<string, number>();
 
 /**
- * Dispatches an OS/Mobile notification with ZERO delay via pre-warmed ServiceWorker controller/registration
- * (required on Android/iOS PWAs and backgrounded tabs) with instant desktop fallback.
+ * Dispatches an OS/Mobile foreground notification via active Service Worker registration
+ * with clean fallback to the native Notification constructor.
  */
 export async function dispatchMobileAppNotification({
   title,
@@ -429,7 +297,17 @@ export async function dispatchMobileAppNotification({
   }
   recentNotificationTags.set(tag, nowMs);
 
-  // Sync tag to Service Worker so its background pulse poller knows this client already displayed it
+  const options: NotificationOptions & { vibrate?: number[]; renotify?: boolean; timestamp?: number } = {
+    body,
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    tag,
+    renotify: true,
+    vibrate: [200, 100, 200],
+    timestamp: nowMs,
+    data: { url }
+  };
+
   try {
     if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage({
@@ -445,28 +323,6 @@ export async function dispatchMobileAppNotification({
     // fallback below
   }
 
-  const options: NotificationOptions & { vibrate?: number[]; renotify?: boolean; timestamp?: number } = {
-    body,
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
-    tag,
-    renotify: true,
-    vibrate: [200, 100, 200],
-    timestamp: nowMs,
-    data: { url }
-  };
-
-  // Fast Path: If cached ServiceWorkerRegistration is already ready in memory, fire immediately (0ms wait)
-  try {
-    if (cachedSwRegistration && typeof cachedSwRegistration.showNotification === 'function') {
-      await cachedSwRegistration.showNotification(title, options);
-      return true;
-    }
-  } catch {
-    // fallback below
-  }
-
-  // Resolve registration and show notification
   try {
     const registration = await ensureBackgroundNotificationWorkerReady();
     if (registration && typeof registration.showNotification === 'function') {
@@ -477,7 +333,6 @@ export async function dispatchMobileAppNotification({
     console.warn('[Notifications] ServiceWorker showNotification fallback:', swErr);
   }
 
-  // Direct Notification constructor fallback
   try {
     const notif = new Notification(title, {
       body,

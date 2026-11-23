@@ -13,7 +13,7 @@ import {
 import { db, auth } from '../lib/firebase';
 import { getDmConversationId } from './directMessageService';
 import { enrichMacroEvent } from '../utils/macroArabicTranslator';
-import { emitBackgroundNotificationPulse } from '../utils/mobileNotifications';
+import { triggerServerWebPush } from '../utils/mobileNotifications';
 
 export type AnnouncementType = 'offer' | 'news' | 'event' | 'update';
 export type TargetAudienceSegment = 'all' | 'free' | 'vip' | 'elite' | 'expiring_soon';
@@ -457,11 +457,15 @@ export async function createAdminPopupAnnouncement(input: {
 
   await setDoc(doc(db, 'announcements', id), record);
 
-  emitBackgroundNotificationPulse({
+  const pushAudience =
+    record.targetAudience === 'vip' || record.targetAudience === 'elite' ? 'vip' : 'all';
+  triggerServerWebPush({
     title: `📣 إعلان MBK Trading: ${record.title}`,
     body: record.message.slice(0, 180),
     tag: `mbk-ann-${record.id}`,
-    excludeUid: auth.currentUser?.uid || undefined
+    url: '/',
+    audience: pushAudience,
+    excludeUid: auth.currentUser?.uid || null
   });
 
   return record;

@@ -9,11 +9,10 @@ import { subscribeToAuth } from '../services/firebaseAuthService';
 import {
   AppNotificationPermission,
   dispatchMobileAppNotification,
-  emitBackgroundNotificationPulse,
   ensureBackgroundNotificationWorkerReady,
   getNotificationPermissionState,
   requestAppNotificationPermission,
-  syncNotificationWorkerUserContext
+  syncCurrentUserWebPush
 } from '../utils/mobileNotifications';
 import { isDocumentDeleted, markDocumentDeleted } from '../utils/legacyDbRecovery';
 
@@ -352,13 +351,6 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
         return next;
       });
-
-      emitBackgroundNotificationPulse({
-        title: `تحديث صفقة • ${statusLabelAr}`,
-        body: `تم تحديث حالة الصفقة إلى: ${statusLabelAr}`,
-        tag: `signal-status-${cleanId}-${newStatus}`,
-        excludeUid: null
-      });
     },
     []
   );
@@ -452,7 +444,6 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setDmConversations([]);
         setUnreadDmCount(0);
         setAuthResolved(true);
-        syncNotificationWorkerUserContext('', false);
         return;
       }
 
@@ -465,20 +456,22 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         Boolean(profile.isAdmin) ||
         roleUpper === 'ADMIN';
       setIsAdminUser(isSuperAdmin);
-      syncNotificationWorkerUserContext(uid || '', isSuperAdmin);
 
       if (isSuperAdmin) {
         setCanReadVipSignals(true);
         setCanReadBotAlerts(true);
         setCanReadVipChat(true);
         setAuthResolved(true);
+        syncCurrentUserWebPush({ isVip: true, isAdmin: true }).catch(() => {});
         return;
       }
 
-      setCanReadVipSignals(hasFeatureAccess(profile, 'vipSignals'));
+      const hasVip = hasFeatureAccess(profile, 'vipSignals');
+      setCanReadVipSignals(hasVip);
       setCanReadBotAlerts(hasFeatureAccess(profile, 'botSignals'));
       setCanReadVipChat(!profile.isBanned);
       setAuthResolved(true);
+      syncCurrentUserWebPush({ isVip: hasVip, isAdmin: false }).catch(() => {});
     });
 
     return () => unsubscribe();

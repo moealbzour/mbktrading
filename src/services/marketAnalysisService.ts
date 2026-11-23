@@ -9,7 +9,7 @@ import {
   setDoc
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { emitBackgroundNotificationPulse } from '../utils/mobileNotifications';
+import { triggerServerWebPush } from '../utils/mobileNotifications';
 
 export type AnalysisDirection = 'BULLISH' | 'BEARISH' | 'NEUTRAL';
 
@@ -227,10 +227,12 @@ export async function saveMarketAnalysisPost(
   invalidateMarketAnalysisCache();
 
   if (post.isPublished) {
-    emitBackgroundNotificationPulse({
+    triggerServerWebPush({
       title: `📊 تحليل جديد (${post.symbol} - ${post.timeframe}): ${post.titleAr}`,
       body: post.summaryAr.slice(0, 180),
       tag: `mbk-analysis-${post.id}`,
+      url: '/',
+      audience: 'all',
       excludeUid: post.authorUid
     });
   }

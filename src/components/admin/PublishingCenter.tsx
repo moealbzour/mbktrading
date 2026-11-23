@@ -12,7 +12,7 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from '../../lib/firebase';
 import { isDocumentDeleted, markDocumentDeleted } from '../../utils/legacyDbRecovery';
-import { emitBackgroundNotificationPulse } from '../../utils/mobileNotifications';
+import { triggerServerWebPush } from '../../utils/mobileNotifications';
 import {
   Send,
   ShieldAlert,
@@ -252,11 +252,13 @@ export const PublishingCenter: React.FC<Props> = ({
       const docRef = await addDoc(collection(db, 'signals'), payload);
       setDbError(null);
 
-      emitBackgroundNotificationPulse({
+      triggerServerWebPush({
         title: `${action === 'BUY' ? '🟢 شراء' : '🔴 بيع'} ${symbol} (${isVip ? 'VIP' : 'عام'}) — صفقة جديدة`,
         body: `الدخول: ${numEntry} | الهدف 1: ${numTp1} | الوقف: ${numSl}`,
         tag: `mbk-signal-${docRef.id}`,
-        excludeUid: auth.currentUser?.uid || undefined
+        url: '/',
+        audience: isVip ? 'vip' : 'all',
+        excludeUid: auth.currentUser?.uid || null
       });
 
       try {
@@ -326,6 +328,27 @@ export const PublishingCenter: React.FC<Props> = ({
         )
       );
       await updateDoc(doc(db, 'signals', id), updatePayload);
+      if (
+        newStatus === 'TP_HIT' ||
+        newStatus === 'TP1_HIT' ||
+        newStatus === 'TP2_HIT' ||
+        newStatus === 'SL_HIT'
+      ) {
+        const targetTrade = publishedSignals.find((s) => s.id === id);
+        const isVipTrade =
+          targetTrade?.accessLevel === 'vip' ||
+          targetTrade?.channel === 'vip' ||
+          targetTrade?.isBlurredForFree === true;
+        const symLabel = targetTrade?.symbol ? ` ${targetTrade.symbol}` : '';
+        triggerServerWebPush({
+          title: `تحديث صفقة${symLabel} • ${statusLabelAr}`,
+          body: `تم تحديث حالة الصفقة إلى: ${statusLabelAr}${pips !== undefined ? ` (${pips > 0 ? '+' : ''}${pips} نقطة)` : ''}`,
+          tag: `signal-status-${id}-${newStatus}`,
+          url: '/',
+          audience: isVipTrade ? 'vip' : 'all',
+          excludeUid: auth.currentUser?.uid || null
+        });
+      }
       showFeedback('success', isAr ? `تم تحديث حالة الصفقة إلى ${statusLabelAr}` : `Status updated to ${newStatus}`);
     } catch (err: any) {
       console.error('[PublishingCenter] Status update failed:', err);

@@ -277,6 +277,34 @@
         "timestampMs": { "type": "number" }
       },
       "required": ["id", "title", "message", "type", "targetTabs", "targetAudience", "isActive", "timestampMs"]
+    },
+    "ChartSetup": {
+      "title": "ChartSetup",
+      "description": "Admin/Analyser master chart broadcast drawings and active signal setup per symbol",
+      "type": "object",
+      "properties": {
+        "symbol": { "type": "string", "maxLength": 32 },
+        "timeframe": { "type": "string", "maxLength": 16 },
+        "overlays": { "type": "array", "items": { "type": "object" } },
+        "activeSetup": { "type": "object" },
+        "updatedBy": { "type": "string", "maxLength": 200 },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["symbol", "updatedAt"]
+    },
+    "PushSubscriptionRecord": {
+      "title": "PushSubscriptionRecord",
+      "description": "User Web Push VAPID device subscriptions (up to 3 endpoints per user)",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 200 },
+        "isVip": { "type": "boolean" },
+        "isAdmin": { "type": "boolean" },
+        "subscriptions": { "type": "array", "items": { "type": "object" } },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["uid", "subscriptions", "updatedAt"]
     }
   },
   "firestore": {
@@ -347,6 +375,16 @@
     "/announcements/{announcementId}": {
       "schema": "Announcement",
       "description": "Admin popup announcements, offers, and macro event alerts"
+    },
+    "/chart_setups/{symbol}": {
+      "schema": "ChartSetup",
+      "description": "Admin/Analyser broadcasted chart drawings and active signal setup per symbol"
+    },
+    "/push_subscriptions/{uid}": {
+      "schema": "PushSubscriptionRecord",
+      "description": "Web Push VAPID device endpoints per signed-in user"
     }
   }
 }
+
+

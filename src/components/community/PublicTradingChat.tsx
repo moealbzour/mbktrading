@@ -55,11 +55,7 @@ import { UserProfile, MarketSymbol } from '../../types/trading';
 import { markDocumentDeleted } from '../../utils/legacyDbRecovery';
 import { useSignalsContext } from '../../context/SignalsContext';
 import { useCommunityChat } from '../../context/CommunityChatContext';
-import {
-  emitBackgroundNotificationPulse,
-  isUserCurrentlyOnline,
-  subscribeToOnlinePresence
-} from '../../utils/mobileNotifications';
+import { isUserCurrentlyOnline } from '../../utils/mobileNotifications';
 
 export interface ChatReplyTo {
   id: string;
@@ -273,15 +269,8 @@ export const PublicTradingChat: React.FC<Props> = ({
   const [editingMessageText, setEditingMessageText] = useState<string>('');
   const [savingEdit, setSavingEdit] = useState<boolean>(false);
 
-  // Zero-Quota In-Memory Online Presence Set
+  // Pure in-memory "Active Recently" presence derived from loaded message timestamps (0 reads, 0 HTTP polling)
   const myCurrentUid = auth.currentUser?.uid || user?.uid || user?.id || '';
-  const [onlineUids, setOnlineUids] = useState<Set<string>>(() => new Set(['mbktrading']));
-  useEffect(() => {
-    const unsub = subscribeToOnlinePresence(myCurrentUid, (nextSet) => {
-      setOnlineUids(nextSet);
-    });
-    return () => unsub();
-  }, [myCurrentUid]);
 
   // Per-user last activity map derived in memory from messages (0 extra Firestore reads)
   const lastActivityByUidOrName = React.useMemo(() => {
@@ -303,11 +292,10 @@ export const PublicTradingChat: React.FC<Props> = ({
         uid,
         myUid: myCurrentUid,
         lastActivityMs: lastMs,
-        onlineUids,
         role
       });
     },
-    [lastActivityByUidOrName, myCurrentUid, onlineUids]
+    [lastActivityByUidOrName, myCurrentUid]
   );
 
   // Track non-admin user reactions locally so regular users can only react 1x per emoji per message
@@ -814,23 +802,7 @@ export const PublicTradingChat: React.FC<Props> = ({
         timestampMs: Date.now()
       };
 
-      const addedDocRef = await addDoc(collection(db, 'public_chat'), payload);
-
-      const senderLabel = (currentUser.displayName || currentUserName || 'متداول').slice(0, 60);
-      const bodyPreview =
-        textToSend.slice(0, 140) ||
-        (attachedTradeCard
-          ? `صفقة مقترحة: ${attachedTradeCard.action} ${attachedTradeCard.symbol}`
-          : recordedAudioDataUrl
-          ? 'ملاحظة صوتية جديدة 🎙️'
-          : 'صورة تحليل فني جديدة 📊');
-
-      emitBackgroundNotificationPulse({
-        title: `💬 دردشة MBK — ${senderLabel}`,
-        body: bodyPreview,
-        tag: `mbk-chat-${addedDocRef.id}`,
-        excludeUid: currentUser.uid
-      });
+      await addDoc(collection(db, 'public_chat'), payload);
 
       setInputText('');
       setSelectedImage(null);

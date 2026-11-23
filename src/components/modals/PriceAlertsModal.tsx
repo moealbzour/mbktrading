@@ -15,8 +15,7 @@ import { MarketSymbol, MarketTicker } from '../../types/trading';
 import { soundManager } from '../../utils/audio';
 import {
   AppNotificationPermission,
-  dispatchMobileAppNotification,
-  emitBackgroundNotificationPulse
+  dispatchMobileAppNotification
 } from '../../utils/mobileNotifications';
 import { ToastItem } from '../common/ToastContainer';
 
@@ -57,25 +56,11 @@ export function loadUserPriceAlerts(uid?: string | null): PriceAlertItem[] {
   }
 }
 
-export function saveUserPriceAlerts(uid: string | null | undefined, alerts: PriceAlertItem[], lang: 'ar' | 'en' = 'ar') {
+export function saveUserPriceAlerts(uid: string | null | undefined, alerts: PriceAlertItem[], _lang: 'ar' | 'en' = 'ar') {
   try {
     localStorage.setItem(getStorageKey(uid), JSON.stringify(alerts));
   } catch {
     // ignore storage errors
-  }
-
-  // Sync with in-memory server pulse watcher so alerts also fire when app is closed (0 Firestore quota)
-  if (typeof window !== 'undefined' && uid) {
-    fetch('/api/notifications/pulse', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      keepalive: true,
-      body: JSON.stringify({
-        action: 'sync_price_alerts',
-        uid,
-        alerts: alerts.map((a) => ({ ...a, lang }))
-      })
-    }).catch(() => {});
   }
 }
 
@@ -191,14 +176,6 @@ export function usePriceAlertsManager(options: {
           tag,
           url: '/'
         }).catch(() => {});
-
-        emitBackgroundNotificationPulse({
-          title,
-          body,
-          tag,
-          targetUid: uid || null,
-          excludeUid: null
-        });
       }
     }
   }, [tickers, uid, lang, isAr, addToast]);
