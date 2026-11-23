@@ -369,14 +369,38 @@ export const TradingViewWorkspace: React.FC<Props> = ({
   // Full-Screen Analysis Mode state (overrides mobile split and expands advanced chart with drawing tools)
   const [isAnalysisMode, setIsAnalysisMode] = useState<boolean>(false);
   const [showRotatePrompt, setShowRotatePrompt] = useState<boolean>(false);
+  const CHART_QUICK_SYMBOLS: MarketSymbol[] = ['XAUUSD', 'US100', 'EURUSD', 'BTCUSD'];
+
+  const triggerRotatePhoneNotification = () => {
+    setShowRotatePrompt(true);
+    addToast({
+      title: lang === 'ar' ? 'تدوير الهاتف للشارت الكامل 📱🔄' : 'Rotate Phone for Full Chart 📱🔄',
+      message:
+        lang === 'ar'
+          ? 'قم بتدوير الهاتف أفقياً (Landscape) للحصول على عرض الشارت الكامل بأفضل دقة.'
+          : 'Rotate your phone horizontally (Landscape) to get the best Full Chart view.',
+      type: 'info',
+      timestamp: lang === 'ar' ? 'الآن' : 'Now'
+    });
+    setTimeout(() => {
+      setShowRotatePrompt(false);
+    }, 6000);
+  };
 
   const handleEnableAnalysisMode = () => {
     setIsAnalysisMode(true);
-    setShowRotatePrompt(true);
-    setTimeout(() => {
-      setShowRotatePrompt(false);
-    }, 4000);
+    triggerRotatePhoneNotification();
   };
+
+  useEffect(() => {
+    if (activeMainView === 'chart' && activeView === 'chart' && isMobile) {
+      setShowRotatePrompt(true);
+      const timer = setTimeout(() => {
+        setShowRotatePrompt(false);
+      }, 5500);
+      return () => clearTimeout(timer);
+    }
+  }, [activeMainView, activeView, isMobile]);
 
   // Trader Utility Modals State (Support, Risk Calculator, Sessions, Profile, Plans, Payment)
   const [supportModalOpen, setSupportModalOpen] = useState(false);
@@ -887,18 +911,23 @@ export const TradingViewWorkspace: React.FC<Props> = ({
       className="h-screen h-[100dvh] max-h-[100dvh] w-full max-w-full bg-[#0a0d12] text-[#f1f5f9] flex flex-col font-sans select-none overflow-hidden antialiased relative"
       dir={isAr ? 'rtl' : 'ltr'}
     >
-      {/* 1. CLEAN TOP BAR — BRAND LOGO + INSTALL | PROFILE (NO TOP MENU BUTTONS) */}
-      <header className="h-12 bg-[#10141c] border-b border-[#1e2633] px-2 sm:px-3 flex items-center justify-between shrink-0 z-40 gap-2">
-        {/* Start Side: Brand Logo + Download App */}
-        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+      {/* 1. UNIFIED TOP TICKER BAR — MBK LOGO ON TOP OF TRADINGVIEW WORD + LIVE PRICES + PROFILE ON OTHER SIDE */}
+      <header className="relative h-[42px] bg-[#0b0e14] border-b border-[#1e2633] shrink-0 z-40 overflow-hidden flex items-center">
+        {/* Background Live Price Ticker (Non-clickable so users never leave the site) */}
+        <div className="w-full h-full">
+          <HeaderTicker tickers={tickers} onSelectSymbol={onSelectSymbol} lang={lang} />
+        </div>
+
+        {/* Right Side Overlay (Covers TradingView word/logo watermark on the ticker): MBK Logo + Install */}
+        <div className="absolute right-0 top-0 bottom-0 z-30 bg-[#0b0e14] border-l border-[#1e2633] px-2 sm:px-3 flex items-center gap-1.5 sm:gap-2 shadow-[-12px_0_18px_#0b0e14]">
           <div className="flex items-center gap-1.5 shrink-0">
             <img
               src="/mbk-logo.png"
               alt="MBK Trading"
               referrerPolicy="no-referrer"
-              className="h-7 w-auto rounded-[3px] object-contain border border-[#1e2633] bg-[#0a0d12]"
+              className="h-6 sm:h-7 w-auto rounded-[3px] object-contain border border-[#1e2633] bg-[#06080c]"
             />
-            <span className="font-bold text-white text-xs sm:text-[13px] tracking-tight whitespace-nowrap">
+            <span className="font-bold text-white text-[11px] sm:text-xs tracking-tight whitespace-nowrap">
               MBK TRADING
             </span>
           </div>
@@ -909,23 +938,23 @@ export const TradingViewWorkspace: React.FC<Props> = ({
               soundManager.playClick();
               window.dispatchEvent(new CustomEvent('mbk-open-pwa-install'));
             }}
-            className="px-2 py-1 rounded-[3px] bg-[#0a0d12] hover:bg-[#161c26] border border-[#1e2633] hover:border-[#2a3446] text-[#8b95a5] hover:text-white text-[11px] font-semibold transition-colors cursor-pointer flex items-center gap-1 shrink-0 whitespace-nowrap"
+            className="p-1.5 sm:px-2 sm:py-1 rounded-[3px] bg-[#06080c] hover:bg-[#161c26] border border-[#1e2633] hover:border-[#2a3446] text-[#8b95a5] hover:text-white text-[10px] font-semibold transition-colors cursor-pointer flex items-center gap-1 shrink-0 whitespace-nowrap"
             title={isAr ? 'تحميل وتثبيت التطبيق' : 'Download & Install App'}
           >
-            <Download className="w-3.5 h-3.5 text-[#10b981] shrink-0" />
-            <span className="hidden sm:inline">{isAr ? 'تثبيت التطبيق' : 'Install'}</span>
+            <Download className="w-3 h-3 text-[#10b981] shrink-0" />
+            <span className="hidden md:inline">{isAr ? 'تثبيت' : 'Install'}</span>
           </button>
         </div>
 
-        {/* End Side: Profile & Settings Only */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        {/* Left Side Overlay (Other Side of the Ticker): User Profile Button */}
+        <div className="absolute left-0 top-0 bottom-0 z-30 bg-[#0b0e14] border-r border-[#1e2633] px-2 sm:px-2.5 flex items-center gap-1.5 shadow-[12px_0_18px_#0b0e14]">
           <button
             type="button"
             onClick={() => {
               soundManager.playClick();
               setProfileModalOpen(true);
             }}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[3px] bg-[#0a0d12] hover:bg-[#161c26] border border-[#1e2633] hover:border-[#2a3446] text-xs transition-colors cursor-pointer shrink-0 whitespace-nowrap"
+            className="flex items-center gap-1.5 px-2 py-1 rounded-[3px] bg-[#06080c] hover:bg-[#161c26] border border-[#1e2633] hover:border-[#2a3446] text-xs transition-colors cursor-pointer shrink-0 whitespace-nowrap"
             title={isAr ? 'الملف الشخصي وإعدادات المنصة' : 'Profile & App Settings'}
           >
             <div className="w-5 h-5 rounded-[2px] bg-[#161c26] border border-[#2a3446] text-white flex items-center justify-center font-mono font-bold text-[10px] uppercase shrink-0 overflow-hidden">
@@ -942,13 +971,13 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                 <User className="w-3 h-3" />
               )}
             </div>
-            <span className="font-semibold text-white truncate max-w-[90px] sm:max-w-[130px] text-[11px]">
+            <span className="font-semibold text-white truncate max-w-[75px] sm:max-w-[120px] text-[11px]">
               {user.name || user.email.split('@')[0]}
             </span>
             <span className="text-[10px] font-mono text-[#10b981] hidden sm:inline">
               · {user.isAdmin || roleUpperForAdmin === 'ADMIN' ? 'ADMIN' : isEliteMember ? 'ELITE' : isVIP ? 'VIP' : 'STD'}
             </span>
-            <Sliders className="w-3.5 h-3.5 text-[#8b95a5] shrink-0" />
+            <Sliders className="w-3 h-3 text-[#8b95a5] shrink-0" />
           </button>
         </div>
       </header>
@@ -1149,58 +1178,25 @@ export const TradingViewWorkspace: React.FC<Props> = ({
         </div>
       </aside>
 
-      {/* 2. LIVE PRICE TICKER */}
-      <div className={`transition-all duration-200 relative group/ticker overflow-hidden shrink-0 ${
-        showPriceTicker ? 'max-h-20 opacity-100' : 'max-h-0 opacity-0 pointer-events-none'
-      }`}>
-        <HeaderTicker tickers={tickers} onSelectSymbol={onSelectSymbol} lang={lang} />
-        <button
-          onClick={togglePriceTicker}
-          className="absolute end-1.5 top-1/2 -translate-y-1/2 z-20 p-1 rounded-[2px] bg-[#10141c] hover:bg-[#161c26] text-[#8b95a5] hover:text-white border border-[#1e2633] transition-opacity cursor-pointer opacity-75 group-hover/ticker:opacity-100 flex items-center"
-          title={isAr ? 'طي شريط الأسعار' : 'Fold price ticker'}
-        >
-          <ChevronUp className="w-3.5 h-3.5" />
-        </button>
-      </div>
-
-      {/* 2b. REAL RSS FINANCIAL NEWS BANNER */}
+      {/* 2. REAL RSS FINANCIAL NEWS BANNER (0.25x ULTRA-SMOOTH SPEED) */}
       <div className={`transition-all duration-200 relative group/news overflow-hidden shrink-0 ${
-        showNewsBanner ? 'max-h-20 opacity-100' : 'max-h-0 opacity-0 pointer-events-none'
+        showNewsBanner ? 'max-h-[700px] opacity-100' : 'max-h-0 opacity-0 pointer-events-none'
       }`}>
-        <LiveNewsTicker lang={lang} />
-        <button
-          onClick={toggleNewsBanner}
-          className="absolute end-1.5 top-1/2 -translate-y-1/2 z-20 p-1 rounded-[2px] bg-[#10141c] hover:bg-[#161c26] text-[#8b95a5] hover:text-white border border-[#1e2633] transition-opacity cursor-pointer opacity-75 group-hover/news:opacity-100 flex items-center"
-          title={isAr ? 'طي شريط الأخبار' : 'Fold news banner'}
-        >
-          <ChevronUp className="w-3.5 h-3.5" />
-        </button>
+        <LiveNewsTicker lang={lang} onHide={toggleNewsBanner} />
       </div>
 
-      {/* 2c. FOLDED TICKER / NEWS QUICK-RESTORE SMALL ARROW (0px layout height) */}
-      {(!showPriceTicker || !showNewsBanner) && (
+      {/* 2b. FOLDED NEWS QUICK-RESTORE SMALL ARROW (0px layout height) */}
+      {!showNewsBanner && (
         <div className="relative h-0 shrink-0 z-40">
           <div className="absolute end-1.5 top-0 flex items-center gap-1">
-            {!showPriceTicker && (
-              <button
-                type="button"
-                onClick={togglePriceTicker}
-                className="p-0.5 rounded-b-[3px] bg-[#10141c]/95 hover:bg-[#161c26] text-[#8b95a5] hover:text-white border-x border-b border-[#2a3446] shadow-sm transition-colors cursor-pointer flex items-center justify-center"
-                title={isAr ? 'إظهار شريط الأسعار' : 'Restore price ticker'}
-              >
-                <ChevronDown className="w-3.5 h-3.5" />
-              </button>
-            )}
-            {!showNewsBanner && (
-              <button
-                type="button"
-                onClick={toggleNewsBanner}
-                className="p-0.5 rounded-b-[3px] bg-[#10141c]/95 hover:bg-[#161c26] text-[#8b95a5] hover:text-white border-x border-b border-[#2a3446] shadow-sm transition-colors cursor-pointer flex items-center justify-center"
-                title={isAr ? 'إظهار شريط الأخبار' : 'Restore news banner'}
-              >
-                <ChevronDown className="w-3.5 h-3.5" />
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={toggleNewsBanner}
+              className="p-0.5 rounded-b-[3px] bg-[#10141c]/95 hover:bg-[#161c26] text-[#8b95a5] hover:text-white border-x border-b border-[#2a3446] shadow-sm transition-colors cursor-pointer flex items-center justify-center"
+              title={isAr ? 'إظهار شريط الأخبار' : 'Restore news banner'}
+            >
+              <ChevronDown className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
       )}
@@ -1222,16 +1218,40 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                 onSymbolChange={onSelectSymbol}
                 tickers={tickers}
               />
-              <button
-                onClick={() => {
-                  soundManager.playClick();
-                  setIsAnalysisMode(false);
-                }}
-                className="absolute top-3 end-3 z-50 px-3 py-1.5 rounded-[3px] bg-[#10141c] hover:bg-[#161c26] text-white font-semibold text-xs flex items-center gap-1.5 transition-colors cursor-pointer border border-[#2a3446]"
-              >
-                <Minimize2 className="w-3.5 h-3.5" />
-                <span>{isAr ? 'إنهاء الشارت الكامل' : 'Exit Full Chart'}</span>
-              </button>
+              <div className="absolute top-2.5 right-2.5 z-50 flex flex-wrap items-center justify-end gap-1.5">
+                <div className="flex items-center gap-1 bg-[#0b0e14]/90 backdrop-blur-md p-1 rounded-xl border border-[#2a3446] shadow-xl">
+                  {CHART_QUICK_SYMBOLS.map((sym) => {
+                    const isActive = selectedSymbol === sym;
+                    return (
+                      <button
+                        key={`full-sym-${sym}`}
+                        type="button"
+                        onClick={() => {
+                          soundManager.playClick();
+                          onSelectSymbol(sym);
+                        }}
+                        className={`px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold transition-all cursor-pointer shrink-0 ${
+                          isActive
+                            ? 'bg-[#089981] text-white shadow-md shadow-[#089981]/30 ring-1 ring-[#089981]/50'
+                            : 'text-[#8b95a5] hover:text-white hover:bg-white/10'
+                        }`}
+                      >
+                        {sym}
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  onClick={() => {
+                    soundManager.playClick();
+                    setIsAnalysisMode(false);
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-[#10141c]/95 hover:bg-[#161c26] text-white font-semibold text-xs flex items-center gap-1.5 transition-colors cursor-pointer border border-[#2a3446] shadow-xl"
+                >
+                  <Minimize2 className="w-3.5 h-3.5 text-[#089981]" />
+                  <span>{isAr ? 'إنهاء الشارت الكامل' : 'Exit Full Chart'}</span>
+                </button>
+              </div>
             </main>
           ) : activeView === 'chat' || activeView === 'dm' ? (
             <main className="flex-1 min-h-0 h-full overflow-hidden p-1 sm:p-2.5 flex flex-col bg-[#131722]">
@@ -1283,7 +1303,11 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                     isAdmin={user.role === 'ADMIN' || user.isAdmin || user.role === 'ANALYSER'}
                     tickers={tickers}
                     selectedSymbol={selectedSymbol}
-                    onSelectSymbol={onSelectSymbol}
+                    onSelectSymbol={(sym) => {
+                      onSelectSymbol(sym);
+                      setActiveMainView('chart');
+                      setActiveView('chart');
+                    }}
                     onOpenPromoModal={onOpenPromoModal}
                     onOpenPlansModal={() => setPlansModalOpen(true)}
                     lang={lang}
@@ -1294,23 +1318,68 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                 {activeView === 'chart' && (
                   <div className="flex flex-col space-y-4 w-full">
                     {isMobile ? (
-                      <div className="h-[34vh] min-h-[220px] w-full rounded-xl overflow-hidden border border-[#1e2633] bg-[#0a0d12] relative shrink-0">
+                      <div className="h-[36vh] min-h-[240px] w-full rounded-xl overflow-hidden border border-[#1e2633] bg-[#0a0d12] relative shrink-0">
                         <TradingViewLiteChart
                           symbol={selectedSymbol}
                           onSymbolChange={onSelectSymbol}
                           tickers={tickers}
                           lang={lang}
                         />
-                        <button
-                          onClick={() => {
-                            soundManager.playClick();
-                            handleEnableAnalysisMode();
-                          }}
-                          className="absolute top-2 end-2 z-20 px-2.5 py-1 rounded-[3px] bg-[#10141c]/90 hover:bg-[#161c26] text-white text-[10px] font-semibold flex items-center gap-1 cursor-pointer border border-[#2a3446]"
-                        >
-                          <Maximize2 className="w-3 h-3" />
-                          <span>{isAr ? 'شارت كامل' : 'Full Chart'}</span>
-                        </button>
+                        {/* Top-Right Overlay Over the Chart: Symbol Switcher + Full Chart Button + Rotate Phone Notification */}
+                        <div className="absolute top-2 right-2 z-20 flex flex-col items-end gap-1.5 max-w-[96%]">
+                          <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                            <div className="flex items-center gap-1 bg-[#0b0e14]/90 backdrop-blur-md p-1 rounded-xl border border-[#2a3446] shadow-lg overflow-x-auto scrollbar-none">
+                              {CHART_QUICK_SYMBOLS.map((sym) => {
+                                const isActive = selectedSymbol === sym;
+                                return (
+                                  <button
+                                    key={`mob-chart-sym-${sym}`}
+                                    type="button"
+                                    onClick={() => {
+                                      soundManager.playClick();
+                                      onSelectSymbol(sym);
+                                    }}
+                                    className={`px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold transition-all cursor-pointer shrink-0 ${
+                                      isActive
+                                        ? 'bg-[#089981] text-white shadow-md shadow-[#089981]/30 ring-1 ring-[#089981]/50'
+                                        : 'text-[#8b95a5] hover:text-white hover:bg-white/10'
+                                    }`}
+                                  >
+                                    {sym}
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                soundManager.playClick();
+                                handleEnableAnalysisMode();
+                              }}
+                              className="px-2.5 py-1.5 rounded-xl bg-[#10141c]/95 hover:bg-[#161c26] text-white text-[10px] font-bold flex items-center gap-1 cursor-pointer border border-[#089981]/50 shadow-lg shrink-0"
+                            >
+                              <Maximize2 className="w-3 h-3 text-[#089981]" />
+                              <span>{isAr ? 'شارت كامل' : 'Full Chart'}</span>
+                            </button>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              soundManager.playClick();
+                              handleEnableAnalysisMode();
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 backdrop-blur-md border border-amber-500/45 text-amber-300 text-[9.5px] font-bold flex items-center gap-1.5 shadow-md cursor-pointer"
+                          >
+                            <Smartphone className="w-3 h-3 text-amber-400 rotate-90 shrink-0" />
+                            <span>
+                              {isAr
+                                ? 'قم بتدوير الهاتف أفقياً للحصول على الشارت الكامل'
+                                : 'Rotate phone horizontally for Full Chart'}
+                            </span>
+                          </button>
+                        </div>
                       </div>
                     ) : (
                       <div className={`${isBottomFolded ? 'h-[calc(100vh-280px)] min-h-[380px]' : 'h-[450px] sm:h-[500px]'} w-full rounded-xl overflow-hidden border border-[#2a2e39] shadow-2xl relative transition-all duration-300 shrink-0`}>
@@ -1319,6 +1388,43 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                           onSymbolChange={onSelectSymbol}
                           tickers={tickers}
                         />
+                        {/* Top-Right Overlay Over the Chart: Symbol Switcher + Full Chart Button */}
+                        <div className="absolute top-2.5 right-2.5 z-20 flex items-center gap-1.5 flex-wrap justify-end">
+                          <div className="flex items-center gap-1 bg-[#0b0e14]/90 backdrop-blur-md p-1 rounded-xl border border-[#2a3446] shadow-xl">
+                            {CHART_QUICK_SYMBOLS.map((sym) => {
+                              const isActive = selectedSymbol === sym;
+                              return (
+                                <button
+                                  key={`desk-chart-sym-${sym}`}
+                                  type="button"
+                                  onClick={() => {
+                                    soundManager.playClick();
+                                    onSelectSymbol(sym);
+                                  }}
+                                  className={`px-2.5 py-0.5 rounded-lg text-[10px] font-mono font-bold transition-all cursor-pointer shrink-0 ${
+                                    isActive
+                                      ? 'bg-[#089981] text-white shadow-md shadow-[#089981]/30 ring-1 ring-[#089981]/50'
+                                      : 'text-[#8b95a5] hover:text-white hover:bg-white/10'
+                                  }`}
+                                >
+                                  {sym}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              soundManager.playClick();
+                              handleEnableAnalysisMode();
+                            }}
+                            className="px-2.5 py-1.5 rounded-xl bg-[#10141c]/95 hover:bg-[#161c26] text-white text-[10px] font-bold flex items-center gap-1 cursor-pointer border border-[#089981]/50 shadow-xl shrink-0"
+                          >
+                            <Maximize2 className="w-3 h-3 text-[#089981]" />
+                            <span>{isAr ? 'شارت كامل' : 'Full Chart'}</span>
+                          </button>
+                        </div>
                       </div>
                     )}
                     <div className="w-full animate-in fade-in transition-all shrink-0">

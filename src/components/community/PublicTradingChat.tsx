@@ -34,7 +34,8 @@ import {
   BarChart2,
   TrendingUp,
   TrendingDown,
-  Edit3
+  Edit3,
+  AtSign
 } from 'lucide-react';
 import {
   collection,
@@ -54,6 +55,11 @@ import { UserProfile, MarketSymbol } from '../../types/trading';
 import { markDocumentDeleted } from '../../utils/legacyDbRecovery';
 import { useSignalsContext } from '../../context/SignalsContext';
 import { useCommunityChat } from '../../context/CommunityChatContext';
+import {
+  emitBackgroundNotificationPulse,
+  isUserCurrentlyOnline,
+  subscribeToOnlinePresence
+} from '../../utils/mobileNotifications';
 
 export interface ChatReplyTo {
   id: string;
@@ -266,6 +272,148 @@ export const PublicTradingChat: React.FC<Props> = ({
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingMessageText, setEditingMessageText] = useState<string>('');
   const [savingEdit, setSavingEdit] = useState<boolean>(false);
+
+  // Zero-Quota In-Memory Online Presence Set
+  const myCurrentUid = auth.currentUser?.uid || user?.uid || user?.id || '';
+  const [onlineUids, setOnlineUids] = useState<Set<string>>(() => new Set(['mbktrading']));
+  useEffect(() => {
+    const unsub = subscribeToOnlinePresence(myCurrentUid, (nextSet) => {
+      setOnlineUids(nextSet);
+    });
+    return () => unsub();
+  }, [myCurrentUid]);
+
+  // Per-user last activity map derived in memory from messages (0 extra Firestore reads)
+  const lastActivityByUidOrName = React.useMemo(() => {
+    const map = new Map<string, number>();
+    for (const p of activeChatParticipants) {
+      if (p.uid) map.set(p.uid, p.lastActiveMs);
+      if (p.name) map.set(p.name.toLowerCase(), p.lastActiveMs);
+    }
+    return map;
+  }, [activeChatParticipants]);
+
+  const checkIsTraderOnline = React.useCallback(
+    (uid?: string, name?: string, role?: string) => {
+      const lastMs =
+        (uid && lastActivityByUidOrName.get(uid)) ||
+        (name && lastActivityByUidOrName.get(name.toLowerCase())) ||
+        0;
+      return isUserCurrentlyOnline({
+        uid,
+        myUid: myCurrentUid,
+        lastActivityMs: lastMs,
+        onlineUids,
+        role
+      });
+    },
+    [lastActivityByUidOrName, myCurrentUid, onlineUids]
+  );
+
+  // Track non-admin user reactions locally so regular users can only react 1x per emoji per message
+  const USER_REACTIONS_STORAGE_KEY = 'mbk_user_chat_reactions_v1';
+  const [userReactionsSet, setUserReactionsSet] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem(USER_REACTIONS_STORAGE_KEY);
+      if (!raw) return new Set();
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? new Set(parsed) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+
+  // @Mention Autocomplete State & Matcher
+  const [manualMentionMenuOpen, setManualMentionMenuOpen] = useState(false);
+  const mentionQueryMatch = React.useMemo(() => {
+    const match = inputText.match(/(?:^|\s)@([^\s@]{0,28})$/);
+    if (match) {
+      return match[1].toLowerCase();
+    }
+    return manualMentionMenuOpen ? '' : null;
+  }, [inputText, manualMentionMenuOpen]);
+
+  const mentionCandidates = React.useMemo(() => {
+    if (mentionQueryMatch === null) return [];
+    const list: Array<{ uid: string; name: string; role: string; avatar: string; isOnline: boolean }> = [
+      {
+        uid: 'mbktrading',
+        name: 'mbktrading',
+        role: 'ADMIN',
+        avatar: '',
+        isOnline: true
+      }
+    ];
+    const seen = new Set<string>(['mbktrading']);
+    for (const p of activeChatParticipants) {
+      const cleanName = (p.name || '').trim();
+      if (!cleanName || seen.has(cleanName.toLowerCase())) continue;
+      seen.add(cleanName.toLowerCase());
+      list.push({
+        uid: p.uid,
+        name: cleanName,
+        role: p.role,
+        avatar: p.avatar,
+        isOnline: checkIsTraderOnline(p.uid, cleanName, p.role)
+      });
+    }
+    if (!mentionQueryMatch) return list.slice(0, 8);
+    return list
+      .filter((item) => item.name.toLowerCase().includes(mentionQueryMatch))
+      .slice(0, 8);
+  }, [mentionQueryMatch, activeChatParticipants, checkIsTraderOnline]);
+
+  const handleInsertMention = (targetName: string) => {
+    soundManager.playClick();
+    const clean = targetName.trim();
+    if (!clean) return;
+    setInputText((prev) => {
+      if (/(?:^|\s)@([^\s@]{0,28})$/.test(prev)) {
+        return prev.replace(/@([^\s@]{0,28})$/, `@${clean} `).slice(0, MAX_CHAT_CHARS);
+      }
+      const prefix = prev && !prev.endsWith(' ') ? `${prev} ` : prev;
+      return `${prefix}@${clean} `.slice(0, MAX_CHAT_CHARS);
+    });
+    setManualMentionMenuOpen(false);
+  };
+
+  const renderMessageTextWithMentions = (text: string) => {
+    if (!text) return null;
+    const myNameLower = (user?.name || currentUserName || '').trim().toLowerCase();
+    // Split on @mentions (supporting Arabic/English letters, numbers, underscores, and spaces inside known participant names or single-token @handle)
+    const knownNames = activeChatParticipants
+      .map((p) => p.name.trim())
+      .filter((n) => n.length > 1)
+      .sort((a, b) => b.length - a.length);
+    const escapedKnown = knownNames.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const pattern =
+      escapedKnown.length > 0
+        ? new RegExp(`(@(?:mbktrading|${escapedKnown.join('|')}|[\\w\\u0600-\\u06FF._-]{2,25}))`, 'gi')
+        : /(@(?:mbktrading|[\w\u0600-\u06FF._-]{2,25}))/gi;
+
+    const parts = text.split(pattern);
+    return parts.map((part, idx) => {
+      if (part.startsWith('@') && part.length > 1) {
+        const mentionedName = part.slice(1).trim().toLowerCase();
+        const isMentioningMe =
+          Boolean(myNameLower && mentionedName === myNameLower) ||
+          (isCurrentAdmin && mentionedName === 'mbktrading');
+        return (
+          <span
+            key={`mention-${idx}`}
+            className={`inline-flex items-center px-1.5 py-0.2 mx-0.5 rounded-md font-bold text-[11px] ${
+              isMentioningMe
+                ? 'bg-amber-500/25 text-amber-300 border border-amber-500/50 shadow-xs'
+                : 'bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/40'
+            }`}
+          >
+            {part}
+          </span>
+        );
+      }
+      return <React.Fragment key={`txt-${idx}`}>{part}</React.Fragment>;
+    });
+  };
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -666,7 +814,23 @@ export const PublicTradingChat: React.FC<Props> = ({
         timestampMs: Date.now()
       };
 
-      await addDoc(collection(db, 'public_chat'), payload);
+      const addedDocRef = await addDoc(collection(db, 'public_chat'), payload);
+
+      const senderLabel = (currentUser.displayName || currentUserName || 'متداول').slice(0, 60);
+      const bodyPreview =
+        textToSend.slice(0, 140) ||
+        (attachedTradeCard
+          ? `صفقة مقترحة: ${attachedTradeCard.action} ${attachedTradeCard.symbol}`
+          : recordedAudioDataUrl
+          ? 'ملاحظة صوتية جديدة 🎙️'
+          : 'صورة تحليل فني جديدة 📊');
+
+      emitBackgroundNotificationPulse({
+        title: `💬 دردشة MBK — ${senderLabel}`,
+        body: bodyPreview,
+        tag: `mbk-chat-${addedDocRef.id}`,
+        excludeUid: currentUser.uid
+      });
 
       setInputText('');
       setSelectedImage(null);
@@ -697,9 +861,50 @@ export const PublicTradingChat: React.FC<Props> = ({
       const msg = messages.find((m) => m.id === messageId);
       if (!msg) return;
 
+      const uid = auth.currentUser?.uid || myCurrentUid || 'anon';
+      const reactionKey = `${uid}_${messageId}_${emoji}`;
       const updatedReactions = { ...(msg.reactions || {}) };
-      updatedReactions[emoji] = (updatedReactions[emoji] || 0) + 1;
-      const nextLikes = (msg.likes || 0) + 1;
+      const currentEmojiCount = Number(updatedReactions[emoji] || 0);
+      let nextLikes = Number(msg.likes || 0);
+
+      // Admin can increment reaction numbers as much as they want; regular users can only react 1x per emoji (click again to remove)
+      if (isCurrentAdmin) {
+        updatedReactions[emoji] = currentEmojiCount + 1;
+        if (emoji === '❤️') {
+          nextLikes = nextLikes + 1;
+        }
+      } else {
+        const hasAlreadyReacted = userReactionsSet.has(reactionKey);
+        const nextSet = new Set(userReactionsSet);
+
+        if (hasAlreadyReacted) {
+          // Toggle off the user's single reaction
+          nextSet.delete(reactionKey);
+          const decremented = Math.max(0, currentEmojiCount - 1);
+          if (decremented === 0) {
+            delete updatedReactions[emoji];
+          } else {
+            updatedReactions[emoji] = decremented;
+          }
+          if (emoji === '❤️') {
+            nextLikes = Math.max(0, nextLikes - 1);
+          }
+        } else {
+          // Add 1 reaction for this user
+          nextSet.add(reactionKey);
+          updatedReactions[emoji] = currentEmojiCount + 1;
+          if (emoji === '❤️') {
+            nextLikes = nextLikes + 1;
+          }
+        }
+
+        setUserReactionsSet(nextSet);
+        try {
+          localStorage.setItem(USER_REACTIONS_STORAGE_KEY, JSON.stringify(Array.from(nextSet).slice(-400)));
+        } catch {
+          // ignore
+        }
+      }
 
       const docRef = doc(db, 'public_chat', messageId);
       await updateDoc(docRef, {
@@ -1180,51 +1385,72 @@ export const PublicTradingChat: React.FC<Props> = ({
           </div>
 
           <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-            {activeChatParticipants.map((trader) => (
-              <button
-                key={trader.uid || trader.name}
-                type="button"
-                onClick={() => {
-                  soundManager.playClick();
-                  setInspectedTrader({
-                    uid: trader.uid || undefined,
-                    name: trader.name,
-                    avatar: trader.avatar,
-                    role: trader.role
-                  });
-                }}
-                className="px-2.5 py-1.5 rounded-xl bg-[#131722] hover:bg-[#1e222d] border border-[#2a2e39] hover:border-[#089981]/50 flex items-center gap-2 shrink-0 cursor-pointer transition-all"
-                title={
-                  isAr
-                    ? `اضغط لعرض بطاقة ${trader.name} أو إرسال رسالة خاصة`
-                    : `Click to view ${trader.name}'s card or send DM`
-                }
-              >
-                <div className="relative w-6 h-6 rounded-full bg-[#2a2e39] border border-[#363a45] flex items-center justify-center text-[10px] font-bold text-white overflow-hidden shrink-0">
-                  {trader.avatar ? (
-                    <img src={trader.avatar} alt={trader.name} className="w-full h-full object-cover" />
-                  ) : (
-                    trader.name[0]?.toUpperCase() || 'T'
-                  )}
-                  <span className="absolute bottom-0 end-0 w-1.5 h-1.5 rounded-full bg-[#089981] ring-1 ring-[#131722]" />
-                </div>
-                <div className="text-start">
-                  <div className="flex items-center gap-1">
-                    <span className="text-[11px] font-bold text-white max-w-[110px] truncate">
-                      {trader.name}
-                    </span>
-                    {trader.isMe && (
-                      <span className="text-[9px] text-[#089981] font-mono">
-                        ({isAr ? 'أنت' : 'You'})
-                      </span>
+            {activeChatParticipants.map((trader) => {
+              const traderOnline = checkIsTraderOnline(trader.uid, trader.name, trader.role);
+              return (
+                <button
+                  key={trader.uid || trader.name}
+                  type="button"
+                  onClick={() => {
+                    soundManager.playClick();
+                    setInspectedTrader({
+                      uid: trader.uid || undefined,
+                      name: trader.name,
+                      avatar: trader.avatar,
+                      role: trader.role
+                    });
+                  }}
+                  className="px-2.5 py-1.5 rounded-xl bg-[#131722] hover:bg-[#1e222d] border border-[#2a2e39] hover:border-[#089981]/50 flex items-center gap-2 shrink-0 cursor-pointer transition-all"
+                  title={
+                    isAr
+                      ? `اضغط لعرض بطاقة ${trader.name} أو إرسال رسالة خاصة`
+                      : `Click to view ${trader.name}'s card or send DM`
+                  }
+                >
+                  <div className="relative w-6 h-6 rounded-full bg-[#2a2e39] border border-[#363a45] flex items-center justify-center text-[10px] font-bold text-white overflow-hidden shrink-0">
+                    {trader.avatar ? (
+                      <img src={trader.avatar} alt={trader.name} className="w-full h-full object-cover" />
+                    ) : (
+                      trader.name[0]?.toUpperCase() || 'T'
                     )}
+                    <span
+                      className={`absolute bottom-0 end-0 w-1.5 h-1.5 rounded-full ring-1 ring-[#131722] ${
+                        traderOnline ? 'bg-[#089981]' : 'bg-[#64748b]'
+                      }`}
+                    />
                   </div>
-                  <span className="text-[9px] font-mono text-[#787b86] block">
-                    {trader.role}
-                  </span>
-                </div>
-              </button>
-            ))}
+                  <div className="text-start">
+                    <div className="flex items-center gap-1">
+                      <span className="text-[11px] font-bold text-white max-w-[110px] truncate">
+                        {trader.name}
+                      </span>
+                      <span
+                        className={`inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[8px] font-bold ${
+                          traderOnline
+                            ? 'bg-[#089981]/15 text-[#089981]'
+                            : 'bg-white/5 text-[#787b86]'
+                        }`}
+                      >
+                        <span
+                          className={`w-1 h-1 rounded-full ${
+                            traderOnline ? 'bg-[#089981]' : 'bg-[#64748b]'
+                          }`}
+                        />
+                        <span>{traderOnline ? (isAr ? 'متصل' : 'Online') : isAr ? 'غير متصل' : 'Offline'}</span>
+                      </span>
+                      {trader.isMe && (
+                        <span className="text-[9px] text-[#089981] font-mono">
+                          ({isAr ? 'أنت' : 'You'})
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[9px] font-mono text-[#787b86] block">
+                      {trader.role}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -1342,6 +1568,14 @@ export const PublicTradingChat: React.FC<Props> = ({
                     <Reply className="w-3.5 h-3.5" />
                   </button>
 
+                  <button
+                    onClick={() => handleInsertMention(msg.user)}
+                    className="p-1 hover:bg-[#089981]/20 rounded-full text-[#787b86] hover:text-[#089981] transition-colors cursor-pointer"
+                    title={isAr ? `إشارة إلى @${msg.user}` : `Mention @${msg.user}`}
+                  >
+                    <AtSign className="w-3.5 h-3.5" />
+                  </button>
+
                   {!isMe && msg.uid && onStartDirectMessage && (
                     <button
                       onClick={() => {
@@ -1453,36 +1687,91 @@ export const PublicTradingChat: React.FC<Props> = ({
                   )}
 
                   <div className="flex items-center justify-between gap-2 mb-1.5">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          soundManager.playClick();
-                          setInspectedTrader({
-                            uid: msg.uid,
-                            name: msg.user,
-                            avatar: msg.avatar,
-                            role: msg.role
-                          });
-                        }}
-                        className="flex items-center gap-1.5 min-w-0 hover:opacity-85 transition-opacity cursor-pointer"
-                        title={isAr ? `عرض بطاقة المتداول ${msg.user}` : `View ${msg.user}'s Trader Card`}
-                      >
-                        {msg.avatar ? (
-                          <img
-                            src={msg.avatar}
-                            alt={msg.user}
-                            className="w-5 h-5 rounded-full object-cover border border-[#363a45] shrink-0"
-                          />
-                        ) : (
-                          <div className="w-5 h-5 rounded-full bg-[#2a2e39] border border-[#363a45] text-[10px] font-bold text-white flex items-center justify-center shrink-0">
-                            {msg.user ? msg.user[0].toUpperCase() : 'M'}
-                          </div>
-                        )}
-                        <span className="font-bold text-white hover:text-[#089981] text-[11px] sm:text-xs truncate transition-colors">
-                          {msg.user}
-                        </span>
-                      </button>
+                    <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                      {(() => {
+                        const isMsgUserOnline = checkIsTraderOnline(msg.uid, msg.user, msg.role);
+                        return (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                soundManager.playClick();
+                                setInspectedTrader({
+                                  uid: msg.uid,
+                                  name: msg.user,
+                                  avatar: msg.avatar,
+                                  role: msg.role
+                                });
+                              }}
+                              className="flex items-center gap-1.5 min-w-0 hover:opacity-85 transition-opacity cursor-pointer"
+                              title={isAr ? `عرض بطاقة المتداول ${msg.user}` : `View ${msg.user}'s Trader Card`}
+                            >
+                              <div className="relative shrink-0">
+                                {msg.avatar ? (
+                                  <img
+                                    src={msg.avatar}
+                                    alt={msg.user}
+                                    className="w-5 h-5 rounded-full object-cover border border-[#363a45]"
+                                  />
+                                ) : (
+                                  <div className="w-5 h-5 rounded-full bg-[#2a2e39] border border-[#363a45] text-[10px] font-bold text-white flex items-center justify-center">
+                                    {msg.user ? msg.user[0].toUpperCase() : 'M'}
+                                  </div>
+                                )}
+                                <span
+                                  className={`absolute -bottom-0.5 -end-0.5 w-2 h-2 rounded-full ring-1 ring-[#131722] ${
+                                    isMsgUserOnline ? 'bg-[#089981]' : 'bg-[#64748b]'
+                                  }`}
+                                  title={
+                                    isMsgUserOnline
+                                      ? isAr
+                                        ? 'متصل الآن'
+                                        : 'Online'
+                                      : isAr
+                                      ? 'غير متصل'
+                                      : 'Offline'
+                                  }
+                                />
+                              </div>
+                              <span className="font-bold text-white hover:text-[#089981] text-[11px] sm:text-xs truncate transition-colors">
+                                {msg.user}
+                              </span>
+                            </button>
+
+                            <span
+                              className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[8px] font-bold border shrink-0 ${
+                                isMsgUserOnline
+                                  ? 'bg-[#089981]/15 text-[#089981] border-[#089981]/35'
+                                  : 'bg-white/5 text-[#787b86] border-white/10'
+                              }`}
+                              title={
+                                isMsgUserOnline
+                                  ? isAr
+                                    ? 'متصل الآن'
+                                    : 'Online now'
+                                  : isAr
+                                  ? 'غير متصل'
+                                  : 'Offline'
+                              }
+                            >
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  isMsgUserOnline ? 'bg-[#089981] animate-pulse' : 'bg-[#64748b]'
+                                }`}
+                              />
+                              <span>
+                                {isMsgUserOnline
+                                  ? isAr
+                                    ? 'متصل'
+                                    : 'Online'
+                                  : isAr
+                                  ? 'غير متصل'
+                                  : 'Offline'}
+                              </span>
+                            </span>
+                          </>
+                        );
+                      })()}
 
                       {(() => {
                         const r = (msg.role || 'VIP').toUpperCase();
@@ -1689,7 +1978,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                   ) : msg.text ? (
                     <div>
                       <p className="text-xs text-[#e1e4ea] leading-relaxed break-words whitespace-pre-wrap">
-                        {msg.text}
+                        {renderMessageTextWithMentions(msg.text)}
                       </p>
                       {msg.editedAt && (
                         <span className="text-[9px] text-[#787b86] italic block mt-0.5">
@@ -1703,22 +1992,45 @@ export const PublicTradingChat: React.FC<Props> = ({
                   <div className="flex items-center justify-between gap-2 mt-2 pt-1 border-t border-white/5">
                     <div className="flex items-center gap-1 flex-wrap">
                       {msg.reactions &&
-                        Object.entries(msg.reactions).map(([emoji, count]) =>
-                          count > 0 ? (
+                        Object.entries(msg.reactions).map(([emoji, count]) => {
+                          if (count <= 0) return null;
+                          const hasReacted = userReactionsSet.has(`${msg.id}::${emoji}`);
+                          return (
                             <button
                               key={emoji}
                               onClick={() => handleReact(msg.id, emoji)}
-                              className="px-1.5 py-0.5 rounded-full bg-[#131722]/80 border border-[#2a2e39] text-[10px] flex items-center gap-1 hover:border-[#089981] transition-colors cursor-pointer"
+                              title={
+                                isCurrentAdmin
+                                  ? isAr
+                                    ? 'إدارة: اضغط لزيادة عداد التفاعل بلا حدود'
+                                    : 'Admin: Click to increment reaction count freely'
+                                  : hasReacted
+                                  ? isAr
+                                    ? 'اضغط لإلغاء تفاعلك (تفاعل واحد لكل عضو)'
+                                    : 'Click to remove your reaction (1 per user)'
+                                  : isAr
+                                  ? 'اضغط للتفاعل'
+                                  : 'Click to react'
+                              }
+                              className={`px-1.5 py-0.5 rounded-full border text-[10px] flex items-center gap-1 transition-colors cursor-pointer ${
+                                hasReacted && !isCurrentAdmin
+                                  ? 'bg-[#089981]/20 border-[#089981] text-white'
+                                  : 'bg-[#131722]/80 border-[#2a2e39] hover:border-[#089981]'
+                              }`}
                             >
                               <span>{emoji}</span>
                               <span className="font-mono text-[#787b86] text-[9px] font-bold">{count}</span>
                             </button>
-                          ) : null
-                        )}
+                          );
+                        })}
 
                       <button
                         onClick={() => handleReact(msg.id, '❤️')}
-                        className="flex items-center gap-1 text-[10px] font-mono text-[#787b86] hover:text-[#f23645] px-1.5 py-0.5 rounded transition-colors cursor-pointer"
+                        className={`flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded transition-colors cursor-pointer ${
+                          userReactionsSet.has(`${msg.id}::❤️`) && !isCurrentAdmin
+                            ? 'text-[#f23645] bg-[#f23645]/10'
+                            : 'text-[#787b86] hover:text-[#f23645]'
+                        }`}
                       >
                         <Heart className="w-3 h-3" />
                         {msg.likes > 0 && <span>{msg.likes}</span>}
@@ -1970,6 +2282,60 @@ export const PublicTradingChat: React.FC<Props> = ({
               </button>
             </div>
           )}
+          {/* @Mention Autocomplete Dropdown (0 Firestore Reads/Writes) */}
+          {mentionCandidates.length > 0 && (
+            <div className="border-t border-[#2a2e39] bg-[#131722] px-2.5 py-2 shrink-0 shadow-2xl z-30 animate-in slide-in-from-bottom-1 duration-150">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10px] font-bold text-[#089981] flex items-center gap-1">
+                  <AtSign className="w-3 h-3" />
+                  <span>
+                    {isAr
+                      ? 'إشارة إلى متداول في الرسالة (@Mention):'
+                      : 'Mention a trader in your message (@Mention):'}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setManualMentionMenuOpen(false)}
+                  className="text-[10px] text-[#787b86] hover:text-white cursor-pointer flex items-center gap-0.5"
+                >
+                  <span>{isAr ? 'إغلاق' : 'Close'}</span>
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                {mentionCandidates.map((cand) => (
+                  <button
+                    key={cand.uid || cand.name}
+                    type="button"
+                    onClick={() => handleInsertMention(cand.name)}
+                    className="px-2.5 py-1.5 rounded-xl bg-[#1e222d] hover:bg-[#089981]/20 border border-[#2a2e39] hover:border-[#089981]/50 flex items-center gap-1.5 shrink-0 cursor-pointer transition-all"
+                  >
+                    <div className="relative w-5 h-5 rounded-full bg-[#2a2e39] border border-[#363a45] flex items-center justify-center text-[9px] font-bold text-white overflow-hidden shrink-0">
+                      {cand.avatar ? (
+                        <img src={cand.avatar} alt={cand.name} className="w-full h-full object-cover" />
+                      ) : (
+                        cand.name[0]?.toUpperCase() || 'T'
+                      )}
+                      <span
+                        className={`absolute bottom-0 end-0 w-1.5 h-1.5 rounded-full ring-1 ring-[#131722] ${
+                          cand.isOnline ? 'bg-[#089981]' : 'bg-[#64748b]'
+                        }`}
+                      />
+                    </div>
+                    <span className="text-[11px] font-bold text-white">@{cand.name}</span>
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${
+                        cand.isOnline ? 'bg-[#089981]' : 'bg-[#64748b]'
+                      }`}
+                      title={cand.isOnline ? (isAr ? 'متصل' : 'Online') : isAr ? 'غير متصل' : 'Offline'}
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <form
             onSubmit={handleSendMessage}
             className="p-2 sm:p-2.5 border-t border-[#2a2e39] bg-[#1a1e28] flex items-center gap-1.5 shrink-0 sticky bottom-0 z-30 shadow-[0_-4px_16px_rgba(0,0,0,0.35)]"
@@ -2033,6 +2399,23 @@ export const PublicTradingChat: React.FC<Props> = ({
             {isRecordingVoice ? <Square className="w-4 h-4 fill-white" /> : <Mic className="w-4 h-4" />}
           </button>
 
+          {/* @Mention Quick Picker Button */}
+          <button
+            type="button"
+            onClick={() => {
+              soundManager.playClick();
+              setManualMentionMenuOpen((prev) => !prev);
+            }}
+            className={`p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-center shrink-0 ${
+              manualMentionMenuOpen || mentionQueryMatch !== null
+                ? 'bg-[#089981] text-white border-[#089981]'
+                : 'bg-[#131722] hover:bg-[#2a2e39] text-[#089981] border-[#2a2e39]'
+            }`}
+            title={isAr ? 'إشارة إلى مستخدم (@Mention)' : 'Mention user (@Mention)'}
+          >
+            <AtSign className="w-4 h-4" />
+          </button>
+
           <div className="flex-1 min-w-0 relative flex items-center">
             <input
               type="text"
@@ -2041,8 +2424,8 @@ export const PublicTradingChat: React.FC<Props> = ({
               onChange={(e) => setInputText(e.target.value.slice(0, MAX_CHAT_CHARS))}
               placeholder={
                 isAr
-                  ? 'اكتب رسالة أو شارك صفقة أو ملاحظة صوتية...'
-                  : 'Type a message, share a trade card, or record voice...'
+                  ? 'اكتب رسالة أو @ للإشارة إلى متداول...'
+                  : 'Type a message or @ to mention a trader...'
               }
               className="w-full bg-[#131722] border border-[#2a2e39] focus:border-[#089981] rounded-xl px-3 py-2 pe-16 text-xs text-white placeholder-[#787b86] transition-all focus:outline-none"
             />
@@ -2586,19 +2969,61 @@ export const PublicTradingChat: React.FC<Props> = ({
           >
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
-                {inspectedTrader.avatar ? (
-                  <img
-                    src={inspectedTrader.avatar}
-                    alt={inspectedTrader.name}
-                    className="w-12 h-12 rounded-2xl object-cover border-2 border-[#089981]"
+                <div className="relative">
+                  {inspectedTrader.avatar ? (
+                    <img
+                      src={inspectedTrader.avatar}
+                      alt={inspectedTrader.name}
+                      className="w-12 h-12 rounded-2xl object-cover border-2 border-[#089981]"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-2xl bg-[#131722] border-2 border-[#089981] text-white font-mono font-black text-lg flex items-center justify-center">
+                      {inspectedTrader.name ? inspectedTrader.name[0].toUpperCase() : 'T'}
+                    </div>
+                  )}
+                  <span
+                    className={`absolute -bottom-0.5 -end-0.5 w-3.5 h-3.5 rounded-full ring-2 ring-[#1e222d] ${
+                      checkIsTraderOnline(inspectedTrader.uid, inspectedTrader.name, inspectedTrader.role)
+                        ? 'bg-[#089981]'
+                        : 'bg-[#64748b]'
+                    }`}
                   />
-                ) : (
-                  <div className="w-12 h-12 rounded-2xl bg-[#131722] border-2 border-[#089981] text-white font-mono font-black text-lg flex items-center justify-center">
-                    {inspectedTrader.name ? inspectedTrader.name[0].toUpperCase() : 'T'}
-                  </div>
-                )}
+                </div>
                 <div>
-                  <h3 className="text-sm font-extrabold text-white">{inspectedTrader.name}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-extrabold text-white">{inspectedTrader.name}</h3>
+                    {(() => {
+                      const traderOnline = checkIsTraderOnline(
+                        inspectedTrader.uid,
+                        inspectedTrader.name,
+                        inspectedTrader.role
+                      );
+                      return (
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold border ${
+                            traderOnline
+                              ? 'bg-[#089981]/15 text-[#089981] border-[#089981]/35'
+                              : 'bg-white/5 text-[#787b86] border-white/10'
+                          }`}
+                        >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              traderOnline ? 'bg-[#089981] animate-pulse' : 'bg-[#64748b]'
+                            }`}
+                          />
+                          <span>
+                            {traderOnline
+                              ? isAr
+                                ? 'متصل الآن'
+                                : 'Online'
+                              : isAr
+                              ? 'غير متصل'
+                              : 'Offline'}
+                          </span>
+                        </span>
+                      );
+                    })()}
+                  </div>
                   <div className="flex items-center gap-1.5 mt-1">
                     <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#089981]/20 text-[#089981] border border-[#089981]/40">
                       {(inspectedTrader.role || 'TRADER').toUpperCase()}
@@ -2619,6 +3044,21 @@ export const PublicTradingChat: React.FC<Props> = ({
             </div>
 
             <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#2a2e39]">
+              <button
+                type="button"
+                onClick={() => {
+                  const target = inspectedTrader;
+                  setInspectedTrader(null);
+                  handleInsertMention(target.name);
+                }}
+                className="col-span-2 py-2 px-3 rounded-xl bg-[#131722] hover:bg-[#089981]/20 border border-[#2a2e39] hover:border-[#089981]/50 text-[#089981] text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+              >
+                <AtSign className="w-3.5 h-3.5" />
+                <span>
+                  {isAr ? `إشارة إلى @${inspectedTrader.name} في الشات` : `Mention @${inspectedTrader.name} in Chat`}
+                </span>
+              </button>
+
               {inspectedTrader.uid &&
                 inspectedTrader.uid !== auth.currentUser?.uid &&
                 onStartDirectMessage && (

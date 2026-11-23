@@ -314,23 +314,15 @@ const TradingViewLiveEventsPanel: React.FC<{ lang?: 'ar' | 'en' }> = ({ lang = '
 };
 
 export const MarketInsightsWidget: React.FC<MarketInsightsWidgetProps> = ({
-  selectedSymbol = 'US100',
-  onSymbolChange,
+  selectedSymbol = 'XAUUSD',
   lang = 'ar'
 }) => {
   const isAr = lang === 'ar';
-  const activeAsset = selectedSymbol || 'US100';
-  const availableAssets: MarketSymbol[] = ['US100', 'XAUUSD', 'EURUSD', 'BTCUSD'];
-
-  const handleSelectAsset = (sym: MarketSymbol) => {
-    if (onSymbolChange) {
-      onSymbolChange(sym);
-    }
-  };
+  const activeAsset = selectedSymbol || 'XAUUSD';
 
   return (
     <div className="w-full space-y-3 p-2.5 sm:p-3 bg-[#0c0f17]/80 backdrop-blur-md rounded-2xl border border-white/10 shadow-2xl text-[#d1d4dc] transition-all">
-      {/* Container Header with Title & Linked Asset Switcher */}
+      {/* Container Header with Title */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2">
         <div className="flex items-center gap-2 min-w-0">
           <div className="p-1.5 rounded-lg bg-[#089981]/20 border border-[#089981]/40 text-[#089981] shrink-0">
@@ -345,31 +337,13 @@ export const MarketInsightsWidget: React.FC<MarketInsightsWidgetProps> = ({
               </span>
             </h3>
             <p className="text-[10px] text-[#787b86] truncate">
-              {isAr ? `${activeAsset}` : `${activeAsset}`}
+              {activeAsset}
             </p>
           </div>
         </div>
-
-        {/* Linked Asset Selector (Badge Buttons connected to global chart state) */}
-        <div className="flex items-center gap-1 bg-white/5 p-1 rounded-xl border border-white/10 overflow-x-auto scrollbar-none shrink-0">
-          {availableAssets.map((sym) => {
-            const isActive = activeAsset === sym;
-            return (
-              <button
-                key={sym}
-                type="button"
-                onClick={() => handleSelectAsset(sym)}
-                className={`px-2.5 py-0.5 rounded-lg text-[10px] font-mono font-bold transition-all cursor-pointer shrink-0 ${
-                  isActive
-                    ? 'bg-[#089981] text-white shadow-md shadow-[#089981]/30 ring-1 ring-[#089981]/50 scale-105'
-                    : 'text-[#787b86] hover:text-white hover:bg-white/10'
-                }`}
-              >
-                {sym}
-              </button>
-            );
-          })}
-        </div>
+        <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-mono font-bold bg-[#089981]/20 text-[#089981] border border-[#089981]/40">
+          {activeAsset}
+        </span>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">

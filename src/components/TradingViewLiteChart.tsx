@@ -16,7 +16,7 @@ export const TradingViewLiteChart: React.FC<Props> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const isAr = lang === 'ar';
-  const activeTickerInfo = TRADINGVIEW_TICKERS[symbol] || TRADINGVIEW_TICKERS.US100;
+  const activeTickerInfo = TRADINGVIEW_TICKERS[symbol] || TRADINGVIEW_TICKERS.XAUUSD;
   const { resolvedTheme } = useTheme();
   const isLight = resolvedTheme === 'light';
   const chartBgHex = isLight ? '#FFFFFF' : '#111726';
@@ -42,7 +42,7 @@ export const TradingViewLiteChart: React.FC<Props> = ({
 
     const widgetConfig = {
       symbols: [
-        [activeTickerInfo.label, `${tvSymbol}|1D`]
+        [activeTickerInfo.label, `${tvSymbol}|1M`]
       ],
       chartOnly: false,
       hide_side_toolbar: true,
@@ -71,10 +71,10 @@ export const TradingViewLiteChart: React.FC<Props> = ({
       lineWidth: 2,
       lineType: 0,
       dateRanges: [
-        '1d|1',
         '1m|30',
         '3m|60',
-        '12m|1D'
+        '12m|1D',
+        '60m|1W'
       ],
       upColor: '#089981',
       downColor: '#f23645',

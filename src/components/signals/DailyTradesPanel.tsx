@@ -837,17 +837,6 @@ export const DailyTradesPanel: React.FC<Props> = ({
                       </div>
                     )}
                   </div>
-
-                  {!shouldBlur && (
-                    <button
-                      onClick={() => handleCopyLevels(trade)}
-                      className="hover:text-[#edf0f5] transition-colors cursor-pointer flex items-center gap-0.5 text-[9px] font-mono"
-                      title={isAr ? 'نسخ' : 'Copy'}
-                    >
-                      <Copy className="w-2.5 h-2.5" />
-                      <span>{copiedId === trade.id ? (isAr ? 'تم' : 'COPIED') : isAr ? 'نسخ' : 'COPY'}</span>
-                    </button>
-                  )}
                 </div>
 
                 {isExpanded && (

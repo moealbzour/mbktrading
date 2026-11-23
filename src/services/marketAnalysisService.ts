@@ -9,6 +9,7 @@ import {
   setDoc
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { emitBackgroundNotificationPulse } from '../utils/mobileNotifications';
 
 export type AnalysisDirection = 'BULLISH' | 'BEARISH' | 'NEUTRAL';
 
@@ -224,6 +225,16 @@ export async function saveMarketAnalysisPost(
 
   await setDoc(doc(db, 'market_analysis', cleanId), post);
   invalidateMarketAnalysisCache();
+
+  if (post.isPublished) {
+    emitBackgroundNotificationPulse({
+      title: `📊 تحليل جديد (${post.symbol} - ${post.timeframe}): ${post.titleAr}`,
+      body: post.summaryAr.slice(0, 180),
+      tag: `mbk-analysis-${post.id}`,
+      excludeUid: post.authorUid
+    });
+  }
+
   return post;
 }
 

@@ -13,20 +13,20 @@ export interface TradingViewChartProps {
   onClearSignal?: () => void;
 }
 
-// Official TradingView Tickers Mapping
+// Official TradingView Tickers Mapping (XAUUSD first and default)
 export const TRADINGVIEW_TICKERS: Record<
   MarketSymbol,
   { tvSymbol: string; label: string; nameAr: string }
 > = {
+  XAUUSD: {
+    tvSymbol: 'OANDA:XAUUSD',
+    label: 'OANDA:XAUUSD',
+    nameAr: 'الذهب مقابل الدولار (XAUUSD)'
+  },
   US100: {
     tvSymbol: 'CAPITALCOM:US100',
     label: 'CAPITALCOM:US100',
     nameAr: 'ناسداك 100 (US100)'
-  },
-  XAUUSD: {
-    tvSymbol: 'OANDA:XAUUSD',
-    label: 'OANDA:XAUUSD',
-    nameAr: 'الذهب مقابل الدولار'
   },
   EURUSD: {
     tvSymbol: 'FX:EURUSD',
@@ -55,7 +55,7 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
   activeSignal,
   onClearSignal
 }) => {
-  const currentTickerInfo = TRADINGVIEW_TICKERS[symbol] || TRADINGVIEW_TICKERS.US100;
+  const currentTickerInfo = TRADINGVIEW_TICKERS[symbol] || TRADINGVIEW_TICKERS.XAUUSD;
   const { resolvedTheme } = useTheme();
   const isLight = resolvedTheme === 'light';
   const toolbarBgParam = isLight ? 'F8FAFC' : '0b0e14';

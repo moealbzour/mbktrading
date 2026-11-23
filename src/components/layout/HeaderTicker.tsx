@@ -64,9 +64,10 @@ export const HeaderTicker: React.FC<HeaderTickerProps> = ({
     });
 
     const wrapper = document.createElement('div');
-    wrapper.className = 'tradingview-widget-container w-full h-full';
+    wrapper.className = 'tradingview-widget-container w-full h-full pointer-events-none select-none';
     wrapper.style.width = '100%';
     wrapper.style.height = '100%';
+    wrapper.style.pointerEvents = 'none';
     wrapper.appendChild(widgetContainer);
     wrapper.appendChild(script);
 
@@ -81,8 +82,14 @@ export const HeaderTicker: React.FC<HeaderTickerProps> = ({
 
   return (
     <div
-      ref={containerRef}
-      className={`w-full h-[38px] max-h-[38px] overflow-hidden flex flex-col justify-center bg-[#131722] border-b border-[#2a2e39] relative select-none z-30 [&_.tradingview-widget-container]:h-full [&_iframe]:bg-transparent ${className}`}
-    />
+      className={`w-full h-[42px] max-h-[42px] overflow-hidden flex flex-col justify-center bg-[#0b0e14] border-b border-[#1e2633] relative select-none z-30 ${className}`}
+    >
+      <div
+        ref={containerRef}
+        className="w-full h-full pointer-events-none select-none [&_.tradingview-widget-container]:h-full [&_.tradingview-widget-container]:pointer-events-none [&_iframe]:bg-transparent [&_iframe]:pointer-events-none"
+      />
+      {/* Transparent shield preventing any iframe click navigation to TradingView */}
+      <div className="absolute inset-0 z-10 bg-transparent cursor-default" />
+    </div>
   );
 };

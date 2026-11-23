@@ -1,5 +1,156 @@
-const CACHE_NAME = 'mbk-trading-v9';
+const CACHE_NAME = 'mbk-trading-v10';
+const STATE_CACHE_NAME = 'mbk-sw-bg-state-v1';
+const STATE_CACHE_KEY = '/__mbk_sw_user_state__';
 const PRECACHE_URLS = ['/favicon.svg', '/manifest.json', '/icon-192.png', '/mbk-logo.png'];
+
+let swUserState = {
+  uid: '',
+  isAdmin: false,
+  enabled: true,
+  lastPulseMs: Date.now(),
+  seenTags: []
+};
+let swStateLoaded = false;
+let bgPollTimer = null;
+let isCheckingPulse = false;
+
+async function loadSwState() {
+  if (swStateLoaded) return swUserState;
+  try {
+    const cache = await caches.open(STATE_CACHE_NAME);
+    const resp = await cache.match(STATE_CACHE_KEY);
+    if (resp) {
+      const parsed = await resp.json();
+      if (parsed && typeof parsed === 'object') {
+        swUserState = {
+          uid: String(parsed.uid || ''),
+          isAdmin: Boolean(parsed.isAdmin),
+          enabled: parsed.enabled !== false,
+          lastPulseMs: Number(parsed.lastPulseMs) > 0 ? Number(parsed.lastPulseMs) : Date.now() - 60000,
+          seenTags: Array.isArray(parsed.seenTags) ? parsed.seenTags.slice(-80) : []
+        };
+      }
+    }
+  } catch {
+    // ignore cache read errors
+  }
+  swStateLoaded = true;
+  return swUserState;
+}
+
+async function saveSwState() {
+  try {
+    const cache = await caches.open(STATE_CACHE_NAME);
+    const body = JSON.stringify({
+      ...swUserState,
+      seenTags: (swUserState.seenTags || []).slice(-80)
+    });
+    await cache.put(
+      STATE_CACHE_KEY,
+      new Response(body, {
+        headers: { 'Content-Type': 'application/json' }
+      })
+    );
+  } catch {
+    // ignore cache write errors
+  }
+}
+
+function hasSeenTag(tag) {
+  if (!tag) return false;
+  return Array.isArray(swUserState.seenTags) && swUserState.seenTags.includes(tag);
+}
+
+function recordSeenTag(tag, timestampMs) {
+  if (!tag) return;
+  if (!Array.isArray(swUserState.seenTags)) {
+    swUserState.seenTags = [];
+  }
+  if (!swUserState.seenTags.includes(tag)) {
+    swUserState.seenTags.push(tag);
+    if (swUserState.seenTags.length > 80) {
+      swUserState.seenTags = swUserState.seenTags.slice(-80);
+    }
+  }
+  if (timestampMs && Number(timestampMs) > swUserState.lastPulseMs) {
+    swUserState.lastPulseMs = Number(timestampMs);
+  }
+}
+
+/**
+ * Polls the lightweight in-memory server pulse endpoint (/api/notifications/pulse)
+ * which uses ZERO Firestore reads, and pushes OS notifications even when all app tabs are closed or hidden.
+ */
+async function checkBackgroundServerPulse() {
+  if (isCheckingPulse) return;
+  isCheckingPulse = true;
+  try {
+    await loadSwState();
+    if (!swUserState.enabled) return;
+
+    const since = Math.max(0, (swUserState.lastPulseMs || Date.now()) - 2000);
+    const uid = encodeURIComponent(swUserState.uid || '');
+    const isAdmin = swUserState.isAdmin ? '1' : '0';
+    const url = `/api/notifications/pulse?since=${since}&uid=${uid}&isAdmin=${isAdmin}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      cache: 'no-store',
+      headers: { Accept: 'application/json' }
+    });
+    if (!response.ok) return;
+
+    const data = await response.json();
+    if (!data || !Array.isArray(data.events) || data.events.length === 0) {
+      return;
+    }
+
+    let stateChanged = false;
+    for (const ev of data.events) {
+      if (!ev || !ev.title) continue;
+      const tag = ev.tag || `mbk-pulse-${ev.id || ev.timestampMs}`;
+      if (hasSeenTag(tag)) {
+        if (ev.timestampMs > swUserState.lastPulseMs) {
+          swUserState.lastPulseMs = ev.timestampMs;
+          stateChanged = true;
+        }
+        continue;
+      }
+
+      recordSeenTag(tag, ev.timestampMs);
+      stateChanged = true;
+
+      await self.registration
+        .showNotification(ev.title, {
+          body: ev.body || '',
+          icon: '/icon-192.png',
+          badge: '/icon-192.png',
+          tag,
+          renotify: true,
+          requireInteraction: false,
+          vibrate: [200, 100, 200],
+          timestamp: ev.timestampMs || Date.now(),
+          data: { url: ev.url || '/' }
+        })
+        .catch(() => {});
+    }
+
+    if (stateChanged) {
+      await saveSwState();
+    }
+  } catch {
+    // ignore transient offline errors
+  } finally {
+    isCheckingPulse = false;
+  }
+}
+
+function ensureSwBackgroundWatchLoop() {
+  if (bgPollTimer) return;
+  bgPollTimer = setInterval(() => {
+    checkBackgroundServerPulse().catch(() => {});
+  }, 10000);
+}
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -15,13 +166,17 @@ self.addEventListener('activate', (event) => {
       .then((keys) =>
         Promise.all(
           keys.map((key) => {
-            if (key !== CACHE_NAME) {
+            if (key !== CACHE_NAME && key !== STATE_CACHE_NAME) {
               return caches.delete(key);
             }
           })
         )
       )
       .then(() => self.clients.claim())
+      .then(() => {
+        ensureSwBackgroundWatchLoop();
+        return checkBackgroundServerPulse();
+      })
   );
 });
 
@@ -85,22 +240,27 @@ self.addEventListener('push', (event) => {
     }
   }
 
+  recordSeenTag(payload.tag, Date.now());
   event.waitUntil(
-    self.registration.showNotification(payload.title, {
-      body: payload.body,
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
-      tag: payload.tag,
-      renotify: true,
-      requireInteraction: false,
-      vibrate: [200, 100, 200],
-      data: { url: payload.url || '/' }
-    })
+    Promise.all([
+      saveSwState(),
+      self.registration.showNotification(payload.title, {
+        body: payload.body,
+        icon: '/icon-192.png',
+        badge: '/icon-192.png',
+        tag: payload.tag,
+        renotify: true,
+        requireInteraction: false,
+        vibrate: [200, 100, 200],
+        data: { url: payload.url || '/' }
+      })
+    ])
   );
 });
 
-// Wake up any backgrounded client windows on periodic sync or background sync to flush real-time alerts
-async function notifyClientsToSync() {
+// Wake up any backgrounded client windows AND check zero-quota server pulse directly in SW
+async function notifyClientsAndPollPulse() {
+  await checkBackgroundServerPulse();
   try {
     const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     for (const client of clients) {
@@ -113,13 +273,15 @@ async function notifyClientsToSync() {
 
 self.addEventListener('periodicsync', (event) => {
   if (event.tag === 'mbk-bg-notifications') {
-    event.waitUntil(notifyClientsToSync());
+    ensureSwBackgroundWatchLoop();
+    event.waitUntil(notifyClientsAndPollPulse());
   }
 });
 
 self.addEventListener('sync', (event) => {
   if (event.tag === 'mbk-sync-notifications') {
-    event.waitUntil(notifyClientsToSync());
+    ensureSwBackgroundWatchLoop();
+    event.waitUntil(notifyClientsAndPollPulse());
   }
 });
 
@@ -145,7 +307,7 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-// Handle instant SHOW_NOTIFICATION & SET_BADGE messages from client tabs
+// Handle instant SHOW_NOTIFICATION, SYNC_USER_CONTEXT, CLIENT_BACKGROUND_HEARTBEAT & SET_BADGE messages
 self.addEventListener('message', (event) => {
   const data = event.data;
   if (!data) return;
@@ -155,19 +317,56 @@ self.addEventListener('message', (event) => {
     return;
   }
 
+  if (data.type === 'SYNC_USER_CONTEXT') {
+    ensureSwBackgroundWatchLoop();
+    event.waitUntil(
+      loadSwState().then(() => {
+        if (typeof data.uid === 'string') swUserState.uid = data.uid;
+        if (typeof data.isAdmin === 'boolean') swUserState.isAdmin = data.isAdmin;
+        if (typeof data.enabled === 'boolean') swUserState.enabled = data.enabled;
+        if (Number(data.lastPulseMs) > swUserState.lastPulseMs) {
+          swUserState.lastPulseMs = Number(data.lastPulseMs);
+        }
+        return saveSwState();
+      })
+    );
+    return;
+  }
+
+  if (data.type === 'CLIENT_BACKGROUND_HEARTBEAT') {
+    ensureSwBackgroundWatchLoop();
+    event.waitUntil(
+      checkBackgroundServerPulse().then(() => {
+        if (event.source && typeof event.source.postMessage === 'function') {
+          event.source.postMessage({ type: 'SW_HEARTBEAT_ACK', ts: Date.now() });
+        }
+      })
+    );
+    return;
+  }
+
   if (data.type === 'SHOW_NOTIFICATION' && data.title) {
-    const options = {
-      body: data.body || '',
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
-      tag: data.tag || 'mbk-alert-' + Date.now(),
-      renotify: true,
-      requireInteraction: false,
-      vibrate: [200, 100, 200],
-      timestamp: Date.now(),
-      data: { url: data.url || '/' }
-    };
-    event.waitUntil(self.registration.showNotification(data.title, options).catch(() => {}));
+    const tag = data.tag || 'mbk-alert-' + Date.now();
+    const nowMs = Date.now();
+    event.waitUntil(
+      loadSwState().then(async () => {
+        if (hasSeenTag(tag)) return;
+        recordSeenTag(tag, nowMs);
+        await saveSwState();
+        const options = {
+          body: data.body || '',
+          icon: '/icon-192.png',
+          badge: '/icon-192.png',
+          tag,
+          renotify: true,
+          requireInteraction: false,
+          vibrate: [200, 100, 200],
+          timestamp: nowMs,
+          data: { url: data.url || '/' }
+        };
+        await self.registration.showNotification(data.title, options).catch(() => {});
+      })
+    );
     return;
   }
 

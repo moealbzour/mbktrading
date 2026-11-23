@@ -41,6 +41,10 @@ import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../../lib/firebase';
 import { soundManager } from '../../utils/audio';
 import { useSignalsContext } from '../../context/SignalsContext';
+import {
+  isUserCurrentlyOnline,
+  subscribeToOnlinePresence
+} from '../../utils/mobileNotifications';
 
 export interface DmTargetUser {
   uid: string;
@@ -149,6 +153,14 @@ export const DirectMessagesPanel: React.FC<Props> = ({
   const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState<string>('');
   const [savingEdit, setSavingEdit] = useState<boolean>(false);
+  const [onlineUids, setOnlineUids] = useState<Set<string>>(() => new Set(['mbktrading']));
+
+  useEffect(() => {
+    const unsub = subscribeToOnlinePresence(myUid, (nextSet) => {
+      setOnlineUids(nextSet);
+    });
+    return () => unsub();
+  }, [myUid]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -770,14 +782,22 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                     : 'bg-[#10b981]/5 hover:bg-[#1e222d]'
                 }`}
               >
-                <div className="w-10 h-10 rounded-xl bg-[#10b981]/20 border border-[#10b981]/40 flex items-center justify-center font-black text-xs text-[#10b981] shrink-0 shadow-sm">
+                <div className="relative w-10 h-10 rounded-xl bg-[#10b981]/20 border border-[#10b981]/40 flex items-center justify-center font-black text-xs text-[#10b981] shrink-0 shadow-sm">
                   <Headphones className="w-5 h-5" />
+                  <span
+                    className="absolute -bottom-0.5 -end-0.5 w-2.5 h-2.5 rounded-full bg-[#10b981] ring-2 ring-[#171b26]"
+                    title={isAr ? 'متصل الآن (Online)' : 'Online'}
+                  />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-1.5">
                     <div className="flex items-center gap-1.5 min-w-0">
                       <span className="text-xs font-black text-white truncate">
                         @{OFFICIAL_PLATFORM_USERNAME}
+                      </span>
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-[#10b981]/15 text-[#10b981] border border-[#10b981]/30 shrink-0">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse" />
+                        <span>{isAr ? 'متصل' : 'Online'}</span>
                       </span>
                       {renderRoleBadge('ADMIN', true)}
                     </div>
@@ -842,6 +862,13 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                 const isActive =
                   selectedRecipientUid === otherUid &&
                   Boolean(isViewingPlatformTicket) === Boolean(isPlatformTicket);
+                const isOtherOnline = isUserCurrentlyOnline({
+                  uid: otherUid,
+                  myUid,
+                  lastActivityMs: convo.lastMessageAtMs,
+                  onlineUids,
+                  role: otherRole
+                });
 
                 return (
                   <button
@@ -863,17 +890,55 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                       isActive ? 'bg-[#089981]/15 border-s-2 border-[#089981]' : 'hover:bg-[#1e222d]'
                     }`}
                   >
-                    <div className="w-9 h-9 rounded-full bg-[#2a2e39] border border-[#363a45] flex items-center justify-center font-bold text-xs text-white overflow-hidden shrink-0">
-                      {otherAvatar ? (
-                        <img src={otherAvatar} alt={otherName} className="w-full h-full object-cover" />
-                      ) : (
-                        otherName[0]?.toUpperCase() || 'T'
-                      )}
+                    <div className="relative w-9 h-9 shrink-0">
+                      <div className="w-9 h-9 rounded-full bg-[#2a2e39] border border-[#363a45] flex items-center justify-center font-bold text-xs text-white overflow-hidden">
+                        {otherAvatar ? (
+                          <img src={otherAvatar} alt={otherName} className="w-full h-full object-cover" />
+                        ) : (
+                          otherName[0]?.toUpperCase() || 'T'
+                        )}
+                      </div>
+                      <span
+                        className={`absolute bottom-0 end-0 w-2.5 h-2.5 rounded-full ring-2 ring-[#171b26] ${
+                          isOtherOnline ? 'bg-[#10b981]' : 'bg-[#64748b]'
+                        }`}
+                        title={
+                          isOtherOnline
+                            ? isAr
+                              ? 'متصل الآن (Online)'
+                              : 'Online'
+                            : isAr
+                            ? 'غير متصل (Offline)'
+                            : 'Offline'
+                        }
+                      />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-1.5">
                         <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                           <span className="text-xs font-bold text-white truncate">{otherName}</span>
+                          <span
+                            className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[8.5px] font-bold shrink-0 ${
+                              isOtherOnline
+                                ? 'bg-[#10b981]/15 text-[#10b981] border border-[#10b981]/35'
+                                : 'bg-white/[0.04] text-[#8b95a5] border border-white/10'
+                            }`}
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                isOtherOnline ? 'bg-[#10b981] animate-pulse' : 'bg-[#64748b]'
+                              }`}
+                            />
+                            <span>
+                              {isOtherOnline
+                                ? isAr
+                                  ? 'متصل'
+                                  : 'Online'
+                                : isAr
+                                ? 'غير متصل'
+                                : 'Offline'}
+                            </span>
+                          </span>
                           {renderRoleBadge(otherRole, otherUid === OFFICIAL_PLATFORM_UID)}
                           {isAdminUser && isPlatformTicket && (
                             <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-bold bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/40 shrink-0">
@@ -955,58 +1020,103 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                     {isAr ? <ArrowRight className="w-4 h-4" /> : <ArrowLeft className="w-4 h-4" />}
                   </button>
 
-                  <div
-                    className={`w-9 h-9 rounded-full border flex items-center justify-center font-bold text-xs overflow-hidden shrink-0 ${
-                      isOfficialThreadForUser
-                        ? 'bg-[#10b981]/20 border-[#10b981]/40 text-[#10b981]'
-                        : 'bg-[#2a2e39] border-[#363a45] text-white'
-                    }`}
-                  >
-                    {isOfficialThreadForUser ? (
-                      <Headphones className="w-4 h-4" />
-                    ) : activeRecipient.avatar ? (
-                      <img
-                        src={activeRecipient.avatar}
-                        alt={activeRecipient.displayName}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      activeRecipient.displayName[0]?.toUpperCase() || 'T'
-                    )}
-                  </div>
+                  {(() => {
+                    const lastThreadMsgMs =
+                      messages.length > 0 ? messages[messages.length - 1]?.timestampMs || 0 : 0;
+                    const isRecipientOnline = isUserCurrentlyOnline({
+                      uid: isOfficialThreadForUser ? OFFICIAL_PLATFORM_UID : activeRecipient.uid,
+                      myUid,
+                      lastActivityMs: lastThreadMsgMs,
+                      onlineUids,
+                      role: activeRecipient.role
+                    });
 
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-xs sm:text-sm font-bold text-white truncate">
-                        {isOfficialThreadForUser
-                          ? `@${OFFICIAL_PLATFORM_USERNAME}`
-                          : activeRecipient.displayName}
-                      </span>
-                      {renderRoleBadge(activeRecipient.role, isOfficialThreadForUser)}
-                      {isOfficialTicketForAdmin && (
-                        <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/40">
-                          @mbktrading
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-[10px] text-[#787b86] block">
-                      {isOfficialThreadForUser || isOfficialTicketForAdmin
-                        ? isAr
-                          ? 'الدعم الفني • الاقتراحات • الأسئلة'
-                          : 'Support • Suggestions • Questions'
-                        : !recipientAllowsDm
-                        ? isAr
-                          ? 'أغلق استقبال الرسائل الخاصة'
-                          : 'DMs turned off by user'
-                        : isRecipientBlockedByMe
-                        ? isAr
-                          ? 'قمت بحظر هذا المستخدم'
-                          : 'Blocked by you'
-                        : isAr
-                        ? 'محادثة خاصة مباشرة'
-                        : 'Private Direct Thread'}
-                    </span>
-                  </div>
+                    return (
+                      <>
+                        <div className="relative w-9 h-9 shrink-0">
+                          <div
+                            className={`w-9 h-9 rounded-full border flex items-center justify-center font-bold text-xs overflow-hidden ${
+                              isOfficialThreadForUser
+                                ? 'bg-[#10b981]/20 border-[#10b981]/40 text-[#10b981]'
+                                : 'bg-[#2a2e39] border-[#363a45] text-white'
+                            }`}
+                          >
+                            {isOfficialThreadForUser ? (
+                              <Headphones className="w-4 h-4" />
+                            ) : activeRecipient.avatar ? (
+                              <img
+                                src={activeRecipient.avatar}
+                                alt={activeRecipient.displayName}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              activeRecipient.displayName[0]?.toUpperCase() || 'T'
+                            )}
+                          </div>
+                          <span
+                            className={`absolute bottom-0 end-0 w-2.5 h-2.5 rounded-full ring-2 ring-[#1e222d] ${
+                              isRecipientOnline ? 'bg-[#10b981]' : 'bg-[#64748b]'
+                            }`}
+                          />
+                        </div>
+
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-xs sm:text-sm font-bold text-white truncate">
+                              {isOfficialThreadForUser
+                                ? `@${OFFICIAL_PLATFORM_USERNAME}`
+                                : activeRecipient.displayName}
+                            </span>
+                            <span
+                              className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[9px] font-bold shrink-0 ${
+                                isRecipientOnline
+                                  ? 'bg-[#10b981]/15 text-[#10b981] border border-[#10b981]/35'
+                                  : 'bg-white/[0.04] text-[#8b95a5] border border-white/10'
+                              }`}
+                            >
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  isRecipientOnline ? 'bg-[#10b981] animate-pulse' : 'bg-[#64748b]'
+                                }`}
+                              />
+                              <span>
+                                {isRecipientOnline
+                                  ? isAr
+                                    ? 'متصل الآن'
+                                    : 'Online'
+                                  : isAr
+                                  ? 'غير متصل'
+                                  : 'Offline'}
+                              </span>
+                            </span>
+                            {renderRoleBadge(activeRecipient.role, isOfficialThreadForUser)}
+                            {isOfficialTicketForAdmin && (
+                              <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/40">
+                                @mbktrading
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[10px] text-[#787b86] block">
+                            {isOfficialThreadForUser || isOfficialTicketForAdmin
+                              ? isAr
+                                ? 'الدعم الفني • الاقتراحات • الأسئلة'
+                                : 'Support • Suggestions • Questions'
+                              : !recipientAllowsDm
+                              ? isAr
+                                ? 'أغلق استقبال الرسائل الخاصة'
+                                : 'DMs turned off by user'
+                              : isRecipientBlockedByMe
+                              ? isAr
+                                ? 'قمت بحظر هذا المستخدم'
+                                : 'Blocked by you'
+                              : isAr
+                              ? 'محادثة خاصة مباشرة'
+                              : 'Private Direct Thread'}
+                          </span>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
 
                 {/* Per-User Block / Unblock Button (hidden for official @mbktrading threads) */}

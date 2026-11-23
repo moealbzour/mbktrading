@@ -10,8 +10,9 @@ import {
   orderBy,
   limit
 } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
+import { db, auth } from '../../lib/firebase';
 import { isDocumentDeleted, markDocumentDeleted } from '../../utils/legacyDbRecovery';
+import { emitBackgroundNotificationPulse } from '../../utils/mobileNotifications';
 import {
   Send,
   ShieldAlert,
@@ -248,8 +249,15 @@ export const PublishingCenter: React.FC<Props> = ({
         timestampMs: nowMs
       };
 
-      await addDoc(collection(db, 'signals'), payload);
+      const docRef = await addDoc(collection(db, 'signals'), payload);
       setDbError(null);
+
+      emitBackgroundNotificationPulse({
+        title: `${action === 'BUY' ? '🟢 شراء' : '🔴 بيع'} ${symbol} (${isVip ? 'VIP' : 'عام'}) — صفقة جديدة`,
+        body: `الدخول: ${numEntry} | الهدف 1: ${numTp1} | الوقف: ${numSl}`,
+        tag: `mbk-signal-${docRef.id}`,
+        excludeUid: auth.currentUser?.uid || undefined
+      });
 
       try {
         soundManager.playProfitChime();

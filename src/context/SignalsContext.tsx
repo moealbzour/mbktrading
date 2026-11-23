@@ -9,9 +9,11 @@ import { subscribeToAuth } from '../services/firebaseAuthService';
 import {
   AppNotificationPermission,
   dispatchMobileAppNotification,
+  emitBackgroundNotificationPulse,
   ensureBackgroundNotificationWorkerReady,
   getNotificationPermissionState,
-  requestAppNotificationPermission
+  requestAppNotificationPermission,
+  syncNotificationWorkerUserContext
 } from '../utils/mobileNotifications';
 import { isDocumentDeleted, markDocumentDeleted } from '../utils/legacyDbRecovery';
 
@@ -350,6 +352,13 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
         return next;
       });
+
+      emitBackgroundNotificationPulse({
+        title: `تحديث صفقة • ${statusLabelAr}`,
+        body: `تم تحديث حالة الصفقة إلى: ${statusLabelAr}`,
+        tag: `signal-status-${cleanId}-${newStatus}`,
+        excludeUid: null
+      });
     },
     []
   );
@@ -443,6 +452,7 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setDmConversations([]);
         setUnreadDmCount(0);
         setAuthResolved(true);
+        syncNotificationWorkerUserContext('', false);
         return;
       }
 
@@ -455,6 +465,7 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         Boolean(profile.isAdmin) ||
         roleUpper === 'ADMIN';
       setIsAdminUser(isSuperAdmin);
+      syncNotificationWorkerUserContext(uid || '', isSuperAdmin);
 
       if (isSuperAdmin) {
         setCanReadVipSignals(true);
@@ -488,8 +499,7 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       : query(
           collection(db, 'signals'),
           where('accessLevel', '==', 'free'),
-          orderBy('timestampMs', 'desc'),
-          limit(LIVE_SIGNALS_LIMIT)
+          limit(LIVE_SIGNALS_LIMIT * 2)
         );
 
     const unsubscribeSignals = onSnapshot(

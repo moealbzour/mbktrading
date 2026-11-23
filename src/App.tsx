@@ -31,19 +31,6 @@ const REMOTE_VERSION_STORAGE_KEY = 'mbk_synced_remote_version';
 
 const BASE_TICKER_METADATA: MarketTicker[] = [
   {
-    symbol: 'US100',
-    nameAr: 'ناسداك 100 (عقود مؤشرات)',
-    price: 0,
-    changePercent: 0,
-    changeValue: 0,
-    high: 0,
-    low: 0,
-    spread: 0.8,
-    digits: 2,
-    isUp: true,
-    category: 'INDICES'
-  },
-  {
     symbol: 'XAUUSD',
     nameAr: 'الذهب مقابل الدولار (أونصة)',
     price: 0,
@@ -55,6 +42,19 @@ const BASE_TICKER_METADATA: MarketTicker[] = [
     digits: 2,
     isUp: true,
     category: 'COMMODITIES'
+  },
+  {
+    symbol: 'US100',
+    nameAr: 'ناسداك 100 (عقود مؤشرات)',
+    price: 0,
+    changePercent: 0,
+    changeValue: 0,
+    high: 0,
+    low: 0,
+    spread: 0.8,
+    digits: 2,
+    isUp: true,
+    category: 'INDICES'
   },
   {
     symbol: 'EURUSD',
@@ -148,7 +148,7 @@ export default function App() {
 
   // Market & Trading State (Real live server-cached quotes from /api/market/quotes)
   const [tickers, setTickers] = useState<MarketTicker[]>(BASE_TICKER_METADATA);
-  const [selectedSymbol, setSelectedSymbol] = useState<MarketSymbol>('US100');
+  const [selectedSymbol, setSelectedSymbol] = useState<MarketSymbol>('XAUUSD');
   const [isMuted, setIsMuted] = useState(false);
   const [lang, setLang] = useState<'ar' | 'en'>('ar');
 

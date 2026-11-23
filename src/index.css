@@ -257,14 +257,14 @@ html[data-theme="light"] .text-slate-400 {
 .animate-ticker-moving {
   display: flex;
   width: max-content;
-  animation: tv-ticker-ltr 55s linear infinite;
+  animation: tv-ticker-ltr 220s linear infinite;
   will-change: transform;
 }
 
 .animate-ticker-moving-rtl {
   display: flex;
   width: max-content;
-  animation: tv-ticker-rtl 55s linear infinite;
+  animation: tv-ticker-rtl 220s linear infinite;
   will-change: transform;
 }
 
@@ -278,15 +278,15 @@ html[data-theme="light"] .text-slate-400 {
 }
 
 .ticker-speed-fast {
-  animation-duration: 28s !important;
+  animation-duration: 140s !important;
 }
 
 .ticker-speed-normal {
-  animation-duration: 55s !important;
+  animation-duration: 220s !important;
 }
 
 .ticker-speed-slow {
-  animation-duration: 90s !important;
+  animation-duration: 220s !important;
 }
 
 /* ============================================================================

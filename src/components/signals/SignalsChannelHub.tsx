@@ -683,18 +683,6 @@ export const SignalsChannelHub: React.FC<Props> = ({
                               </button>
                             </>
                           )}
-
-                          <button
-                            onClick={() => handleCopyLevels(alertItem.text, alertItem.id)}
-                            className={`p-1 rounded-[2px] text-[11px] border transition-colors cursor-pointer ${
-                              copiedId === alertItem.id
-                                ? 'bg-[#10b981] text-[#0a0d12] border-[#10b981] font-semibold'
-                                : 'bg-[#161c26] hover:bg-[#1c2432] text-[#8492a6] hover:text-[#edf0f5] border-[#1e2633]'
-                            }`}
-                            title={isAr ? 'نسخ النص' : 'Copy payload'}
-                          >
-                            <Copy className="w-3 h-3" />
-                          </button>
                         </div>
                       </div>
 
@@ -1006,7 +994,11 @@ export const SignalsChannelHub: React.FC<Props> = ({
                   <div className="relative z-30 pt-2 border-t border-[#1e2633] flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5">
                       <button
-                        onClick={() => onSelectSymbol(signal.symbol as MarketSymbol)}
+                        type="button"
+                        onClick={() => {
+                          soundManager.playClick();
+                          onSelectSymbol(signal.symbol as MarketSymbol);
+                        }}
                         className="py-1 px-2.5 rounded-[2px] bg-[#0a0d12] hover:bg-[#161c26] border border-[#1e2633] text-[11px] font-medium text-[#edf0f5] transition-colors cursor-pointer flex items-center gap-1"
                       >
                         <span>{isAr ? 'الشارت' : 'Open Chart'}</span>
@@ -1057,36 +1049,17 @@ export const SignalsChannelHub: React.FC<Props> = ({
                       )}
                     </div>
 
-                    {!isLocked ? (
+                    {isLocked && onOpenPromoModal && (
                       <button
-                        onClick={() =>
-                          handleCopyLevels(
-                            `${signal.symbol} ${signal.action} @ ${signal.entryPrice} | TP1: ${signal.tp1} | TP2: ${signal.tp2} | SL: ${signal.sl}`,
-                            signal.id
-                          )
-                        }
-                        className={`py-1 px-2.5 rounded-[2px] text-[11px] font-semibold border transition-colors flex items-center gap-1 cursor-pointer ${
-                          copiedId === signal.id
-                            ? 'bg-[#10b981] text-[#0a0d12] border-[#10b981]'
-                            : 'bg-[#161c26] hover:bg-[#1c2432] text-[#edf0f5] border-[#2a3446]'
-                        }`}
+                        onClick={() => {
+                          soundManager.playClick();
+                          onOpenPromoModal();
+                        }}
+                        className="py-1 px-2.5 rounded-[2px] bg-[#161c26] hover:bg-[#1c2432] text-[#8492a6] hover:text-[#edf0f5] border border-[#2a3446] text-[11px] font-semibold flex items-center gap-1 cursor-pointer"
                       >
-                        <Copy className="w-3 h-3" />
-                        <span>{copiedId === signal.id ? (isAr ? 'تم النسخ' : 'Copied') : isAr ? 'نسخ' : 'Copy Levels'}</span>
+                        <Lock className="w-3 h-3" />
+                        <span>{isAr ? 'تفعيل VIP' : 'Unlock'}</span>
                       </button>
-                    ) : (
-                      onOpenPromoModal && (
-                        <button
-                          onClick={() => {
-                            soundManager.playClick();
-                            onOpenPromoModal();
-                          }}
-                          className="py-1 px-2.5 rounded-[2px] bg-[#161c26] hover:bg-[#1c2432] text-[#8492a6] hover:text-[#edf0f5] border border-[#2a3446] text-[11px] font-semibold flex items-center gap-1 cursor-pointer"
-                        >
-                          <Lock className="w-3 h-3" />
-                          <span>{isAr ? 'تفعيل VIP' : 'Unlock'}</span>
-                        </button>
-                      )
                     )}
                   </div>
                 </div>

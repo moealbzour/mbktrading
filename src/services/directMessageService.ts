@@ -15,6 +15,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { ChatProfile, DmConversation, DmMessage, UserProfile } from '../types/trading';
+import { emitBackgroundNotificationPulse } from '../utils/mobileNotifications';
 
 const CACHED_CHAT_PROFILES_KEY = 'mbk_cached_chat_profiles_v1';
 const CACHED_DM_CONVOS_KEY_PREFIX = 'mbk_cached_dm_convos_v1_';
@@ -560,6 +561,17 @@ export async function sendDirectMessage(params: {
     text: cleanText,
     timestampMs: nowMs,
     createdAt: nowIso
+  });
+
+  emitBackgroundNotificationPulse({
+    title:
+      effectiveSender.uid === OFFICIAL_PLATFORM_UID
+        ? '🛡️ رد رسمي من دعم MBK Trading (@mbktrading)'
+        : `💬 رسالة خاصة جديدة من ${effectiveSender.displayName.slice(0, 60)}`,
+    body: cleanText.slice(0, 180),
+    tag: `mbk-dm-${convoId}-${nowMs}`,
+    targetUid: effectiveRecipient.uid,
+    excludeUid: sender.uid
   });
 
   return convoId;

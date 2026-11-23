@@ -19,6 +19,7 @@ import marketNewsHandler from './api/market/news.js';
 import marketCalendarHandler from './api/market/calendar.js';
 import marketQuotesHandler from './api/market/quotes.js';
 import geminiChatHandler from './api/gemini/chat.js';
+import notificationPulseHandler, { recordServerNotificationPulse } from './api/notifications/pulse.js';
 
 dotenv.config();
 
@@ -78,11 +79,12 @@ try {
 }
 
 // ==========================================
-// 1B. REAL SERVER-CACHED MARKET NEWS, ECONOMIC CALENDAR & QUOTES
+// 1B. REAL SERVER-CACHED MARKET NEWS, ECONOMIC CALENDAR, QUOTES & ZERO-QUOTA NOTIFICATION PULSE
 // ==========================================
 app.get('/api/market/news', (req, res) => marketNewsHandler(req, res));
 app.get('/api/market/calendar', (req, res) => marketCalendarHandler(req, res));
 app.get('/api/market/quotes', (req, res) => marketQuotesHandler(req, res));
+app.all('/api/notifications/pulse', (req, res) => notificationPulseHandler(req, res));
 
 // ==========================================
 // 2. TRADING IDEAS FEED (Real Firestore market_ideas only — Zero Hardcoded Mock Setups)
@@ -167,6 +169,14 @@ app.get(['/api/webhooks/tradingview', '/api/webhook/tradingview'], async (req, r
         timestampMs: nowMs
       };
       await saveBotAlertToFirestore(alertDoc);
+      recordServerNotificationPulse({
+        id: alertId,
+        tag: `bot-alert-${alertId}`,
+        title: 'بوت MBK 🤖',
+        body: alertDoc.text.slice(0, 160),
+        url: '/',
+        timestampMs: nowMs
+      });
       return res.status(200).json({
         success: true,
         message: 'Test TradingView webhook alert generated and saved to bot_alerts successfully! Check your app.',
@@ -257,6 +267,14 @@ app.post(['/api/webhooks/tradingview', '/api/webhook/tradingview'], async (req, 
     };
 
     await saveBotAlertToFirestore(alertDoc);
+    recordServerNotificationPulse({
+      id: alertId,
+      tag: `bot-alert-${alertId}`,
+      title: 'بوت MBK 🤖',
+      body: alertDoc.text.slice(0, 160),
+      url: '/',
+      timestampMs: nowMs
+    });
 
     let telegramForwarded = false;
     let telegramNotice: string | null = null;

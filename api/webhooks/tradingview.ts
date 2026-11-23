@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { initializeApp as initClientApp, getApps as getClientApps } from 'firebase/app';
 import { getFirestore as getClientFirestore, doc, setDoc } from 'firebase/firestore';
+import { recordServerNotificationPulse } from '../notifications/pulse.js';
 
 type Req = IncomingMessage & {
   method?: string;

@@ -27,6 +27,7 @@ import {
 interface Props {
   lang?: 'ar' | 'en';
   isFullPage?: boolean;
+  onHide?: () => void;
 }
 
 // Subcomponent for Official TradingView Economic Calendar Events Widget
@@ -140,14 +141,14 @@ function classifySentimentAndImpactInBrowser(title: string, content: string = ''
   return { sentiment, impact, impactScore };
 }
 
-export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = false }) => {
+export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = false, onHide }) => {
   const [news, setNews] = useState<RSSNewsItem[]>([]);
   const [upcomingMacroEvents, setUpcomingMacroEvents] = useState<MacroEconomicEvent[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [lastRefreshed, setLastRefreshed] = useState<string>('');
   const [isPaused, setIsPaused] = useState(false);
-  const [speed, setSpeed] = useState<'normal' | 'fast' | 'slow'>('normal');
+  const [speed, setSpeed] = useState<'normal' | 'fast' | 'slow'>('slow');
   const [filterImpact, setFilterImpact] = useState<string>('ALL');
 
   const isAr = lang === 'ar';
@@ -295,46 +296,27 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
     <div className="w-full bg-[#0d1017] border-b border-[#2a2e39] text-xs font-sans transition-all z-20 select-none">
       {/* 1. RUNNING LIVE MOVING ARABIC NEWS TICKER STRIP */}
       <div className="px-2 sm:px-3 py-1.5 flex items-center justify-between gap-2 overflow-hidden bg-gradient-to-r from-[#0d1017] via-[#111520] to-[#0d1017]">
-        {/* Source & Live Radar Dot Badge */}
+        {/* Start Side: Only MBK NEWS Button with Small Live Red Circle & LIVE Label */}
         <div className="flex items-center gap-1.5 shrink-0 z-10 bg-[#0d1017]/95 pr-2 border-l border-[#2a2e39]/60">
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-[#1e222d] border border-[#2a2e39] text-[#089981] font-mono text-[11px] font-bold shadow-sm">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#089981] opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#089981]" />
-            </span>
-            <Newspaper className="w-3.5 h-3.5 text-[#089981]" />
-            <span className="font-bold text-[#d1d4dc] text-[11px] hidden sm:inline">
-              {isAr ? 'الأخبار الحية (مباشر)' : 'LIVE NEWS'}
-            </span>
-          </div>
-
-          {/* Marquee Play/Pause Control */}
           <button
+            type="button"
             onClick={() => {
               soundManager.playClick();
-              setIsPaused(!isPaused);
+              setIsExpanded(!isExpanded);
             }}
-            title={isPaused ? (isAr ? 'تشغيل الحركة التلقائية' : 'Resume marquee') : (isAr ? 'إيقاف الحركة مؤقتاً' : 'Pause marquee')}
-            className={`p-1 rounded border transition-colors cursor-pointer ${
-              isPaused
-                ? 'bg-[#2962ff]/20 text-[#2962ff] border-[#2962ff]/40'
-                : 'text-[#787b86] hover:text-white border-transparent hover:bg-[#1e222d]'
-            }`}
+            title={isAr ? 'عرض كل أخبار MBK' : 'Toggle MBK News Hub'}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#1e222d] hover:bg-[#262b38] border border-[#2a2e39] font-mono text-[11px] font-bold shadow-sm transition-colors cursor-pointer"
           >
-            {isPaused ? <Play className="w-3 h-3 fill-current" /> : <Pause className="w-3 h-3" />}
-          </button>
-
-          {/* Speed Toggle */}
-          <button
-            onClick={() => {
-              soundManager.playClick();
-              setSpeed((prev) => (prev === 'normal' ? 'fast' : prev === 'fast' ? 'slow' : 'normal'));
-            }}
-            title={isAr ? `سرعة الشريط: ${speed === 'fast' ? 'سريع' : speed === 'slow' ? 'هادئ' : 'عادي'}` : `Speed: ${speed}`}
-            className="hidden md:flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold text-[#787b86] hover:text-white bg-[#1e222d]/70 hover:bg-[#1e222d] border border-[#2a2e39] cursor-pointer"
-          >
-            <Gauge className="w-2.5 h-2.5 text-[#2962ff]" />
-            <span>{speed === 'fast' ? '2x' : speed === 'slow' ? '0.5x' : '1x'}</span>
+            <span className="relative flex h-2 w-2 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#f23645] opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#f23645]" />
+            </span>
+            <span className="text-[10px] font-extrabold text-[#f23645] tracking-wider uppercase">
+              LIVE
+            </span>
+            <span className="font-extrabold text-white text-[11px] tracking-tight whitespace-nowrap">
+              MBK NEWS
+            </span>
           </button>
         </div>
 
@@ -346,7 +328,7 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
 
           {news.length === 0 ? (
             <div className="flex items-center gap-2 text-[#787b86] text-[11px] font-mono px-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#2962ff] animate-ping" />
+              <span className="w-1.5 h-1.5 rounded-full bg-[#f23645] animate-ping" />
               <span>{isAr ? 'جاري تحديث الأخبار الحية...' : 'Refreshing live market wire...'}</span>
             </div>
           ) : (
@@ -402,33 +384,31 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
           )}
         </div>
 
-        {/* 3. Actions: Refresh & Expand All Headlines */}
-        <div className="flex items-center gap-1.5 shrink-0 z-10 bg-[#0d1017]/95 pl-2 border-r border-[#2a2e39]/60">
+        {/* 3. Actions: Only Refresh & Hide Buttons */}
+        <div className="flex items-center gap-1 shrink-0 z-10 bg-[#0d1017]/95 pl-1.5 border-r border-[#2a2e39]/60">
           <button
+            type="button"
             onClick={() => {
               soundManager.playClick();
               fetchLiveMarketNews();
             }}
             disabled={loading}
             title={isAr ? 'تحديث الأخبار الآن' : 'Refresh live news'}
-            className="p-1 rounded text-[#787b86] hover:text-white hover:bg-[#1e222d] transition-colors cursor-pointer"
+            className="p-1 rounded bg-[#10141c] hover:bg-[#1e222d] border border-[#1e2633] text-[#8b95a5] hover:text-white transition-colors cursor-pointer flex items-center justify-center"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-[#089981]' : ''}`} />
           </button>
 
-          <button
-            onClick={() => {
-              soundManager.playClick();
-              setIsExpanded(!isExpanded);
-            }}
-            className="px-2 py-1 rounded text-[11px] font-semibold text-[#787b86] hover:text-white hover:bg-[#1e222d] border border-[#2a2e39] flex items-center gap-1 transition-colors cursor-pointer"
-          >
-            <span className="hidden sm:inline">
-              {isExpanded ? (isAr ? 'طي الأخبار' : 'Collapse') : (isAr ? 'كل الأخبار' : 'All News')}
-            </span>
-            <span className="px-1 rounded bg-[#2a2e39] text-[10px] text-white font-mono">{news.length}</span>
-            {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-          </button>
+          {onHide && (
+            <button
+              type="button"
+              onClick={onHide}
+              title={isAr ? 'إخفاء شريط الأخبار' : 'Hide news banner'}
+              className="p-1 rounded bg-[#10141c] hover:bg-[#1e222d] border border-[#1e2633] text-[#8b95a5] hover:text-white transition-colors cursor-pointer flex items-center justify-center"
+            >
+              <ChevronUp className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
