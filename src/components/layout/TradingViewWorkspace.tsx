@@ -93,6 +93,7 @@ import { MarketSessionsModal } from '../modals/MarketSessionsModal';
 import { UserProfileModal } from '../modals/UserProfileModal';
 import { SubscriptionPlansModal } from '../modals/SubscriptionPlansModal';
 import { PaymentModal } from '../modals/PaymentModal';
+import { PriceAlertsModal, usePriceAlertsManager } from '../modals/PriceAlertsModal';
 
 export type WorkspaceView =
   | 'signals'
@@ -402,15 +403,30 @@ export const TradingViewWorkspace: React.FC<Props> = ({
     }
   }, [activeMainView, activeView, isMobile]);
 
-  // Trader Utility Modals State (Support, Risk Calculator, Sessions, Profile, Plans, Payment)
+  // Trader Utility Modals State (Support, Risk Calculator, Sessions, Price Alerts, Profile, Plans, Payment)
   const [supportModalOpen, setSupportModalOpen] = useState(false);
   const [calculatorModalOpen, setCalculatorModalOpen] = useState(false);
   const [sessionsModalOpen, setSessionsModalOpen] = useState(false);
+  const [priceAlertsModalOpen, setPriceAlertsModalOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [plansModalOpen, setPlansModalOpen] = useState(false);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [selectedCheckoutPlan, setSelectedCheckoutPlan] = useState<'vip' | 'elite'>('vip');
   const [activeEliteTab, setActiveEliteTab] = useState<'superAi' | 'copyTrading' | 'autoBotTrader' | 'tradingCourse' | 'indicatorsStore'>('superAi');
+
+  const {
+    alerts: priceAlerts,
+    activeAlertsCount: activePriceAlertsCount,
+    addPriceAlert,
+    removePriceAlert,
+    reactivatePriceAlert,
+    clearTriggeredAlerts
+  } = usePriceAlertsManager({
+    uid: user.uid || user.id,
+    tickers,
+    lang,
+    addToast
+  });
 
   // Collapsible Widgets State (Price Ticker & News Banner)
   const [showPriceTicker, setShowPriceTicker] = useState<boolean>(() => {
@@ -1173,6 +1189,26 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                 <Crown className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                 <span className="truncate">{isAr ? 'باقات VIP' : 'VIP Plans'}</span>
               </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  soundManager.playClick();
+                  setRightMenuDrawerOpen(false);
+                  setPriceAlertsModalOpen(true);
+                }}
+                className="col-span-2 p-2 rounded-xl bg-[#089981]/15 hover:bg-[#089981]/25 border border-[#089981]/40 text-xs font-bold text-white flex items-center justify-between gap-1.5 cursor-pointer"
+              >
+                <span className="flex items-center gap-1.5 truncate">
+                  <Bell className="w-3.5 h-3.5 text-[#10b981] shrink-0" />
+                  <span className="truncate">{isAr ? 'منبه الأسعار الذكي (Price Alerts)' : 'Smart Price Alerts'}</span>
+                </span>
+                {activePriceAlertsCount > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full bg-[#10b981] text-[#06080c] font-mono text-[10px] font-black shrink-0">
+                    {activePriceAlertsCount}
+                  </span>
+                )}
+              </button>
             </div>
           </div>
         </div>
@@ -1241,6 +1277,22 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                     );
                   })}
                 </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundManager.playClick();
+                    setPriceAlertsModalOpen(true);
+                  }}
+                  className="px-2.5 py-1.5 rounded-xl bg-[#10141c]/95 hover:bg-[#161c26] text-white font-semibold text-xs flex items-center gap-1.5 transition-colors cursor-pointer border border-[#089981]/50 shadow-xl"
+                >
+                  <Bell className="w-3.5 h-3.5 text-amber-400" />
+                  <span>{isAr ? 'تنبيه سعر' : 'Alert'}</span>
+                  {activePriceAlertsCount > 0 && (
+                    <span className="px-1.5 py-0.2 rounded-full bg-[#089981] text-white font-mono text-[9px] font-bold">
+                      {activePriceAlertsCount}
+                    </span>
+                  )}
+                </button>
                 <button
                   onClick={() => {
                     soundManager.playClick();
@@ -1355,6 +1407,23 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                               type="button"
                               onClick={() => {
                                 soundManager.playClick();
+                                setPriceAlertsModalOpen(true);
+                              }}
+                              className="px-2.5 py-1.5 rounded-xl bg-[#10141c]/95 hover:bg-[#161c26] text-white text-[10px] font-bold flex items-center gap-1 cursor-pointer border border-amber-500/45 shadow-lg shrink-0"
+                            >
+                              <Bell className="w-3 h-3 text-amber-400" />
+                              <span>{isAr ? 'تنبيه سعر' : 'Alert'}</span>
+                              {activePriceAlertsCount > 0 && (
+                                <span className="px-1 rounded-full bg-[#089981] text-white font-mono text-[9px] font-bold">
+                                  {activePriceAlertsCount}
+                                </span>
+                              )}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                soundManager.playClick();
                                 handleEnableAnalysisMode();
                               }}
                               className="px-2.5 py-1.5 rounded-xl bg-[#10141c]/95 hover:bg-[#161c26] text-white text-[10px] font-bold flex items-center gap-1 cursor-pointer border border-[#089981]/50 shadow-lg shrink-0"
@@ -1388,7 +1457,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                           onSymbolChange={onSelectSymbol}
                           tickers={tickers}
                         />
-                        {/* Top-Right Overlay Over the Chart: Symbol Switcher + Full Chart Button */}
+                        {/* Top-Right Overlay Over the Chart: Symbol Switcher + Price Alert + Full Chart Button */}
                         <div className="absolute top-2.5 right-2.5 z-20 flex items-center gap-1.5 flex-wrap justify-end">
                           <div className="flex items-center gap-1 bg-[#0b0e14]/90 backdrop-blur-md p-1 rounded-xl border border-[#2a3446] shadow-xl">
                             {CHART_QUICK_SYMBOLS.map((sym) => {
@@ -1412,6 +1481,23 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                               );
                             })}
                           </div>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              soundManager.playClick();
+                              setPriceAlertsModalOpen(true);
+                            }}
+                            className="px-2.5 py-1.5 rounded-xl bg-[#10141c]/95 hover:bg-[#161c26] text-white text-[10px] font-bold flex items-center gap-1 cursor-pointer border border-amber-500/45 shadow-xl shrink-0"
+                          >
+                            <Bell className="w-3 h-3 text-amber-400" />
+                            <span>{isAr ? 'تنبيه سعر' : 'Price Alert'}</span>
+                            {activePriceAlertsCount > 0 && (
+                              <span className="px-1.5 py-0.2 rounded-full bg-[#089981] text-white font-mono text-[9px] font-bold">
+                                {activePriceAlertsCount}
+                              </span>
+                            )}
+                          </button>
 
                           <button
                             type="button"
@@ -2150,6 +2236,21 @@ export const TradingViewWorkspace: React.FC<Props> = ({
       <MarketSessionsModal
         isOpen={sessionsModalOpen}
         onClose={() => setSessionsModalOpen(false)}
+        lang={lang}
+      />
+
+      <PriceAlertsModal
+        isOpen={priceAlertsModalOpen}
+        onClose={() => setPriceAlertsModalOpen(false)}
+        defaultSymbol={selectedSymbol}
+        tickers={tickers}
+        alerts={priceAlerts}
+        onAddAlert={addPriceAlert}
+        onRemoveAlert={removePriceAlert}
+        onReactivateAlert={reactivatePriceAlert}
+        onClearTriggered={clearTriggeredAlerts}
+        notificationPermission={notificationPermission}
+        onRequestNotificationPermission={requestNotificationPermission}
         lang={lang}
       />
 
