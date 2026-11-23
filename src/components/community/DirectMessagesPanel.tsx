@@ -34,7 +34,6 @@ import {
   subscribeToDmConversations,
   subscribeToDmMessages,
   subscribeToOwnChatProfile,
-  subscribeToPlatformInboxConversations,
   syncOwnChatProfile,
   updateDmPrivacySettings
 } from '../../services/directMessageService';
@@ -133,7 +132,6 @@ export const DirectMessagesPanel: React.FC<Props> = ({
   const [ownChatProfile, setOwnChatProfile] = useState<ChatProfile | null>(null);
   const [adminOversightMode, setAdminOversightMode] = useState<boolean>(false);
   const [adminConversations, setAdminConversations] = useState<DmConversation[]>([]);
-  const [platformInboxConversations, setPlatformInboxConversations] = useState<DmConversation[]>([]);
   const [adminInboxFilter, setAdminInboxFilter] = useState<'ALL' | 'PLATFORM' | 'PERSONAL'>('ALL');
   const [selectedTopic, setSelectedTopic] = useState<PlatformInboxTopic>('support');
 
@@ -173,19 +171,16 @@ export const DirectMessagesPanel: React.FC<Props> = ({
     setTimeout(() => setFeedback(null), 4000);
   };
 
-  // Combine personal DMs + shared @mbktrading Platform Inbox conversations for Admins
+  // Reuse dmConversations from SignalsContext (which already merges personal DMs + @mbktrading platform inbox for Admins with 0 extra reads)
   const conversations = useMemo(() => {
-    const baseList = isAdminUser && adminOversightMode ? adminConversations : dmConversations;
-    if (!isAdminUser) return baseList;
-    const map = new Map<string, DmConversation>();
-    for (const c of baseList) {
-      map.set(c.id, c);
+    if (isAdminUser && adminOversightMode) {
+      const map = new Map<string, DmConversation>();
+      for (const c of dmConversations) map.set(c.id, c);
+      for (const c of adminConversations) map.set(c.id, c);
+      return Array.from(map.values()).sort((a, b) => b.lastMessageAtMs - a.lastMessageAtMs);
     }
-    for (const c of platformInboxConversations) {
-      map.set(c.id, c);
-    }
-    return Array.from(map.values()).sort((a, b) => b.lastMessageAtMs - a.lastMessageAtMs);
-  }, [isAdminUser, adminOversightMode, adminConversations, dmConversations, platformInboxConversations]);
+    return dmConversations;
+  }, [isAdminUser, adminOversightMode, adminConversations, dmConversations]);
 
   // Sync own lightweight DM privacy profile so other users can message us if allowed
   useEffect(() => {
@@ -201,18 +196,6 @@ export const DirectMessagesPanel: React.FC<Props> = ({
       unsubOwn();
     };
   }, [myUid]);
-
-  // Subscribe all Admins to the shared @mbktrading Platform Support/Suggestions/Questions Inbox
-  useEffect(() => {
-    if (!myUid || !isAdminUser) {
-      setPlatformInboxConversations([]);
-      return;
-    }
-    const unsubPlatform = subscribeToPlatformInboxConversations(setPlatformInboxConversations);
-    return () => {
-      unsubPlatform();
-    };
-  }, [myUid, isAdminUser]);
 
   // Separate limit(50) listener ONLY when an Admin explicitly toggles Admin Oversight mode
   useEffect(() => {

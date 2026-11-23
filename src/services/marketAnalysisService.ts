@@ -4,7 +4,6 @@ import {
   doc,
   getDocs,
   limit,
-  onSnapshot,
   orderBy,
   query,
   setDoc
@@ -33,10 +32,11 @@ export interface MarketAnalysisPost {
 }
 
 const ANALYSIS_CACHE_KEY = 'mbk_market_analysis_cache_v1';
-const ANALYSIS_CACHE_TTL_MS = 3 * 60 * 1000;
+const ANALYSIS_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes quota-safe cache (0 background listeners)
 
 let memoryCachedAnalysis: MarketAnalysisPost[] | null = null;
 let memoryCacheTimestampMs = 0;
+let inFlightAnalysisPromise: Promise<MarketAnalysisPost[]> | null = null;
 
 function normalizeDirection(raw: unknown): AnalysisDirection {
   const val = String(raw || '').trim().toUpperCase();
@@ -71,6 +71,41 @@ export function mapDocToMarketAnalysis(docId: string, d: Record<string, any>): M
   };
 }
 
+function readLocalCache(nowMs: number): MarketAnalysisPost[] | null {
+  try {
+    if (typeof window === 'undefined') return null;
+    const raw = localStorage.getItem(ANALYSIS_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (
+      parsed &&
+      typeof parsed.cachedAtMs === 'number' &&
+      nowMs - parsed.cachedAtMs < ANALYSIS_CACHE_TTL_MS &&
+      Array.isArray(parsed.posts)
+    ) {
+      return parsed.posts;
+    }
+  } catch {
+    // ignore storage read error
+  }
+  return null;
+}
+
+function writeLocalCache(posts: MarketAnalysisPost[], nowMs: number): void {
+  try {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(
+      ANALYSIS_CACHE_KEY,
+      JSON.stringify({
+        cachedAtMs: nowMs,
+        posts
+      })
+    );
+  } catch {
+    // ignore storage quota notice
+  }
+}
+
 export function invalidateMarketAnalysisCache(): void {
   memoryCachedAnalysis = null;
   memoryCacheTimestampMs = 0;
@@ -83,53 +118,43 @@ export function invalidateMarketAnalysisCache(): void {
   }
 }
 
+/**
+ * Quota-safe one-shot fetch of Market Analysis posts from Firestore `market_analysis`.
+ * Caches results in memory + localStorage for 10 minutes with ZERO permanent background listeners.
+ */
 export async function fetchMarketAnalysisPosts(
   forceRefresh: boolean = false
 ): Promise<MarketAnalysisPost[]> {
   const nowMs = Date.now();
-  if (
-    !forceRefresh &&
-    memoryCachedAnalysis !== null &&
-    nowMs - memoryCacheTimestampMs < ANALYSIS_CACHE_TTL_MS
-  ) {
-    return memoryCachedAnalysis;
+
+  if (!forceRefresh) {
+    if (
+      memoryCachedAnalysis !== null &&
+      nowMs - memoryCacheTimestampMs < ANALYSIS_CACHE_TTL_MS
+    ) {
+      return memoryCachedAnalysis;
+    }
+
+    const localHit = readLocalCache(nowMs);
+    if (localHit !== null) {
+      memoryCachedAnalysis = localHit;
+      memoryCacheTimestampMs = nowMs;
+      return localHit;
+    }
   }
 
-  try {
-    const q = query(
-      collection(db, 'market_analysis'),
-      orderBy('timestampMs', 'desc'),
-      limit(30)
-    );
-    const snap = await getDocs(q);
-    const list: MarketAnalysisPost[] = [];
-    snap.forEach((docSnap) => {
-      const data = docSnap.data();
-      if (data) {
-        list.push(mapDocToMarketAnalysis(docSnap.id, data));
-      }
-    });
-    list.sort((a, b) => b.timestampMs - a.timestampMs);
-    memoryCachedAnalysis = list;
-    memoryCacheTimestampMs = Date.now();
-    return list;
-  } catch (err) {
-    console.warn('[MarketAnalysisService] Could not fetch market_analysis:', err);
-    return memoryCachedAnalysis || [];
+  if (inFlightAnalysisPromise) {
+    return inFlightAnalysisPromise;
   }
-}
 
-export function subscribeToMarketAnalysisPosts(
-  onUpdate: (posts: MarketAnalysisPost[]) => void
-): () => void {
-  const q = query(
-    collection(db, 'market_analysis'),
-    orderBy('timestampMs', 'desc'),
-    limit(25)
-  );
-  return onSnapshot(
-    q,
-    (snap) => {
+  inFlightAnalysisPromise = (async () => {
+    try {
+      const q = query(
+        collection(db, 'market_analysis'),
+        orderBy('timestampMs', 'desc'),
+        limit(15)
+      );
+      const snap = await getDocs(q);
       const list: MarketAnalysisPost[] = [];
       snap.forEach((docSnap) => {
         const data = docSnap.data();
@@ -138,14 +163,20 @@ export function subscribeToMarketAnalysisPosts(
         }
       });
       list.sort((a, b) => b.timestampMs - a.timestampMs);
+      const completedAt = Date.now();
       memoryCachedAnalysis = list;
-      memoryCacheTimestampMs = Date.now();
-      onUpdate(list);
-    },
-    (err) => {
-      console.warn('[MarketAnalysisService] Snapshot error:', err?.message || err);
+      memoryCacheTimestampMs = completedAt;
+      writeLocalCache(list, completedAt);
+      return list;
+    } catch (err) {
+      console.warn('[MarketAnalysisService] Could not fetch market_analysis:', err);
+      return memoryCachedAnalysis || [];
+    } finally {
+      inFlightAnalysisPromise = null;
     }
-  );
+  })();
+
+  return inFlightAnalysisPromise;
 }
 
 export async function saveMarketAnalysisPost(

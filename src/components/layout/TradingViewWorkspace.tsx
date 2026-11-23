@@ -397,10 +397,10 @@ export const TradingViewWorkspace: React.FC<Props> = ({
   });
 
   // Flexible Chat Docking State ('left' | 'right' | 'bottom' | 'hide')
-  // On mobile (< 640px), default to 'bottom' split for optimal usability, while respecting user's saved choice
+  // Never initialize to 'hide' so the slidable Helping Panel (Bot, Trades, Messenger, AI) is always accessible
   const [chatPosition, setChatPosition] = useState<ChatDockPosition>(() => {
     const saved = localStorage.getItem('mbk_tv_chat_dock_position') as ChatDockPosition;
-    if (saved === 'left' || saved === 'right' || saved === 'bottom' || saved === 'hide') {
+    if (saved === 'left' || saved === 'right' || saved === 'bottom') {
       return saved;
     }
     if (typeof window !== 'undefined' && window.innerWidth < 640) {
@@ -408,6 +408,14 @@ export const TradingViewWorkspace: React.FC<Props> = ({
     }
     return 'left';
   });
+
+  useEffect(() => {
+    if (chatPosition === 'hide') {
+      const fallback: ChatDockPosition = window.innerWidth < 640 ? 'bottom' : 'left';
+      setChatPosition(fallback);
+      localStorage.setItem('mbk_tv_chat_dock_position', fallback);
+    }
+  }, [chatPosition]);
 
   // Bottom docked chat height state (resizable & persisted)
   const [bottomChatHeight, setBottomChatHeight] = useState<number>(() => {
@@ -429,6 +437,11 @@ export const TradingViewWorkspace: React.FC<Props> = ({
 
   const handleWorkspaceTouchStart = (e: React.TouchEvent) => {
     if (isResizingSidebar || isResizingBottom || e.touches.length !== 1) return;
+    const targetEl = e.target as HTMLElement | null;
+    if (targetEl && targetEl.closest('[data-no-drawer-swipe="true"]')) {
+      touchSwipeRef.current = null;
+      return;
+    }
     const t = e.touches[0];
     touchSwipeRef.current = {
       startX: t.clientX,
@@ -451,7 +464,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
     if (elapsed > 650) return;
     if (Math.abs(deltaX) < 55 || Math.abs(deltaX) < Math.abs(deltaY) * 1.4) return;
 
-    // Ignore swipes originating inside form inputs or horizontal scroll containers
+    // Ignore swipes originating inside form inputs or resizer handles
     const targetEl = e.target as HTMLElement | null;
     if (targetEl && targetEl.closest('input, textarea, select, [data-no-drawer-swipe="true"]')) {
       return;
@@ -512,12 +525,16 @@ export const TradingViewWorkspace: React.FC<Props> = ({
   // Helping panel dock position change handler (Left / Down / Right)
   const handleSetChatPosition = (pos: ChatDockPosition) => {
     soundManager.playClick();
-    setChatPosition(pos);
-    localStorage.setItem('mbk_tv_chat_dock_position', pos);
+    const safePos: ChatDockPosition = pos === 'hide' ? 'bottom' : pos;
+    setChatPosition(safePos);
+    localStorage.setItem('mbk_tv_chat_dock_position', safePos);
 
-    if (pos === 'left' || pos === 'right') {
+    if (safePos === 'left' || safePos === 'right') {
       setIsSidebarShrinked(false);
       localStorage.setItem('mbk_tv_sidebar_shrinked', 'false');
+    } else if (safePos === 'bottom') {
+      setIsBottomFolded(false);
+      localStorage.setItem('mbk_tv_bottom_panel_folded', 'false');
     }
   };
 
@@ -532,7 +549,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
 
   // Bottom dock resizer handler
   const handleStartResizeBottom = (e: React.MouseEvent | React.TouchEvent) => {
-    e.preventDefault();
+    e.stopPropagation();
     setIsResizingBottom(true);
     soundManager.playClick();
   };
@@ -543,7 +560,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
     const handleMove = (clientY: number) => {
       const windowHeight = window.innerHeight;
       const calculatedHeight = windowHeight - clientY;
-      const minH = 140;
+      const minH = 130;
       const maxH = Math.min(windowHeight * 0.85, 750);
 
       // Snap to fold if dragged very close to bottom (< 80px)
@@ -585,7 +602,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
 
   // Drag handler to freely resize platform border between main and sidebar
   const handleStartResize = (e: React.MouseEvent | React.TouchEvent) => {
-    e.preventDefault();
+    e.stopPropagation();
     setIsResizingSidebar(true);
     soundManager.playClick();
   };
@@ -603,7 +620,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
 
     const handleMove = (clientX: number) => {
       // Free move calculation: determine if sidebar is on physical left or right
-      const isPhysicalLeft = chatPosition === 'left' || (chatPosition !== 'right' && lang === 'ar');
+      const isPhysicalLeft = chatPosition === 'left';
       const calculatedWidth = isPhysicalLeft ? clientX : window.innerWidth - clientX;
 
       const minW = windowWidth < 640 ? 140 : 180;
@@ -630,7 +647,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
 
     const onMouseMove = (e: MouseEvent) => handleMove(e.clientX);
     const onTouchMove = (e: TouchEvent) => {
-      if (e.touches[0]) handleMove(e.touches[0].clientX);
+      if (e.touches[0]) handleMove(e.touches[0].clientY !== undefined ? e.touches[0].clientX : 0);
     };
 
     const onEnd = () => {
@@ -675,17 +692,22 @@ export const TradingViewWorkspace: React.FC<Props> = ({
     };
   };
 
-  // Layout order helper based on RTL/LTR and chat docking position
+  const isAr = lang === 'ar';
+
+  // Layout order helpers based on RTL/LTR and chat docking position so divider is ALWAYS between sidebar and main view
+  const isSidebarAtFlexStart =
+    (chatPosition === 'right' && isAr) || (chatPosition === 'left' && !isAr);
+
   const getSidePanelOrder = (): string => {
-    if (chatPosition === 'right') {
-      return isAr ? 'order-1' : 'order-3';
-    }
-    // Default is physical left:
-    return isAr ? 'order-3' : 'order-1';
+    return isSidebarAtFlexStart ? 'order-1' : 'order-3';
+  };
+
+  const getDividerOrder = (): string => {
+    return 'order-2';
   };
 
   const getMainCenterOrder = (): string => {
-    return 'order-2';
+    return isSidebarAtFlexStart ? 'order-3' : 'order-1';
   };
 
   const handleSelectTopic = (topic: 'trades' | 'chat' | 'dm' | 'ai') => {
@@ -697,7 +719,6 @@ export const TradingViewWorkspace: React.FC<Props> = ({
     if (topic === 'dm') markDmAsRead();
   };
 
-  const isAr = lang === 'ar';
   const effectiveTier = getEffectiveTier(user);
   const isEliteMember = effectiveTier === 'elite';
   const isVIP = effectiveTier === 'vip' || effectiveTier === 'elite';
@@ -857,13 +878,6 @@ export const TradingViewWorkspace: React.FC<Props> = ({
     })())
   ];
 
-  const currentNavItem =
-    navItems.find((item) =>
-      item.id === 'heatmap'
-        ? activeMainView === 'heatmap'
-        : activeMainView === 'chart' && activeView === item.id
-    ) || navItems[0];
-  const CurrentNavIcon = currentNavItem.icon;
   const totalMenuUnread = (unreadTradesCount || 0) + (unreadChatCount || 0) + (unreadDmCount || 0);
 
   return (
@@ -873,9 +887,9 @@ export const TradingViewWorkspace: React.FC<Props> = ({
       className="h-screen h-[100dvh] max-h-[100dvh] w-full max-w-full bg-[#0a0d12] text-[#f1f5f9] flex flex-col font-sans select-none overflow-hidden antialiased relative"
       dir={isAr ? 'rtl' : 'ltr'}
     >
-      {/* 1. CLEAN TOP BAR — BRAND LOGO + INSTALL | ACTIVE SECTION INDICATOR | PROFILE & SLIDABLE RIGHT MENU TRIGGER */}
+      {/* 1. CLEAN TOP BAR — BRAND LOGO + INSTALL | PROFILE (NO TOP MENU BUTTONS) */}
       <header className="h-12 bg-[#10141c] border-b border-[#1e2633] px-2 sm:px-3 flex items-center justify-between shrink-0 z-40 gap-2">
-        {/* Start Side: Brand Logo + Download App + Current Active Section */}
+        {/* Start Side: Brand Logo + Download App */}
         <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
           <div className="flex items-center gap-1.5 shrink-0">
             <img
@@ -884,7 +898,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
               referrerPolicy="no-referrer"
               className="h-7 w-auto rounded-[3px] object-contain border border-[#1e2633] bg-[#0a0d12]"
             />
-            <span className="font-bold text-white text-xs sm:text-[13px] tracking-tight whitespace-nowrap hidden xs:inline">
+            <span className="font-bold text-white text-xs sm:text-[13px] tracking-tight whitespace-nowrap">
               MBK TRADING
             </span>
           </div>
@@ -899,26 +913,11 @@ export const TradingViewWorkspace: React.FC<Props> = ({
             title={isAr ? 'تحميل وتثبيت التطبيق' : 'Download & Install App'}
           >
             <Download className="w-3.5 h-3.5 text-[#10b981] shrink-0" />
-            <span className="hidden lg:inline">{isAr ? 'تثبيت التطبيق' : 'Install'}</span>
-          </button>
-
-          {/* Current Active Section Badge (Clicking opens the right-side slidable menu) */}
-          <button
-            type="button"
-            onClick={() => {
-              soundManager.playClick();
-              setRightMenuDrawerOpen(true);
-            }}
-            className="ms-1 px-2.5 py-1 rounded-[4px] bg-[#0a0d12]/90 hover:bg-[#161c26] border border-[#10b981]/35 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer truncate transition-colors"
-            title={isAr ? 'فتح قائمة الأقسام' : 'Open Sections Menu'}
-          >
-            <CurrentNavIcon className="w-3.5 h-3.5 text-[#10b981] shrink-0" />
-            <span className="truncate">{isAr ? currentNavItem.labelAr : currentNavItem.labelEn}</span>
-            <ChevronDown className="w-3 h-3 text-[#8b95a5] shrink-0" />
+            <span className="hidden sm:inline">{isAr ? 'تثبيت التطبيق' : 'Install'}</span>
           </button>
         </div>
 
-        {/* End Side: Profile & Right Menu Trigger */}
+        {/* End Side: Profile & Settings Only */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <button
             type="button"
@@ -943,7 +942,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                 <User className="w-3 h-3" />
               )}
             </div>
-            <span className="font-semibold text-white truncate max-w-[70px] sm:max-w-[115px] text-[11px]">
+            <span className="font-semibold text-white truncate max-w-[90px] sm:max-w-[130px] text-[11px]">
               {user.name || user.email.split('@')[0]}
             </span>
             <span className="text-[10px] font-mono text-[#10b981] hidden sm:inline">
@@ -951,35 +950,22 @@ export const TradingViewWorkspace: React.FC<Props> = ({
             </span>
             <Sliders className="w-3.5 h-3.5 text-[#8b95a5] shrink-0" />
           </button>
-
-          {/* Header Menu Trigger Button */}
-          <button
-            type="button"
-            onClick={() => {
-              soundManager.playClick();
-              setRightMenuDrawerOpen((prev) => !prev);
-            }}
-            className="px-2.5 py-1.5 rounded-[4px] bg-[#10b981]/15 hover:bg-[#10b981]/25 border border-[#10b981]/45 text-[#10b981] text-xs font-extrabold flex items-center gap-1.5 cursor-pointer transition-all shrink-0 relative"
-            title={isAr ? 'افتح القائمة الجانبية (أو اسحب الشاشة لليسار)' : 'Open Right Menu Drawer (or swipe left)'}
-          >
-            <ChevronLeft className="w-3.5 h-3.5" />
-            <span>{isAr ? 'القائمة' : 'Menu'}</span>
-            {totalMenuUnread > 0 && (
-              <span className="px-1 py-0.2 rounded-full bg-[#e11d48] text-white font-mono text-[9px] font-bold">
-                {totalMenuUnread > 99 ? '99+' : totalMenuUnread}
-              </span>
-            )}
-          </button>
         </div>
       </header>
 
-      {/* FIXED RIGHT-EDGE SLIDABLE HANDLE WITH ARROW & SMALL MENU LABEL */}
+      {/* ONLY MENU TRIGGER: FIXED RIGHT-EDGE SLIDABLE HANDLE WITH ARROW & SMALL MENU LABEL */}
       {!rightMenuDrawerOpen && (
         <button
           type="button"
           onClick={() => {
             soundManager.playClick();
             setRightMenuDrawerOpen(true);
+          }}
+          onTouchMove={(e) => {
+            if (e.touches[0] && window.innerWidth - e.touches[0].clientX > 24) {
+              soundManager.playClick();
+              setRightMenuDrawerOpen(true);
+            }
           }}
           className="fixed right-0 top-1/2 -translate-y-1/2 z-40 py-3 px-1.5 rounded-l-xl bg-[#06080c]/75 hover:bg-[#10b981]/25 backdrop-blur-xl border border-r-0 border-[#10b981]/45 text-white shadow-[0_0_24px_rgba(0,0,0,0.85)] flex flex-col items-center gap-1.5 cursor-pointer transition-all group"
           title={isAr ? 'اسحب لليسار أو اضغط لفتح القائمة' : 'Swipe left or tap to open Menu'}
@@ -1219,18 +1205,17 @@ export const TradingViewWorkspace: React.FC<Props> = ({
         </div>
       )}
 
-      {/* 3. MAIN WORKSPACE CANVAS (MAIN VIEWPORT + COMPANION DOCK) */}
+      {/* 3. MAIN WORKSPACE CANVAS (MAIN VIEWPORT + SLIDABLE HELPING PANEL DOCK) */}
       <div className="flex-1 min-h-0 flex overflow-hidden relative">
 
-        {/* CENTER WORKSPACE: MAIN VIEWPORT + DOCKABLE BOTTOM COMPANION */}
-        {activeMainView === 'heatmap' ? (
-          <main className="flex-1 min-w-0 h-full w-full overflow-y-auto p-3 sm:p-5 bg-[#0a0d12] z-30">
-            <MarketHeatmap lang={lang} />
-          </main>
-        ) : (
-          <div className={`flex-1 flex flex-col min-w-0 overflow-hidden ${getMainCenterOrder()} relative`}>
+        {/* CENTER WORKSPACE: MAIN VIEWPORT + DOCKABLE SLIDABLE BOTTOM HELPING PANEL */}
+        <div className={`flex-1 flex flex-col min-w-0 overflow-hidden ${getMainCenterOrder()} relative`}>
           {/* MAIN VIEWPORT */}
-          {isAnalysisMode ? (
+          {activeMainView === 'heatmap' ? (
+            <main className="flex-1 min-w-0 h-full w-full overflow-y-auto p-3 sm:p-5 bg-[#0a0d12] z-30">
+              <MarketHeatmap lang={lang} />
+            </main>
+          ) : isAnalysisMode ? (
             <main className="flex-1 min-h-0 h-full w-full overflow-hidden relative bg-[#0a0d12] p-0 z-30">
               <TradingViewChart
                 symbol={selectedSymbol}
@@ -1247,171 +1232,6 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                 <Minimize2 className="w-3.5 h-3.5" />
                 <span>{isAr ? 'إنهاء الشارت الكامل' : 'Exit Full Chart'}</span>
               </button>
-            </main>
-          ) : isMobile && activeView === 'chart' ? (
-            /* MOBILE VERTICAL SPLIT: LITE CHART (TOP) + MARKET INSIGHTS + COMPANION DOCK (3 UNIFIED TABS) */
-            <main className="flex-1 min-h-0 h-full overflow-hidden flex flex-col bg-[#0a0d12]">
-              <div className="h-[26vh] sm:h-60 w-full shrink-0 border-b border-[#1e2633] bg-[#0a0d12] overflow-hidden relative">
-                <TradingViewLiteChart
-                  symbol={selectedSymbol}
-                  onSymbolChange={onSelectSymbol}
-                  tickers={tickers}
-                  lang={lang}
-                />
-                <button
-                  onClick={() => {
-                    soundManager.playClick();
-                    handleEnableAnalysisMode();
-                  }}
-                  className="absolute top-2 end-2 z-20 px-2.5 py-1 rounded-[3px] bg-[#10141c]/90 hover:bg-[#161c26] text-white text-[10px] font-semibold flex items-center gap-1 cursor-pointer border border-[#2a3446]"
-                >
-                  <Maximize2 className="w-3 h-3" />
-                  <span>{isAr ? 'شارت كامل' : 'Full Chart'}</span>
-                </button>
-              </div>
-
-              {isBottomFolded && (
-                <div className="flex-1 min-h-0 w-full overflow-y-auto p-2 border-b border-[#1e2633]">
-                  <MarketInsightsWidget
-                    selectedSymbol={selectedSymbol}
-                    onSymbolChange={onSelectSymbol}
-                    lang={lang}
-                    activeTicker={activeTicker}
-                  />
-                </div>
-              )}
-
-              <div
-                className={`w-full bg-[#10141c] border-t border-[#1e2633] flex flex-col overflow-hidden relative ${
-                  isBottomFolded
-                    ? 'h-[42px] min-h-[42px] max-h-[42px] shrink-0'
-                    : 'flex-1 min-h-0'
-                }`}
-              >
-                <div className="px-2.5 py-1 bg-[#10141c] border-b border-[#1e2633] flex items-center justify-between shrink-0 gap-2 h-[38px]">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <button
-                      onClick={toggleBottomFold}
-                      className="px-2 py-1 rounded-[3px] bg-[#0a0d12] hover:bg-[#161c26] border border-[#1e2633] text-[#8b95a5] hover:text-white transition-colors cursor-pointer flex items-center gap-1 text-xs shrink-0"
-                    >
-                      {isBottomFolded ? (
-                        <>
-                          <ChevronUp className="w-3.5 h-3.5" />
-                          <span className="text-[11px] font-semibold">{isAr ? 'توسيع' : 'Expand'}</span>
-                        </>
-                      ) : (
-                        <>
-                          <ChevronDown className="w-3.5 h-3.5" />
-                          <span className="text-[11px] font-medium">{isAr ? 'طي' : 'Fold'}</span>
-                        </>
-                      )}
-                    </button>
-
-                    {/* 3 Unified Companion Tabs: Signals | Messenger | Analyst AI */}
-                    <div className="flex items-center gap-0.5 bg-[#0a0d12] p-0.5 rounded-[3px] border border-[#1e2633]">
-                      <button
-                        onClick={() => handleSelectTopic('trades')}
-                        className={`px-2.5 py-1 rounded-[2px] text-[11px] font-semibold transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 ${
-                          sideDrawerView === 'trades' ? 'bg-[#161c26] text-white border border-[#2a3446]' : 'text-[#8b95a5] hover:text-white'
-                        }`}
-                      >
-                        <BarChart3 className="w-3 h-3" />
-                        <span>{isAr ? 'الإشارات' : 'Signals'}</span>
-                        {unreadTradesCount > 0 && (
-                          <span className="font-mono text-[10px] text-[#10b981]">({unreadTradesCount})</span>
-                        )}
-                      </button>
-
-                      <button
-                        onClick={() => handleSelectTopic('chat')}
-                        className={`px-2.5 py-1 rounded-[2px] text-[11px] font-semibold transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 ${
-                          sideDrawerView === 'chat' || sideDrawerView === 'dm'
-                            ? 'bg-[#161c26] text-white border border-[#2a3446]'
-                            : 'text-[#8b95a5] hover:text-white'
-                        }`}
-                      >
-                        <MessageSquare className="w-3 h-3" />
-                        <span>{isAr ? 'الماسنجر' : 'Messenger'}</span>
-                        {unreadChatCount + unreadDmCount > 0 && (
-                          <span className="font-mono text-[10px] text-[#e11d48]">
-                            ({unreadChatCount + unreadDmCount})
-                          </span>
-                        )}
-                      </button>
-
-                      <button
-                        onClick={() => handleSelectTopic('ai')}
-                        className={`px-2.5 py-1 rounded-[2px] text-[11px] font-semibold transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 ${
-                          sideDrawerView === 'ai' ? 'bg-[#161c26] text-white border border-[#2a3446]' : 'text-[#8b95a5] hover:text-white'
-                        }`}
-                      >
-                        <Bot className="w-3 h-3" />
-                        <span>{isAr ? 'التحليل' : 'Analyst AI'}</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className={`flex-1 min-h-0 h-full overflow-hidden ${isBottomFolded ? 'hidden' : 'block'}`}>
-                  {sideDrawerView === 'trades' && (
-                    <DailyTradesPanel
-                      user={user}
-                      isVIP={isVIP}
-                      userRole={user.role}
-                      isAdmin={user.role === 'ADMIN' || user.isAdmin || user.role === 'ANALYSER'}
-                      onOpenPromoModal={onOpenPromoModal}
-                      onOpenPlansModal={() => setPlansModalOpen(true)}
-                      lang={lang}
-                      isCompact={true}
-                    />
-                  )}
-                  {(sideDrawerView === 'chat' || sideDrawerView === 'dm') && (
-                    <UnifiedMessengerHub
-                      user={user}
-                      currentUserName={user.name || user.email.split('@')[0]}
-                      isVIP={isVIP}
-                      userRole={user.role}
-                      isAdmin={user.role === 'ADMIN' || user.isAdmin || user.role === 'MODERATOR'}
-                      isMutedFromChat={user.isMutedFromChat}
-                      activeTab={sideDrawerView === 'dm' ? 'dm' : messengerSubTab}
-                      onSelectTab={(tab) => {
-                        setMessengerSubTab(tab);
-                        setSideDrawerView(tab === 'dm' ? 'dm' : 'chat');
-                        if (tab === 'general') markChatAsRead();
-                        else markDmAsRead();
-                      }}
-                      unreadChatCount={unreadChatCount}
-                      unreadDmCount={unreadDmCount}
-                      dmTargetUser={dmTargetUser}
-                      onClearDmTarget={() => setDmTargetUser(null)}
-                      onStartDirectMessage={(target) => {
-                        setDmTargetUser(target);
-                        setMessengerSubTab('dm');
-                        setSideDrawerView('dm');
-                        markDmAsRead();
-                      }}
-                      onOpenPromoModal={onOpenPromoModal}
-                      onOpenPlansModal={() => setPlansModalOpen(true)}
-                      onSelectSymbol={onSelectSymbol}
-                      lang={lang}
-                      isCompact={true}
-                    />
-                  )}
-                  {sideDrawerView === 'ai' && (
-                    <div className="h-full overflow-y-auto p-2">
-                      <TradingViewAIPanel
-                        user={user}
-                        isVIP={isVIP}
-                        activeSymbol={selectedSymbol}
-                        currentPrice={activeTicker?.price || 20850}
-                        onOpenPromoModal={onOpenPromoModal}
-                        onOpenPlansModal={() => setPlansModalOpen(true)}
-                        lang={lang}
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
             </main>
           ) : activeView === 'chat' || activeView === 'dm' ? (
             <main className="flex-1 min-h-0 h-full overflow-hidden p-1 sm:p-2.5 flex flex-col bg-[#131722]">
@@ -1473,13 +1293,34 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                 {/* VIEW 2: TRADINGVIEW LIVE ADVANCED CHART VIEW */}
                 {activeView === 'chart' && (
                   <div className="flex flex-col space-y-4 w-full">
-                    <div className={`${isBottomFolded ? 'h-[calc(100vh-280px)] min-h-[380px]' : 'h-[450px] sm:h-[500px]'} w-full rounded-xl overflow-hidden border border-[#2a2e39] shadow-2xl relative transition-all duration-300 shrink-0`}>
-                      <TradingViewChart
-                        symbol={selectedSymbol}
-                        onSymbolChange={onSelectSymbol}
-                        tickers={tickers}
-                      />
-                    </div>
+                    {isMobile ? (
+                      <div className="h-[34vh] min-h-[220px] w-full rounded-xl overflow-hidden border border-[#1e2633] bg-[#0a0d12] relative shrink-0">
+                        <TradingViewLiteChart
+                          symbol={selectedSymbol}
+                          onSymbolChange={onSelectSymbol}
+                          tickers={tickers}
+                          lang={lang}
+                        />
+                        <button
+                          onClick={() => {
+                            soundManager.playClick();
+                            handleEnableAnalysisMode();
+                          }}
+                          className="absolute top-2 end-2 z-20 px-2.5 py-1 rounded-[3px] bg-[#10141c]/90 hover:bg-[#161c26] text-white text-[10px] font-semibold flex items-center gap-1 cursor-pointer border border-[#2a3446]"
+                        >
+                          <Maximize2 className="w-3 h-3" />
+                          <span>{isAr ? 'شارت كامل' : 'Full Chart'}</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className={`${isBottomFolded ? 'h-[calc(100vh-280px)] min-h-[380px]' : 'h-[450px] sm:h-[500px]'} w-full rounded-xl overflow-hidden border border-[#2a2e39] shadow-2xl relative transition-all duration-300 shrink-0`}>
+                        <TradingViewChart
+                          symbol={selectedSymbol}
+                          onSymbolChange={onSelectSymbol}
+                          tickers={tickers}
+                        />
+                      </div>
+                    )}
                     <div className="w-full animate-in fade-in transition-all shrink-0">
                       <MarketInsightsWidget
                         selectedSymbol={selectedSymbol}
@@ -1661,62 +1502,60 @@ export const TradingViewWorkspace: React.FC<Props> = ({
             </main>
           )}
 
-          {/* HELPING PANEL DOCKED AT BOTTOM (Entire panel moved down with all tabs, free move & extreme fold) */}
-          {chatPosition === 'bottom' && !(isMobile && activeView === 'chart') && (
+          {/* SLIDABLE HELPING PANEL DOCKED AT BOTTOM (Contains Bot & Trades, Messenger, and MBK AI) */}
+          {chatPosition === 'bottom' && (
             <div
+              data-no-drawer-swipe="true"
               style={{
-                height: isBottomFolded ? '48px' : (windowWidth < 640 ? '48vh' : `${bottomChatHeight}px`),
-                maxHeight: isBottomFolded ? '48px' : (windowWidth < 640 ? '60vh' : '750px'),
-                minHeight: isBottomFolded ? '48px' : '140px'
+                height: isBottomFolded ? '46px' : `${bottomChatHeight}px`,
+                maxHeight: isBottomFolded ? '46px' : '82vh',
+                minHeight: isBottomFolded ? '46px' : '135px'
               }}
-              className={`w-full bg-[#131722]/50 backdrop-blur-md border-t border-white/10 flex flex-col shrink-0 transition-all duration-300 shadow-2xl relative z-30 ${
-                isBottomFolded ? 'h-[48px] min-h-[48px] max-h-[48px]' : ''
-              }`}
+              className={`w-full bg-[#0b0e14]/95 backdrop-blur-xl border-t border-white/15 flex flex-col shrink-0 shadow-2xl relative z-30 ${
+                isResizingBottom ? 'transition-none' : 'transition-all duration-200'
+              } ${isBottomFolded ? 'h-[46px] min-h-[46px] max-h-[46px]' : ''}`}
             >
-              {/* Resizer Handle on Top of Bottom Dock (Free Move) */}
-              {!isBottomFolded && (
-                <div
-                  onMouseDown={handleStartResizeBottom}
-                  onTouchStart={handleStartResizeBottom}
-                  onDoubleClick={handleResetBottomHeight}
-                  className={`h-2.5 -mt-1.5 w-full hover:h-3 transition-all cursor-row-resize z-40 shrink-0 flex items-center justify-center group select-none relative ${
-                    isResizingBottom ? 'bg-[#089981] shadow-[0_0_12px_#089981]' : 'bg-transparent hover:bg-[#089981]/50'
-                  }`}
-                  title={isAr ? 'اسحب للتحريك الحر للارتفاع أو انقر مرتين للضبط التلقائي (320px)' : 'Drag to freely move height or double click to reset'}
-                >
-                  <div className="w-12 h-1 rounded-full bg-white/30 group-hover:bg-white transition-colors" />
-                  {/* Live pixel readout tooltip while actively resizing */}
-                  {isResizingBottom && (
-                    <div className="absolute -top-7 start-1/2 -translate-x-1/2 z-50 px-2.5 py-0.5 rounded bg-[#0d1017] border border-[#089981] text-[10px] font-mono font-bold text-[#089981] whitespace-nowrap shadow-2xl pointer-events-none animate-in fade-in">
-                      {bottomChatHeight}px
-                    </div>
-                  )}
-                </div>
-              )}
+              {/* Always-present Slidable Drag Handle on Top of Bottom Helping Panel (Works even when folded!) */}
+              <div
+                data-no-drawer-swipe="true"
+                onMouseDown={handleStartResizeBottom}
+                onTouchStart={handleStartResizeBottom}
+                onDoubleClick={handleResetBottomHeight}
+                className={`h-3 -mt-1.5 w-full hover:h-3.5 transition-all cursor-row-resize z-40 shrink-0 flex items-center justify-center group select-none relative ${
+                  isResizingBottom ? 'bg-[#10b981] shadow-[0_0_12px_#10b981]' : 'bg-transparent hover:bg-[#10b981]/40'
+                }`}
+                title={isAr ? 'اسحب للأعلى أو الأسفل لتحريك اللوحة المساعدة (أو انقر مرتين للضبط التلقائي)' : 'Slide up or down to resize Helping Panel (or double-click to reset)'}
+              >
+                <div className="w-14 h-1 rounded-full bg-white/35 group-hover:bg-[#10b981] transition-colors" />
+                {isResizingBottom && (
+                  <div className="absolute -top-7 start-1/2 -translate-x-1/2 z-50 px-2.5 py-0.5 rounded bg-[#06080c] border border-[#10b981] text-[10px] font-mono font-bold text-[#10b981] whitespace-nowrap shadow-2xl pointer-events-none">
+                    {bottomChatHeight}px
+                  </div>
+                )}
+              </div>
 
               {/* Bottom Helping Panel Header Bar */}
-              <div className="px-2.5 sm:px-3 py-1.5 bg-[#131722]/60 backdrop-blur-md border-b border-white/10 flex items-center justify-between shrink-0 gap-2 h-[38px]">
+              <div className="px-2.5 sm:px-3 py-1 bg-[#10141c] border-b border-white/10 flex items-center justify-between shrink-0 gap-2 h-[38px]">
                 <div className="flex items-center gap-1.5 min-w-0">
-                  {/* SVG Chevron Fold / Unfold Toggle Button */}
                   <button
                     onClick={toggleBottomFold}
-                    className="p-1 sm:px-2 sm:py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[#787b86] hover:text-white transition-all cursor-pointer flex items-center gap-1 text-xs shrink-0 group"
+                    className="p-1 sm:px-2 sm:py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[#9db2c6] hover:text-white transition-all cursor-pointer flex items-center gap-1 text-xs shrink-0 group"
                     title={
                       isBottomFolded
-                        ? (isAr ? 'توسيع اللوحة المساعدة' : 'Expand helping panel')
-                        : (isAr ? 'طي اللوحة لتوسيع مساحة الشارت' : 'Fold panel to maximize workspace')
+                        ? (isAr ? 'توسيع اللوحة المساعدة' : 'Expand Helping Panel')
+                        : (isAr ? 'طي اللوحة المساعدة' : 'Fold Helping Panel')
                     }
                   >
                     {isBottomFolded ? (
                       <>
-                        <ChevronUp className="w-3.5 h-3.5 text-[#089981] group-hover:scale-110 transition-transform" />
-                        <span className="text-[11px] font-bold text-[#089981] hidden xxs:inline">
+                        <ChevronUp className="w-3.5 h-3.5 text-[#10b981] group-hover:scale-110 transition-transform" />
+                        <span className="text-[11px] font-bold text-[#10b981] hidden xxs:inline">
                           {isAr ? 'توسيع' : 'Expand'}
                         </span>
                       </>
                     ) : (
                       <>
-                        <ChevronDown className="w-3.5 h-3.5 text-[#787b86] group-hover:text-white group-hover:scale-110 transition-transform" />
+                        <ChevronDown className="w-3.5 h-3.5 text-[#9db2c6] group-hover:text-white group-hover:scale-110 transition-transform" />
                         <span className="text-[11px] font-medium hidden xxs:inline">
                           {isAr ? 'طي' : 'Fold'}
                         </span>
@@ -1724,23 +1563,21 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                     )}
                   </button>
 
-                  {/* 3 Unified Institutional Companion Tabs: Signals | Messenger | Analyst AI */}
-                  <div className="flex items-center gap-0.5 bg-[#0a0d12] p-0.5 rounded-[3px] border border-[#1e2633] min-w-0 overflow-x-auto scrollbar-none">
+                  {/* 3 Unified Helping Panel Tabs: Bot & Trades | Messenger | MBK AI */}
+                  <div className="flex items-center gap-0.5 bg-[#06080c] p-0.5 rounded-[4px] border border-[#1e2633] min-w-0 overflow-x-auto scrollbar-none">
                     <button
                       onClick={() => {
                         handleSelectTopic('trades');
                         if (isBottomFolded) setIsBottomFolded(false);
                       }}
-                      className={`px-2.5 py-1 rounded-[2px] text-[11px] font-semibold transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                      className={`px-2.5 py-1 rounded-[3px] text-[11px] font-bold transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 ${
                         sideDrawerView === 'trades'
-                          ? 'bg-[#161c26] text-white border border-[#2a3446]'
+                          ? 'bg-[#10b981]/20 text-white border border-[#10b981]/50'
                           : 'text-[#8b95a5] hover:text-white'
                       }`}
                     >
-                      <BarChart3 className="w-3.5 h-3.5" />
-                      <span className={isBottomFolded ? 'hidden sm:inline' : ''}>
-                        {isAr ? 'الإشارات' : 'Signals'}
-                      </span>
+                      <BarChart3 className="w-3.5 h-3.5 text-[#10b981]" />
+                      <span>{isAr ? 'البوت والصفقات' : 'Bot & Trades'}</span>
                       {unreadTradesCount > 0 && (
                         <span className="font-mono text-[10px] text-[#10b981] font-bold">
                           ({unreadTradesCount > 99 ? '99+' : unreadTradesCount})
@@ -1753,16 +1590,14 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                         handleSelectTopic('chat');
                         if (isBottomFolded) setIsBottomFolded(false);
                       }}
-                      className={`px-2.5 py-1 rounded-[2px] text-[11px] font-semibold transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                      className={`px-2.5 py-1 rounded-[3px] text-[11px] font-bold transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 ${
                         sideDrawerView === 'chat' || sideDrawerView === 'dm'
-                          ? 'bg-[#161c26] text-white border border-[#2a3446]'
+                          ? 'bg-[#10b981]/20 text-white border border-[#10b981]/50'
                           : 'text-[#8b95a5] hover:text-white'
                       }`}
                     >
-                      <MessageSquare className="w-3.5 h-3.5" />
-                      <span className={isBottomFolded ? 'hidden sm:inline' : ''}>
-                        {isAr ? 'الماسنجر' : 'Messenger'}
-                      </span>
+                      <MessageSquare className="w-3.5 h-3.5 text-[#10b981]" />
+                      <span>{isAr ? 'الماسنجر' : 'Messenger'}</span>
                       {unreadChatCount + unreadDmCount > 0 && (
                         <span className="font-mono text-[10px] text-[#e11d48] font-bold">
                           ({unreadChatCount + unreadDmCount > 99 ? '99+' : unreadChatCount + unreadDmCount})
@@ -1775,16 +1610,14 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                         handleSelectTopic('ai');
                         if (isBottomFolded) setIsBottomFolded(false);
                       }}
-                      className={`px-2.5 py-1 rounded-[2px] text-[11px] font-semibold transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                      className={`px-2.5 py-1 rounded-[3px] text-[11px] font-bold transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 ${
                         sideDrawerView === 'ai'
-                          ? 'bg-[#161c26] text-white border border-[#2a3446]'
+                          ? 'bg-[#10b981]/20 text-white border border-[#10b981]/50'
                           : 'text-[#8b95a5] hover:text-white'
                       }`}
                     >
-                      <Bot className="w-3.5 h-3.5" />
-                      <span className={isBottomFolded ? 'hidden sm:inline' : ''}>
-                        {isAr ? 'التحليل الذكي' : 'Analyst AI'}
-                      </span>
+                      <Bot className="w-3.5 h-3.5 text-[#10b981]" />
+                      <span>{isAr ? 'ذكاء MBK' : 'MBK AI'}</span>
                     </button>
                   </div>
                 </div>
@@ -1792,7 +1625,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                 {/* Move Helping Panel Controls: Left / Down / Right */}
                 <div className="flex items-center gap-1.5 shrink-0">
                   <span className="text-[10px] text-[#8b95a5] font-medium hidden md:inline">
-                    {isAr ? 'موضع اللوحة:' : 'Dock:'}
+                    {isAr ? 'موضع المساعد:' : 'Dock:'}
                   </span>
                   <ChatDockControls
                     currentPosition={chatPosition}
@@ -1864,35 +1697,37 @@ export const TradingViewWorkspace: React.FC<Props> = ({
             </div>
           )}
         </div>
-        )}
 
-        {/* FLEXIBLE RESIZABLE BORDER DIVIDER */}
-        {isSidebarVisible && activeMainView === 'chart' && (
+        {/* FLEXIBLE SLIDABLE BORDER DIVIDER (Always placed between Side Helping Panel and Main Viewport) */}
+        {isSidebarVisible && (
           <div
+            data-no-drawer-swipe="true"
             onMouseDown={handleStartResize}
             onTouchStart={handleStartResize}
             onDoubleClick={handleResetSidebarWidth}
-            className={`w-2.5 -mx-1 hover:w-3 transition-colors cursor-col-resize z-40 shrink-0 flex items-center justify-center group select-none relative ${getSidePanelOrder()} ${
-              isResizingSidebar ? 'bg-[#2a3446]' : 'hover:bg-[#1e2633]'
+            className={`w-3 -mx-1 hover:w-3.5 transition-colors cursor-col-resize z-40 shrink-0 flex items-center justify-center group select-none relative ${getDividerOrder()} ${
+              isResizingSidebar ? 'bg-[#10b981]/30' : 'hover:bg-[#1e2633]'
             }`}
-            title={isAr ? 'اسحب لتغيير العرض أو انقر مرتين للضبط التلقائي' : 'Drag to resize or double click to reset'}
+            title={isAr ? 'اسحب لتحريك حجم اللوحة المساعدة أو انقر مرتين للضبط التلقائي' : 'Slide to resize Helping Panel or double-click to reset'}
           >
             <div
-              className={`w-[1px] h-full transition-colors ${
-                isResizingSidebar ? 'bg-white' : 'bg-[#1e2633] group-hover:bg-[#8b95a5]'
+              className={`w-[2px] h-full transition-colors ${
+                isResizingSidebar ? 'bg-[#10b981]' : 'bg-[#1e2633] group-hover:bg-[#10b981]'
               }`}
             />
+            <div className="absolute top-1/2 -translate-y-1/2 w-1.5 h-10 rounded-full bg-white/30 group-hover:bg-[#10b981] transition-colors pointer-events-none" />
             {isResizingSidebar && (
-              <div className="absolute top-12 z-50 px-2 py-0.5 rounded-[2px] bg-[#0a0d12] border border-[#2a3446] text-[10px] font-mono font-bold text-white whitespace-nowrap">
+              <div className="absolute top-12 z-50 px-2 py-0.5 rounded-[2px] bg-[#0a0d12] border border-[#10b981] text-[10px] font-mono font-bold text-[#10b981] whitespace-nowrap">
                 {customSidebarWidth}px
               </div>
             )}
           </div>
         )}
 
-        {/* 4. COMPANION SIDEBAR (DOCKABLE LEFT / RIGHT — 3 CLEAN MONOCHROME TABS) */}
-        {isSidebarVisible && activeMainView === 'chart' && (
+        {/* 4. SLIDABLE SIDE HELPING PANEL (DOCKABLE LEFT / RIGHT — BOT & TRADES | MESSENGER | MBK AI) */}
+        {isSidebarVisible && (
           <aside
+            data-no-drawer-swipe="true"
             style={getSidebarWidthStyle()}
             className={`flex flex-col h-full shrink-0 z-30 bg-[#10141c] border-s border-[#1e2633] select-none overflow-hidden ${getSidePanelOrder()} ${
               isResizingSidebar ? 'transition-none' : 'transition-all duration-200'
@@ -1906,7 +1741,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                     <button
                       onClick={handleToggleShrink}
                       className="w-full py-1 px-1 rounded-[3px] bg-[#0a0d12] hover:bg-[#161c26] border border-[#1e2633] text-[#8b95a5] hover:text-white transition-colors cursor-pointer flex flex-col items-center justify-center gap-0.5 shrink-0"
-                      title={isAr ? 'توسيع اللوحة الجانبية' : 'Expand Panel'}
+                      title={isAr ? 'توسيع اللوحة المساعدة' : 'Expand Helping Panel'}
                     >
                       {chatPosition === 'right' ? (
                         <ChevronLeft className="w-3.5 h-3.5" />
@@ -1930,11 +1765,11 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                           ? 'bg-[#161c26] text-white border border-[#2a3446]'
                           : 'text-[#8b95a5] hover:text-white hover:bg-[#161c26]'
                       }`}
-                      title={isAr ? 'بوت وتوصيات MBK' : 'MBK Bot & Signals'}
+                      title={isAr ? 'البوت والصفقات المباشرة' : 'Bot & Live Trades'}
                     >
-                      <BarChart3 className="w-3.5 h-3.5" />
+                      <BarChart3 className="w-3.5 h-3.5 text-[#10b981]" />
                       <span className="text-[9px] font-semibold leading-tight text-center truncate w-full">
-                        {isAr ? 'الإشارات' : 'Signals'}
+                        {isAr ? 'البوت والصفقات' : 'Trades'}
                       </span>
                       {unreadTradesCount > 0 && (
                         <span className="absolute top-0.5 end-0.5 min-w-[13px] h-[13px] px-0.5 rounded-[2px] bg-[#10b981] text-white text-[8px] font-mono font-bold flex items-center justify-center">
@@ -1955,7 +1790,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                       }`}
                       title={isAr ? 'الشات العام والرسائل الخاصة' : 'Trading Floor & Direct DMs'}
                     >
-                      <MessageSquare className="w-3.5 h-3.5" />
+                      <MessageSquare className="w-3.5 h-3.5 text-[#10b981]" />
                       <span className="text-[9px] font-semibold leading-tight text-center truncate w-full">
                         {isAr ? 'الماسنجر' : 'Messenger'}
                       </span>
@@ -1976,11 +1811,11 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                           ? 'bg-[#161c26] text-white border border-[#2a3446]'
                           : 'text-[#8b95a5] hover:text-white hover:bg-[#161c26]'
                       }`}
-                      title={isAr ? 'المحلل الكمي الذكي' : 'Analyst AI'}
+                      title={isAr ? 'ذكاء MBK' : 'MBK AI'}
                     >
-                      <Bot className="w-3.5 h-3.5" />
+                      <Bot className="w-3.5 h-3.5 text-[#10b981]" />
                       <span className="text-[9px] font-semibold leading-tight text-center truncate w-full">
-                        {isAr ? 'التحليل' : 'Analyst'}
+                        {isAr ? 'ذكاء MBK' : 'MBK AI'}
                       </span>
                     </button>
                   </div>
@@ -1995,20 +1830,20 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                   </div>
                 </div>
               ) : (
-                /* Expanded Companion Header: 3 Clean Monochrome Tabs with Written Topic Descriptions */
+                /* Expanded Companion Header: 3 Clean Tabs (Bot & Trades | Messenger | MBK AI) */
                 <div className="w-full flex flex-col gap-1.5">
                   <div className="flex items-center justify-between gap-2 w-full">
                     <button
                       onClick={handleToggleShrink}
                       className="px-2 py-1 rounded-[3px] bg-[#0a0d12] hover:bg-[#161c26] border border-[#1e2633] text-[#8b95a5] hover:text-white transition-colors cursor-pointer flex items-center gap-1 text-xs shrink-0"
-                      title={isAr ? 'طي اللوحة الجانبية' : 'Fold Panel'}
+                      title={isAr ? 'طي اللوحة المساعدة' : 'Fold Helping Panel'}
                     >
                       {chatPosition === 'right' ? (
                         <ChevronRight className="w-3.5 h-3.5" />
                       ) : (
                         <ChevronLeft className="w-3.5 h-3.5" />
                       )}
-                      <span className="text-[11px] font-medium">{isAr ? 'طي اللوحة' : 'Fold Panel'}</span>
+                      <span className="text-[11px] font-medium">{isAr ? 'طي المساعد' : 'Fold Helper'}</span>
                     </button>
 
                     <div className="flex items-center gap-1 shrink-0">
@@ -2021,7 +1856,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                     </div>
                   </div>
 
-                  {/* Full-Width 3-Tab Grid: Signals | Messenger | Analyst AI with Topic Subtitle */}
+                  {/* Full-Width 3-Tab Grid: Bot & Trades | Messenger | MBK AI */}
                   <div className="grid grid-cols-3 gap-1 bg-[#0a0d12] p-1 rounded-[3px] border border-[#1e2633] w-full">
                     <button
                       onClick={() => handleSelectTopic('trades')}
@@ -2032,8 +1867,8 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                       }`}
                     >
                       <div className="flex items-center gap-1">
-                        <BarChart3 className="w-3.5 h-3.5 shrink-0" />
-                        <span className="text-[11px] font-semibold truncate">{isAr ? 'الإشارات' : 'Signals'}</span>
+                        <BarChart3 className="w-3.5 h-3.5 text-[#10b981] shrink-0" />
+                        <span className="text-[11px] font-semibold truncate">{isAr ? 'البوت والصفقات' : 'Bot & Trades'}</span>
                         {unreadTradesCount > 0 && (
                           <span className="font-mono text-[9px] text-[#10b981] font-bold">
                             ({unreadTradesCount > 99 ? '99+' : unreadTradesCount})
@@ -2054,7 +1889,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                       }`}
                     >
                       <div className="flex items-center gap-1">
-                        <MessageSquare className="w-3.5 h-3.5 shrink-0" />
+                        <MessageSquare className="w-3.5 h-3.5 text-[#10b981] shrink-0" />
                         <span className="text-[11px] font-semibold truncate">{isAr ? 'الماسنجر' : 'Messenger'}</span>
                         {unreadChatCount + unreadDmCount > 0 && (
                           <span className="font-mono text-[9px] text-[#e11d48] font-bold">
@@ -2076,11 +1911,11 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                       }`}
                     >
                       <div className="flex items-center gap-1">
-                        <Bot className="w-3.5 h-3.5 shrink-0" />
-                        <span className="text-[11px] font-semibold truncate">{isAr ? 'التحليل' : 'Analyst'}</span>
+                        <Bot className="w-3.5 h-3.5 text-[#10b981] shrink-0" />
+                        <span className="text-[11px] font-semibold truncate">{isAr ? 'ذكاء MBK' : 'MBK AI'}</span>
                       </div>
                       <span className="text-[9px] text-[#8492a6] truncate w-full text-center">
-                        {isAr ? 'المحلل الكمي' : 'Market Analysis'}
+                        {isAr ? 'المحلل الذكي' : 'Analyst AI'}
                       </span>
                     </button>
                   </div>

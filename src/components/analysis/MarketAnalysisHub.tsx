@@ -28,8 +28,7 @@ import {
   MarketAnalysisPost,
   deleteMarketAnalysisPost,
   fetchMarketAnalysisPosts,
-  saveMarketAnalysisPost,
-  subscribeToMarketAnalysisPosts
+  saveMarketAnalysisPost
 } from '../../services/marketAnalysisService';
 import { auth } from '../../lib/firebase';
 
@@ -167,13 +166,20 @@ export const MarketAnalysisHub: React.FC<MarketAnalysisHubProps> = ({
   const [busyPostId, setBusyPostId] = useState<string | null>(null);
 
   useEffect(() => {
+    let mounted = true;
     setIsLoading(true);
-    const unsub = subscribeToMarketAnalysisPosts((livePosts) => {
-      setPosts(livePosts);
-      setIsLoading(false);
-    });
+    fetchMarketAnalysisPosts(false)
+      .then((cachedOrFresh) => {
+        if (mounted) {
+          setPosts(cachedOrFresh);
+          setIsLoading(false);
+        }
+      })
+      .catch(() => {
+        if (mounted) setIsLoading(false);
+      });
     return () => {
-      unsub();
+      mounted = false;
     };
   }, []);
 
@@ -322,6 +328,8 @@ export const MarketAnalysisHub: React.FC<MarketAnalysisHubProps> = ({
         timestampMs: formState.timestampMs
       });
 
+      const refreshed = await fetchMarketAnalysisPosts(true);
+      setPosts(refreshed);
       soundManager.playSuccess();
       setEditorOpen(false);
     } catch (err: any) {
@@ -342,6 +350,8 @@ export const MarketAnalysisHub: React.FC<MarketAnalysisHubProps> = ({
         ...post,
         isPublished: !post.isPublished
       });
+      const refreshed = await fetchMarketAnalysisPosts(true);
+      setPosts(refreshed);
     } finally {
       setBusyPostId(null);
     }
@@ -353,6 +363,8 @@ export const MarketAnalysisHub: React.FC<MarketAnalysisHubProps> = ({
     setBusyPostId(id);
     try {
       await deleteMarketAnalysisPost(id);
+      const refreshed = await fetchMarketAnalysisPosts(true);
+      setPosts(refreshed);
       setConfirmDeleteId(null);
       if (selectedPost?.id === id) {
         setSelectedPost(null);

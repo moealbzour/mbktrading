@@ -34,10 +34,10 @@ import {
   PLATFORM_INBOX_TOPICS,
   PlatformInboxTopic,
   sendDirectMessage,
-  subscribeToDmMessages,
-  subscribeToPlatformInboxConversations
+  subscribeToDmMessages
 } from '../../services/directMessageService';
 import { DmConversation, DmMessage, UserProfile } from '../../types/trading';
+import { useSignalsContext } from '../../context/SignalsContext';
 import { auth } from '../../lib/firebase';
 
 interface Props {
@@ -82,8 +82,8 @@ export const SupportDeskModal: React.FC<Props> = ({
   const [editingText, setEditingText] = useState<string>('');
   const [savingEdit, setSavingEdit] = useState<boolean>(false);
 
-  // Admin shared ticket selector inside Support modal
-  const [adminTickets, setAdminTickets] = useState<DmConversation[]>([]);
+  // Reuse dmConversations from SignalsContext (0 duplicate Firestore listeners)
+  const { dmConversations } = useSignalsContext();
   const [selectedAdminTicketUser, setSelectedAdminTicketUser] = useState<{
     uid: string;
     displayName: string;
@@ -102,6 +102,11 @@ export const SupportDeskModal: React.FC<Props> = ({
       auth.currentUser?.email?.toLowerCase() === 'moe.albzour@gmail.com'
   );
 
+  const adminTickets = useMemo<DmConversation[]>(() => {
+    if (!isAdminUser) return [];
+    return dmConversations.filter((c) => c.participants.includes(OFFICIAL_PLATFORM_UID));
+  }, [isAdminUser, dmConversations]);
+
   useEffect(() => {
     if (!isOpen) return;
     const unsub = subscribeToPlatformSettings((nextSettings) => {
@@ -109,18 +114,6 @@ export const SupportDeskModal: React.FC<Props> = ({
     });
     return () => unsub();
   }, [isOpen]);
-
-  // Subscribe admins to all @mbktrading tickets when viewing the inbox tab
-  useEffect(() => {
-    if (!isOpen || !isAdminUser || !myUid) {
-      setAdminTickets([]);
-      return;
-    }
-    const unsub = subscribeToPlatformInboxConversations((list) => {
-      setAdminTickets(list);
-    });
-    return () => unsub();
-  }, [isOpen, isAdminUser, myUid]);
 
   const activeConvoId = useMemo(() => {
     if (!myUid) return '';

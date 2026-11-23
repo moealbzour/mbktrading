@@ -855,7 +855,7 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const dmQuery = query(
       collection(db, 'dm_conversations'),
       where('participants', 'array-contains', currentUserUid),
-      limit(30)
+      limit(20)
     );
 
     const cacheKey = `mbk_cached_dm_convos_v1_${currentUserUid}`;
@@ -941,7 +941,7 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const platformDmQuery = query(
         collection(db, 'dm_conversations'),
         where('participants', 'array-contains', 'mbktrading'),
-        limit(40)
+        limit(25)
       );
 
       unsubPlatformDm = onSnapshot(
@@ -1014,7 +1014,7 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const latestChatQuery = query(
         collection(db, 'public_chat'),
         orderBy('timestampMs', 'desc'),
-        limit(3)
+        limit(1)
       );
 
       unsubChat = onSnapshot(
@@ -1061,109 +1061,10 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       );
     }
 
-    // Live Popup Announcements Push Notifications
-    let isFirstAnnouncementSnap = true;
-    const latestAnnouncementsQuery = query(
-      collection(db, 'announcements'),
-      orderBy('timestampMs', 'desc'),
-      limit(3)
-    );
-    const unsubAnnouncements = onSnapshot(
-      latestAnnouncementsQuery,
-      (snap) => {
-        const lastAnnMs = getLastNotifiedMs('mbk_last_notif_announcement_ms');
-        let maxAnnMs = lastAnnMs;
-
-        snap.docChanges().forEach((change) => {
-          if (change.type !== 'added') return;
-          const d = change.doc.data();
-          if (d.isActive === false) return;
-          const tsMs = Number(d.timestampMs || Date.now());
-          const isNewer = tsMs > lastAnnMs && tsMs > Date.now() - 12 * 60 * 60 * 1000;
-
-          if (!isFirstAnnouncementSnap || isNewer) {
-            if (tsMs > maxAnnMs) maxAnnMs = tsMs;
-            const title = String(d.titleAr || d.title || 'إعلان هام من إدارة MBK 📢').trim();
-            const body = String(d.messageAr || d.message || '').trim().slice(0, 140);
-
-            triggerAudioAlert();
-            addToast({
-              title: `📢 ${title}`,
-              message: body || 'يرجى مراجعة الإعلان الجديد في المنصة.',
-              type: 'info',
-              timestamp: 'الآن'
-            });
-            sendBrowserNotification(
-              `📢 ${title}`,
-              body || 'إعلان جديد في منصة MBK Trading',
-              `announcement-${change.doc.id}`
-            );
-          }
-        });
-
-        if (maxAnnMs > lastAnnMs) {
-          setLastNotifiedMs('mbk_last_notif_announcement_ms', maxAnnMs);
-        }
-        isFirstAnnouncementSnap = false;
-      },
-      () => {}
-    );
-
-    // Live Market Analysis Posts Push Notifications
-    let isFirstAnalysisSnap = true;
-    const latestAnalysisQuery = query(
-      collection(db, 'market_analysis'),
-      orderBy('timestampMs', 'desc'),
-      limit(3)
-    );
-    const unsubAnalysis = onSnapshot(
-      latestAnalysisQuery,
-      (snap) => {
-        const lastAnMs = getLastNotifiedMs('mbk_last_notif_analysis_ms');
-        let maxAnMs = lastAnMs;
-
-        snap.docChanges().forEach((change) => {
-          if (change.type !== 'added') return;
-          const d = change.doc.data();
-          if (d.isPublished === false) return;
-          const tsMs = Number(d.timestampMs || Date.now());
-          const isNewer = tsMs > lastAnMs && tsMs > Date.now() - 12 * 60 * 60 * 1000;
-
-          if (d.authorUid !== currentUserUid && (!isFirstAnalysisSnap || isNewer)) {
-            if (tsMs > maxAnMs) maxAnMs = tsMs;
-            const sym = String(d.symbol || 'XAUUSD').toUpperCase();
-            const title = String(d.titleAr || d.titleEn || `تحليل فني جديد • ${sym}`).trim();
-            const body = String(d.summaryAr || d.summaryEn || '').trim().slice(0, 130);
-
-            triggerAudioAlert();
-            addToast({
-              title: `📊 تحليل جديد (${sym}): ${title}`,
-              message: body,
-              type: 'info',
-              timestamp: 'الآن'
-            });
-            sendBrowserNotification(
-              `📊 تحليل السوق (${sym}) • ${title}`,
-              body,
-              `market-analysis-${change.doc.id}`
-            );
-          }
-        });
-
-        if (maxAnMs > lastAnMs) {
-          setLastNotifiedMs('mbk_last_notif_analysis_ms', maxAnMs);
-        }
-        isFirstAnalysisSnap = false;
-      },
-      () => {}
-    );
-
     return () => {
       unsubDm();
       if (unsubPlatformDm) unsubPlatformDm();
       if (unsubChat) unsubChat();
-      unsubAnnouncements();
-      unsubAnalysis();
     };
   }, [authResolved, currentUserUid, isAdminUser, canReadVipChat, addToast, sendBrowserNotification, triggerAudioAlert]);
 
