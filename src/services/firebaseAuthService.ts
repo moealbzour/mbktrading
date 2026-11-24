@@ -282,7 +282,8 @@ function mapUserDocToProfile(firebaseUser: FirebaseUser, data: Record<string, an
 export async function fetchOrCreateUserRegistry(
   user: FirebaseUser,
   _defaultRole: string = 'free',
-  extraData?: UserOnboardingData
+  extraData?: UserOnboardingData,
+  explicitDisplayName?: string
 ): Promise<{ email: string; role: string; uid: string }> {
   const safeEmail = (user.email || '').slice(0, 200);
   const isSuperAdmin = safeEmail.toLowerCase() === SUPER_ADMIN_EMAIL;
@@ -301,7 +302,12 @@ export async function fetchOrCreateUserRegistry(
       };
     }
 
-    const safeDisplayName = (user.displayName || safeEmail.split('@')[0] || 'Trader').slice(0, 100);
+    const safeDisplayName = (
+      explicitDisplayName?.trim() ||
+      user.displayName ||
+      safeEmail.split('@')[0] ||
+      'Trader'
+    ).slice(0, 100);
     const safePhone = (extraData?.phone || '').slice(0, 40);
     const safeCountry = (extraData?.country || '').slice(0, 80);
 
@@ -366,65 +372,70 @@ export async function registerWithFirebase(
   const cleanEmail = email.trim();
   const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, pass);
   const user = userCredential.user;
+  pendingRegistrationUids.add(user.uid);
 
-  const extraData: UserOnboardingData =
-    typeof extraDataInput === 'string'
-      ? { promoCode: extraDataInput }
-      : extraDataInput || {};
+  try {
+    const extraData: UserOnboardingData =
+      typeof extraDataInput === 'string'
+        ? { promoCode: extraDataInput }
+        : extraDataInput || {};
 
-  if (displayName && displayName.trim()) {
+    if (displayName && displayName.trim()) {
+      try {
+        await updateProfile(user, { displayName: displayName.trim() });
+      } catch (err) {
+        console.warn('Profile update notice:', err);
+      }
+    }
+
+    // 1. Create Firestore user registry document (single clean write with full onboarding data)
+    await fetchOrCreateUserRegistry(user, 'free', extraData, displayName?.trim());
+
+    // 2. Redeem activation key atomically if supplied
+    if (extraData.promoCode && extraData.promoCode.trim()) {
+      try {
+        await redeemActivationKey(extraData.promoCode, user.uid, user.email || cleanEmail);
+      } catch (keyErr) {
+        console.warn('[Firebase Auth] Promo code redemption notice during registration:', keyErr);
+      }
+    }
+
+    // 3. Send verification email via Firebase Auth SDK
+    let verificationSent = false;
     try {
-      await updateProfile(user, { displayName: displayName.trim() });
+      await sendEmailVerification(user);
+      verificationSent = true;
+    } catch (verifyErr) {
+      console.warn('[Firebase Auth] Could not send email verification:', verifyErr);
+    }
+
+    let data: Record<string, any> = {};
+    try {
+      const userDocRef = doc(db, 'users', user.uid);
+      const latestSnap = await getDoc(userDocRef);
+      if (latestSnap.exists()) {
+        data = latestSnap.data();
+      }
     } catch (err) {
-      console.warn('Profile update notice:', err);
+      console.warn('[Firebase Auth] registerWithFirebase profile read fallback:', err);
     }
-  }
 
-  // 1. Create Firestore user registry document (single clean write)
-  await fetchOrCreateUserRegistry(user, 'free', extraData);
+    const userProfile = mapUserDocToProfile(user, data);
 
-  // 2. Redeem activation key atomically if supplied
-  if (extraData.promoCode && extraData.promoCode.trim()) {
+    // 4. Immediately sign out user so they verify email before entering dashboard
     try {
-      await redeemActivationKey(extraData.promoCode, user.uid, user.email || cleanEmail);
-    } catch (keyErr) {
-      console.warn('[Firebase Auth] Promo code redemption notice during registration:', keyErr);
+      await signOut(auth);
+    } catch {
+      // ignore
     }
+
+    return {
+      userProfile,
+      verificationSent
+    };
+  } finally {
+    pendingRegistrationUids.delete(user.uid);
   }
-
-  // 3. Send verification email via Firebase Auth SDK
-  let verificationSent = false;
-  try {
-    await sendEmailVerification(user);
-    verificationSent = true;
-  } catch (verifyErr) {
-    console.warn('[Firebase Auth] Could not send email verification:', verifyErr);
-  }
-
-  let data: Record<string, any> = {};
-  try {
-    const userDocRef = doc(db, 'users', user.uid);
-    const latestSnap = await getDoc(userDocRef);
-    if (latestSnap.exists()) {
-      data = latestSnap.data();
-    }
-  } catch (err) {
-    console.warn('[Firebase Auth] registerWithFirebase profile read fallback:', err);
-  }
-
-  const userProfile = mapUserDocToProfile(user, data);
-
-  // 4. Immediately sign out user so they verify email before entering dashboard
-  try {
-    await signOut(auth);
-  } catch {
-    // ignore
-  }
-
-  return {
-    userProfile,
-    verificationSent
-  };
 }
 
 /**
@@ -904,6 +915,9 @@ function ensureSharedAuthListener(): void {
     sharedUnsubDoc = onSnapshot(
       userDocRef,
       async (docSnap) => {
+        if (pendingRegistrationUids.has(firebaseUser.uid)) {
+          return;
+        }
         let cachedProfile: any = null;
         try {
           const cachedRaw = localStorage.getItem('mbk_user');
@@ -919,7 +933,7 @@ function ensureSharedAuthListener(): void {
 
         const effectiveInitialRole = isSuperAdmin ? 'admin' : 'free';
 
-        if (!docSnap.exists() && !pendingRegistrationUids.has(firebaseUser.uid)) {
+        if (!docSnap.exists()) {
           try {
             const cachedExtra: UserOnboardingData | undefined = cachedProfile
               ? {

@@ -53,6 +53,7 @@ export const DailyTradesPanel: React.FC<Props> = ({
   userRole,
   isAdmin = false,
   onOpenPromoModal,
+  onOpenPlansModal,
   lang = 'ar',
   trades: tradesProp,
   loading: loadingProp
@@ -549,7 +550,54 @@ export const DailyTradesPanel: React.FC<Props> = ({
       </div>
 
       {/* 3. COMPACT SIGNALS STREAM LIST */}
-      {loading ? (
+      {(sourceFilter === 'BOT_WEBHOOK' && !hasBotSignalsAccess) ||
+      (sourceFilter === 'VIP_MANUAL' && !hasVipSignalsAccess) ? (
+        <div className="p-4 text-center bg-[#0a0d12] rounded-[4px] border border-[#1e2633] space-y-2.5">
+          <div className="w-8 h-8 rounded-[3px] bg-[#161c26] border border-[#2a3446] text-[#8492a6] flex items-center justify-center mx-auto">
+            <Lock className="w-3.5 h-3.5" />
+          </div>
+          <h4 className="text-xs font-bold text-[#edf0f5]">
+            {sourceFilter === 'BOT_WEBHOOK'
+              ? isAr
+                ? 'بوت MBK الخوارزمي مخصص لمشتركي VIP'
+                : 'MBK Automated Bot — VIP Members Only'
+              : isAr
+              ? 'توصيات VIP المؤسسية مخصصة لمشتركي VIP'
+              : 'VIP Institutional Signals — VIP Members Only'}
+          </h4>
+          <p className="text-[11px] text-[#8492a6] leading-relaxed">
+            {isAr
+              ? 'قم بترقية حسابك إلى باقة VIP أو تفعيل مفتاح الاشتراك لفتح إشارات البوت وصفقات VIP المباشرة.'
+              : 'Upgrade to VIP or enter an activation key to unlock live Bot and VIP institutional signals.'}
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-1.5 pt-1">
+            {onOpenPlansModal && (
+              <button
+                type="button"
+                onClick={() => {
+                  soundManager.playClick();
+                  onOpenPlansModal();
+                }}
+                className="px-3 py-1.5 rounded-[3px] bg-[#089981] hover:bg-[#07846f] text-white font-bold text-[11px] cursor-pointer transition-colors"
+              >
+                {isAr ? 'ترقية إلى VIP' : 'Upgrade to VIP'}
+              </button>
+            )}
+            {onOpenPromoModal && (
+              <button
+                type="button"
+                onClick={() => {
+                  soundManager.playClick();
+                  onOpenPromoModal();
+                }}
+                className="px-3 py-1.5 rounded-[3px] bg-[#161c26] hover:bg-[#1c2432] text-[#edf0f5] border border-[#2a3446] font-semibold text-[11px] cursor-pointer transition-colors"
+              >
+                {isAr ? 'تفعيل مفتاح' : 'Enter License Key'}
+              </button>
+            )}
+          </div>
+        </div>
+      ) : loading ? (
         <div className="py-8 text-center text-[#8492a6] text-[11px] font-mono">
           <span>{isAr ? 'جاري التحميل...' : 'SYNCHRONIZING...'}</span>
         </div>
