@@ -151,11 +151,33 @@ function mapUserDocToProfile(firebaseUser: FirebaseUser, data: Record<string, an
     ? 'admin'
     : (data.role || 'free').toString().toLowerCase();
 
+  const pickLatestIso = (...vals: any[]): string | null => {
+    let bestMs = 0;
+    let bestIso: string | null = null;
+    for (const v of vals) {
+      const iso = normalizeTimestampToIso(v);
+      if (!iso) continue;
+      const ms = new Date(iso).getTime();
+      if (!Number.isNaN(ms) && ms > bestMs) {
+        bestMs = ms;
+        bestIso = iso;
+      }
+    }
+    return bestIso;
+  };
+
   const rawTier = (data.tier || '').toString().toLowerCase();
-  const eliteEndDate: string | null =
-    data.eliteExpiryDate || data.subscription_end_date || data.subscriptionEndDate || null;
-  const subEndDate: string | null =
-    data.subscription_end_date || data.subscriptionEndDate || data.vipExpiryDate || null;
+  const eliteEndDate: string | null = pickLatestIso(
+    data.eliteExpiryDate,
+    data.subscription_end_date,
+    data.subscriptionEndDate
+  );
+  const subEndDate: string | null = pickLatestIso(
+    data.vipExpiryDate,
+    data.subscription_end_date,
+    data.subscriptionEndDate,
+    data.eliteExpiryDate
+  );
 
   const parsedEnd = subEndDate ? new Date(subEndDate).getTime() : 0;
   const isExpired = Boolean(subEndDate && !Number.isNaN(parsedEnd) && parsedEnd <= Date.now());
@@ -578,10 +600,16 @@ export async function saveGoogleUserOnboardingProfile(
         experienceLevel: extraData.experienceLevel || 'Beginner'
       });
     } else {
-      await updateDoc(userDocRef, {
+      const existingDisplayName = docSnap.exists() ? docSnap.data()?.displayName : undefined;
+      const updatePayload: Record<string, any> = {
         ...data,
+        displayName: existingDisplayName || safeDisplayName,
         updatedAt: serverTimestamp()
-      });
+      };
+      if (!existingDisplayName && safeDisplayName) {
+        updatePayload.lastNameChangeAt = serverTimestamp();
+      }
+      await updateDoc(userDocRef, updatePayload);
     }
 
     if (extraData.promoCode && extraData.promoCode.trim()) {
@@ -873,15 +901,6 @@ function ensureSharedAuthListener(): void {
 
     const userDocRef = doc(db, 'users', firebaseUser.uid);
 
-    const roleWeight = (r?: string): number => {
-      const up = (r || 'FREE').toString().toUpperCase();
-      if (up === 'ADMIN') return 6;
-      if (up === 'MODERATOR' || up === 'ANALYSER' || up === 'ANALYST' || up === 'SALES') return 5;
-      if (up === 'ELITE') return 4;
-      if (up === 'VIP') return 3;
-      return 1;
-    };
-
     sharedUnsubDoc = onSnapshot(
       userDocRef,
       async (docSnap) => {
@@ -898,12 +917,7 @@ function ensureSharedAuthListener(): void {
           // ignore
         }
 
-        const cachedRoleLower = cachedProfile?.role ? String(cachedProfile.role).toLowerCase() : 'free';
-        const effectiveInitialRole = isSuperAdmin
-          ? 'admin'
-          : roleWeight(cachedRoleLower) > 1
-          ? cachedRoleLower
-          : 'free';
+        const effectiveInitialRole = isSuperAdmin ? 'admin' : 'free';
 
         if (!docSnap.exists() && !pendingRegistrationUids.has(firebaseUser.uid)) {
           try {
@@ -918,20 +932,6 @@ function ensureSharedAuthListener(): void {
                 }
               : undefined;
             await fetchOrCreateUserRegistry(firebaseUser, effectiveInitialRole, cachedExtra);
-            if (roleWeight(effectiveInitialRole) > 1) {
-              const isStaffOrElite = ['admin', 'moderator', 'analyser', 'analyst', 'sales', 'elite'].includes(
-                effectiveInitialRole
-              );
-              await updateDoc(userDocRef, {
-                role: effectiveInitialRole === 'elite' ? 'vip' : effectiveInitialRole,
-                tier: isStaffOrElite ? 'elite' : 'vip',
-                isVip: true,
-                vipAccess: true,
-                isElite: isStaffOrElite,
-                subscription_status: 'active',
-                updatedAt: serverTimestamp()
-              }).catch(() => {});
-            }
           } catch (err) {
             console.warn('Error creating user profile doc:', err);
           }

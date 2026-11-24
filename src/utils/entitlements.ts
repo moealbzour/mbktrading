@@ -110,10 +110,38 @@ export const ELITE_UNRELEASED_FEATURES: EliteLockedModuleMeta[] = [
 
 export const ELITE_LOCK_BADGE_TEXT = 'مخصص لباقة Elite - قيد التطوير / Coming Soon';
 
-function isTimestampActive(isoOrMs?: string | number | null): boolean {
-  if (!isoOrMs) return false;
-  const ms = typeof isoOrMs === 'number' ? isoOrMs : new Date(isoOrMs).getTime();
-  return !Number.isNaN(ms) && ms > Date.now();
+function parseExpiryMs(val?: any): number {
+  if (!val) return 0;
+  if (typeof val === 'number') return Number.isNaN(val) ? 0 : val;
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (!trimmed) return 0;
+    const ms = new Date(trimmed).getTime();
+    return Number.isNaN(ms) ? 0 : ms;
+  }
+  if (typeof val === 'object') {
+    if (typeof val.toMillis === 'function') return val.toMillis();
+    if (typeof val.seconds === 'number') return val.seconds * 1000;
+  }
+  return 0;
+}
+
+function pickLatestExpiryIso(...candidates: Array<any>): string | null {
+  let bestMs = 0;
+  let bestIso: string | null = null;
+  for (const c of candidates) {
+    const ms = parseExpiryMs(c);
+    if (ms > bestMs) {
+      bestMs = ms;
+      bestIso = typeof c === 'string' ? c : new Date(ms).toISOString();
+    }
+  }
+  return bestIso;
+}
+
+function isTimestampActive(isoOrMs?: any): boolean {
+  const ms = parseExpiryMs(isoOrMs);
+  return ms > Date.now();
 }
 
 export function isStaffOrAdminUser(user?: Partial<UserProfile> | null): boolean {
@@ -141,8 +169,16 @@ export function getEffectiveTier(user?: Partial<UserProfile> | null): Subscripti
   const roleLower = (user.role || '').toString().toLowerCase();
   const tierLower = (user.tier || '').toString().toLowerCase();
 
-  const eliteExpiry = user.eliteExpiryDate || user.subscriptionEndDate || user.vipExpiryDate;
-  const vipExpiry = user.vipExpiryDate || user.subscriptionEndDate;
+  const eliteExpiry = pickLatestExpiryIso(
+    user.eliteExpiryDate,
+    user.subscriptionEndDate,
+    user.vipExpiryDate
+  );
+  const vipExpiry = pickLatestExpiryIso(
+    user.vipExpiryDate,
+    user.subscriptionEndDate,
+    user.eliteExpiryDate
+  );
 
   const eliteActive =
     (tierLower === 'elite' || roleLower === 'elite' || Boolean(user.isElite)) &&
@@ -176,11 +212,15 @@ export function getActiveTrialFeatures(user?: Partial<UserProfile> | null): Arra
   const active: Array<{ key: FeatureKey; expiryDate: string }> = [];
   for (const [k, exp] of Object.entries(user.grantedFeatures)) {
     if (
-      (k === 'botSignals' || k === 'vipSignals' || k === 'vipChat' || k === 'standardAi') &&
+      (k === 'botSignals' ||
+        k === 'vipSignals' ||
+        k === 'vipChat' ||
+        k === 'standardAi' ||
+        k === 'publishAnalysis') &&
       typeof exp === 'string' &&
       isTimestampActive(exp)
     ) {
-      active.push({ key: k, expiryDate: exp });
+      active.push({ key: k as FeatureKey, expiryDate: exp });
     }
   }
   return active;

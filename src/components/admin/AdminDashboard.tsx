@@ -2173,6 +2173,15 @@ export const AdminDashboard: React.FC<Props> = ({
         vipAccess: isStaffOrVip,
         updatedAt: serverTimestamp()
       };
+      const existingEndMs = targetObj?.subscriptionEndDate
+        ? new Date(targetObj.subscriptionEndDate).getTime()
+        : 0;
+      const hadExpiredDate = Boolean(
+        targetObj?.subscriptionEndDate &&
+          !Number.isNaN(existingEndMs) &&
+          existingEndMs <= Date.now()
+      );
+
       if (lowerRole === 'free') {
         rolePayload.tier = 'free';
         rolePayload.isElite = false;
@@ -2184,12 +2193,27 @@ export const AdminDashboard: React.FC<Props> = ({
         rolePayload.tier = 'vip';
         rolePayload.isElite = false;
         rolePayload.subscription_status = 'active';
+        if (hadExpiredDate) {
+          rolePayload.vipExpiryDate = null;
+          rolePayload.eliteExpiryDate = null;
+          rolePayload.subscription_end_date = null;
+        }
       } else if (lowerRole === 'elite' || lowerRole === 'admin') {
         rolePayload.tier = 'elite';
         rolePayload.isElite = true;
         rolePayload.subscription_status = 'active';
+        if (hadExpiredDate) {
+          rolePayload.vipExpiryDate = null;
+          rolePayload.eliteExpiryDate = null;
+          rolePayload.subscription_end_date = null;
+        }
       } else if (isStaffOrVip) {
         rolePayload.subscription_status = 'active';
+        if (hadExpiredDate) {
+          rolePayload.vipExpiryDate = null;
+          rolePayload.eliteExpiryDate = null;
+          rolePayload.subscription_end_date = null;
+        }
       }
 
       await setDoc(userRef, rolePayload, { merge: true });

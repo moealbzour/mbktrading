@@ -92,7 +92,7 @@ export async function redeemActivationKey(
         : 'vip';
     const grantFeatures: FeatureKey[] = Array.isArray(keyData.grantFeatures)
       ? keyData.grantFeatures.filter((f: any) =>
-          ['botSignals', 'vipSignals', 'vipChat', 'standardAi'].includes(f)
+          ['botSignals', 'vipSignals', 'vipChat', 'standardAi', 'publishAnalysis'].includes(f)
         )
       : [];
 

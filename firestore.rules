@@ -250,17 +250,20 @@ service cloud.firestore {
     function isValidCustomTrialKeyRedemption(userId) {
       let keyId = incoming().activationKey;
       let keyData = get(/databases/$(database)/documents/activation_keys/$(keyId)).data;
+      let prevGranted = (resource != null && existing().get('grantedFeatures', null) != null && existing().get('grantedFeatures', null) is map)
+        ? existing().get('grantedFeatures', {})
+        : {};
       return isOwner(userId)
         && !isBanned()
         && isValidKeyTransaction(keyId)
         && keyData.get('grantTier', 'vip') == 'custom'
         && incoming().grantedFeatures is map
-        && incoming().grantedFeatures.diff(existing().get('grantedFeatures', {})).affectedKeys().hasOnly(keyData.get('grantFeatures', []));
+        && incoming().grantedFeatures.diff(prevGranted).affectedKeys().hasOnly(keyData.get('grantFeatures', []));
     }
 
     function isValidUserCreate(userId) {
       let data = incoming();
-      let safeDefaultUser = data.role == 'free'
+      let safeDefaultUser = data.get('role', 'free') == 'free'
         && data.get('tier', 'free') == 'free'
         && data.get('isVip', false) == false
         && data.get('vipAccess', false) == false
@@ -270,7 +273,12 @@ service cloud.firestore {
         && data.get('isMutedFromChat', false) == false
         && data.get('totalPaid', 0) == 0;
       return isOwner(userId)
-        && (safeDefaultUser || isValidVipKeyRedemption(userId) || isValidEliteKeyRedemption(userId))
+        && (
+          safeDefaultUser
+          || isValidVipKeyRedemption(userId)
+          || isValidEliteKeyRedemption(userId)
+          || isValidCustomTrialKeyRedemption(userId)
+        )
         && data.get('email', '') is string
         && data.get('email', '').size() <= 200
         && data.get('displayName', '') is string

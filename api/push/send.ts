@@ -183,11 +183,13 @@ async function isCallerAdminOrAnalyser(uid: string, email: string, idToken: stri
       const role = String(fields.role?.stringValue || '').toUpperCase();
       const staffRole = String(fields.staffRole?.stringValue || '').toLowerCase();
       const permFields = fields.permissions?.mapValue?.fields || {};
+      const grantedFields = fields.grantedFeatures?.mapValue?.fields || {};
       const hasBroadcastPerm =
         Boolean(permFields.canPostSignals?.booleanValue) ||
         Boolean(permFields.canPostAnalysis?.booleanValue) ||
         Boolean(permFields.canSendPopups?.booleanValue) ||
-        Boolean(permFields.canManageSystem?.booleanValue);
+        Boolean(permFields.canManageSystem?.booleanValue) ||
+        Boolean(grantedFields.publishAnalysis?.stringValue);
       if (
         isAdminFlag ||
         hasBroadcastPerm ||
@@ -214,8 +216,13 @@ async function isCallerAdminOrAnalyser(uid: string, email: string, idToken: stri
         const role = String(data.role || '').toUpperCase();
         const staffRole = String(data.staffRole || '').toLowerCase();
         const perms = data.permissions && typeof data.permissions === 'object' ? data.permissions : {};
+        const granted = data.grantedFeatures && typeof data.grantedFeatures === 'object' ? data.grantedFeatures : {};
         const hasBroadcastPerm = Boolean(
-          perms.canPostSignals || perms.canPostAnalysis || perms.canSendPopups || perms.canManageSystem
+          perms.canPostSignals ||
+            perms.canPostAnalysis ||
+            perms.canSendPopups ||
+            perms.canManageSystem ||
+            granted.publishAnalysis
         );
         return (
           data.isAdmin === true ||
