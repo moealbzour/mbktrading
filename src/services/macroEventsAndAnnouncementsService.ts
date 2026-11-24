@@ -1,13 +1,14 @@
 import {
   collection,
   doc,
+  getDocs,
   setDoc,
   updateDoc,
   deleteDoc,
-  onSnapshot,
   query,
   orderBy,
   limit,
+  where,
   serverTimestamp,
   increment
 } from 'firebase/firestore';
@@ -400,9 +401,11 @@ export function normalizeBrandSenderName(raw?: string): string {
 
 const announcementSubscribers = new Set<(items: AdminAnnouncement[]) => void>();
 let latestAnnouncementsList: AdminAnnouncement[] | null = null;
-let sharedUnsubAnnouncements: (() => void) | null = null;
+let latestAdminManagerAnnouncements: AdminAnnouncement[] | null = null;
+let inFlightAdminAnnouncementsPromise: Promise<AdminAnnouncement[]> | null = null;
 
 function mapDocToAnnouncement(docId: string, d: Record<string, any>): AdminAnnouncement {
+  const isActive = d.status === 'active' ? true : d.status === 'paused' ? false : Boolean(d.isActive);
   return {
     id: docId,
     senderName: normalizeBrandSenderName(d.senderName),
@@ -435,78 +438,209 @@ function mapDocToAnnouncement(docId: string, d: Record<string, any>): AdminAnnou
     sendWebPush: Boolean(d.sendWebPush),
     views: Number(d.views || 0),
     clicks: Number(d.clicks || 0),
-    isActive: Boolean(d.isActive),
+    isActive,
     createdBy: d.createdBy || '',
     createdAt: d.createdAt || new Date().toISOString(),
     timestampMs: Number(d.timestampMs || Date.now())
   };
 }
 
-let currentAnnouncementsLimit = 5;
+const CLIENT_POPUPS_SESSION_CACHE_KEY = 'mbk_cached_active_announcements_v1';
+const CLIENT_POPUPS_CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
+let inFlightClientAnnouncementsPromise: Promise<AdminAnnouncement[]> | null = null;
+const adminManagerSubscribers = new Set<(items: AdminAnnouncement[]) => void>();
+
+function readClientAnnouncementsSessionCache(): AdminAnnouncement[] | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(CLIENT_POPUPS_SESSION_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (
+      parsed &&
+      typeof parsed.fetchedAtMs === 'number' &&
+      Date.now() - parsed.fetchedAtMs < CLIENT_POPUPS_CACHE_TTL_MS &&
+      Array.isArray(parsed.items)
+    ) {
+      return parsed.items as AdminAnnouncement[];
+    }
+  } catch {
+    // ignore storage errors
+  }
+  return null;
+}
+
+function writeClientAnnouncementsSessionCache(items: AdminAnnouncement[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(
+      CLIENT_POPUPS_SESSION_CACHE_KEY,
+      JSON.stringify({
+        fetchedAtMs: Date.now(),
+        items
+      })
+    );
+  } catch {
+    // ignore storage errors
+  }
+}
+
+export function invalidateClientAnnouncementsCache(): void {
+  latestAnnouncementsList = null;
+  latestAdminManagerAnnouncements = null;
+  if (typeof window !== 'undefined') {
+    try {
+      sessionStorage.removeItem(CLIENT_POPUPS_SESSION_CACHE_KEY);
+    } catch {
+      // ignore
+    }
+  }
+}
+
+async function fetchClientActiveAnnouncementsOnce(
+  forceRefresh: boolean = false
+): Promise<AdminAnnouncement[]> {
+  if (!forceRefresh) {
+    const sessionHit = readClientAnnouncementsSessionCache();
+    if (sessionHit !== null) {
+      latestAnnouncementsList = sessionHit;
+      return sessionHit;
+    }
+  }
+
+  if (inFlightClientAnnouncementsPromise) {
+    return inFlightClientAnnouncementsPromise;
+  }
+
+  inFlightClientAnnouncementsPromise = (async () => {
+    try {
+      const q = query(
+        collection(db, 'announcements'),
+        where('isActive', '==', true),
+        limit(5)
+      );
+      const snap = await getDocs(q);
+      const list: AdminAnnouncement[] = [];
+      snap.forEach((docSnap) => {
+        list.push(mapDocToAnnouncement(docSnap.id, docSnap.data()));
+      });
+      list.sort((a, b) => (b.timestampMs || 0) - (a.timestampMs || 0));
+      latestAnnouncementsList = list;
+      writeClientAnnouncementsSessionCache(list);
+      return list;
+    } catch (err) {
+      console.warn('[Announcements] One-time client popup fetch notice:', err);
+      return latestAnnouncementsList || [];
+    } finally {
+      inFlightClientAnnouncementsPromise = null;
+    }
+  })();
+
+  return inFlightClientAnnouncementsPromise;
+}
+
+export async function refreshAdminAnnouncements(
+  forceRefresh: boolean = true
+): Promise<AdminAnnouncement[]> {
+  if (!forceRefresh && latestAdminManagerAnnouncements !== null) {
+    return latestAdminManagerAnnouncements;
+  }
+  if (inFlightAdminAnnouncementsPromise) {
+    return inFlightAdminAnnouncementsPromise;
+  }
+
+  inFlightAdminAnnouncementsPromise = (async () => {
+    try {
+      const q = query(
+        collection(db, 'announcements'),
+        orderBy('timestampMs', 'desc'),
+        limit(25)
+      );
+      const snap = await getDocs(q);
+      const list: AdminAnnouncement[] = [];
+      snap.forEach((docSnap) => {
+        list.push(mapDocToAnnouncement(docSnap.id, docSnap.data()));
+      });
+      latestAdminManagerAnnouncements = list;
+      const activeTop5 = list.filter((a) => a.isActive).slice(0, 5);
+      latestAnnouncementsList = activeTop5;
+      writeClientAnnouncementsSessionCache(activeTop5);
+
+      adminManagerSubscribers.forEach((cb) => {
+        try {
+          cb(list);
+        } catch {
+          // ignore
+        }
+      });
+      announcementSubscribers.forEach((cb) => {
+        try {
+          cb(activeTop5);
+        } catch {
+          // ignore
+        }
+      });
+      return list;
+    } catch (err) {
+      console.warn('[Announcements] Admin Popup Studio getDocs notice:', err);
+      return latestAdminManagerAnnouncements || [];
+    } finally {
+      inFlightAdminAnnouncementsPromise = null;
+    }
+  })();
+
+  return inFlightAdminAnnouncementsPromise;
+}
 
 /**
- * Subscribe to Admin Popup Announcements in Firestore (shared singleton listener, bounded to limit(5) for end-user clients)
+ * Subscribe to Admin Popup Announcements (ZERO `onSnapshot` listeners):
+ * - For regular end users (`!options?.isAdminManager`): Uses a one-time `getDocs` (`where('isActive', '==', true), limit(5)`)
+ *   cached in `sessionStorage` for 15 minutes.
+ * - For Admin Popup Studio (`options?.isAdminManager === true`): Uses an on-demand `getDocs` (`limit(25)`) cached in memory
+ *   and refreshed on manual Refresh or popup save/update/toggle/delete.
  */
 export function subscribeToActiveAnnouncements(
   onUpdate: (items: AdminAnnouncement[]) => void,
   options?: { isAdminManager?: boolean }
 ): () => void {
-  const requestedLimit = options?.isAdminManager ? 25 : 5;
-  announcementSubscribers.add(onUpdate);
-  if (latestAnnouncementsList !== null) {
-    onUpdate(latestAnnouncementsList);
+  const isAdminManager = Boolean(options?.isAdminManager);
+
+  if (!isAdminManager) {
+    announcementSubscribers.add(onUpdate);
+    const cached = readClientAnnouncementsSessionCache();
+    if (cached !== null) {
+      latestAnnouncementsList = cached;
+      onUpdate(cached);
+    } else if (latestAnnouncementsList !== null) {
+      onUpdate(latestAnnouncementsList);
+    } else {
+      fetchClientActiveAnnouncementsOnce(false)
+        .then((list) => {
+          announcementSubscribers.forEach((cb) => {
+            try {
+              cb(list);
+            } catch {
+              // ignore
+            }
+          });
+        })
+        .catch(() => {});
+    }
+
+    return () => {
+      announcementSubscribers.delete(onUpdate);
+    };
   }
 
-  // Upgrade listener limit only when an Admin opens the Popup Studio manager
-  if (sharedUnsubAnnouncements && requestedLimit > currentAnnouncementsLimit) {
-    sharedUnsubAnnouncements();
-    sharedUnsubAnnouncements = null;
-  }
-
-  if (!sharedUnsubAnnouncements) {
-    currentAnnouncementsLimit = Math.max(currentAnnouncementsLimit, requestedLimit);
-    const q = query(
-      collection(db, 'announcements'),
-      orderBy('timestampMs', 'desc'),
-      limit(currentAnnouncementsLimit)
-    );
-    sharedUnsubAnnouncements = onSnapshot(
-      q,
-      (snap) => {
-        const list: AdminAnnouncement[] = [];
-        snap.forEach((docSnap) => {
-          list.push(mapDocToAnnouncement(docSnap.id, docSnap.data()));
-        });
-        latestAnnouncementsList = list;
-        announcementSubscribers.forEach((cb) => {
-          try {
-            cb(list);
-          } catch {
-            // ignore
-          }
-        });
-      },
-      (err) => {
-        console.warn('[Announcements] listener notice:', err?.message || err);
-        announcementSubscribers.forEach((cb) => {
-          try {
-            cb(latestAnnouncementsList || []);
-          } catch {
-            // ignore
-          }
-        });
-      }
-    );
+  adminManagerSubscribers.add(onUpdate);
+  if (latestAdminManagerAnnouncements !== null) {
+    onUpdate(latestAdminManagerAnnouncements);
+  } else {
+    refreshAdminAnnouncements(false).catch(() => {});
   }
 
   return () => {
-    announcementSubscribers.delete(onUpdate);
-    if (announcementSubscribers.size === 0 && sharedUnsubAnnouncements) {
-      sharedUnsubAnnouncements();
-      sharedUnsubAnnouncements = null;
-      latestAnnouncementsList = null;
-      currentAnnouncementsLimit = 5;
-    }
+    adminManagerSubscribers.delete(onUpdate);
   };
 }
 
@@ -589,7 +723,12 @@ export async function createAdminPopupAnnouncement(
     timestampMs: nowMs
   };
 
-  await setDoc(doc(db, 'announcements', id), record);
+  await setDoc(doc(db, 'announcements', id), {
+    ...record,
+    status: record.isActive ? 'active' : 'paused'
+  });
+  invalidateClientAnnouncementsCache();
+  refreshAdminAnnouncements(true).catch(() => {});
 
   const isScheduledFuture = Boolean(record.startAtMs && record.startAtMs > nowMs + 60_000);
   if (record.sendWebPush && record.isActive && !isScheduledFuture) {
@@ -658,9 +797,12 @@ export async function updateAdminPopupAnnouncement(
 
   if (typeof input.isActive === 'boolean') {
     updates.isActive = input.isActive;
+    updates.status = input.isActive ? 'active' : 'paused';
   }
 
   await updateDoc(doc(db, 'announcements', id), updates);
+  invalidateClientAnnouncementsCache();
+  refreshAdminAnnouncements(true).catch(() => {});
 
   await recordAdminAuditLog({
     action: 'POPUP_UPDATED',
@@ -676,8 +818,11 @@ export async function toggleAnnouncementActive(
   titleLabel?: string
 ): Promise<void> {
   await updateDoc(doc(db, 'announcements', id), {
-    isActive
+    isActive,
+    status: isActive ? 'active' : 'paused'
   });
+  invalidateClientAnnouncementsCache();
+  refreshAdminAnnouncements(true).catch(() => {});
   await recordAdminAuditLog({
     action: 'POPUP_STATUS_CHANGED',
     targetUid: id,
@@ -688,6 +833,8 @@ export async function toggleAnnouncementActive(
 
 export async function deleteAnnouncement(id: string, titleLabel?: string): Promise<void> {
   await deleteDoc(doc(db, 'announcements', id));
+  invalidateClientAnnouncementsCache();
+  refreshAdminAnnouncements(true).catch(() => {});
   await recordAdminAuditLog({
     action: 'POPUP_DELETED',
     targetUid: id,
@@ -697,20 +844,33 @@ export async function deleteAnnouncement(id: string, titleLabel?: string): Promi
 }
 
 /**
- * Safely increment popup views or clicks at most once per user per popup
+ * Safely increment popup views or clicks at most once per user/browser per popup
  */
+const inMemoryTrackedPopupMetrics = new Set<string>();
+
 export async function incrementAnnouncementMetric(
   id: string,
   metric: 'views' | 'clicks'
 ): Promise<void> {
   if (!id || typeof window === 'undefined') return;
   const uid = auth.currentUser?.uid || 'anon';
-  const guardKey = `mbk_popup_metric_${metric}_${id}_${uid}`;
+  const browserGuardKey = `mbk_popup_metric_${metric}_${id}`;
+  const userGuardKey = `mbk_popup_metric_${metric}_${id}_${uid}`;
+
+  if (inMemoryTrackedPopupMetrics.has(browserGuardKey)) {
+    return;
+  }
+  inMemoryTrackedPopupMetrics.add(browserGuardKey);
+
   try {
-    if (localStorage.getItem(guardKey) === '1') {
+    if (
+      localStorage.getItem(browserGuardKey) === '1' ||
+      localStorage.getItem(userGuardKey) === '1'
+    ) {
       return;
     }
-    localStorage.setItem(guardKey, '1');
+    localStorage.setItem(browserGuardKey, '1');
+    localStorage.setItem(userGuardKey, '1');
   } catch {
     // ignore storage errors
   }
@@ -919,7 +1079,7 @@ export async function sendBulkDirectMessageToUsers(params: {
 }
 
 // ============================================================================
-// CUSTOM SAVED TEMPLATES (Firestore `admin_templates` collection)
+// CUSTOM SAVED TEMPLATES (Firestore `admin_templates` collection — ONE-TIME getDocs)
 // ============================================================================
 const STARTER_TEMPLATES_SEEDED_KEY = 'mbk_admin_templates_seeded_v2';
 
@@ -994,13 +1154,29 @@ const DEFAULT_STARTER_TEMPLATES: Array<Omit<AdminSavedTemplate, 'createdBy' | 'u
   }
 ];
 
-export function subscribeToAdminTemplates(
-  onUpdate: (templates: AdminSavedTemplate[]) => void
-): () => void {
-  const q = query(collection(db, 'admin_templates'), orderBy('timestampMs', 'desc'), limit(100));
-  return onSnapshot(
-    q,
-    async (snap) => {
+let cachedAdminTemplates: AdminSavedTemplate[] | null = null;
+let inFlightAdminTemplatesPromise: Promise<AdminSavedTemplate[]> | null = null;
+const adminTemplateSubscribers = new Set<(templates: AdminSavedTemplate[]) => void>();
+
+export async function refreshAdminTemplates(
+  forceRefresh: boolean = true
+): Promise<AdminSavedTemplate[]> {
+  if (!forceRefresh && cachedAdminTemplates !== null) {
+    return cachedAdminTemplates;
+  }
+  if (inFlightAdminTemplatesPromise) {
+    return inFlightAdminTemplatesPromise;
+  }
+
+  inFlightAdminTemplatesPromise = (async () => {
+    try {
+      const q = query(
+        collection(db, 'admin_templates'),
+        orderBy('timestampMs', 'desc'),
+        limit(50)
+      );
+      const snap = await getDocs(q);
+
       if (snap.empty) {
         let alreadySeeded = false;
         try {
@@ -1014,16 +1190,27 @@ export function subscribeToAdminTemplates(
             const nowMs = Date.now();
             const nowIso = new Date(nowMs).toISOString();
             const email = auth.currentUser.email || 'admin';
+            const seededList: AdminSavedTemplate[] = [];
             for (let i = 0; i < DEFAULT_STARTER_TEMPLATES.length; i++) {
               const item = DEFAULT_STARTER_TEMPLATES[i];
-              await setDoc(doc(db, 'admin_templates', item.id), {
+              const seededRecord: AdminSavedTemplate = {
                 ...item,
                 createdBy: email,
                 updatedAt: nowIso,
                 timestampMs: nowMs - i * 1000
-              });
+              };
+              await setDoc(doc(db, 'admin_templates', item.id), seededRecord);
+              seededList.push(seededRecord);
             }
-            return;
+            cachedAdminTemplates = seededList;
+            adminTemplateSubscribers.forEach((cb) => {
+              try {
+                cb(seededList);
+              } catch {
+                // ignore
+              }
+            });
+            return seededList;
           } catch {
             // fallback to empty if permission denied
           }
@@ -1043,13 +1230,39 @@ export function subscribeToAdminTemplates(
           timestampMs: Number(d.timestampMs || Date.now())
         });
       });
-      onUpdate(list);
-    },
-    (err) => {
-      console.warn('[AdminTemplates] listener notice:', err?.message || err);
-      onUpdate([]);
+
+      cachedAdminTemplates = list;
+      adminTemplateSubscribers.forEach((cb) => {
+        try {
+          cb(list);
+        } catch {
+          // ignore
+        }
+      });
+      return list;
+    } catch (err: any) {
+      console.warn('[AdminTemplates] getDocs notice:', err?.message || err);
+      return cachedAdminTemplates || [];
+    } finally {
+      inFlightAdminTemplatesPromise = null;
     }
-  );
+  })();
+
+  return inFlightAdminTemplatesPromise;
+}
+
+export function subscribeToAdminTemplates(
+  onUpdate: (templates: AdminSavedTemplate[]) => void
+): () => void {
+  adminTemplateSubscribers.add(onUpdate);
+  if (cachedAdminTemplates !== null) {
+    onUpdate(cachedAdminTemplates);
+  } else {
+    refreshAdminTemplates(false).catch(() => {});
+  }
+  return () => {
+    adminTemplateSubscribers.delete(onUpdate);
+  };
 }
 
 export async function saveAdminTemplate(params: {
@@ -1074,6 +1287,7 @@ export async function saveAdminTemplate(params: {
   };
 
   await setDoc(doc(db, 'admin_templates', id), record, { merge: true });
+  await refreshAdminTemplates(true);
 
   await recordAdminAuditLog({
     action: 'TEMPLATE_SAVED',
@@ -1092,6 +1306,7 @@ export async function deleteAdminTemplate(id: string, nameLabel?: string): Promi
     // ignore
   }
   await deleteDoc(doc(db, 'admin_templates', id));
+  await refreshAdminTemplates(true);
   await recordAdminAuditLog({
     action: 'TEMPLATE_DELETED',
     targetUid: id,

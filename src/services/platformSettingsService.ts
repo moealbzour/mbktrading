@@ -65,31 +65,55 @@ function mapDocToSettings(data?: Record<string, any>): PlatformContactSettings {
   };
 }
 
-export async function fetchPlatformSettings(): Promise<PlatformContactSettings> {
+let cachedPlatformSettings: PlatformContactSettings | null = null;
+let cachedPlatformSettingsAtMs = 0;
+const PLATFORM_SETTINGS_CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
+const platformSettingsSubscribers = new Set<(settings: PlatformContactSettings) => void>();
+
+export async function fetchPlatformSettings(
+  forceRefresh: boolean = false
+): Promise<PlatformContactSettings> {
+  const nowMs = Date.now();
+  if (
+    !forceRefresh &&
+    cachedPlatformSettings &&
+    nowMs - cachedPlatformSettingsAtMs < PLATFORM_SETTINGS_CACHE_TTL_MS
+  ) {
+    return { ...cachedPlatformSettings };
+  }
   const ref = doc(db, 'settings', 'platform');
   try {
     const snap = await getDoc(ref);
-    return snap.exists() ? mapDocToSettings(snap.data()) : { ...DEFAULT_PLATFORM_SETTINGS };
+    const resolved = snap.exists()
+      ? mapDocToSettings(snap.data())
+      : { ...DEFAULT_PLATFORM_SETTINGS };
+    cachedPlatformSettings = resolved;
+    cachedPlatformSettingsAtMs = Date.now();
+    return { ...resolved };
   } catch (err) {
     console.warn('[PlatformSettings] Could not fetch settings/platform:', err);
-    return { ...DEFAULT_PLATFORM_SETTINGS };
+    return cachedPlatformSettings ? { ...cachedPlatformSettings } : { ...DEFAULT_PLATFORM_SETTINGS };
   }
 }
 
 export function subscribeToPlatformSettings(
   onChange: (settings: PlatformContactSettings) => void
 ): () => void {
-  const ref = doc(db, 'settings', 'platform');
-  return onSnapshot(
-    ref,
-    (snap) => {
-      onChange(snap.exists() ? mapDocToSettings(snap.data()) : { ...DEFAULT_PLATFORM_SETTINGS });
-    },
-    (err) => {
-      console.warn('[PlatformSettings] Listener notice:', err?.message || err);
-      onChange({ ...DEFAULT_PLATFORM_SETTINGS });
-    }
-  );
+  platformSettingsSubscribers.add(onChange);
+  if (cachedPlatformSettings) {
+    onChange({ ...cachedPlatformSettings });
+  }
+  fetchPlatformSettings(false)
+    .then((resolved) => {
+      onChange(resolved);
+    })
+    .catch(() => {
+      onChange(cachedPlatformSettings || { ...DEFAULT_PLATFORM_SETTINGS });
+    });
+
+  return () => {
+    platformSettingsSubscribers.delete(onChange);
+  };
 }
 
 export async function savePlatformSettings(
@@ -109,6 +133,15 @@ export async function savePlatformSettings(
 
   try {
     await setDoc(doc(db, 'settings', 'platform'), payload);
+    cachedPlatformSettings = payload;
+    cachedPlatformSettingsAtMs = Date.now();
+    platformSettingsSubscribers.forEach((cb) => {
+      try {
+        cb({ ...payload });
+      } catch {
+        // ignore
+      }
+    });
     return payload;
   } catch (err) {
     const { message } = reportFirestoreError(err, OperationType.WRITE, 'settings/platform');

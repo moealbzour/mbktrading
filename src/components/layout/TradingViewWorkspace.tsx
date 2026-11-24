@@ -226,7 +226,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
     if (user?.uid || user?.id) {
       syncOwnChatProfile(user).catch(() => {});
     }
-  }, [user]);
+  }, [user?.uid, user?.id, user?.name, user?.role, user?.avatar]);
 
   useEffect(() => {
     const syncNotifPref = () => {

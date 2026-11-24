@@ -31,6 +31,7 @@ export interface ServerPushDispatchInput {
   category?: PushCategory;
   targetUid?: string | null;
   excludeUid?: string | null;
+  isTest?: boolean;
 }
 
 export interface ServerPushDispatchResult {
@@ -57,13 +58,21 @@ const DEAD_ENDPOINT_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 const DEAD_ENDPOINT_CACHE_MAX = 2000;
 const deadEndpointCache = new Map<string, number>();
 
-const CHAT_GLOBAL_COOLDOWN_MS = 20_000; // Max 1 Public Chat push broadcast per 20s
-const CHAT_SENDER_COOLDOWN_MS = 45_000; // Max 1 Public Chat push per sender per 45s
+const CHAT_GLOBAL_COOLDOWN_MS = 120_000; // Max 1 Public Chat push broadcast per 120s
+const CHAT_SENDER_COOLDOWN_MS = 120_000; // Max 1 Public Chat push per sender per 120s
 const CHAT_HOURLY_WINDOW_MS = 60 * 60 * 1000;
-const CHAT_MAX_BROADCASTS_PER_HOUR = 40;
+const CHAT_MAX_BROADCASTS_PER_HOUR = 30;
 let lastGlobalChatPushAtMs = 0;
 const lastSenderChatPushMap = new Map<string, number>();
 let recentChatPushTimestamps: number[] = [];
+
+// 3-minute in-memory cache for push_subscriptions inside warm Serverless instances
+const PUSH_DOCS_CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes
+let cachedPushSubscriptions: {
+  docs: PushSubscriptionDoc[];
+  storageMode: string;
+  fetchedAtMs: number;
+} | null = null;
 
 function isEndpointCachedDead(endpoint: string, nowMs: number): boolean {
   const deadAt = deadEndpointCache.get(endpoint);
@@ -90,7 +99,7 @@ function checkAndRecordChatRateLimit(senderUid: string | null): { allowed: boole
   if (nowMs - lastGlobalChatPushAtMs < CHAT_GLOBAL_COOLDOWN_MS) {
     return {
       allowed: false,
-      reason: 'Chat push throttled (global 20s cooldown) to protect VIP/Bot trade signal push quota'
+      reason: 'Chat push throttled (global 120s cooldown) to protect VIP/Bot trade signal push & Firestore read quota'
     };
   }
 
@@ -99,7 +108,7 @@ function checkAndRecordChatRateLimit(senderUid: string | null): { allowed: boole
     if (nowMs - lastSenderAt < CHAT_SENDER_COOLDOWN_MS) {
       return {
         allowed: false,
-        reason: 'Chat push throttled (per-sender 45s cooldown) to protect trade signal push quota'
+        reason: 'Chat push throttled (per-sender 120s cooldown) to protect trade signal push & Firestore read quota'
       };
     }
   }
@@ -413,12 +422,44 @@ export async function dispatchServerWebPush(
   let storageMode = 'none';
   let firestoreReadError: string | undefined;
 
+  // Bypass/invalidate the 3-minute in-memory cache ONLY on manual Admin Test Push (isTest === true)
+  const isManualTestPush = Boolean(input.isTest) || tag.startsWith('mbk-test-push-');
+  if (isManualTestPush) {
+    cachedPushSubscriptions = null;
+  }
+
+  const cacheNowMs = Date.now();
+  const isWarmCacheValid =
+    !isManualTestPush &&
+    cachedPushSubscriptions !== null &&
+    cacheNowMs - cachedPushSubscriptions.fetchedAtMs < PUSH_DOCS_CACHE_TTL_MS;
+
+  if (isWarmCacheValid && cachedPushSubscriptions) {
+    if (audience === 'targetUid' && targetUid) {
+      const cachedTarget = cachedPushSubscriptions.docs.find((d) => d.uid === targetUid);
+      if (cachedTarget) {
+        rawDocs = [cachedTarget];
+        storageMode = `${cachedPushSubscriptions.storageMode}_cache`;
+      }
+    } else {
+      rawDocs = cachedPushSubscriptions.docs;
+      storageMode = `${cachedPushSubscriptions.storageMode}_cache`;
+    }
+  }
+
   // Path 1: Stateless Firestore REST API (primary path on Vercel Serverless when user token is present)
-  if (callerIdToken) {
+  if (storageMode === 'none' && callerIdToken) {
     const restResult = await fetchPushDocsViaRest(audience, targetUid, callerIdToken);
     if (!restResult.error) {
       rawDocs = restResult.docs;
       storageMode = 'firestore_rest';
+      if (audience !== 'targetUid') {
+        cachedPushSubscriptions = {
+          docs: rawDocs,
+          storageMode: 'firestore_rest',
+          fetchedAtMs: Date.now()
+        };
+      }
     } else {
       firestoreReadError = restResult.error;
     }
@@ -440,6 +481,11 @@ export async function dispatchServerWebPush(
           const d = docSnap.data() as PushSubscriptionDoc;
           if (d) rawDocs.push({ ...d, uid: d.uid || docSnap.id });
         });
+        cachedPushSubscriptions = {
+          docs: rawDocs,
+          storageMode: 'firebase_admin',
+          fetchedAtMs: Date.now()
+        };
       }
       storageMode = 'firebase_admin';
       firestoreReadError = undefined;
@@ -455,6 +501,13 @@ export async function dispatchServerWebPush(
       rawDocs = serverRestResult.docs;
       storageMode = 'firestore_rest_server';
       firestoreReadError = undefined;
+      if (audience !== 'targetUid') {
+        cachedPushSubscriptions = {
+          docs: rawDocs,
+          storageMode: 'firestore_rest_server',
+          fetchedAtMs: Date.now()
+        };
+      }
     } else {
       firestoreReadError = firestoreReadError || serverRestResult.error;
     }
@@ -601,6 +654,7 @@ export async function dispatchServerWebPush(
     const pruneTasks = Array.from(expiredByUid.values()).map(async ({ userDoc, endpoints }) => {
       pruned += endpoints.size;
       const remaining = userDoc.subscriptions.filter((s) => !endpoints.has(s.endpoint));
+      userDoc.subscriptions = remaining;
       const updatedDoc: PushSubscriptionDoc = {
         uid: userDoc.uid,
         isVip: userDoc.isVip,
@@ -611,7 +665,13 @@ export async function dispatchServerWebPush(
         updatedAt: Date.now()
       };
 
-      if (storageMode === 'firebase_admin' && adminDb) {
+      if (cachedPushSubscriptions) {
+        cachedPushSubscriptions.docs = cachedPushSubscriptions.docs.map((d) =>
+          d.uid === userDoc.uid ? updatedDoc : d
+        );
+      }
+
+      if (storageMode.startsWith('firebase_admin') && adminDb) {
         await adminDb.collection('push_subscriptions').doc(userDoc.uid).set(updatedDoc, { merge: true });
       } else if (callerIdToken) {
         const docUrl = `${getFirestoreRestBaseUrl()}/push_subscriptions/${encodeURIComponent(userDoc.uid)}`;
@@ -811,7 +871,8 @@ export default async function handler(req: Req, res: ServerResponse) {
         audience,
         category,
         targetUid: typeof body?.targetUid === 'string' ? body.targetUid : null,
-        excludeUid: effectiveExcludeUid
+        excludeUid: effectiveExcludeUid,
+        isTest: Boolean(body?.isTest)
       },
       idToken || undefined
     );

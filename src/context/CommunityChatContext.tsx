@@ -198,11 +198,11 @@ export const CommunityChatProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     );
 
-    // 2. Single shared listener for public_chat (orderBy('timestampMs', 'asc'), limitToLast(60))
+    // 2. Single shared listener for public_chat (orderBy('timestampMs', 'asc'), limitToLast(40))
     const chatQuery = query(
       collection(db, 'public_chat'),
       orderBy('timestampMs', 'asc'),
-      limitToLast(60)
+      limitToLast(40)
     );
 
     const unsubChat = onSnapshot(

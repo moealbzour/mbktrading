@@ -821,15 +821,29 @@ export const PublicTradingChat: React.FC<Props> = ({
         ? '🖼️ صورة تحليل فني جديدة في الشات'
         : 'رسالة جديدة في شات MBK';
 
-      triggerServerWebPush({
-        title: isCurrentAdmin ? `💬 [إدارة MBK] ${senderLabel}` : `💬 ${senderLabel} • شات MBK`,
-        body: pushBodyText,
-        tag: `mbk-chat-${docRef.id}`,
-        url: '/',
-        audience: 'all',
-        category: 'chat',
-        excludeUid: currentUser.uid
-      });
+      const hasMention = /@\S+/.test(textToSend);
+      const nowChatPushMs = Date.now();
+      const lastClientChatPushMs = Number(
+        (window as any).__mbkLastPublicChatPushAtMs || 0
+      );
+      const shouldDispatchChatPush =
+        isCurrentAdmin ||
+        hasMention ||
+        Boolean(attachedTradeCard) ||
+        nowChatPushMs - lastClientChatPushMs >= 120_000;
+
+      if (shouldDispatchChatPush) {
+        (window as any).__mbkLastPublicChatPushAtMs = nowChatPushMs;
+        triggerServerWebPush({
+          title: isCurrentAdmin ? `💬 [إدارة MBK] ${senderLabel}` : `💬 ${senderLabel} • شات MBK`,
+          body: pushBodyText,
+          tag: `mbk-chat-${docRef.id}`,
+          url: '/',
+          audience: 'all',
+          category: 'chat',
+          excludeUid: currentUser.uid
+        });
+      }
 
       setInputText('');
       setSelectedImage(null);

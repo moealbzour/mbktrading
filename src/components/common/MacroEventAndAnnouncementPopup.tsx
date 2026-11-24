@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
   Calendar,
   Check,
@@ -100,8 +100,9 @@ export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
   const [announcements, setAnnouncements] = useState<AdminAnnouncement[]>([]);
   const [upcomingMacroEvents, setUpcomingMacroEvents] = useState<MacroEconomicEvent[]>([]);
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => new Set());
-  const [notifiedIds, setNotifiedIds] = useState<Set<string>>(() => new Set());
   const [openedAppSession, setOpenedAppSession] = useState<boolean>(true);
+  const trackedPopupViewIdsRef = useRef<Set<string>>(new Set());
+  const trackedMacroWarnIdsRef = useRef<Set<string>>(new Set());
 
   // Subscribe to real upcoming High-Impact Macro Events from /api/market/calendar (15-min client cache)
   useEffect(() => {
@@ -111,7 +112,7 @@ export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
     return () => unsub();
   }, []);
 
-  // Subscribe to Firestore Admin Announcements (shared singleton listener)
+  // Subscribe to Firestore Admin Announcements (one-time getDocs cached in sessionStorage for 15 minutes)
   useEffect(() => {
     const unsub = subscribeToActiveAnnouncements((list) => {
       setAnnouncements(list);
@@ -200,49 +201,62 @@ export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
     return () => clearInterval(interval);
   }, [hasLiveTimerNeed]);
 
-  // Trigger audio + OS notification + once-per-user Firestore view counter
+  const upcomingMacroEventId = upcomingWithinOneHourEvent?.id || null;
+  const matchingAnnouncementId = matchingAnnouncement?.id || null;
+
+  // Trigger audio + OS notification for 1-hour macro warning (strictly once per event ID)
   useEffect(() => {
-    if (
-      upcomingWithinOneHourEvent &&
-      !dismissedIds.has(upcomingWithinOneHourEvent.id) &&
-      !notifiedIds.has(upcomingWithinOneHourEvent.id)
-    ) {
-      const minsLeft = Math.max(
-        1,
-        Math.ceil((upcomingWithinOneHourEvent.releaseTimeMs - Date.now()) / (60 * 1000))
-      );
-      soundManager.playSignalPing();
-      dispatchMobileAppNotification({
-        title: isAr
-          ? `⚠️ تحذير خبر اقتصادي هام بعد ${minsLeft} دقيقة!`
-          : `⚠️ High-Impact Macro Event in ${minsLeft} min!`,
-        body: isAr
-          ? upcomingWithinOneHourEvent.titleAr
-          : upcomingWithinOneHourEvent.titleEn,
-        tag: `macro-warn-${upcomingWithinOneHourEvent.code}`
-      }).catch(() => {});
+    if (!upcomingMacroEventId || !upcomingWithinOneHourEvent) return;
+    if (trackedMacroWarnIdsRef.current.has(upcomingMacroEventId)) return;
+    trackedMacroWarnIdsRef.current.add(upcomingMacroEventId);
 
-      setNotifiedIds((prev) => new Set(prev).add(upcomingWithinOneHourEvent.id));
-    }
-  }, [upcomingWithinOneHourEvent, dismissedIds, notifiedIds, isAr]);
+    const minsLeft = Math.max(
+      1,
+      Math.ceil((upcomingWithinOneHourEvent.releaseTimeMs - Date.now()) / (60 * 1000))
+    );
+    soundManager.playSignalPing();
+    dispatchMobileAppNotification({
+      title: isAr
+        ? `⚠️ تحذير خبر اقتصادي هام بعد ${minsLeft} دقيقة!`
+        : `⚠️ High-Impact Macro Event in ${minsLeft} min!`,
+      body: isAr
+        ? upcomingWithinOneHourEvent.titleAr
+        : upcomingWithinOneHourEvent.titleEn,
+      tag: `macro-warn-${upcomingWithinOneHourEvent.code}`
+    }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [upcomingMacroEventId, isAr]);
 
+  // Trigger once-per-browser Firestore view counter + notification (depends strictly on primitive matchingAnnouncementId)
   useEffect(() => {
-    if (
-      matchingAnnouncement &&
-      !dismissedIds.has(matchingAnnouncement.id) &&
-      !notifiedIds.has(matchingAnnouncement.id)
-    ) {
-      soundManager.playSignalPing();
-      incrementAnnouncementMetric(matchingAnnouncement.id, 'views').catch(() => {});
-      dispatchMobileAppNotification({
-        title: `${normalizeBrandSenderName(matchingAnnouncement.senderName)}: ${matchingAnnouncement.title}`,
-        body: matchingAnnouncement.message.slice(0, 140),
-        tag: `admin-ann-${matchingAnnouncement.id}`
-      }).catch(() => {});
+    if (!matchingAnnouncementId || !matchingAnnouncement) return;
+    if (trackedPopupViewIdsRef.current.has(matchingAnnouncementId)) return;
+    trackedPopupViewIdsRef.current.add(matchingAnnouncementId);
 
-      setNotifiedIds((prev) => new Set(prev).add(matchingAnnouncement.id));
+    soundManager.playSignalPing();
+
+    const browserViewedKey = `mbk_popup_viewed_${matchingAnnouncementId}`;
+    let alreadyCountedInBrowser = false;
+    try {
+      alreadyCountedInBrowser = localStorage.getItem(browserViewedKey) === '1';
+      if (!alreadyCountedInBrowser) {
+        localStorage.setItem(browserViewedKey, '1');
+      }
+    } catch {
+      // ignore storage errors
     }
-  }, [matchingAnnouncement, dismissedIds, notifiedIds]);
+
+    if (!alreadyCountedInBrowser) {
+      incrementAnnouncementMetric(matchingAnnouncementId, 'views').catch(() => {});
+    }
+
+    dispatchMobileAppNotification({
+      title: `${normalizeBrandSenderName(matchingAnnouncement.senderName)}: ${matchingAnnouncement.title}`,
+      body: matchingAnnouncement.message.slice(0, 140),
+      tag: `admin-ann-${matchingAnnouncementId}`
+    }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matchingAnnouncementId]);
 
   const showMacroWarning =
     upcomingWithinOneHourEvent && !dismissedIds.has(upcomingWithinOneHourEvent.id);

@@ -249,7 +249,7 @@ function mapUserDocToProfile(firebaseUser: FirebaseUser, data: Record<string, an
     activationKey: data.activationKey || null,
     promoCode: data.activationKey || undefined,
     lastNameChangeAt: normalizeTimestampToIso(data.lastNameChangeAt),
-    lastActiveAt: new Date().toISOString()
+    lastActiveAt: normalizeTimestampToIso(data.lastActiveAt || data.updatedAt) || undefined
   };
 }
 
@@ -822,6 +822,7 @@ const authSubscribers = new Set<(user: UserProfile | null) => void>();
 let latestAuthUserProfile: UserProfile | null | undefined = undefined;
 let sharedUnsubAuth: (() => void) | null = null;
 let sharedUnsubDoc: (() => void) | null = null;
+const syncedSuperAdminUids = new Set<string>();
 
 function broadcastAuthProfile(profile: UserProfile | null): void {
   latestAuthUserProfile = profile;
@@ -937,36 +938,17 @@ function ensureSharedAuthListener(): void {
           return;
         }
         const data = docSnap.exists() ? docSnap.data() : {};
-        if (docSnap.exists()) {
-          if (isSuperAdmin && data.role !== 'admin') {
+        if (docSnap.exists() && isSuperAdmin && data.role !== 'admin') {
+          if (!syncedSuperAdminUids.has(firebaseUser.uid)) {
+            syncedSuperAdminUids.add(firebaseUser.uid);
             try {
               await updateDoc(userDocRef, { role: 'admin', updatedAt: serverTimestamp() });
               data.role = 'admin';
             } catch {
               // ignore
             }
-          } else if (roleWeight(cachedRoleLower) > roleWeight(data.role)) {
-            const isStaffOrElite = ['admin', 'moderator', 'analyser', 'analyst', 'sales', 'elite'].includes(
-              cachedRoleLower
-            );
-            try {
-              await updateDoc(userDocRef, {
-                role: cachedRoleLower === 'elite' ? 'vip' : cachedRoleLower,
-                tier: isStaffOrElite ? 'elite' : 'vip',
-                isVip: true,
-                vipAccess: true,
-                isElite: isStaffOrElite,
-                subscription_status: 'active',
-                updatedAt: serverTimestamp()
-              });
-              data.role = cachedRoleLower === 'elite' ? 'vip' : cachedRoleLower;
-              data.tier = isStaffOrElite ? 'elite' : 'vip';
-              data.isVip = true;
-              data.vipAccess = true;
-              data.isElite = isStaffOrElite;
-            } catch {
-              // ignore
-            }
+          } else {
+            data.role = 'admin';
           }
         }
         broadcastAuthProfile(mapUserDocToProfile(firebaseUser, data));

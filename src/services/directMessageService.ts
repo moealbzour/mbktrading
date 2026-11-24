@@ -98,15 +98,21 @@ export function getOtherParticipantUid(participants: string[], myUid: string): s
   return participants.find((id) => id !== myUid) || myUid;
 }
 
+const syncedChatProfileFingerprintByUid = new Map<string, string>();
+let sharedOwnChatProfileUid: string | null = null;
+let sharedOwnChatProfileUnsub: (() => void) | null = null;
+let latestOwnChatProfile: ChatProfile | null | undefined = undefined;
+const ownChatProfileSubscribers = new Set<(profile: ChatProfile | null) => void>();
+
 /**
  * Ensures the signed-in user has a lightweight, zero-PII directory entry in `chat_profiles/{uid}`
  * preserving their DM privacy setting (`allowDirectMessages`) and `blockedUids`.
+ * Deduplicated per session fingerprint so repeated component mounts do not re-read `chat_profiles/{uid}`.
  */
 export async function syncOwnChatProfile(user: UserProfile): Promise<void> {
   const uid = user.uid || user.id;
   if (!uid) return;
 
-  const ref = doc(db, 'chat_profiles', uid);
   const role = (user.role || 'FREE').toString().toUpperCase().slice(0, 40);
   const rawName = (user.name || user.email?.split('@')[0] || 'MBK Trader').trim();
   const displayName =
@@ -115,6 +121,13 @@ export async function syncOwnChatProfile(user: UserProfile): Promise<void> {
       : rawName.slice(0, 100);
   const avatar = (user.avatar || (role === 'ADMIN' ? '/mbk-logo.png' : '')).slice(0, 1000);
 
+  const fingerprint = `${uid}|${displayName}|${role}|${avatar}`;
+  if (syncedChatProfileFingerprintByUid.get(uid) === fingerprint) {
+    return;
+  }
+  syncedChatProfileFingerprintByUid.set(uid, fingerprint);
+
+  const ref = doc(db, 'chat_profiles', uid);
   try {
     const snap = await getDoc(ref);
     if (!snap.exists()) {
@@ -143,6 +156,7 @@ export async function syncOwnChatProfile(user: UserProfile): Promise<void> {
       }
     }
   } catch (err) {
+    syncedChatProfileFingerprintByUid.delete(uid);
     console.warn('[DirectMessages] syncOwnChatProfile notice:', err);
   }
 }
@@ -187,29 +201,63 @@ export function subscribeToOwnChatProfile(
     onChange(null);
     return () => {};
   }
-  const ref = doc(db, 'chat_profiles', uid);
-  return onSnapshot(
-    ref,
-    (snap) => {
-      if (!snap.exists()) {
-        onChange(null);
-        return;
-      }
-      const d = snap.data();
-      onChange({
-        uid: d.uid || snap.id,
-        displayName: d.displayName || 'Trader',
-        avatar: d.avatar || '',
-        role: (d.role || 'FREE').toString().toUpperCase(),
-        allowDirectMessages: d.allowDirectMessages !== false,
-        blockedUids: Array.isArray(d.blockedUids) ? d.blockedUids : [],
-        updatedAt: d.updatedAt
-      });
-    },
-    (err) => {
-      console.warn('[DirectMessages] subscribeToOwnChatProfile notice:', err?.message || err);
+
+  if (sharedOwnChatProfileUid !== uid) {
+    if (sharedOwnChatProfileUnsub) {
+      sharedOwnChatProfileUnsub();
+      sharedOwnChatProfileUnsub = null;
     }
-  );
+    sharedOwnChatProfileUid = uid;
+    latestOwnChatProfile = undefined;
+  }
+
+  ownChatProfileSubscribers.add(onChange);
+  if (latestOwnChatProfile !== undefined) {
+    onChange(latestOwnChatProfile);
+  }
+
+  if (!sharedOwnChatProfileUnsub) {
+    const ref = doc(db, 'chat_profiles', uid);
+    sharedOwnChatProfileUnsub = onSnapshot(
+      ref,
+      (snap) => {
+        if (!snap.exists()) {
+          latestOwnChatProfile = null;
+        } else {
+          const d = snap.data();
+          latestOwnChatProfile = {
+            uid: d.uid || snap.id,
+            displayName: d.displayName || 'Trader',
+            avatar: d.avatar || '',
+            role: (d.role || 'FREE').toString().toUpperCase(),
+            allowDirectMessages: d.allowDirectMessages !== false,
+            blockedUids: Array.isArray(d.blockedUids) ? d.blockedUids : [],
+            updatedAt: d.updatedAt
+          };
+        }
+        ownChatProfileSubscribers.forEach((cb) => {
+          try {
+            cb(latestOwnChatProfile ?? null);
+          } catch {
+            // ignore
+          }
+        });
+      },
+      (err) => {
+        console.warn('[DirectMessages] subscribeToOwnChatProfile notice:', err?.message || err);
+      }
+    );
+  }
+
+  return () => {
+    ownChatProfileSubscribers.delete(onChange);
+    if (ownChatProfileSubscribers.size === 0 && sharedOwnChatProfileUnsub) {
+      sharedOwnChatProfileUnsub();
+      sharedOwnChatProfileUnsub = null;
+      sharedOwnChatProfileUid = null;
+      latestOwnChatProfile = undefined;
+    }
+  };
 }
 
 
@@ -307,7 +355,7 @@ export function subscribeToDmConversations(
     updatedAt: d.updatedAt
   });
 
-  const capLimit = isAdmin ? 50 : 30;
+  const capLimit = isAdmin ? 20 : 20;
   const q = query(
     collection(db, 'dm_conversations'),
     where('participants', 'array-contains', uid),
@@ -357,7 +405,7 @@ export function subscribeToPlatformInboxConversations(
   const q = query(
     collection(db, 'dm_conversations'),
     where('participants', 'array-contains', OFFICIAL_PLATFORM_UID),
-    limit(50)
+    limit(20)
   );
 
   return onSnapshot(
@@ -405,7 +453,7 @@ export function subscribeToDmMessages(
   const q = query(
     collection(db, 'dm_conversations', convoId, 'messages'),
     orderBy('timestampMs', 'asc'),
-    limitToLast(60)
+    limitToLast(30)
   );
   return onSnapshot(
     q,

@@ -131,7 +131,7 @@ const SignalsContext = createContext<SignalsContextValue>({
 });
 
 const SUPER_ADMIN_EMAIL = 'moe.albzour@gmail.com';
-const LIVE_SIGNALS_LIMIT = 20;
+const LIVE_SIGNALS_LIMIT = 25;
 const CACHED_SIGNALS_KEY = 'mbk_cached_signals_v1';
 const CACHED_TRADES_KEY = 'mbk_cached_trades_v1';
 const CACHED_BOT_ALERTS_KEY = 'mbk_cached_bot_alerts_v1';
@@ -501,7 +501,7 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       : query(
           collection(db, 'signals'),
           where('accessLevel', '==', 'free'),
-          limit(LIVE_SIGNALS_LIMIT * 2)
+          limit(LIVE_SIGNALS_LIMIT)
         );
 
     const unsubscribeSignals = onSnapshot(
@@ -827,20 +827,11 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (!authResolved || !currentUserUid) return;
 
     let isFirstDmSnapshot = true;
-    let isFirstPlatformSnapshot = true;
     const lastSeenConvoMsgMs = new Map<string, number>();
     let personalConvos: DmConversation[] = [];
-    let platformConvos: DmConversation[] = [];
 
     const syncMergedConvos = (cacheKey: string) => {
-      const mergedMap = new Map<string, DmConversation>();
-      for (const c of personalConvos) {
-        mergedMap.set(c.id, c);
-      }
-      for (const c of platformConvos) {
-        mergedMap.set(c.id, c);
-      }
-      const mergedList = Array.from(mergedMap.values()).sort(
+      const mergedList = [...personalConvos].sort(
         (a, b) => b.lastMessageAtMs - a.lastMessageAtMs
       );
       setDmConversations(mergedList);
@@ -948,137 +939,11 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
     );
 
-    let unsubPlatformDm: (() => void) | null = null;
-    if (isAdminUser || canAccessSupportInbox) {
-      const platformDmQuery = query(
-        collection(db, 'dm_conversations'),
-        where('participants', 'array-contains', 'mbktrading'),
-        limit(25)
-      );
-
-      unsubPlatformDm = onSnapshot(
-        platformDmQuery,
-        (snap) => {
-          const convosList: DmConversation[] = [];
-          snap.docs.forEach((docSnap) => {
-            const d = docSnap.data();
-            const unreadMap = d.unreadBy || {};
-            convosList.push({
-              id: docSnap.id,
-              participants: Array.isArray(d.participants) ? d.participants : [],
-              participantNames: d.participantNames || {},
-              participantAvatars: d.participantAvatars || {},
-              participantRoles: d.participantRoles || {},
-              lastMessage: d.lastMessage || '',
-              lastSenderUid: d.lastSenderUid || '',
-              lastMessageAtMs: Number(d.lastMessageAtMs || 0),
-              unreadBy: unreadMap,
-              updatedAt: d.updatedAt
-            });
-
-            const msgMs = Number(d.lastMessageAtMs || 0);
-            const prevMs =
-              lastSeenConvoMsgMs.get(`platform_${docSnap.id}`) ||
-              getLastNotifiedMs(`mbk_last_notif_platform_dm_${docSnap.id}`);
-            lastSeenConvoMsgMs.set(`platform_${docSnap.id}`, msgMs);
-            const unreadForPlatform = Number(unreadMap['mbktrading'] || 0);
-
-            if (
-              msgMs > prevMs &&
-              d.lastSenderUid &&
-              d.lastSenderUid !== 'mbktrading' &&
-              d.lastSenderUid !== currentUserUid &&
-              d.lastMessage &&
-              (!isFirstPlatformSnapshot || unreadForPlatform > 0)
-            ) {
-              setLastNotifiedMs(`mbk_last_notif_platform_dm_${docSnap.id}`, msgMs);
-              const senderName = d.participantNames?.[d.lastSenderUid] || 'متداول MBK';
-              const preview = String(d.lastMessage).slice(0, 120);
-
-              triggerAudioAlert();
-              addToast({
-                title: `بريد المنصة (mbktrading) • ${senderName} 📩`,
-                message: preview,
-                type: 'info',
-                timestamp: 'الآن'
-              });
-              sendBrowserNotification(
-                `بريد المنصة (mbktrading) • ${senderName}`,
-                preview,
-                `platform-dm-${docSnap.id}-${msgMs}`
-              );
-            }
-          });
-
-          platformConvos = convosList;
-          syncMergedConvos(cacheKey);
-          isFirstPlatformSnapshot = false;
-        },
-        (err) => {
-          console.warn('[SignalsContext] Platform mbktrading DM listener notice:', err?.message || err);
-        }
-      );
-    }
-
-    let unsubChat: (() => void) | null = null;
-    if (canReadVipChat) {
-      let isFirstChatSnapshot = true;
-      const latestChatQuery = query(
-        collection(db, 'public_chat'),
-        orderBy('timestampMs', 'desc'),
-        limit(1)
-      );
-
-      unsubChat = onSnapshot(
-        latestChatQuery,
-        (snap) => {
-          const lastChatNotifMs = getLastNotifiedMs('mbk_last_notif_chat_ms');
-          let maxChatMs = lastChatNotifMs;
-
-          snap.docChanges().forEach((change) => {
-            if (change.type !== 'added') return;
-            const d = change.doc.data();
-            const tsMs = Number(d.timestampMs || Date.now());
-            const isNewerThanLastSeen = tsMs > lastChatNotifMs && tsMs > Date.now() - 4 * 60 * 60 * 1000;
-
-            if (d.uid && d.uid !== currentUserUid && (!isFirstChatSnapshot || isNewerThanLastSeen)) {
-              if (tsMs > maxChatMs) maxChatMs = tsMs;
-              setUnreadChatCount((prev) => prev + 1);
-              const senderName = d.displayName || 'Trader';
-              const msgBody = (d.text || '[صورة شارت]').toString().slice(0, 120);
-
-              triggerAudioAlert();
-              addToast({
-                title: `الشات العام • ${senderName} 💬`,
-                message: msgBody,
-                type: 'info',
-                timestamp: 'الآن'
-              });
-              sendBrowserNotification(
-                `الشات العام • ${senderName}`,
-                msgBody,
-                `general-chat-${change.doc.id}`
-              );
-            }
-          });
-
-          if (maxChatMs > lastChatNotifMs) {
-            setLastNotifiedMs('mbk_last_notif_chat_ms', maxChatMs);
-          }
-          isFirstChatSnapshot = false;
-        },
-        (err) => {
-          console.warn('[SignalsContext] Global chat notification notice:', err?.message || err);
-        }
-      );
-    }
-
     return () => {
       unsubDm();
-      if (unsubPlatformDm) unsubPlatformDm();
-      if (unsubChat) unsubChat();
     };
-  }, [authResolved, currentUserUid, isAdminUser, canAccessSupportInbox, canReadVipChat, addToast, sendBrowserNotification, triggerAudioAlert]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authResolved, currentUserUid]);
 
   // Merge raw bot_alerts into trades array, capped at latest 30 signals
   const mergedTrades: DailyTrade[] = rawTrades.filter((t) => !isSignalIdDeleted(t.id));

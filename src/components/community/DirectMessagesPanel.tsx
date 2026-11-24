@@ -34,6 +34,7 @@ import {
   subscribeToDmConversations,
   subscribeToDmMessages,
   subscribeToOwnChatProfile,
+  subscribeToPlatformInboxConversations,
   syncOwnChatProfile,
   updateDmPrivacySettings
 } from '../../services/directMessageService';
@@ -134,6 +135,7 @@ export const DirectMessagesPanel: React.FC<Props> = ({
   const [ownChatProfile, setOwnChatProfile] = useState<ChatProfile | null>(null);
   const [adminOversightMode, setAdminOversightMode] = useState<boolean>(false);
   const [adminConversations, setAdminConversations] = useState<DmConversation[]>([]);
+  const [platformInboxConversations, setPlatformInboxConversations] = useState<DmConversation[]>([]);
   const [adminInboxFilter, setAdminInboxFilter] = useState<'ALL' | 'PLATFORM' | 'PERSONAL'>('ALL');
   const [selectedTopic, setSelectedTopic] = useState<PlatformInboxTopic>('support');
 
@@ -173,22 +175,24 @@ export const DirectMessagesPanel: React.FC<Props> = ({
     setTimeout(() => setFeedback(null), 4000);
   };
 
-  // Reuse dmConversations from SignalsContext (which already merges personal DMs + @mbktrading platform inbox for Admins with 0 extra reads)
+  // Merge personal DMs with @mbktrading platform inbox threads (only attached when Messenger/Inbox panel is open)
   const conversations = useMemo(() => {
-    if (isAdminUser && adminOversightMode) {
-      const map = new Map<string, DmConversation>();
-      for (const c of dmConversations) map.set(c.id, c);
-      for (const c of adminConversations) map.set(c.id, c);
-      return Array.from(map.values()).sort((a, b) => b.lastMessageAtMs - a.lastMessageAtMs);
+    const map = new Map<string, DmConversation>();
+    for (const c of dmConversations) map.set(c.id, c);
+    if (isAdminUser) {
+      for (const c of platformInboxConversations) map.set(c.id, c);
     }
-    return dmConversations;
-  }, [isAdminUser, adminOversightMode, adminConversations, dmConversations]);
+    if (isAdminUser && adminOversightMode) {
+      for (const c of adminConversations) map.set(c.id, c);
+    }
+    return Array.from(map.values()).sort((a, b) => b.lastMessageAtMs - a.lastMessageAtMs);
+  }, [isAdminUser, adminOversightMode, adminConversations, platformInboxConversations, dmConversations]);
 
   // Sync own lightweight DM privacy profile so other users can message us if allowed
   useEffect(() => {
     if (!myUid) return;
     syncOwnChatProfile(user).catch(() => {});
-  }, [myUid, user]);
+  }, [myUid, user?.name, user?.role, user?.avatar]);
 
   // Subscribe to own DM privacy settings
   useEffect(() => {
@@ -199,7 +203,19 @@ export const DirectMessagesPanel: React.FC<Props> = ({
     };
   }, [myUid]);
 
-  // Separate limit(50) listener ONLY when a Super Admin explicitly toggles Admin Oversight mode
+  // Attach @mbktrading support inbox listener (limit(20)) ONLY when Messenger/Inbox panel is open for authorized staff
+  useEffect(() => {
+    if (!myUid || !isAdminUser) {
+      setPlatformInboxConversations([]);
+      return;
+    }
+    const unsubPlatform = subscribeToPlatformInboxConversations(setPlatformInboxConversations);
+    return () => {
+      unsubPlatform();
+    };
+  }, [myUid, isAdminUser]);
+
+  // Separate limit(20) listener ONLY when a Super Admin explicitly toggles Admin Oversight mode
   useEffect(() => {
     if (!myUid || !isSuperAdmin || !adminOversightMode) {
       setAdminConversations([]);
@@ -225,7 +241,8 @@ export const DirectMessagesPanel: React.FC<Props> = ({
     }
     setSelectedFallbackRecipient(initialTargetUser);
     onClearInitialTarget?.();
-  }, [initialTargetUser, myUid, onClearInitialTarget]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialTargetUser?.uid, initialTargetUser?.initialTopic, initialTargetUser?.isPlatformTicket, myUid]);
 
   // Fetch single selected recipient's DM privacy settings on demand
   useEffect(() => {
@@ -289,21 +306,34 @@ export const DirectMessagesPanel: React.FC<Props> = ({
     return () => unsub();
   }, [activeConvoId]);
 
-  // Auto-mark unread messages read when viewing thread
+  const activeConvo = useMemo(
+    () => (activeConvoId ? conversations.find((c) => c.id === activeConvoId) || null : null),
+    [activeConvoId, conversations]
+  );
+  const activeUserUnreadCount = activeConvo && myUid ? Number(activeConvo.unreadBy?.[myUid] || 0) : 0;
+  const activePlatformUnreadCount =
+    activeConvo && activeConvo.participants.includes(OFFICIAL_PLATFORM_UID)
+      ? Number(activeConvo.unreadBy?.[OFFICIAL_PLATFORM_UID] || 0)
+      : 0;
+
+  // Auto-mark unread messages read when viewing thread (stabilized primitive dependencies)
   useEffect(() => {
     if (!activeConvoId || !myUid) return;
-    const activeConvo = conversations.find((c) => c.id === activeConvoId);
-    if (!activeConvo) return;
 
-    if (isAdminUser && isViewingPlatformTicket && activeConvo.participants.includes(OFFICIAL_PLATFORM_UID)) {
-      if (Number(activeConvo.unreadBy?.[OFFICIAL_PLATFORM_UID] || 0) > 0) {
-        markDmConversationRead(activeConvoId, OFFICIAL_PLATFORM_UID).catch(() => {});
-      }
+    if (isAdminUser && isViewingPlatformTicket && activePlatformUnreadCount > 0) {
+      markDmConversationRead(activeConvoId, OFFICIAL_PLATFORM_UID).catch(() => {});
     }
-    if (Number(activeConvo.unreadBy?.[myUid] || 0) > 0) {
+    if (activeUserUnreadCount > 0) {
       markDmConversationRead(activeConvoId, myUid).catch(() => {});
     }
-  }, [activeConvoId, myUid, isAdminUser, isViewingPlatformTicket, conversations, messages.length]);
+  }, [
+    activeConvoId,
+    myUid,
+    isAdminUser,
+    isViewingPlatformTicket,
+    activePlatformUnreadCount,
+    activeUserUnreadCount
+  ]);
 
   useEffect(() => {
     scrollDmToBottom();

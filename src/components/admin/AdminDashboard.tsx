@@ -237,6 +237,16 @@ interface Props {
 }
 
 let hasFetchedActivationKeysThisSession = false;
+let hasFetchedAdminUsersThisSession = false;
+let sessionCachedAdminUsers: AdminUserRecord[] = [];
+let lastHandledUsersRetryTick = 0;
+
+let hasFetchedPushActiveUidsThisSession = false;
+let sessionCachedPushActiveUids: Set<string> = new Set();
+let lastHandledPushRetryTick = 0;
+
+let hasFetchedAuditLogsThisSession = false;
+let sessionCachedAuditLogs: AdminAuditLogEntry[] = [];
 
 function parseFirestoreTimestampMs(val: any): number {
   if (!val) return 0;
@@ -580,7 +590,7 @@ export const AdminDashboard: React.FC<Props> = ({
     setTimeout(() => setFeedback(null), 4000);
   };
 
-  // Load Push Subscription active UIDs once when Users & CRM or Overview loads (strictly gated by permission)
+  // Load Push Subscription active UIDs once per session when Users & CRM or Overview loads (or on manual refresh)
   useEffect(() => {
     if (!isStaff) return;
     if (
@@ -591,6 +601,14 @@ export const AdminDashboard: React.FC<Props> = ({
       return;
     }
     if (activeSection !== 'users' && activeSection !== 'overview') return;
+
+    const isManualRefresh = crmRetryTick > lastHandledPushRetryTick;
+    if (hasFetchedPushActiveUidsThisSession && !isManualRefresh) {
+      setPushActiveUids(sessionCachedPushActiveUids);
+      return;
+    }
+    lastHandledPushRetryTick = crmRetryTick;
+
     getDocs(query(collection(db, 'push_subscriptions'), limit(300)))
       .then((snap) => {
         const nextSet = new Set<string>();
@@ -601,6 +619,8 @@ export const AdminDashboard: React.FC<Props> = ({
             nextSet.add(d.id);
           }
         });
+        hasFetchedPushActiveUidsThisSession = true;
+        sessionCachedPushActiveUids = nextSet;
         setPushActiveUids(nextSet);
       })
       .catch(() => {
@@ -609,17 +629,26 @@ export const AdminDashboard: React.FC<Props> = ({
   }, [
     isStaff,
     activeSection,
+    crmRetryTick,
     myPermissions.canManageUsers,
     myPermissions.canViewAnalytics,
     myPermissions.canManageSystem
   ]);
 
-  // Load Audit Logs when Team & Permissions tab is opened
-  const loadAuditLogs = async () => {
+  // Load Audit Logs when Team & Permissions tab is opened (memory-cached across tab switches)
+  const loadAuditLogs = async (forceOrEvent?: boolean | React.MouseEvent) => {
     if (!isFullAdmin) return;
+    const forceRefresh =
+      forceOrEvent === true || (typeof forceOrEvent === 'object' && forceOrEvent !== null);
+    if (hasFetchedAuditLogsThisSession && !forceRefresh) {
+      setAuditLogs(sessionCachedAuditLogs);
+      return;
+    }
     setAuditLogsLoading(true);
     try {
       const logs = await fetchAdminAuditLogs(100);
+      hasFetchedAuditLogsThisSession = true;
+      sessionCachedAuditLogs = logs;
       setAuditLogs(logs);
     } finally {
       setAuditLogsLoading(false);
@@ -628,7 +657,7 @@ export const AdminDashboard: React.FC<Props> = ({
 
   useEffect(() => {
     if (activeSection === 'team' && isFullAdmin) {
-      loadAuditLogs();
+      loadAuditLogs(false);
     }
   }, [activeSection, isFullAdmin]);
 
@@ -797,7 +826,7 @@ export const AdminDashboard: React.FC<Props> = ({
           ? `تم تحديث صلاحيات ${selectedRbacUser.displayName} بنجاح وتسجيلها في سجل التدقيق.`
           : `Updated staff permissions for ${selectedRbacUser.displayName} and logged to audit trail.`
       );
-      loadAuditLogs();
+      loadAuditLogs(true);
     } catch (err: any) {
       showFeedback('error', err?.message || 'Failed to update staff permissions');
     } finally {
@@ -1870,16 +1899,31 @@ export const AdminDashboard: React.FC<Props> = ({
         return Array.from(byIdMap.values());
       };
 
+      const isManualRefresh = crmRetryTick > lastHandledUsersRetryTick;
+      if (
+        hasFetchedAdminUsersThisSession &&
+        sessionCachedAdminUsers.length > 0 &&
+        !isManualRefresh
+      ) {
+        setUsers(sessionCachedAdminUsers);
+        setUsersLoading(false);
+        return;
+      }
+      lastHandledUsersRetryTick = crmRetryTick;
+
+      let cancelled = false;
       const usersColRef = query(collection(db, 'users'), limit(300));
-      const unsub = onSnapshot(
-        usersColRef,
-        (snapshot) => {
+      getDocs(usersColRef)
+        .then((snapshot) => {
+          if (cancelled) return;
           const loadedUsers: AdminUserRecord[] = [];
           snapshot.forEach((docSnap) => {
             loadedUsers.push(mapDocToAdminUser(docSnap.id, docSnap.data()));
           });
 
           const mergedUsers = deduplicateUsers(loadedUsers, []);
+          hasFetchedAdminUsersThisSession = true;
+          sessionCachedAdminUsers = mergedUsers;
           setUsers(mergedUsers);
           setDbQuotaExceeded(false);
           try {
@@ -1890,13 +1934,14 @@ export const AdminDashboard: React.FC<Props> = ({
             // ignore
           }
           setUsersLoading(false);
-        },
-        (err: any) => {
+        })
+        .catch((err: any) => {
+          if (cancelled) return;
           const msg = String(err?.message || err || '').toLowerCase();
           if (err?.code === 'resource-exhausted' || msg.includes('quota')) {
             setDbQuotaExceeded(true);
           }
-          console.warn('Firestore CRM users subscription notice:', err?.message || err);
+          console.warn('Firestore CRM users fetch notice:', err?.message || err);
           setUsers((prev) => {
             if (prev.length > 0) return prev;
             if (auth.currentUser) {
@@ -1936,10 +1981,11 @@ export const AdminDashboard: React.FC<Props> = ({
             return prev;
           });
           setUsersLoading(false);
-        }
-      );
+        });
 
-      return () => unsub();
+      return () => {
+        cancelled = true;
+      };
     } catch (err) {
       console.warn('CRM setup error:', err);
       setUsersLoading(false);
@@ -1954,8 +2000,11 @@ export const AdminDashboard: React.FC<Props> = ({
     myPermissions.canManageSystem
   ]);
 
-  // Keep inspectUser synced if users list updates
+  // Keep inspectUser and sessionCachedAdminUsers synced if users list updates
   useEffect(() => {
+    if (users.length > 0) {
+      sessionCachedAdminUsers = users;
+    }
     if (!inspectUser) return;
     const fresh = users.find((u) => u.id === inspectUser.id);
     if (fresh) {
