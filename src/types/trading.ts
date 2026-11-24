@@ -1,3 +1,32 @@
+export type StaffPermissionKey =
+  | 'canManageChat'
+  | 'canPostSignals'
+  | 'canPostAnalysis'
+  | 'canAccessInbox'
+  | 'canManageUsers'
+  | 'canSendPopups'
+  | 'canViewAnalytics'
+  | 'canManageSystem';
+
+export type StaffPermissionsMap = Partial<Record<StaffPermissionKey, boolean>>;
+
+export type StaffRolePreset =
+  | 'none'
+  | 'chat_moderator'
+  | 'market_analyst'
+  | 'customer_service'
+  | 'operations_manager'
+  | 'super_admin'
+  | 'custom';
+
+export interface AdminInternalNote {
+  id: string;
+  text: string;
+  authorUid: string;
+  authorName: string;
+  createdAt: string;
+}
+
 export interface UserProfile {
   uid?: string;
   id?: string;
@@ -11,6 +40,9 @@ export interface UserProfile {
   avatar?: string;
   isAdmin?: boolean;
   isStaff?: boolean;
+  staffRole?: StaffRolePreset | string;
+  permissions?: StaffPermissionsMap;
+  adminNotes?: AdminInternalNote[];
   subscriptionStatus?: 'active' | 'expired' | 'none';
   subscriptionEndDate?: string | null;
   telegramUsername?: string;
@@ -71,6 +103,8 @@ export interface DmMessage {
   timestampMs: number;
   createdAt?: string;
   editedAt?: string;
+  repliedByUid?: string;
+  repliedByName?: string;
 }
 
 export interface TraderProfile {

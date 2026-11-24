@@ -120,7 +120,13 @@ export function isStaffOrAdminUser(user?: Partial<UserProfile> | null): boolean 
   if (!user) return false;
   if (user.isAdmin || user.isStaff) return true;
   const role = (user.role || '').toString().toUpperCase();
-  return ['ADMIN', 'MODERATOR', 'SALES', 'ANALYSER', 'ANALYST'].includes(role);
+  if (['ADMIN', 'MODERATOR', 'SALES', 'ANALYSER', 'ANALYST'].includes(role)) return true;
+  const staffRole = (user.staffRole || '').toString().toLowerCase();
+  if (staffRole && staffRole !== 'none') return true;
+  if (user.permissions && typeof user.permissions === 'object') {
+    if (Object.values(user.permissions).some(Boolean)) return true;
+  }
+  return false;
 }
 
 /**

@@ -115,3 +115,91 @@ export async function savePlatformSettings(
     throw new Error(message);
   }
 }
+
+export interface PlanPricingSettings {
+  vipMonthlyUsd: number;
+  eliteMonthlyUsd: number;
+  syncToPublicPlans: boolean;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
+export const DEFAULT_PLAN_PRICING: PlanPricingSettings = {
+  vipMonthlyUsd: 45,
+  eliteMonthlyUsd: 90,
+  syncToPublicPlans: false
+};
+
+let cachedPlanPricing: PlanPricingSettings | null = null;
+
+function mapDocToPlanPricing(data?: Record<string, any>): PlanPricingSettings {
+  if (!data) return { ...DEFAULT_PLAN_PRICING };
+  const rawVip = Number(data.vipMonthlyUsd);
+  const rawElite = Number(data.eliteMonthlyUsd);
+  return {
+    vipMonthlyUsd:
+      Number.isFinite(rawVip) && rawVip >= 0 ? Math.round(rawVip * 100) / 100 : DEFAULT_PLAN_PRICING.vipMonthlyUsd,
+    eliteMonthlyUsd:
+      Number.isFinite(rawElite) && rawElite >= 0
+        ? Math.round(rawElite * 100) / 100
+        : DEFAULT_PLAN_PRICING.eliteMonthlyUsd,
+    syncToPublicPlans: Boolean(data.syncToPublicPlans),
+    updatedAt: typeof data.updatedAt === 'string' ? data.updatedAt : undefined,
+    updatedBy: typeof data.updatedBy === 'string' ? data.updatedBy : undefined
+  };
+}
+
+export function getCachedPlanPricingSettings(): PlanPricingSettings {
+  return cachedPlanPricing ? { ...cachedPlanPricing } : { ...DEFAULT_PLAN_PRICING };
+}
+
+export async function fetchPlanPricingSettings(
+  forceRefresh: boolean = false
+): Promise<PlanPricingSettings> {
+  if (!forceRefresh && cachedPlanPricing) {
+    return { ...cachedPlanPricing };
+  }
+  const ref = doc(db, 'settings', 'pricing');
+  try {
+    const snap = await getDoc(ref);
+    const resolved = snap.exists()
+      ? mapDocToPlanPricing(snap.data())
+      : { ...DEFAULT_PLAN_PRICING };
+    cachedPlanPricing = resolved;
+    return { ...resolved };
+  } catch (err) {
+    console.warn('[PlatformSettings] Could not fetch settings/pricing:', err);
+    return cachedPlanPricing ? { ...cachedPlanPricing } : { ...DEFAULT_PLAN_PRICING };
+  }
+}
+
+export async function savePlanPricingSettings(
+  input: Pick<PlanPricingSettings, 'vipMonthlyUsd' | 'eliteMonthlyUsd' | 'syncToPublicPlans'>
+): Promise<PlanPricingSettings> {
+  const cleanVip = Math.min(
+    100000,
+    Math.max(0, Math.round((Number(input.vipMonthlyUsd) || 0) * 100) / 100)
+  );
+  const cleanElite = Math.min(
+    100000,
+    Math.max(0, Math.round((Number(input.eliteMonthlyUsd) || 0) * 100) / 100)
+  );
+
+  const payload: PlanPricingSettings = {
+    vipMonthlyUsd: cleanVip,
+    eliteMonthlyUsd: cleanElite,
+    syncToPublicPlans: Boolean(input.syncToPublicPlans),
+    updatedAt: new Date().toISOString(),
+    updatedBy: auth.currentUser?.email || auth.currentUser?.uid || 'admin'
+  };
+
+  try {
+    await setDoc(doc(db, 'settings', 'pricing'), payload);
+    cachedPlanPricing = payload;
+    return { ...payload };
+  } catch (err) {
+    const { message } = reportFirestoreError(err, OperationType.WRITE, 'settings/pricing');
+    throw new Error(message);
+  }
+}
+

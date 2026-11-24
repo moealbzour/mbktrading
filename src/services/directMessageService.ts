@@ -16,6 +16,7 @@ import {
 import { auth, db } from '../lib/firebase';
 import { ChatProfile, DmConversation, DmMessage, UserProfile } from '../types/trading';
 import { triggerServerWebPush } from '../utils/mobileNotifications';
+import { recordAdminAuditLog } from './adminAuditService';
 
 const CACHED_CHAT_PROFILES_KEY = 'mbk_cached_chat_profiles_v1';
 const CACHED_DM_CONVOS_KEY_PREFIX = 'mbk_cached_dm_convos_v1_';
@@ -106,9 +107,13 @@ export async function syncOwnChatProfile(user: UserProfile): Promise<void> {
   if (!uid) return;
 
   const ref = doc(db, 'chat_profiles', uid);
-  const displayName = (user.name || user.email?.split('@')[0] || 'MBK Trader').trim().slice(0, 100);
-  const avatar = (user.avatar || '').slice(0, 1000);
   const role = (user.role || 'FREE').toString().toUpperCase().slice(0, 40);
+  const rawName = (user.name || user.email?.split('@')[0] || 'MBK Trader').trim();
+  const displayName =
+    role === 'ADMIN' && (rawName.toLowerCase() === 'manager' || rawName.toLowerCase() === 'admin')
+      ? 'MBK Trading'
+      : rawName.slice(0, 100);
+  const avatar = (user.avatar || (role === 'ADMIN' ? '/mbk-logo.png' : '')).slice(0, 1000);
 
   try {
     const snap = await getDoc(ref);
@@ -392,7 +397,9 @@ export function subscribeToDmMessages(
     text: d.text || '',
     timestampMs: Number(d.timestampMs || 0),
     createdAt: d.createdAt,
-    editedAt: d.editedAt || undefined
+    editedAt: d.editedAt || undefined,
+    repliedByUid: typeof d.repliedByUid === 'string' && d.repliedByUid ? d.repliedByUid : undefined,
+    repliedByName: typeof d.repliedByName === 'string' && d.repliedByName ? d.repliedByName : undefined
   });
 
   const q = query(
@@ -560,8 +567,24 @@ export async function sendDirectMessage(params: {
     senderName: effectiveSender.displayName.slice(0, 100),
     text: cleanText,
     timestampMs: nowMs,
-    createdAt: nowIso
+    createdAt: nowIso,
+    ...(replyAsPlatformDesk
+      ? {
+          repliedByUid: sender.uid.slice(0, 128),
+          repliedByName: (sender.displayName || 'MBK Staff').slice(0, 100)
+        }
+      : {})
   });
+
+  if (replyAsPlatformDesk) {
+    recordAdminAuditLog({
+      action: 'SUPPORT_INBOX_REPLY',
+      targetUid: effectiveRecipient.uid,
+      targetLabel: `${effectiveRecipient.displayName} (${effectiveRecipient.uid.slice(0, 8)})`,
+      details: `Replied as @mbktrading: "${cleanText.slice(0, 120)}"`,
+      actorNameOverride: sender.displayName
+    }).catch(() => {});
+  }
 
   const isIncomingPlatformTicket = effectiveRecipient.uid === OFFICIAL_PLATFORM_UID;
   triggerServerWebPush({

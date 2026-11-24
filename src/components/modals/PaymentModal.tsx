@@ -1,5 +1,10 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, Lock, Headphones, CreditCard, ShieldCheck, Crown, Gem } from 'lucide-react';
+import {
+  fetchPlanPricingSettings,
+  getCachedPlanPricingSettings,
+  PlanPricingSettings
+} from '../../services/platformSettingsService';
 import { soundManager } from '../../utils/audio';
 
 interface PaymentModalProps {
@@ -17,18 +22,31 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   onContactSupport,
   lang = 'ar'
 }) => {
+  const [planPricing, setPlanPricing] = useState<PlanPricingSettings>(() =>
+    getCachedPlanPricingSettings()
+  );
+
+  useEffect(() => {
+    if (!isOpen) return;
+    fetchPlanPricingSettings(false)
+      .then((p) => setPlanPricing(p))
+      .catch(() => {});
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const isAr = lang === 'ar';
   const isElite = selectedPlan === 'elite';
+  const displayVipUsd = planPricing.syncToPublicPlans ? planPricing.vipMonthlyUsd : 100;
+  const displayEliteUsd = planPricing.syncToPublicPlans ? planPricing.eliteMonthlyUsd : 500;
 
   const planTitle = isElite
     ? isAr
-      ? 'باقة Elite — $500 / شهرياً'
-      : 'Elite Tier — $500 / mo'
+      ? `باقة Elite — $${displayEliteUsd} / شهرياً`
+      : `Elite Tier — $${displayEliteUsd} / mo`
     : isAr
-    ? 'باقة VIP — $100 / شهرياً'
-    : 'VIP Tier — $100 / mo';
+    ? `باقة VIP — $${displayVipUsd} / شهرياً`
+    : `VIP Tier — $${displayVipUsd} / mo`;
 
   const paymentMethods = [
     {

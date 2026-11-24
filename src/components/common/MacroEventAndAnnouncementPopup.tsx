@@ -1,16 +1,14 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import {
-  AlertTriangle,
-  BellRing,
   Calendar,
+  Check,
   Clock,
   Crown,
   ExternalLink,
   Flame,
-  Gift,
+  Headphones,
   KeyRound,
-  Megaphone,
-  Sparkles,
+  Layout,
   X
 } from 'lucide-react';
 import { UserProfile } from '../../types/trading';
@@ -21,6 +19,8 @@ import {
   AdminAnnouncement,
   MacroEconomicEvent,
   getUserRemainingSubscriptionDays,
+  incrementAnnouncementMetric,
+  normalizeBrandSenderName,
   subscribeToActiveAnnouncements,
   subscribeToUpcomingMacroEvents
 } from '../../services/macroEventsAndAnnouncementsService';
@@ -32,6 +32,57 @@ interface Props {
   onOpenPlansModal?: () => void;
   onOpenPromoModal?: () => void;
   onNavigateToCalendar?: () => void;
+  onNavigateToTab?: (tabId: string) => void;
+  onOpenSupportChat?: () => void;
+}
+
+function formatPopupCountdown(targetMs: number | null | undefined, nowMs: number) {
+  if (!targetMs || targetMs <= nowMs) {
+    return { expired: true, dd: '00', hh: '00', mm: '00', ss: '00' };
+  }
+  const diffSec = Math.max(0, Math.floor((targetMs - nowMs) / 1000));
+  const days = Math.floor(diffSec / 86400);
+  const hours = Math.floor((diffSec % 86400) / 3600);
+  const mins = Math.floor((diffSec % 3600) / 60);
+  const secs = diffSec % 60;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return {
+    expired: false,
+    dd: pad(days),
+    hh: pad(hours),
+    mm: pad(mins),
+    ss: pad(secs)
+  };
+}
+
+function hasPopupBeenSeenByFrequency(ann: AdminAnnouncement): boolean {
+  if (typeof window === 'undefined') return false;
+  const freq = ann.frequency || 'once_per_session';
+  try {
+    if (freq === 'once_per_user') {
+      return localStorage.getItem(`mbk_popup_seen_user_${ann.id}`) === '1';
+    }
+    if (freq === 'once_per_session') {
+      return sessionStorage.getItem(`mbk_popup_seen_session_${ann.id}`) === '1';
+    }
+  } catch {
+    // ignore storage errors
+  }
+  return false;
+}
+
+function markPopupSeenByFrequency(ann: AdminAnnouncement): void {
+  if (typeof window === 'undefined') return;
+  const freq = ann.frequency || 'once_per_session';
+  try {
+    if (freq === 'once_per_user') {
+      localStorage.setItem(`mbk_popup_seen_user_${ann.id}`, '1');
+    } else if (freq === 'once_per_session') {
+      sessionStorage.setItem(`mbk_popup_seen_session_${ann.id}`, '1');
+    }
+  } catch {
+    // ignore storage errors
+  }
 }
 
 export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
@@ -40,7 +91,9 @@ export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
   lang = 'ar',
   onOpenPlansModal,
   onOpenPromoModal,
-  onNavigateToCalendar
+  onNavigateToCalendar,
+  onNavigateToTab,
+  onOpenSupportChat
 }) => {
   const isAr = lang === 'ar';
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
@@ -50,14 +103,6 @@ export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
   const [notifiedIds, setNotifiedIds] = useState<Set<string>>(() => new Set());
   const [openedAppSession, setOpenedAppSession] = useState<boolean>(true);
 
-  // Tick every 15 seconds for live 1-hour countdown detection
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setNowMs(Date.now());
-    }, 15000);
-    return () => clearInterval(interval);
-  }, []);
-
   // Subscribe to real upcoming High-Impact Macro Events from /api/market/calendar (15-min client cache)
   useEffect(() => {
     const unsub = subscribeToUpcomingMacroEvents((events) => {
@@ -66,7 +111,7 @@ export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
     return () => unsub();
   }, []);
 
-  // Subscribe to Firestore Admin Announcements
+  // Subscribe to Firestore Admin Announcements (shared singleton listener)
   useEffect(() => {
     const unsub = subscribeToActiveAnnouncements((list) => {
       setAnnouncements(list);
@@ -95,26 +140,39 @@ export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
     // Admins always see announcements they publish so they can verify them immediately
     if (isAdminUser) return true;
 
+    const remDays = getUserRemainingSubscriptionDays(user);
+
     if (audience === 'all') return true;
     if (audience === 'free') return tier === 'free';
     if (audience === 'vip') return tier === 'vip' || tier === 'elite';
     if (audience === 'elite') return tier === 'elite';
     if (audience === 'expiring_soon') {
-      const remDays = getUserRemainingSubscriptionDays(user);
-      return remDays !== null && remDays >= 0 && remDays <= 7;
+      return remDays !== null && remDays > 0 && remDays <= 7;
+    }
+    if (audience === 'expired') {
+      return remDays !== null && remDays <= 0;
     }
     return true;
   };
 
-  // Find active Admin Announcement matching current tab or app open
+  // Find active Admin Announcement matching current tab, schedule, countdown, and frequency
   const matchingAnnouncement = useMemo<AdminAnnouncement | null>(() => {
     for (const ann of announcements) {
       if (!ann.isActive) continue;
       if (dismissedIds.has(ann.id)) continue;
+      if (hasPopupBeenSeenByFrequency(ann)) continue;
+
+      // Schedule & Expiry Checks
+      if (ann.startAtMs && ann.startAtMs > nowMs) continue;
+      if (ann.endAtMs && ann.endAtMs <= nowMs) continue;
+      if (ann.countdownEnabled && ann.countdownEndAtMs && ann.countdownEndAtMs <= nowMs) {
+        continue;
+      }
+
       if (!userMatchesAudience(ann.targetAudience)) continue;
 
       const tabs = ann.targetTabs || [];
-      const matchesAll = tabs.includes('all');
+      const matchesAll = tabs.includes('all') || ann.triggerLocation === 'global';
       const matchesCurrentTab = tabs.includes(activeView);
       const matchesOnOpen = tabs.includes('on_open') && openedAppSession;
 
@@ -123,9 +181,26 @@ export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
       }
     }
     return null;
-  }, [announcements, dismissedIds, activeView, openedAppSession, user]);
+  }, [announcements, dismissedIds, activeView, openedAppSession, user, nowMs]);
 
-  // Trigger audio + OS notification once per new popup
+  // Tick every 1 second when a countdown/scheduled popup is visible, otherwise every 15 seconds
+  const hasLiveTimerNeed = Boolean(
+    (matchingAnnouncement &&
+      (matchingAnnouncement.countdownEnabled ||
+        matchingAnnouncement.endAtMs ||
+        matchingAnnouncement.startAtMs)) ||
+      upcomingWithinOneHourEvent
+  );
+
+  useEffect(() => {
+    const intervalMs = hasLiveTimerNeed ? 1000 : 15000;
+    const interval = setInterval(() => {
+      setNowMs(Date.now());
+    }, intervalMs);
+    return () => clearInterval(interval);
+  }, [hasLiveTimerNeed]);
+
+  // Trigger audio + OS notification + once-per-user Firestore view counter
   useEffect(() => {
     if (
       upcomingWithinOneHourEvent &&
@@ -158,8 +233,9 @@ export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
       !notifiedIds.has(matchingAnnouncement.id)
     ) {
       soundManager.playSignalPing();
+      incrementAnnouncementMetric(matchingAnnouncement.id, 'views').catch(() => {});
       dispatchMobileAppNotification({
-        title: matchingAnnouncement.title,
+        title: `${normalizeBrandSenderName(matchingAnnouncement.senderName)}: ${matchingAnnouncement.title}`,
         body: matchingAnnouncement.message.slice(0, 140),
         tag: `admin-ann-${matchingAnnouncement.id}`
       }).catch(() => {});
@@ -177,8 +253,12 @@ export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
     return null;
   }
 
-  const handleDismiss = (id: string, isOnOpen?: boolean) => {
+  const handleDismiss = (annOrId: AdminAnnouncement | string, isOnOpen?: boolean) => {
     soundManager.playClick();
+    const id = typeof annOrId === 'string' ? annOrId : annOrId.id;
+    if (typeof annOrId !== 'string') {
+      markPopupSeenByFrequency(annOrId);
+    }
     setDismissedIds((prev) => {
       const next = new Set(prev);
       next.add(id);
@@ -189,285 +269,381 @@ export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
     }
   };
 
-  return (
-    <div
-      className="fixed bottom-3 sm:bottom-5 end-3 start-3 sm:start-auto sm:end-5 sm:max-w-md z-[68] space-y-3 animate-fade-in"
-      dir={isAr ? 'rtl' : 'ltr'}
-    >
-      {/* 1. ONE-HOUR UPCOMING HIGH-IMPACT ECONOMIC EVENT POPUP (CPI / FED / NFP) */}
-      {showMacroWarning && upcomingWithinOneHourEvent && (
-        <div className="bg-[#1e222d]/98 backdrop-blur-xl border-2 border-[#f23645]/80 rounded-xl p-4 shadow-[0_14px_45px_rgba(242,54,69,0.35)] text-[#d1d4dc]">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-lg bg-[#f23645]/20 border border-[#f23645]/50 text-[#f23645] flex items-center justify-center shrink-0">
-              <Flame className="w-5 h-5 animate-pulse" />
+  const handleCtaClick = (ann: AdminAnnouncement) => {
+    soundManager.playClick();
+    incrementAnnouncementMetric(ann.id, 'clicks').catch(() => {});
+
+    if (ann.ctaType === 'plans' && onOpenPlansModal) {
+      onOpenPlansModal();
+    } else if (ann.ctaType === 'promo' && onOpenPromoModal) {
+      onOpenPromoModal();
+    } else if (ann.ctaType === 'calendar' && onNavigateToCalendar) {
+      onNavigateToCalendar();
+    } else if (ann.ctaType === 'navigate_tab' && onNavigateToTab) {
+      onNavigateToTab(ann.ctaTargetTab || 'signals');
+    } else if (ann.ctaType === 'support_chat' && onOpenSupportChat) {
+      onOpenSupportChat();
+    }
+
+    handleDismiss(ann, ann.targetTabs.includes('on_open'));
+  };
+
+  const renderAdminPopupCard = (ann: AdminAnnouncement) => {
+    const accent = ann.accentColor || '#26A69A';
+    const ctaBg = ann.ctaColor || accent;
+    const surface = ann.surfaceStyle || 'dark_terminal';
+    const sender = normalizeBrandSenderName(ann.senderName);
+    const showLogo = ann.showLogo !== false;
+    const countdown =
+      ann.countdownEnabled && ann.countdownEndAtMs
+        ? formatPopupCountdown(ann.countdownEndAtMs, nowMs)
+        : null;
+
+    return (
+      <div
+        className={`w-full rounded-xl overflow-hidden shadow-[0_20px_55px_rgba(0,0,0,0.85)] text-[#E2E8F0] transition-all ${
+          surface === 'high_contrast' ? 'bg-[#0B0E11]' : 'bg-[#131722]'
+        }`}
+        style={{
+          borderWidth: surface === 'alert_border' ? '2px' : '1px',
+          borderStyle: 'solid',
+          borderColor: surface === 'alert_border' ? accent : '#2A2E39'
+        }}
+      >
+        {/* Top Accent Strip */}
+        <div className="h-1 w-full" style={{ backgroundColor: accent }} />
+
+        {/* Optional Banner Image */}
+        {ann.bannerImageUrl && ann.bannerImageUrl.trim() && (
+          <div className="w-full max-h-40 bg-[#0B0E11] border-b border-[#2A2E39] overflow-hidden">
+            <img
+              src={ann.bannerImageUrl}
+              alt={ann.title}
+              className="w-full h-full max-h-40 object-cover"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).style.display = 'none';
+              }}
+            />
+          </div>
+        )}
+
+        <div className="p-4 sm:p-5 space-y-3.5">
+          {/* Official Brand Identity Header */}
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-2.5 min-w-0">
+              {showLogo && (
+                <img
+                  src="/mbk-logo.png"
+                  alt={sender}
+                  className="w-8 h-8 rounded-md object-contain bg-[#0B0E11] border border-[#2A2E39] p-0.5 shrink-0"
+                />
+              )}
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-xs sm:text-sm font-bold text-white truncate">
+                    {sender}
+                  </span>
+                  <span
+                    className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold inline-flex items-center gap-0.5 shrink-0"
+                    style={{
+                      backgroundColor: `${accent}22`,
+                      color: accent,
+                      border: `1px solid ${accent}55`
+                    }}
+                  >
+                    <Check className="w-2.5 h-2.5" />
+                    <span>VERIFIED</span>
+                  </span>
+                </div>
+                {(ann.badgeText || ann.type) && (
+                  <span
+                    className="inline-block text-[10px] font-mono font-bold uppercase tracking-wider mt-0.5"
+                    style={{ color: accent }}
+                  >
+                    {ann.badgeText ||
+                      (ann.type === 'offer'
+                        ? isAr
+                          ? 'عرض خاص وحصري'
+                          : 'SPECIAL OFFER'
+                        : ann.type === 'event'
+                        ? isAr
+                          ? 'تحذير حدث اقتصادي هام'
+                          : 'MACRO EVENT ALERT'
+                        : isAr
+                        ? 'إعلان رسمي'
+                        : 'OFFICIAL ANNOUNCEMENT')}
+                  </span>
+                )}
+              </div>
             </div>
 
-            <div className="flex-1 min-w-0 space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="px-2 py-0.5 rounded bg-[#f23645] text-white text-[10px] font-mono tabular-nums font-extrabold uppercase flex items-center gap-1 shadow-sm">
-                    <Clock className="w-3 h-3" />
-                    <span>
-                      {isAr
-                        ? `متبقي ${Math.max(
-                            1,
-                            Math.ceil((upcomingWithinOneHourEvent.releaseTimeMs - nowMs) / (60 * 1000))
-                          )} دقيقة`
-                        : `${Math.max(
-                            1,
-                            Math.ceil((upcomingWithinOneHourEvent.releaseTimeMs - nowMs) / (60 * 1000))
-                          )}m LEFT`}
+            <button
+              type="button"
+              onClick={() => handleDismiss(ann, ann.targetTabs.includes('on_open'))}
+              className="p-1.5 rounded-md bg-[#1E222D] hover:bg-[#2A2E39] text-[#94A3B8] hover:text-white transition-colors cursor-pointer shrink-0"
+              title={isAr ? 'إغلاق' : 'Close'}
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Headline & Rich Message */}
+          <div className="space-y-1.5">
+            <h4 className="text-sm sm:text-base font-extrabold text-white leading-snug">
+              {ann.title}
+            </h4>
+            <p className="text-xs text-[#CBD5E1] leading-relaxed whitespace-pre-wrap break-words">
+              {ann.message}
+            </p>
+          </div>
+
+          {/* Live Ticking Offer Countdown Timer */}
+          {countdown && !countdown.expired && (
+            <div className="p-2.5 rounded-md bg-[#0B0E11] border border-[#2A2E39] flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-[#E2E8F0]">
+                <Clock className="w-3.5 h-3.5" style={{ color: accent }} />
+                <span>
+                  {ann.countdownLabel || (isAr ? 'ينتهي العرض خلال' : 'Offer ends in')}
+                </span>
+              </div>
+
+              <div
+                className="flex items-center gap-1 font-mono tabular-nums text-xs font-bold"
+                dir="ltr"
+              >
+                {[
+                  { val: countdown.dd, unit: 'D' },
+                  { val: countdown.hh, unit: 'H' },
+                  { val: countdown.mm, unit: 'M' },
+                  { val: countdown.ss, unit: 'S' }
+                ].map((part, idx) => (
+                  <React.Fragment key={part.unit}>
+                    {idx > 0 && <span className="text-[#64748B]">:</span>}
+                    <span
+                      className="px-1.5 py-0.5 rounded bg-[#131722] border text-white"
+                      style={{ borderColor: `${accent}55` }}
+                    >
+                      {part.val}
+                      <span className="text-[9px] text-[#94A3B8] ms-0.5">{part.unit}</span>
                     </span>
-                  </span>
-                  <span className="px-2 py-0.5 rounded bg-[#131722] text-[#d1d4dc] border border-[#2a2e39] text-[10px] font-mono tabular-nums font-bold">
-                    {new Date(upcomingWithinOneHourEvent.releaseTimeMs).toLocaleTimeString(
-                      isAr ? 'ar-AE' : 'en-US',
-                      { hour: '2-digit', minute: '2-digit' }
-                    )}
-                  </span>
-                  <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-mono font-bold">
-                    {upcomingWithinOneHourEvent.code} • {upcomingWithinOneHourEvent.currency}
-                  </span>
-                </div>
+                  </React.Fragment>
+                ))}
+              </div>
+            </div>
+          )}
 
-                <button
-                  type="button"
-                  onClick={() => handleDismiss(upcomingWithinOneHourEvent.id)}
-                  className="p-1 rounded-lg text-[#787b86] hover:text-white hover:bg-[#2a2e39] transition-colors cursor-pointer shrink-0"
-                  title={isAr ? 'إغلاق التحذير' : 'Dismiss warning'}
-                >
-                  <X className="w-4 h-4" />
-                </button>
+          {/* Action Buttons */}
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            {ann.ctaType && ann.ctaType !== 'none' && ann.ctaType !== 'url' && (
+              <button
+                type="button"
+                onClick={() => handleCtaClick(ann)}
+                className="px-4 py-2 rounded-md text-xs font-extrabold flex items-center gap-1.5 cursor-pointer shadow transition-transform active:scale-98"
+                style={{
+                  backgroundColor: ctaBg,
+                  color: ctaBg.toUpperCase() === '#F0B90B' ? '#0B0E11' : '#FFFFFF'
+                }}
+              >
+                {ann.ctaType === 'plans' && <Crown className="w-3.5 h-3.5" />}
+                {ann.ctaType === 'promo' && <KeyRound className="w-3.5 h-3.5" />}
+                {ann.ctaType === 'calendar' && <Calendar className="w-3.5 h-3.5" />}
+                {ann.ctaType === 'navigate_tab' && <Layout className="w-3.5 h-3.5" />}
+                {ann.ctaType === 'support_chat' && <Headphones className="w-3.5 h-3.5" />}
+                <span>
+                  {ann.ctaLabel ||
+                    (ann.ctaType === 'plans'
+                      ? isAr
+                        ? 'عرض الباقات والترقية الآن'
+                        : 'View Plans & Upgrade'
+                      : ann.ctaType === 'support_chat'
+                      ? isAr
+                        ? 'مراسلة الدعم الفني @mbktrading'
+                        : 'Contact @mbktrading Support'
+                      : ann.ctaType === 'calendar'
+                      ? isAr
+                        ? 'فتح التقويم الاقتصادي'
+                        : 'Open Economic Calendar'
+                      : isAr
+                      ? 'فتح القسم الآن'
+                      : 'Open Now')}
+                </span>
+              </button>
+            )}
+
+            {ann.ctaType === 'url' && ann.ctaUrl && (
+              <a
+                href={ann.ctaUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => {
+                  incrementAnnouncementMetric(ann.id, 'clicks').catch(() => {});
+                  handleDismiss(ann, ann.targetTabs.includes('on_open'));
+                }}
+                className="px-4 py-2 rounded-md text-xs font-extrabold flex items-center gap-1.5 cursor-pointer shadow"
+                style={{
+                  backgroundColor: ctaBg,
+                  color: ctaBg.toUpperCase() === '#F0B90B' ? '#0B0E11' : '#FFFFFF'
+                }}
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>{ann.ctaLabel || (isAr ? 'فتح الرابط' : 'Open Link')}</span>
+              </a>
+            )}
+
+            <button
+              type="button"
+              onClick={() => handleDismiss(ann, ann.targetTabs.includes('on_open'))}
+              className="px-3.5 py-2 rounded-md bg-[#1E222D] hover:bg-[#2A2E39] border border-[#2A2E39] text-[#94A3B8] hover:text-white text-xs font-semibold cursor-pointer"
+            >
+              {isAr ? 'إغلاق' : 'Dismiss'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const activePlacement = matchingAnnouncement?.placement || 'center_modal';
+
+  return (
+    <div dir={isAr ? 'rtl' : 'ltr'}>
+      {/* 1. ONE-HOUR UPCOMING HIGH-IMPACT ECONOMIC EVENT POPUP (CPI / FED / NFP) */}
+      {showMacroWarning && upcomingWithinOneHourEvent && (
+        <div className="fixed bottom-3 sm:bottom-5 end-3 start-3 sm:start-auto sm:end-5 sm:max-w-md z-[68] animate-fade-in">
+          <div className="bg-[#131722] border-2 border-[#EF5350] rounded-xl p-4 shadow-[0_14px_45px_rgba(239,83,80,0.35)] text-[#E2E8F0]">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-lg bg-[#EF5350]/20 border border-[#EF5350]/50 text-[#EF5350] flex items-center justify-center shrink-0">
+                <Flame className="w-5 h-5 animate-pulse" />
               </div>
 
-              <h4 className="text-xs sm:text-sm font-black text-white leading-snug">
-                {isAr ? upcomingWithinOneHourEvent.titleAr : upcomingWithinOneHourEvent.titleEn}
-              </h4>
+              <div className="flex-1 min-w-0 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="px-2 py-0.5 rounded bg-[#EF5350] text-white text-[10px] font-mono tabular-nums font-extrabold uppercase flex items-center gap-1 shadow-sm">
+                      <Clock className="w-3 h-3" />
+                      <span>
+                        {isAr
+                          ? `متبقي ${Math.max(
+                              1,
+                              Math.ceil(
+                                (upcomingWithinOneHourEvent.releaseTimeMs - nowMs) / (60 * 1000)
+                              )
+                            )} دقيقة`
+                          : `${Math.max(
+                              1,
+                              Math.ceil(
+                                (upcomingWithinOneHourEvent.releaseTimeMs - nowMs) / (60 * 1000)
+                              )
+                            )}m LEFT`}
+                      </span>
+                    </span>
+                    <span className="px-2 py-0.5 rounded bg-[#0B0E11] text-[#E2E8F0] border border-[#2A2E39] text-[10px] font-mono tabular-nums font-bold">
+                      {new Date(upcomingWithinOneHourEvent.releaseTimeMs).toLocaleTimeString(
+                        isAr ? 'ar-AE' : 'en-US',
+                        { hour: '2-digit', minute: '2-digit' }
+                      )}
+                    </span>
+                    <span className="px-2 py-0.5 rounded bg-[#F0B90B]/20 text-[#F0B90B] border border-[#F0B90B]/40 text-[10px] font-mono font-bold">
+                      {upcomingWithinOneHourEvent.code} • {upcomingWithinOneHourEvent.currency}
+                    </span>
+                  </div>
 
-              <div className="p-2.5 rounded-lg bg-[#131722] border border-[#2a2e39] space-y-1">
-                <div className="text-[10px] font-bold text-[#089981]">
-                  {isAr
-                    ? '⚡ التأثير المتوقع على الذهب (XAUUSD) والناسداك (US100):'
-                    : '⚡ XAUUSD & US100 Trading Impact:'}
-                </div>
-                <p className="text-[11px] text-[#d1d4dc] leading-relaxed">
-                  {isAr
-                    ? upcomingWithinOneHourEvent.goldNasdaqImpactAr ||
-                      upcomingWithinOneHourEvent.descriptionAr
-                    : upcomingWithinOneHourEvent.goldNasdaqImpactEn ||
-                      upcomingWithinOneHourEvent.descriptionEn}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 font-mono tabular-nums text-[10px]">
-                <div className="px-2.5 py-1.5 rounded-lg bg-[#131722] border border-[#2a2e39] flex items-center justify-between">
-                  <span className="text-[#787b86]">{isAr ? 'المتوقع:' : 'Forecast:'}</span>
-                  <span className="text-amber-400 font-bold">
-                    {upcomingWithinOneHourEvent.forecast || '—'}
-                  </span>
-                </div>
-                <div className="px-2.5 py-1.5 rounded-lg bg-[#131722] border border-[#2a2e39] flex items-center justify-between">
-                  <span className="text-[#787b86]">{isAr ? 'السابق:' : 'Previous:'}</span>
-                  <span className="text-white font-bold">
-                    {upcomingWithinOneHourEvent.previous || '—'}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                {onNavigateToCalendar && (
                   <button
                     type="button"
-                    onClick={() => {
-                      soundManager.playClick();
-                      onNavigateToCalendar();
-                      handleDismiss(upcomingWithinOneHourEvent.id);
-                    }}
-                    className="px-3.5 py-1.5 rounded-lg bg-[#2962FF] hover:bg-[#1E53E5] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow"
+                    onClick={() => handleDismiss(upcomingWithinOneHourEvent.id)}
+                    className="p-1 rounded-md text-[#94A3B8] hover:text-white hover:bg-[#1E222D] transition-colors cursor-pointer shrink-0"
+                    title={isAr ? 'إغلاق التحذير' : 'Dismiss warning'}
                   >
-                    <Calendar className="w-3.5 h-3.5" />
-                    <span>{isAr ? 'فتح التقويم الاقتصادي' : 'Open Economic Calendar'}</span>
+                    <X className="w-4 h-4" />
                   </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => handleDismiss(upcomingWithinOneHourEvent.id)}
-                  className="px-3 py-1.5 rounded-lg bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-[#9db2c6] hover:text-white text-[11px] font-bold cursor-pointer"
-                >
-                  {isAr ? 'تم الاطلاع — تأمين الصفقات' : 'Got It'}
-                </button>
+                </div>
+
+                <h4 className="text-xs sm:text-sm font-black text-white leading-snug">
+                  {isAr ? upcomingWithinOneHourEvent.titleAr : upcomingWithinOneHourEvent.titleEn}
+                </h4>
+
+                <div className="p-2.5 rounded-lg bg-[#0B0E11] border border-[#2A2E39] space-y-1">
+                  <div className="text-[10px] font-bold text-[#26A69A]">
+                    {isAr
+                      ? '⚡ التأثير المتوقع على الذهب (XAUUSD) والناسداك (US100):'
+                      : '⚡ XAUUSD & US100 Trading Impact:'}
+                  </div>
+                  <p className="text-[11px] text-[#E2E8F0] leading-relaxed">
+                    {isAr
+                      ? upcomingWithinOneHourEvent.goldNasdaqImpactAr ||
+                        upcomingWithinOneHourEvent.descriptionAr
+                      : upcomingWithinOneHourEvent.goldNasdaqImpactEn ||
+                        upcomingWithinOneHourEvent.descriptionEn}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 font-mono tabular-nums text-[10px]">
+                  <div className="px-2.5 py-1.5 rounded-lg bg-[#0B0E11] border border-[#2A2E39] flex items-center justify-between">
+                    <span className="text-[#94A3B8]">{isAr ? 'المتوقع:' : 'Forecast:'}</span>
+                    <span className="text-[#F0B90B] font-bold">
+                      {upcomingWithinOneHourEvent.forecast || '—'}
+                    </span>
+                  </div>
+                  <div className="px-2.5 py-1.5 rounded-lg bg-[#0B0E11] border border-[#2A2E39] flex items-center justify-between">
+                    <span className="text-[#94A3B8]">{isAr ? 'السابق:' : 'Previous:'}</span>
+                    <span className="text-white font-bold">
+                      {upcomingWithinOneHourEvent.previous || '—'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  {onNavigateToCalendar && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        soundManager.playClick();
+                        onNavigateToCalendar();
+                        handleDismiss(upcomingWithinOneHourEvent.id);
+                      }}
+                      className="px-3.5 py-1.5 rounded-md bg-[#2962FF] hover:bg-[#1E53E5] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow"
+                    >
+                      <Calendar className="w-3.5 h-3.5" />
+                      <span>{isAr ? 'فتح التقويم الاقتصادي' : 'Open Economic Calendar'}</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleDismiss(upcomingWithinOneHourEvent.id)}
+                    className="px-3 py-1.5 rounded-md bg-[#1E222D] hover:bg-[#2A2E39] border border-[#2A2E39] text-[#94A3B8] hover:text-white text-[11px] font-bold cursor-pointer"
+                  >
+                    {isAr ? 'تم الاطلاع — تأمين الصفقات' : 'Got It'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* 2. ADMIN LIVE POPUP ANNOUNCEMENT / OFFER / NEWS CARD */}
+      {/* 2. ADMIN PRO POPUP STUDIO RENDERER (4 PLACEMENTS) */}
       {showAdminAnnouncement && matchingAnnouncement && (
-        <div
-          className={`bg-[#1e222d]/98 backdrop-blur-xl border-2 rounded-2xl p-4 shadow-[0_14px_45px_rgba(0,0,0,0.85)] text-[#d1d4dc] ${
-            matchingAnnouncement.type === 'offer'
-              ? 'border-amber-500/70'
-              : matchingAnnouncement.type === 'event'
-              ? 'border-rose-500/70'
-              : 'border-[#089981]/70'
-          }`}
-        >
-          <div className="flex items-start gap-3">
-            <div
-              className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border ${
-                matchingAnnouncement.type === 'offer'
-                  ? 'bg-amber-500/20 border-amber-500/50 text-amber-400'
-                  : matchingAnnouncement.type === 'event'
-                  ? 'bg-rose-500/20 border-rose-500/50 text-rose-400'
-                  : 'bg-[#089981]/20 border-[#089981]/50 text-[#089981]'
-              }`}
-            >
-              {matchingAnnouncement.type === 'offer' ? (
-                <Gift className="w-6 h-6 animate-bounce" />
-              ) : matchingAnnouncement.type === 'event' ? (
-                <AlertTriangle className="w-6 h-6 animate-pulse" />
-              ) : (
-                <Megaphone className="w-6 h-6 animate-pulse" />
-              )}
-            </div>
-
-            <div className="flex-1 min-w-0 space-y-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <span
-                  className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-extrabold uppercase flex items-center gap-1 ${
-                    matchingAnnouncement.type === 'offer'
-                      ? 'bg-amber-500 text-black'
-                      : matchingAnnouncement.type === 'event'
-                      ? 'bg-rose-600 text-white'
-                      : 'bg-[#089981] text-white'
-                  }`}
-                >
-                  <Sparkles className="w-3 h-3" />
-                  <span>
-                    {matchingAnnouncement.type === 'offer'
-                      ? isAr
-                        ? 'عرض خاص وحصري'
-                        : 'SPECIAL OFFER'
-                      : matchingAnnouncement.type === 'event'
-                      ? isAr
-                        ? 'تحذير حدث اقتصادي هام'
-                        : 'MACRO EVENT ALERT'
-                      : isAr
-                      ? 'إعلان من الإدارة'
-                      : 'OFFICIAL ANNOUNCEMENT'}
-                  </span>
-                </span>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleDismiss(
-                      matchingAnnouncement.id,
-                      matchingAnnouncement.targetTabs.includes('on_open')
-                    )
-                  }
-                  className="p-1 rounded-lg text-[#787b86] hover:text-white hover:bg-[#2a2e39] transition-colors cursor-pointer shrink-0"
-                  title={isAr ? 'إغلاق' : 'Close'}
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <h4 className="text-xs sm:text-sm font-black text-white leading-snug">
-                {matchingAnnouncement.title}
-              </h4>
-
-              <p className="text-[11px] text-[#b2b5be] leading-relaxed whitespace-pre-wrap break-words">
-                {matchingAnnouncement.message}
-              </p>
-
-              <div className="flex flex-wrap items-center gap-2 pt-1.5">
-                {matchingAnnouncement.ctaType === 'plans' && onOpenPlansModal && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      soundManager.playClick();
-                      onOpenPlansModal();
-                      handleDismiss(matchingAnnouncement.id);
-                    }}
-                    className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-black text-xs font-extrabold flex items-center gap-1.5 cursor-pointer shadow"
-                  >
-                    <Crown className="w-3.5 h-3.5" />
-                    <span>
-                      {matchingAnnouncement.ctaLabel ||
-                        (isAr ? 'عرض الباقات والترقية الآن' : 'View Plans & Upgrade')}
-                    </span>
-                  </button>
-                )}
-
-                {matchingAnnouncement.ctaType === 'promo' && onOpenPromoModal && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      soundManager.playClick();
-                      onOpenPromoModal();
-                      handleDismiss(matchingAnnouncement.id);
-                    }}
-                    className="px-3.5 py-1.5 rounded-xl bg-[#089981] hover:bg-[#07846f] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow"
-                  >
-                    <KeyRound className="w-3.5 h-3.5" />
-                    <span>
-                      {matchingAnnouncement.ctaLabel ||
-                        (isAr ? 'تفعيل كود الاشتراك' : 'Redeem Activation Code')}
-                    </span>
-                  </button>
-                )}
-
-                {matchingAnnouncement.ctaType === 'calendar' && onNavigateToCalendar && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      soundManager.playClick();
-                      onNavigateToCalendar();
-                      handleDismiss(matchingAnnouncement.id);
-                    }}
-                    className="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow"
-                  >
-                    <Calendar className="w-3.5 h-3.5" />
-                    <span>
-                      {matchingAnnouncement.ctaLabel ||
-                        (isAr ? 'فتح التقويم الاقتصادي' : 'Open Economic Calendar')}
-                    </span>
-                  </button>
-                )}
-
-                {matchingAnnouncement.ctaType === 'url' && matchingAnnouncement.ctaUrl && (
-                  <a
-                    href={matchingAnnouncement.ctaUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => handleDismiss(matchingAnnouncement.id)}
-                    className="px-3.5 py-1.5 rounded-xl bg-[#089981] hover:bg-[#07846f] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    <span>
-                      {matchingAnnouncement.ctaLabel || (isAr ? 'فتح الرابط' : 'Open Link')}
-                    </span>
-                  </a>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleDismiss(
-                      matchingAnnouncement.id,
-                      matchingAnnouncement.targetTabs.includes('on_open')
-                    )
-                  }
-                  className="px-3 py-1.5 rounded-xl bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-[#9db2c6] hover:text-white text-[11px] font-semibold cursor-pointer"
-                >
-                  {isAr ? 'إغلاق' : 'Dismiss'}
-                </button>
+        <>
+          {activePlacement === 'center_modal' ? (
+            <div className="fixed inset-0 z-[72] bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+              <div className="w-full max-w-lg">
+                {renderAdminPopupCard(matchingAnnouncement)}
               </div>
             </div>
-          </div>
-        </div>
+          ) : activePlacement === 'top_banner' ? (
+            <div className="fixed top-14 inset-x-3 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 sm:w-full sm:max-w-2xl z-[70] animate-fade-in">
+              {renderAdminPopupCard(matchingAnnouncement)}
+            </div>
+          ) : activePlacement === 'bottom_card' ? (
+            <div className="fixed bottom-4 inset-x-3 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 sm:w-full sm:max-w-lg z-[70] animate-fade-in">
+              {renderAdminPopupCard(matchingAnnouncement)}
+            </div>
+          ) : (
+            <div className="fixed bottom-3 sm:bottom-5 end-3 start-3 sm:start-auto sm:end-5 sm:w-full sm:max-w-md z-[70] animate-fade-in">
+              {renderAdminPopupCard(matchingAnnouncement)}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

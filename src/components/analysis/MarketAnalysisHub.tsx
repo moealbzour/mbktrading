@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { UserProfile } from '../../types/trading';
 import { hasFeatureAccess } from '../../utils/entitlements';
+import { hasStaffPermission } from '../../utils/rbac';
 import { soundManager } from '../../utils/audio';
 import {
   AnalysisDirection,
@@ -142,9 +143,10 @@ export const MarketAnalysisHub: React.FC<MarketAnalysisHubProps> = ({
     );
   }, [isAdminProp, userProfile]);
 
-  // Strict authorization: Admin OR Analyser OR explicitly granted 'publishAnalysis' access
+  // Strict authorization: Admin OR canPostAnalysis staff permission OR explicitly granted 'publishAnalysis' access
   const canPublishAnalysis = useMemo(() => {
     if (isAdmin) return true;
+    if (hasStaffPermission(userProfile, 'canPostAnalysis')) return true;
     return hasFeatureAccess(userProfile, 'publishAnalysis');
   }, [isAdmin, userProfile]);
 

@@ -174,8 +174,21 @@ function mapUserDocToProfile(firebaseUser: FirebaseUser, data: Record<string, an
   }
 
   const normalizedRole = role.toUpperCase();
-  const isAdmin = normalizedRole === 'ADMIN';
-  const isStaff = ['ADMIN', 'MODERATOR', 'SALES', 'ANALYSER', 'ANALYST'].includes(normalizedRole);
+  const rawStaffRole = typeof data.staffRole === 'string' ? data.staffRole : undefined;
+  const rawPermissions =
+    data.permissions && typeof data.permissions === 'object' ? data.permissions : undefined;
+  const hasGranularPerms =
+    Boolean(rawStaffRole && rawStaffRole !== 'none') ||
+    Boolean(rawPermissions && Object.values(rawPermissions).some(Boolean));
+
+  const isAdmin =
+    normalizedRole === 'ADMIN' ||
+    rawStaffRole === 'super_admin' ||
+    Boolean(rawPermissions?.canManageSystem);
+  const isStaff =
+    isAdmin ||
+    ['ADMIN', 'MODERATOR', 'SALES', 'ANALYSER', 'ANALYST'].includes(normalizedRole) ||
+    hasGranularPerms;
 
   const isElite =
     isAdmin ||
@@ -212,6 +225,8 @@ function mapUserDocToProfile(firebaseUser: FirebaseUser, data: Record<string, an
     avatar: firebaseUser.photoURL || data.avatar || undefined,
     isAdmin,
     isStaff,
+    staffRole: isAdmin ? 'super_admin' : rawStaffRole,
+    permissions: rawPermissions,
     isVip,
     vipAccess: isVip,
     vipExpiryDate: subEndDate,

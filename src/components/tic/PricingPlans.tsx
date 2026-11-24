@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Check,
   Crown,
@@ -13,6 +13,11 @@ import {
   ELITE_UNRELEASED_FEATURES,
   getEffectiveTier
 } from '../../utils/entitlements';
+import {
+  fetchPlanPricingSettings,
+  getCachedPlanPricingSettings,
+  PlanPricingSettings
+} from '../../services/platformSettingsService';
 import { soundManager } from '../../utils/audio';
 
 interface PricingPlansProps {
@@ -33,6 +38,18 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({
 }) => {
   const isAr = lang === 'ar';
   const effectiveTier = user ? getEffectiveTier(user) : isVIP ? 'vip' : 'free';
+  const [planPricing, setPlanPricing] = useState<PlanPricingSettings>(() =>
+    getCachedPlanPricingSettings()
+  );
+
+  useEffect(() => {
+    fetchPlanPricingSettings(false)
+      .then((p) => setPlanPricing(p))
+      .catch(() => {});
+  }, []);
+
+  const displayVipUsd = planPricing.syncToPublicPlans ? planPricing.vipMonthlyUsd : 100;
+  const displayEliteUsd = planPricing.syncToPublicPlans ? planPricing.eliteMonthlyUsd : 500;
 
   const freeFeatures = isAr
     ? [
@@ -165,7 +182,7 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({
             </p>
 
             <div className="mb-5 pb-4 border-b border-[#2a2e39] flex items-baseline gap-1.5 font-mono tabular-nums">
-              <span className="text-3xl font-black text-white">$100</span>
+              <span className="text-3xl font-black text-white">${displayVipUsd}</span>
               <span className="text-xs text-[#8a93a6]">{isAr ? '/ شهرياً' : '/ month'}</span>
             </div>
 
@@ -199,8 +216,8 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({
                     ? 'تجديد / ترقية اشتراك VIP'
                     : 'Renew VIP Subscription'
                   : isAr
-                  ? 'اشترك في VIP ($100/mo)'
-                  : 'Subscribe to VIP ($100/mo)'}
+                  ? `اشترك في VIP ($${displayVipUsd}/mo)`
+                  : `Subscribe to VIP ($${displayVipUsd}/mo)`}
               </span>
             </button>
 
@@ -243,7 +260,7 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({
             </p>
 
             <div className="mb-5 pb-4 border-b border-[#2a2e39] flex items-baseline gap-1.5 font-mono tabular-nums">
-              <span className="text-3xl font-black text-amber-400">$500</span>
+              <span className="text-3xl font-black text-amber-400">${displayEliteUsd}</span>
               <span className="text-xs text-[#8a93a6]">{isAr ? '/ شهرياً' : '/ month'}</span>
             </div>
 
@@ -251,7 +268,7 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({
               <div className="flex items-start gap-2 text-[#d1d4dc]">
                 <Check className="w-4 h-4 text-[#089981] shrink-0 mt-0.5" />
                 <span className="font-bold">
-                  {isAr ? 'كل ما هو مشمول في باقة VIP ($100)' : 'Everything included in VIP Tier'}
+                  {isAr ? `كل ما هو مشمول في باقة VIP ($${displayVipUsd})` : 'Everything included in VIP Tier'}
                 </span>
               </div>
 
@@ -292,11 +309,11 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({
             <span>
               {effectiveTier === 'elite'
                 ? isAr
-                  ? 'إدارة باقة Elite ($500/mo)'
+                  ? `إدارة باقة Elite ($${displayEliteUsd}/mo)`
                   : 'Manage Elite Plan'
                 : isAr
-                ? 'اشترك في Elite ($500/mo)'
-                : 'Subscribe to Elite ($500/mo)'}
+                ? `اشترك في Elite ($${displayEliteUsd}/mo)`
+                : `Subscribe to Elite ($${displayEliteUsd}/mo)`}
             </span>
           </button>
         </div>

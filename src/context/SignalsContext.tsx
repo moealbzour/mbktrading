@@ -5,6 +5,7 @@ import { soundManager } from '../utils/audio';
 import { DailyTrade, TradeSource, DailyTradeStatus, DmConversation } from '../types/trading';
 import { ToastContainer, ToastItem } from '../components/common/ToastContainer';
 import { hasFeatureAccess } from '../utils/entitlements';
+import { hasStaffPermission } from '../utils/rbac';
 import { subscribeToAuth } from '../services/firebaseAuthService';
 import {
   AppNotificationPermission,
@@ -205,6 +206,7 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [authResolved, setAuthResolved] = useState<boolean>(false);
   const [currentUserUid, setCurrentUserUid] = useState<string | null>(null);
   const [isAdminUser, setIsAdminUser] = useState<boolean>(false);
+  const [canAccessSupportInbox, setCanAccessSupportInbox] = useState<boolean>(false);
   const [canReadVipSignals, setCanReadVipSignals] = useState<boolean>(false);
   const [canReadBotAlerts, setCanReadBotAlerts] = useState<boolean>(false);
   const [canReadVipChat, setCanReadVipChat] = useState<boolean>(false);
@@ -438,6 +440,7 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (!profile) {
         setCurrentUserUid(null);
         setIsAdminUser(false);
+        setCanAccessSupportInbox(false);
         setCanReadVipSignals(false);
         setCanReadBotAlerts(false);
         setCanReadVipChat(false);
@@ -455,14 +458,16 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         profile.email?.toLowerCase() === SUPER_ADMIN_EMAIL ||
         Boolean(profile.isAdmin) ||
         roleUpper === 'ADMIN';
+      const hasInboxAccess = isSuperAdmin || hasStaffPermission(profile, 'canAccessInbox');
       setIsAdminUser(isSuperAdmin);
+      setCanAccessSupportInbox(hasInboxAccess);
 
       if (isSuperAdmin) {
         setCanReadVipSignals(true);
         setCanReadBotAlerts(true);
         setCanReadVipChat(true);
         setAuthResolved(true);
-        syncCurrentUserWebPush({ isVip: true, isAdmin: true }).catch(() => {});
+        syncCurrentUserWebPush({ isVip: true, isAdmin: true, canAccessInbox: true }).catch(() => {});
         return;
       }
 
@@ -471,7 +476,11 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setCanReadBotAlerts(hasFeatureAccess(profile, 'botSignals'));
       setCanReadVipChat(!profile.isBanned);
       setAuthResolved(true);
-      syncCurrentUserWebPush({ isVip: hasVip, isAdmin: false }).catch(() => {});
+      syncCurrentUserWebPush({
+        isVip: hasVip,
+        isAdmin: false,
+        canAccessInbox: hasInboxAccess
+      }).catch(() => {});
     });
 
     return () => unsubscribe();
@@ -840,7 +849,7 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       for (const c of mergedList) {
         const unreadMap = c.unreadBy || {};
         totalUnread += Number(unreadMap[currentUserUid] || 0);
-        if (isAdminUser && c.participants.includes('mbktrading')) {
+        if ((isAdminUser || canAccessSupportInbox) && c.participants.includes('mbktrading')) {
           totalUnread += Number(unreadMap['mbktrading'] || 0);
         }
       }
@@ -940,7 +949,7 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     );
 
     let unsubPlatformDm: (() => void) | null = null;
-    if (isAdminUser) {
+    if (isAdminUser || canAccessSupportInbox) {
       const platformDmQuery = query(
         collection(db, 'dm_conversations'),
         where('participants', 'array-contains', 'mbktrading'),
@@ -1069,7 +1078,7 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (unsubPlatformDm) unsubPlatformDm();
       if (unsubChat) unsubChat();
     };
-  }, [authResolved, currentUserUid, isAdminUser, canReadVipChat, addToast, sendBrowserNotification, triggerAudioAlert]);
+  }, [authResolved, currentUserUid, isAdminUser, canAccessSupportInbox, canReadVipChat, addToast, sendBrowserNotification, triggerAudioAlert]);
 
   // Merge raw bot_alerts into trades array, capped at latest 30 signals
   const mergedTrades: DailyTrade[] = rawTrades.filter((t) => !isSignalIdDeleted(t.id));

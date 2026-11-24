@@ -151,6 +151,7 @@ function parseRestPushDoc(rawDoc: any): PushSubscriptionDoc | null {
     uid,
     isVip: Boolean(f.isVip?.booleanValue),
     isAdmin: Boolean(f.isAdmin?.booleanValue),
+    canAccessInbox: Boolean(f.canAccessInbox?.booleanValue || f.isAdmin?.booleanValue),
     muteChatPush: Boolean(f.muteChatPush?.booleanValue),
     subscriptions,
     updatedAt: Number(f.updatedAt?.integerValue || f.updatedAt?.doubleValue || Date.now())
@@ -171,7 +172,23 @@ async function isCallerAdminOrAnalyser(uid: string, email: string, idToken: stri
       const fields = json?.fields || {};
       const isAdminFlag = Boolean(fields.isAdmin?.booleanValue);
       const role = String(fields.role?.stringValue || '').toUpperCase();
-      if (isAdminFlag || role === 'ADMIN' || role === 'ANALYSER' || role === 'ANALYST') {
+      const staffRole = String(fields.staffRole?.stringValue || '').toLowerCase();
+      const permFields = fields.permissions?.mapValue?.fields || {};
+      const hasBroadcastPerm =
+        Boolean(permFields.canPostSignals?.booleanValue) ||
+        Boolean(permFields.canPostAnalysis?.booleanValue) ||
+        Boolean(permFields.canSendPopups?.booleanValue) ||
+        Boolean(permFields.canManageSystem?.booleanValue);
+      if (
+        isAdminFlag ||
+        hasBroadcastPerm ||
+        role === 'ADMIN' ||
+        role === 'ANALYSER' ||
+        role === 'ANALYST' ||
+        staffRole === 'super_admin' ||
+        staffRole === 'market_analyst' ||
+        staffRole === 'operations_manager'
+      ) {
         return true;
       }
     }
@@ -186,7 +203,21 @@ async function isCallerAdminOrAnalyser(uid: string, email: string, idToken: stri
       if (snap.exists) {
         const data = snap.data() || {};
         const role = String(data.role || '').toUpperCase();
-        return data.isAdmin === true || role === 'ADMIN' || role === 'ANALYSER' || role === 'ANALYST';
+        const staffRole = String(data.staffRole || '').toLowerCase();
+        const perms = data.permissions && typeof data.permissions === 'object' ? data.permissions : {};
+        const hasBroadcastPerm = Boolean(
+          perms.canPostSignals || perms.canPostAnalysis || perms.canSendPopups || perms.canManageSystem
+        );
+        return (
+          data.isAdmin === true ||
+          hasBroadcastPerm ||
+          role === 'ADMIN' ||
+          role === 'ANALYSER' ||
+          role === 'ANALYST' ||
+          staffRole === 'super_admin' ||
+          staffRole === 'market_analyst' ||
+          staffRole === 'operations_manager'
+        );
       }
     } catch {
       // ignore
@@ -214,7 +245,7 @@ function filterDocsByAudience(
       continue;
     }
     if (excludeUid && d.uid === excludeUid) continue;
-    if (audience === 'admins' && d.isAdmin) {
+    if (audience === 'admins' && (d.isAdmin || d.canAccessInbox)) {
       result.push(d);
     } else if (audience === 'vip' && (d.isVip || d.isAdmin)) {
       result.push(d);
@@ -574,6 +605,7 @@ export async function dispatchServerWebPush(
         uid: userDoc.uid,
         isVip: userDoc.isVip,
         isAdmin: userDoc.isAdmin,
+        canAccessInbox: Boolean(userDoc.canAccessInbox || userDoc.isAdmin),
         muteChatPush: Boolean(userDoc.muteChatPush),
         subscriptions: remaining,
         updatedAt: Date.now()

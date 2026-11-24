@@ -42,6 +42,7 @@ import { auth, db } from '../../lib/firebase';
 import { soundManager } from '../../utils/audio';
 import { useSignalsContext } from '../../context/SignalsContext';
 import { isUserCurrentlyOnline } from '../../utils/mobileNotifications';
+import { hasStaffPermission, isSuperAdminUser } from '../../utils/rbac';
 
 export interface DmTargetUser {
   uid: string;
@@ -123,10 +124,10 @@ export const DirectMessagesPanel: React.FC<Props> = ({
   const isAr = lang === 'ar';
   const myUid = auth.currentUser?.uid || user.uid || user.id || '';
   const myDisplayName = (user.name || user.email?.split('@')[0] || 'MBK Trader').trim();
+  const isSuperAdmin = isSuperAdminUser(user);
   const isAdminUser = Boolean(
-    user.isAdmin ||
-      (user.role || '').toString().toUpperCase() === 'ADMIN' ||
-      auth.currentUser?.email?.toLowerCase() === 'moe.albzour@gmail.com'
+    isSuperAdmin ||
+      hasStaffPermission(user, 'canAccessInbox')
   );
 
   const { dmConversations } = useSignalsContext();
@@ -198,9 +199,9 @@ export const DirectMessagesPanel: React.FC<Props> = ({
     };
   }, [myUid]);
 
-  // Separate limit(50) listener ONLY when an Admin explicitly toggles Admin Oversight mode
+  // Separate limit(50) listener ONLY when a Super Admin explicitly toggles Admin Oversight mode
   useEffect(() => {
-    if (!myUid || !isAdminUser || !adminOversightMode) {
+    if (!myUid || !isSuperAdmin || !adminOversightMode) {
       setAdminConversations([]);
       return;
     }
@@ -208,7 +209,7 @@ export const DirectMessagesPanel: React.FC<Props> = ({
     return () => {
       unsubAdminConvos();
     };
-  }, [myUid, isAdminUser, adminOversightMode]);
+  }, [myUid, isSuperAdmin, adminOversightMode]);
 
   // Handle jump-to-DM from SupportDeskModal, PublicTradingChat, or Admin CRM
   useEffect(() => {
@@ -313,27 +314,80 @@ export const DirectMessagesPanel: React.FC<Props> = ({
     if (selectedRecipientUid === OFFICIAL_PLATFORM_UID) {
       return OFFICIAL_PLATFORM_PROFILE;
     }
-    if (selectedRecipientProfile && selectedRecipientProfile.uid === selectedRecipientUid) {
-      return selectedRecipientProfile;
-    }
 
     const convo = conversations.find((c) => c.id === activeConvoId);
+    const normalizeAdminDisplay = (name?: string, role?: string): string => {
+      const cleaned = (name || '').trim();
+      const isDummyManager =
+        cleaned.toLowerCase() === 'manager' || cleaned.toLowerCase() === 'admin';
+      if (isDummyManager || (!cleaned && (role || '').toUpperCase() === 'ADMIN')) {
+        return 'MBK Trading';
+      }
+      return cleaned || 'Trader';
+    };
+
     if (convo) {
+      const convoRole = convo.participantRoles?.[selectedRecipientUid] || selectedRecipientProfile?.role || 'FREE';
+      const convoNameRaw = convo.participantNames?.[selectedRecipientUid];
+      const profileNameRaw = selectedRecipientProfile?.displayName;
+      const chosenName = normalizeAdminDisplay(
+        convoNameRaw && convoNameRaw.toLowerCase() !== 'manager' ? convoNameRaw : profileNameRaw,
+        convoRole
+      );
+      const chosenAvatar =
+        convo.participantAvatars?.[selectedRecipientUid] ||
+        selectedRecipientProfile?.avatar ||
+        ((convoRole || '').toUpperCase() === 'ADMIN' || chosenName.startsWith('MBK')
+          ? '/mbk-logo.png'
+          : '');
+
       return {
         uid: selectedRecipientUid,
-        displayName: convo.participantNames?.[selectedRecipientUid] || 'Trader',
-        avatar: convo.participantAvatars?.[selectedRecipientUid] || '',
-        role: convo.participantRoles?.[selectedRecipientUid] || 'FREE',
-        allowDirectMessages: true,
-        blockedUids: []
+        displayName: chosenName,
+        avatar: chosenAvatar,
+        role: convoRole,
+        allowDirectMessages:
+          selectedRecipientProfile?.uid === selectedRecipientUid
+            ? selectedRecipientProfile.allowDirectMessages !== false
+            : true,
+        blockedUids:
+          selectedRecipientProfile?.uid === selectedRecipientUid
+            ? selectedRecipientProfile.blockedUids || []
+            : []
       } as ChatProfile;
     }
 
+    if (selectedRecipientProfile && selectedRecipientProfile.uid === selectedRecipientUid) {
+      const normName = normalizeAdminDisplay(
+        selectedRecipientProfile.displayName,
+        selectedRecipientProfile.role
+      );
+      return {
+        ...selectedRecipientProfile,
+        displayName: normName,
+        avatar:
+          selectedRecipientProfile.avatar ||
+          ((selectedRecipientProfile.role || '').toUpperCase() === 'ADMIN' ||
+          normName.startsWith('MBK')
+            ? '/mbk-logo.png'
+            : '')
+      };
+    }
+
     if (selectedFallbackRecipient?.uid === selectedRecipientUid) {
+      const normName = normalizeAdminDisplay(
+        selectedFallbackRecipient.displayName,
+        selectedFallbackRecipient.role
+      );
       return {
         uid: selectedFallbackRecipient.uid,
-        displayName: selectedFallbackRecipient.displayName || 'Trader',
-        avatar: selectedFallbackRecipient.avatar || '',
+        displayName: normName,
+        avatar:
+          selectedFallbackRecipient.avatar ||
+          ((selectedFallbackRecipient.role || '').toUpperCase() === 'ADMIN' ||
+          normName.startsWith('MBK')
+            ? '/mbk-logo.png'
+            : ''),
         role: selectedFallbackRecipient.role || 'FREE',
         allowDirectMessages: true,
         blockedUids: []
@@ -598,7 +652,7 @@ export const DirectMessagesPanel: React.FC<Props> = ({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          {isAdminUser && (
+          {isSuperAdmin && (
             <button
               type="button"
               onClick={() => {
@@ -612,8 +666,8 @@ export const DirectMessagesPanel: React.FC<Props> = ({
               }`}
               title={
                 isAr
-                  ? 'وضع إشراف الإدارة (توسيع حد المحادثات إلى 50)'
-                  : 'Admin Oversight Mode (Expanded limit(50) conversations)'
+                  ? 'وضع إشراف الإدارة العليا (توسيع حد المحادثات إلى 50)'
+                  : 'Super Admin Oversight Mode (Expanded limit(50) conversations)'
               }
             >
               <ShieldCheck className="w-3.5 h-3.5" />
@@ -839,12 +893,21 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                 const otherUid = isPlatformTicket
                   ? getOtherParticipantUid(convo.participants, OFFICIAL_PLATFORM_UID)
                   : getOtherParticipantUid(convo.participants, myUid);
-                const otherName =
+                const otherRole = convo.participantRoles?.[otherUid] || 'FREE';
+                const rawOtherName =
                   otherUid === OFFICIAL_PLATFORM_UID
                     ? OFFICIAL_PLATFORM_USERNAME
                     : convo.participantNames?.[otherUid] || 'Trader';
-                const otherAvatar = convo.participantAvatars?.[otherUid] || '';
-                const otherRole = convo.participantRoles?.[otherUid] || 'FREE';
+                const otherName =
+                  rawOtherName.trim().toLowerCase() === 'manager' ||
+                  rawOtherName.trim().toLowerCase() === 'admin'
+                    ? 'MBK Trading'
+                    : rawOtherName;
+                const otherAvatar =
+                  convo.participantAvatars?.[otherUid] ||
+                  ((otherRole || '').toUpperCase() === 'ADMIN' || otherName.startsWith('MBK')
+                    ? '/mbk-logo.png'
+                    : '');
                 const unread = isPlatformTicket && isAdminUser
                   ? Number(convo.unreadBy?.[OFFICIAL_PLATFORM_UID] || 0)
                   : Number(convo.unreadBy?.[myUid] || 0);
@@ -1171,11 +1234,31 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                                   isFromPlatformDesk ? 'text-[#10b981]' : 'text-[#8492a6]'
                                 }`}
                               >
-                                {isFromPlatformDesk ? `@${OFFICIAL_PLATFORM_USERNAME}` : msg.senderName}
+                                {isFromPlatformDesk
+                                  ? `@${OFFICIAL_PLATFORM_USERNAME}`
+                                  : (msg.senderName || '').trim().toLowerCase() === 'manager' ||
+                                    (msg.senderName || '').trim().toLowerCase() === 'admin'
+                                  ? 'MBK Trading'
+                                  : msg.senderName}
                               </span>
-                              {isFromPlatformDesk && (
-                                <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-black bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/40">
-                                  OFFICIAL
+                              {(isFromPlatformDesk ||
+                                (msg.senderName || '').trim().toLowerCase() === 'manager' ||
+                                (msg.senderName || '').startsWith('MBK')) && (
+                                <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-black bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/40 inline-flex items-center gap-0.5">
+                                  <Check className="w-2.5 h-2.5" />
+                                  <span>OFFICIAL</span>
+                                </span>
+                              )}
+                              {isAdminUser && isFromPlatformDesk && msg.repliedByName && (
+                                <span
+                                  className="px-1.5 py-0.2 rounded text-[8px] font-mono font-semibold bg-[#131722] text-[#9db2c6] border border-[#2a2e39]"
+                                  title={
+                                    isAr
+                                      ? 'خاص بطاقم الإدارة والدعم فقط (غير مرئي للعميل)'
+                                      : 'Staff-only attribution (invisible to client)'
+                                  }
+                                >
+                                  {isAr ? `رد بواسطة: ${msg.repliedByName}` : `By: ${msg.repliedByName}`}
                                 </span>
                               )}
                             </div>

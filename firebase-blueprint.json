@@ -7,6 +7,9 @@
       "properties": {
         "email": { "type": "string" },
         "role": { "type": "string", "enum": ["free", "vip", "elite", "admin", "moderator", "sales", "analyser"] },
+        "staffRole": { "type": "string", "enum": ["none", "chat_moderator", "market_analyst", "customer_service", "operations_manager", "super_admin", "custom"] },
+        "permissions": { "type": "object" },
+        "adminNotes": { "type": "array", "items": { "type": "object" } },
         "tier": { "type": "string", "enum": ["free", "vip", "elite"] },
         "isVip": { "type": "boolean" },
         "vipAccess": { "type": "boolean" },
@@ -35,6 +38,23 @@
         "lastActiveAt": { "type": "string" }
       },
       "required": ["email", "role"]
+    },
+    "AdminAuditLog": {
+      "title": "AdminAuditLog",
+      "description": "Immutable staff audit trail for CRM, subscription, ban/mute, note, and RBAC permission updates",
+      "type": "object",
+      "properties": {
+        "actorUid": { "type": "string" },
+        "actorName": { "type": "string" },
+        "actorEmail": { "type": "string" },
+        "action": { "type": "string" },
+        "targetUid": { "type": "string" },
+        "targetLabel": { "type": "string" },
+        "details": { "type": "string" },
+        "timestampMs": { "type": "number" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["actorUid", "actorName", "action", "details", "timestampMs"]
     },
     "ActivationKey": {
       "title": "ActivationKey",
@@ -263,20 +283,54 @@
       "type": "object",
       "properties": {
         "id": { "type": "string", "maxLength": 128 },
+        "senderName": { "type": "string", "maxLength": 60 },
+        "showLogo": { "type": "boolean" },
+        "badgeText": { "type": "string", "maxLength": 60 },
         "title": { "type": "string", "maxLength": 200 },
         "message": { "type": "string", "maxLength": 1500 },
+        "bannerImageUrl": { "type": "string", "maxLength": 500 },
         "type": { "type": "string", "enum": ["offer", "news", "event", "update"] },
+        "accentColor": { "type": "string", "maxLength": 20 },
+        "surfaceStyle": { "type": "string", "enum": ["dark_terminal", "high_contrast", "alert_border"] },
+        "ctaColor": { "type": "string", "maxLength": 20 },
+        "placement": { "type": "string", "enum": ["center_modal", "top_banner", "bottom_card", "bottom_right_toast"] },
+        "triggerLocation": { "type": "string", "enum": ["global", "chart", "signals", "chat", "custom"] },
         "targetTabs": { "type": "array", "items": { "type": "string" } },
-        "targetAudience": { "type": "string", "enum": ["all", "free", "vip", "elite", "expiring_soon"] },
-        "ctaType": { "type": "string", "enum": ["none", "plans", "promo", "calendar", "url"] },
+        "targetAudience": { "type": "string", "enum": ["all", "free", "vip", "elite", "expiring_soon", "expired"] },
+        "startAtMs": { "type": "number" },
+        "endAtMs": { "type": "number" },
+        "countdownEnabled": { "type": "boolean" },
+        "countdownEndAtMs": { "type": "number" },
+        "countdownLabel": { "type": "string", "maxLength": 80 },
+        "frequency": { "type": "string", "enum": ["once_per_user", "once_per_session", "every_visit"] },
+        "ctaType": { "type": "string", "enum": ["none", "plans", "navigate_tab", "support_chat", "url", "promo", "calendar"] },
         "ctaLabel": { "type": "string", "maxLength": 100 },
         "ctaUrl": { "type": "string", "maxLength": 500 },
+        "ctaTargetTab": { "type": "string", "maxLength": 40 },
+        "sendWebPush": { "type": "boolean" },
+        "views": { "type": "number" },
+        "clicks": { "type": "number" },
         "isActive": { "type": "boolean" },
         "createdBy": { "type": "string", "maxLength": 200 },
         "createdAt": { "type": "string", "maxLength": 64 },
         "timestampMs": { "type": "number" }
       },
       "required": ["id", "title", "message", "type", "targetTabs", "targetAudience", "isActive", "timestampMs"]
+    },
+    "AdminTemplate": {
+      "title": "AdminTemplate",
+      "description": "Custom saved admin template for Pro Popup Studio or Branded Bulk Direct Messages",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 120 },
+        "templateType": { "type": "string", "enum": ["popup", "dm"] },
+        "payload": { "type": "object" },
+        "createdBy": { "type": "string", "maxLength": 200 },
+        "updatedAt": { "type": "string", "maxLength": 64 },
+        "timestampMs": { "type": "number" }
+      },
+      "required": ["id", "name", "templateType", "payload", "timestampMs"]
     },
     "ChartSetup": {
       "title": "ChartSetup",
@@ -376,6 +430,10 @@
       "schema": "Announcement",
       "description": "Admin popup announcements, offers, and macro event alerts"
     },
+    "/admin_templates/{templateId}": {
+      "schema": "AdminTemplate",
+      "description": "Custom saved templates for Pro Popup Studio and Branded Bulk Direct Messages"
+    },
     "/chart_setups/{symbol}": {
       "schema": "ChartSetup",
       "description": "Admin/Analyser broadcasted chart drawings and active signal setup per symbol"
@@ -383,6 +441,10 @@
     "/push_subscriptions/{uid}": {
       "schema": "PushSubscriptionRecord",
       "description": "Web Push VAPID device endpoints per signed-in user"
+    },
+    "/admin_audit_logs/{logId}": {
+      "schema": "AdminAuditLog",
+      "description": "Staff audit log records for subscription changes, bans/mutes, notes, and RBAC updates"
     }
   }
 }

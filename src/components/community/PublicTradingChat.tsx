@@ -56,6 +56,7 @@ import { markDocumentDeleted } from '../../utils/legacyDbRecovery';
 import { useSignalsContext } from '../../context/SignalsContext';
 import { useCommunityChat } from '../../context/CommunityChatContext';
 import { isUserCurrentlyOnline, triggerServerWebPush } from '../../utils/mobileNotifications';
+import { hasStaffPermission } from '../../utils/rbac';
 
 export interface ChatReplyTo {
   id: string;
@@ -202,7 +203,12 @@ export const PublicTradingChat: React.FC<Props> = ({
 
   // General Chat is open to all authenticated non-banned users (Free, VIP, Elite, Staff)
   const roleUpper = (userRole || user?.role || 'FREE').toUpperCase();
-  const isCurrentAdmin = Boolean(isAdmin || user?.isAdmin || ['ADMIN', 'MODERATOR'].includes(roleUpper));
+  const isCurrentAdmin = Boolean(
+    isAdmin ||
+      user?.isAdmin ||
+      ['ADMIN', 'MODERATOR'].includes(roleUpper) ||
+      hasStaffPermission(user, 'canManageChat')
+  );
   const canAccessChat = !user?.isBanned;
 
   // Derive active participants in the General Chat purely in memory from the live stream + current user (0 extra Firestore quota reads/writes)

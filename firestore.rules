@@ -44,24 +44,130 @@ service cloud.firestore {
         && request.auth.token.email == 'moe.albzour@gmail.com';
     }
 
+    function hasExplicitPermissionsMap() {
+      return userDocExists()
+        && userDoc().get('permissions', null) is map
+        && userDoc().get('permissions', {}).size() > 0;
+    }
+
+    function hasGranularPermission(permKey) {
+      return userDocExists()
+        && userDoc().get('isBanned', false) != true
+        && userDoc().get('permissions', {}) is map
+        && permKey in userDoc().get('permissions', {})
+        && userDoc().get('permissions', {})[permKey] == true;
+    }
+
     function isAdmin() {
       return isSuperAdminToken()
-        || (userDocExists() && userDoc().role in ['admin', 'ADMIN'] && userDoc().get('isBanned', false) != true);
+        || (userDocExists()
+            && userDoc().get('isBanned', false) != true
+            && (
+              userDoc().role in ['admin', 'ADMIN']
+              || userDoc().get('staffRole', 'none') == 'super_admin'
+              || hasGranularPermission('canManageSystem')
+            ));
+    }
+
+    function canManageChatPerm() {
+      return isAdmin()
+        || hasGranularPermission('canManageChat')
+        || (userDocExists()
+            && userDoc().get('isBanned', false) != true
+            && !hasExplicitPermissionsMap()
+            && (
+              userDoc().get('staffRole', 'none') == 'chat_moderator'
+              || userDoc().role in ['moderator', 'MODERATOR']
+            ));
     }
 
     function isModeratorOrAdmin() {
-      return isAdmin()
-        || (userDocExists() && userDoc().role in ['moderator', 'MODERATOR'] && userDoc().get('isBanned', false) != true);
+      return canManageChatPerm();
     }
 
-    function isStaff() {
-      return isModeratorOrAdmin()
-        || (userDocExists() && userDoc().role in ['sales', 'SALES', 'analyser', 'ANALYSER', 'analyst', 'ANALYST'] && userDoc().get('isBanned', false) != true);
+    function canPostSignalsPerm() {
+      return isAdmin()
+        || hasGranularPermission('canPostSignals')
+        || (userDocExists()
+            && userDoc().get('isBanned', false) != true
+            && !hasExplicitPermissionsMap()
+            && (
+              userDoc().get('staffRole', 'none') == 'market_analyst'
+              || userDoc().role in ['analyser', 'ANALYSER', 'analyst', 'ANALYST']
+            ));
+    }
+
+    function canPostAnalysisPerm() {
+      return isAdmin()
+        || hasGranularPermission('canPostAnalysis')
+        || (userDocExists()
+            && userDoc().get('isBanned', false) != true
+            && !hasExplicitPermissionsMap()
+            && (
+              userDoc().get('staffRole', 'none') == 'market_analyst'
+              || userDoc().role in ['analyser', 'ANALYSER', 'analyst', 'ANALYST']
+            ));
     }
 
     function isAnalyser() {
+      return canPostSignalsPerm() || canPostAnalysisPerm();
+    }
+
+    function canManageUsersPerm() {
       return isAdmin()
-        || (userDocExists() && userDoc().role in ['analyser', 'ANALYSER', 'analyst', 'ANALYST'] && userDoc().get('isBanned', false) != true);
+        || hasGranularPermission('canManageUsers')
+        || (userDocExists()
+            && userDoc().get('isBanned', false) != true
+            && !hasExplicitPermissionsMap()
+            && userDoc().get('staffRole', 'none') == 'operations_manager');
+    }
+
+    function canAccessInboxPerm() {
+      return isAdmin()
+        || hasGranularPermission('canAccessInbox')
+        || (userDocExists()
+            && userDoc().get('isBanned', false) != true
+            && !hasExplicitPermissionsMap()
+            && (
+              userDoc().get('staffRole', 'none') in ['customer_service', 'operations_manager']
+              || userDoc().role in ['sales', 'SALES']
+            ));
+    }
+
+    function canSendPopupsPerm() {
+      return isAdmin()
+        || hasGranularPermission('canSendPopups')
+        || (userDocExists()
+            && userDoc().get('isBanned', false) != true
+            && !hasExplicitPermissionsMap()
+            && userDoc().get('staffRole', 'none') == 'operations_manager');
+    }
+
+    function canViewAnalyticsPerm() {
+      return isAdmin()
+        || hasGranularPermission('canViewAnalytics')
+        || (userDocExists()
+            && userDoc().get('isBanned', false) != true
+            && !hasExplicitPermissionsMap()
+            && userDoc().get('staffRole', 'none') == 'operations_manager');
+    }
+
+    function canReadUsersDirectory() {
+      return isAdmin()
+        || canManageUsersPerm()
+        || canViewAnalyticsPerm()
+        || canSendPopupsPerm();
+    }
+
+    function isStaff() {
+      return isAdmin()
+        || canManageChatPerm()
+        || canPostSignalsPerm()
+        || canPostAnalysisPerm()
+        || canAccessInboxPerm()
+        || canManageUsersPerm()
+        || canSendPopupsPerm()
+        || canViewAnalyticsPerm();
     }
 
     function isBanned() {
@@ -256,14 +362,23 @@ service cloud.firestore {
     // 1. USERS COLLECTION (Strict Ownership + Protected Privileges)
     // ---------------------------------------------------------------
     match /users/{userId} {
-      allow get: if isValidId(userId) && (isOwner(userId) || isStaff());
-      allow list: if isStaff();
+      allow get: if isValidId(userId) && (isOwner(userId) || canReadUsersDirectory() || canManageChatPerm());
+      allow list: if canReadUsersDirectory();
       allow create: if isValidId(userId) && (isValidUserCreate(userId) || isAdmin());
       allow update: if isValidId(userId) && (
-        isAdmin()
-        || (isStaff() && !(incoming().get('role', '') in ['admin', 'ADMIN']))
+        isSafeOwnerProfileUpdate(userId)
         || isAtomicUserUpgradeUpdate(userId)
-        || isSafeOwnerProfileUpdate(userId)
+        || isAdmin()
+        || (
+          canManageUsersPerm()
+          && !(incoming().get('role', '') in ['admin', 'ADMIN'])
+          && incoming().get('staffRole', 'none') != 'super_admin'
+          && !incoming().diff(existing()).affectedKeys().hasAny(['permissions', 'staffRole'])
+        )
+        || (
+          canManageChatPerm()
+          && incoming().diff(existing()).affectedKeys().hasOnly(['isMutedFromChat', 'updatedAt', 'uid'])
+        )
       );
       allow delete: if isValidId(userId) && isAdmin();
     }
@@ -299,56 +414,53 @@ service cloud.firestore {
     }
 
     // ---------------------------------------------------------------
-    // 3. GENERAL CHAT (All Signed-In Non-Banned Users: Free, VIP, Elite, Admin, 500-char max)
+    // 3. GENERAL CHAT (Zero extra get() reads on public get/list; standalone canManageChat moderation)
     // ---------------------------------------------------------------
     match /public_chat/{messageId} {
-      allow get: if isValidId(messageId) && isSignedIn() && !isBanned();
-      allow list: if isSignedIn() && !isBanned();
+      allow get: if isValidId(messageId) && isSignedIn();
+      allow list: if isSignedIn();
       allow create: if isValidId(messageId) && (
         isAdmin()
         || (
           isSignedIn()
           && !isBanned()
           && !isMutedFromChat()
-          && (!isChatRoomClosed() || isModeratorOrAdmin())
+          && (!isChatRoomClosed() || canManageChatPerm())
           && incoming().uid == request.auth.uid
           && incoming().displayName is string
           && incoming().displayName.size() >= 1
           && incoming().displayName.size() <= 100
           && incoming().text is string
           && incoming().text.size() <= 500
-          && (incoming().text.size() >= 1 || (isModeratorOrAdmin() && incoming().imageUrl is string))
+          && (incoming().text.size() >= 1 || (canManageChatPerm() && incoming().imageUrl is string))
           && (incoming().get('imageUrl', null) == null
-              || (isModeratorOrAdmin() && incoming().imageUrl is string && incoming().imageUrl.size() <= 1048000))
+              || (canManageChatPerm() && incoming().imageUrl is string && incoming().imageUrl.size() <= 1048000))
           && incoming().get('isPinned', false) == false
           && incoming().get('likes', 0) == 0
         )
       );
       allow update: if isValidId(messageId) && (
-        isModeratorOrAdmin()
-        || isStaff()
+        (isSignedIn()
+          && incoming().diff(existing()).affectedKeys().hasOnly(['reactions', 'likes']))
         || (isSignedIn()
-            && !isBanned()
-            && incoming().diff(existing()).affectedKeys().hasOnly(['reactions', 'likes']))
-        || (isSignedIn()
-            && !isBanned()
-            && !isMutedFromChat()
-            && existing().uid == request.auth.uid
-            && incoming().diff(existing()).affectedKeys().hasOnly(['text', 'editedAt'])
-            && incoming().text is string
-            && incoming().text.size() >= 1
-            && incoming().text.size() <= 500)
+          && existing().uid == request.auth.uid
+          && !isBanned()
+          && !isMutedFromChat()
+          && incoming().diff(existing()).affectedKeys().hasOnly(['text', 'editedAt'])
+          && incoming().text is string
+          && incoming().text.size() >= 1
+          && incoming().text.size() <= 500)
+        || canManageChatPerm()
       );
       allow delete: if isValidId(messageId) && (
-        isModeratorOrAdmin()
-        || isStaff()
-        || (isSignedIn() && !isBanned() && existing().uid == request.auth.uid)
+        (isSignedIn() && existing().uid == request.auth.uid && !isBanned())
+        || canManageChatPerm()
       );
     }
 
     match /chat_messages/{messageId} {
-      allow get: if isValidId(messageId) && isSignedIn() && !isBanned();
-      allow list: if isSignedIn() && !isBanned();
+      allow get: if isValidId(messageId) && isSignedIn();
+      allow list: if isSignedIn();
       allow create: if isValidId(messageId)
         && isSignedIn()
         && !isBanned()
@@ -357,7 +469,7 @@ service cloud.firestore {
         && incoming().content is string
         && incoming().content.size() >= 1
         && incoming().content.size() <= 500;
-      allow update, delete: if isValidId(messageId) && isModeratorOrAdmin();
+      allow update, delete: if isValidId(messageId) && canManageChatPerm();
     }
 
     // ---------------------------------------------------------------
@@ -396,16 +508,21 @@ service cloud.firestore {
     match /dm_conversations/{convoId} {
       allow get: if isValidId(convoId)
         && isSignedIn()
-        && !isBanned()
         && (
-          (resource == null && convoId.matches('^.*' + request.auth.uid + '.*$'))
+          (resource == null && (convoId.matches('^.*' + request.auth.uid + '.*$') || convoId.matches('^.*mbktrading.*$')))
           || (resource != null && request.auth.uid in resource.data.participants)
+          || (resource != null && 'mbktrading' in resource.data.participants && canAccessInboxPerm())
+          || isAdmin()
+          || canViewAnalyticsPerm()
+        );
+      allow list: if isSignedIn()
+        && (
+          request.auth.uid in resource.data.participants
+          || ('mbktrading' in resource.data.participants && (canAccessInboxPerm() || canViewAnalyticsPerm()))
           || isAdmin()
         );
-      allow list: if isSignedIn() && !isBanned() && (request.auth.uid in resource.data.participants || isAdmin());
       allow create: if isValidId(convoId) && (
-        isAdmin()
-        || (
+        (
           isSignedIn()
           && !isBanned()
           && incoming().id == convoId
@@ -423,10 +540,12 @@ service cloud.firestore {
               : canReceiveDirectMessage(request.auth.uid, incoming().participants[0])
           )
         )
+        || ('mbktrading' in incoming().participants && canAccessInboxPerm())
+        || canSendPopupsPerm()
+        || isAdmin()
       );
       allow update: if isValidId(convoId) && (
-        isAdmin()
-        || (
+        (
           isSignedIn()
           && !isBanned()
           && request.auth.uid in existing().participants
@@ -445,6 +564,9 @@ service cloud.firestore {
             )
           )
         )
+        || ('mbktrading' in existing().participants && canAccessInboxPerm())
+        || canSendPopupsPerm()
+        || isAdmin()
       );
       allow delete: if isValidId(convoId) && isAdmin();
 
@@ -452,34 +574,40 @@ service cloud.firestore {
         allow get: if isValidId(convoId)
           && isValidId(msgId)
           && isSignedIn()
-          && !isBanned()
-          && (isAdmin() || request.auth.uid in get(/databases/$(database)/documents/dm_conversations/$(convoId)).data.participants);
+          && (
+            convoId.matches('^.*' + request.auth.uid + '.*$')
+            || (convoId.matches('^.*mbktrading.*$') && canAccessInboxPerm())
+            || isAdmin()
+          );
         allow list: if isValidId(convoId)
           && isSignedIn()
-          && !isBanned()
-          && (isAdmin() || request.auth.uid in get(/databases/$(database)/documents/dm_conversations/$(convoId)).data.participants);
+          && (
+            convoId.matches('^.*' + request.auth.uid + '.*$')
+            || (convoId.matches('^.*mbktrading.*$') && canAccessInboxPerm())
+            || isAdmin()
+          );
         allow create: if isValidId(convoId)
           && isValidId(msgId)
           && (
-            isAdmin()
-            || (
+            (
               isSignedIn()
               && !isBanned()
               && incoming().senderUid == request.auth.uid
               && incoming().recipientUid is string
               && incoming().recipientUid != request.auth.uid
-              && request.auth.uid in get(/databases/$(database)/documents/dm_conversations/$(convoId)).data.participants
-              && incoming().recipientUid in get(/databases/$(database)/documents/dm_conversations/$(convoId)).data.participants
+              && convoId.matches('^.*' + request.auth.uid + '.*$')
               && canReceiveDirectMessage(request.auth.uid, incoming().recipientUid)
               && incoming().text is string
               && incoming().text.size() >= 1
               && incoming().text.size() <= 1000
               && incoming().timestampMs is number
             )
+            || (convoId.matches('^.*mbktrading.*$') && canAccessInboxPerm())
+            || canSendPopupsPerm()
+            || isAdmin()
           );
         allow update: if isValidId(convoId) && isValidId(msgId) && (
-          isAdmin()
-          || (
+          (
             isSignedIn()
             && !isBanned()
             && existing().senderUid == request.auth.uid
@@ -488,16 +616,19 @@ service cloud.firestore {
             && incoming().text.size() >= 1
             && incoming().text.size() <= 1000
           )
+          || (convoId.matches('^.*mbktrading.*$') && canAccessInboxPerm())
+          || isAdmin()
         );
         allow delete: if isValidId(convoId) && isValidId(msgId) && (
-          isModeratorOrAdmin()
-          || (isSignedIn() && !isBanned() && existing().senderUid == request.auth.uid)
+          (isSignedIn() && existing().senderUid == request.auth.uid && !isBanned())
+          || (convoId.matches('^.*mbktrading.*$') && canAccessInboxPerm())
+          || isAdmin()
         );
       }
     }
 
     // ---------------------------------------------------------------
-    // 4. SIGNALS & BOT ALERTS (Admin/Analyser Writes, Tiered & Trial Reads)
+    // 4. SIGNALS & BOT ALERTS (Standalone canPostSignals Writes, Tiered & Trial Reads)
     // ---------------------------------------------------------------
     match /signals/{signalId} {
       allow get: if isValidId(signalId) && (
@@ -506,14 +637,16 @@ service cloud.firestore {
         || resource.data.get('accessLevel', 'free') in ['free', 'all']
         || resource.data.get('access_level', 'free') in ['free', 'all']
         || hasGrantedFeature('vipSignals')
-        || isAnalyser()
+        || canPostSignalsPerm()
+        || canViewAnalyticsPerm()
       );
       allow list: if resource.data.get('accessLevel', 'free') in ['free', 'all']
         || resource.data.get('access_level', 'free') in ['free', 'all']
         || hasGrantedFeature('vipSignals')
-        || isAnalyser();
+        || canPostSignalsPerm()
+        || canViewAnalyticsPerm();
       allow create: if isValidId(signalId)
-        && (isAdmin() || isAnalyser())
+        && canPostSignalsPerm()
         && incoming().symbol is string
         && incoming().symbol.size() >= 2
         && incoming().symbol.size() <= 30
@@ -521,7 +654,7 @@ service cloud.firestore {
         && incoming().entryPrice is number
         && incoming().tp1 is number
         && incoming().sl is number;
-      allow update, delete: if isValidId(signalId) && (isAdmin() || isModeratorOrAdmin() || isAnalyser() || isStaff());
+      allow update, delete: if isValidId(signalId) && canPostSignalsPerm();
     }
 
     function isValidBotAlertCreate(alertId, data) {
@@ -541,35 +674,32 @@ service cloud.firestore {
     }
 
     match /bot_alerts/{alertId} {
-      allow get: if isValidId(alertId) && (hasGrantedFeature('botSignals') || isAnalyser() || isStaff());
-      allow list: if hasGrantedFeature('botSignals') || isAnalyser() || isStaff();
+      allow get: if isValidId(alertId) && (hasGrantedFeature('botSignals') || canPostSignalsPerm() || canViewAnalyticsPerm());
+      allow list: if hasGrantedFeature('botSignals') || canPostSignalsPerm() || canViewAnalyticsPerm();
       allow create: if isValidId(alertId) && (
-        isAdmin()
-        || isAnalyser()
-        || isStaff()
-        || isValidBotAlertCreate(alertId, incoming())
+        isValidBotAlertCreate(alertId, incoming())
+        || canPostSignalsPerm()
       );
-      allow update, delete: if isValidId(alertId) && (isAdmin() || isModeratorOrAdmin() || isAnalyser() || isStaff());
+      allow update, delete: if isValidId(alertId) && canPostSignalsPerm();
     }
 
     match /engine_alerts/{alertId} {
-      allow get: if isValidId(alertId) && (hasGrantedFeature('botSignals') || isAnalyser() || isStaff());
-      allow list: if hasGrantedFeature('botSignals') || isAnalyser() || isStaff();
-      allow create, update, delete: if isValidId(alertId) && (isAdmin() || isModeratorOrAdmin() || isAnalyser() || isStaff());
+      allow get: if isValidId(alertId) && (hasGrantedFeature('botSignals') || canPostSignalsPerm() || canViewAnalyticsPerm());
+      allow list: if hasGrantedFeature('botSignals') || canPostSignalsPerm() || canViewAnalyticsPerm();
+      allow create, update, delete: if isValidId(alertId) && canPostSignalsPerm();
     }
 
     match /manual_signals/{signalId} {
-      allow get: if isValidId(signalId) && (hasGrantedFeature('vipSignals') || isAnalyser() || isStaff());
-      allow list: if hasGrantedFeature('vipSignals') || isAnalyser() || isStaff();
-      allow create, update, delete: if isValidId(signalId) && (isAdmin() || isModeratorOrAdmin() || isAnalyser() || isStaff());
+      allow get: if isValidId(signalId) && (hasGrantedFeature('vipSignals') || canPostSignalsPerm() || canViewAnalyticsPerm());
+      allow list: if hasGrantedFeature('vipSignals') || canPostSignalsPerm() || canViewAnalyticsPerm();
+      allow create, update, delete: if isValidId(signalId) && canPostSignalsPerm();
     }
 
     // ---------------------------------------------------------------
-    // 5. MARKET IDEAS & ANALYSIS HUB
+    // 5. MARKET IDEAS & ANALYSIS HUB (Standalone canPostAnalysis Writes)
     // ---------------------------------------------------------------
     function canPublishMarketAnalysis() {
-      return isAdmin()
-        || isAnalyser()
+      return canPostAnalysisPerm()
         || (userDocExists()
             && userDoc().get('isBanned', false) != true
             && userDoc().get('grantedFeatures', {}) is map
@@ -582,7 +712,6 @@ service cloud.firestore {
       allow list: if isSignedIn();
       allow create: if isValidId(ideaId)
         && isSignedIn()
-        && !isBanned()
         && canPublishMarketAnalysis()
         && incoming().title is string
         && incoming().title.size() >= 1
@@ -591,10 +720,9 @@ service cloud.firestore {
         && incoming().content.size() >= 1
         && incoming().content.size() <= 8000;
       allow update: if isValidId(ideaId) && (
-        canPublishMarketAnalysis()
-        || (isSignedIn()
-            && !isBanned()
+        (isSignedIn()
             && incoming().diff(existing()).affectedKeys().hasOnly(['likedBy', 'likesCount', 'comments', 'commentsCount']))
+        || canPublishMarketAnalysis()
       );
       allow delete: if isValidId(ideaId) && (isAdmin() || (canPublishMarketAnalysis() && existing().authorId == request.auth.uid));
     }
@@ -656,10 +784,25 @@ service cloud.firestore {
         && (!('updatedBy' in data) || (data.updatedBy is string && data.updatedBy.size() <= 200));
     }
 
+    function isValidPricingSettings(data) {
+      return data.keys().hasAll(['vipMonthlyUsd', 'eliteMonthlyUsd', 'syncToPublicPlans'])
+        && data.keys().hasOnly(['vipMonthlyUsd', 'eliteMonthlyUsd', 'syncToPublicPlans', 'updatedAt', 'updatedBy'])
+        && data.vipMonthlyUsd is number
+        && data.vipMonthlyUsd >= 0
+        && data.vipMonthlyUsd <= 100000
+        && data.eliteMonthlyUsd is number
+        && data.eliteMonthlyUsd >= 0
+        && data.eliteMonthlyUsd <= 100000
+        && data.syncToPublicPlans is bool
+        && (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64))
+        && (!('updatedBy' in data) || (data.updatedBy is string && data.updatedBy.size() <= 200));
+    }
+
     match /settings/{settingId} {
       allow get: if isValidId(settingId) && (
         settingId == 'platform'
         || settingId == 'app_version'
+        || settingId == 'pricing'
         || (settingId == 'chat_room' && isSignedIn())
         || isAdmin()
       );
@@ -668,12 +811,13 @@ service cloud.firestore {
         (settingId == 'chat_room' && isModeratorOrAdmin() && isValidChatRoomSettings(incoming()))
         || (settingId == 'app_version' && isAdmin() && isValidAppVersionSettings(incoming()))
         || (settingId == 'platform' && isAdmin() && isValidPlatformSettings(incoming()))
+        || (settingId == 'pricing' && isAdmin() && isValidPricingSettings(incoming()))
       );
       allow delete: if isValidId(settingId) && isAdmin();
     }
 
     // ---------------------------------------------------------------
-    // 7. ADMIN POPUP ANNOUNCEMENTS & MACRO EVENT WARNINGS
+    // 7. ADMIN POPUP ANNOUNCEMENTS, MACRO WARNINGS & SAVED TEMPLATES
     // ---------------------------------------------------------------
     function isValidAnnouncement(data, docId) {
       return data.id == docId
@@ -687,15 +831,34 @@ service cloud.firestore {
         && data.targetTabs is list
         && data.targetTabs.size() >= 1
         && data.targetTabs.size() <= 20
-        && data.targetAudience in ['all', 'free', 'vip', 'elite', 'expiring_soon']
+        && data.targetAudience in ['all', 'free', 'vip', 'elite', 'expiring_soon', 'expired']
         && data.isActive is bool
         && data.timestampMs is number;
     }
 
     match /announcements/{announcementId} {
       allow get, list: if isSignedIn();
-      allow create, update: if isValidId(announcementId) && isAdmin() && isValidAnnouncement(incoming(), announcementId);
-      allow delete: if isValidId(announcementId) && isAdmin();
+      allow create: if isValidId(announcementId) && canSendPopupsPerm() && isValidAnnouncement(incoming(), announcementId);
+      allow update: if isValidId(announcementId) && (
+        (canSendPopupsPerm() && isValidAnnouncement(incoming(), announcementId))
+        || (isSignedIn()
+            && !isBanned()
+            && incoming().diff(existing()).affectedKeys().hasOnly(['views', 'clicks']))
+      );
+      allow delete: if isValidId(announcementId) && canSendPopupsPerm();
+    }
+
+    match /admin_templates/{templateId} {
+      allow get, list: if canSendPopupsPerm();
+      allow create, update: if isValidId(templateId)
+        && canSendPopupsPerm()
+        && incoming().name is string
+        && incoming().name.size() >= 1
+        && incoming().name.size() <= 120
+        && incoming().templateType in ['popup', 'dm']
+        && incoming().payload is map
+        && incoming().timestampMs is number;
+      allow delete: if isValidId(templateId) && canSendPopupsPerm();
     }
 
     // ---------------------------------------------------------------
@@ -720,6 +883,32 @@ service cloud.firestore {
     match /push_subscriptions/{uid} {
       allow get, list: if true;
       allow create, update, delete: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+    }
+
+    // ---------------------------------------------------------------
+    // 11. MBK TRADING ACADEMY VIDEOS & SHORTS (Signed-In Reads, Admin Writes)
+    // ---------------------------------------------------------------
+    match /academy_videos/{videoId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ---------------------------------------------------------------
+    // 12. STAFF AUDIT LOGS (Staff Create, Super Admin Read, Immutable)
+    // ---------------------------------------------------------------
+    match /admin_audit_logs/{logId} {
+      allow get, list: if isAdmin();
+      allow create: if isValidId(logId)
+        && isStaff()
+        && incoming().actorUid == request.auth.uid
+        && incoming().actorName is string
+        && incoming().actorName.size() <= 140
+        && incoming().action is string
+        && incoming().action.size() <= 100
+        && incoming().details is string
+        && incoming().details.size() <= 1000
+        && incoming().timestampMs is number;
+      allow update, delete: if false;
     }
   }
 }

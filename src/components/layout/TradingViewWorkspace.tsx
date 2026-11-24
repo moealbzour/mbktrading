@@ -52,6 +52,7 @@ import {
 } from 'lucide-react';
 import { soundManager } from '../../utils/audio';
 import { getEffectiveTier, ELITE_LOCK_BADGE_TEXT } from '../../utils/entitlements';
+import { hasAnyStaffPermission, hasStaffPermission } from '../../utils/rbac';
 import { UserProfile, MarketSymbol, MarketTicker } from '../../types/trading';
 import { useSignalsContext } from '../../context/SignalsContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -182,7 +183,19 @@ export const TradingViewWorkspace: React.FC<Props> = ({
   lang = 'ar',
   onToggleLang
 }) => {
-  const [activeView, setActiveView] = useState<WorkspaceView>('signals');
+  const [activeView, setActiveView] = useState<WorkspaceView>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('tab') === 'academy' || params.get('academyVideo')) {
+          return 'academy';
+        }
+      } catch {
+        // ignore URL parse error
+      }
+    }
+    return 'signals';
+  });
   const [activeMainView, setActiveMainView] = useState<'chart' | 'heatmap'>('chart');
   const [dmTargetUser, setDmTargetUser] = useState<DmTargetUser | null>(null);
   const [messengerSubTab, setMessengerSubTab] = useState<MessengerSubTab>('general');
@@ -770,6 +783,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
 
   const roleUpperForAdmin = (user.role || '').toUpperCase();
   const canPublishQuickSignals =
+    hasStaffPermission(user, 'canPostSignals') ||
     Boolean(user.isAdmin) ||
     ['ADMIN', 'ANALYSER', 'ANALYST'].includes(roleUpperForAdmin) ||
     user.email?.toLowerCase() === 'moe.albzour@gmail.com';
@@ -897,17 +911,32 @@ export const TradingViewWorkspace: React.FC<Props> = ({
       topicEn: 'Breaking Financial Wire',
       icon: Newspaper
     },
-    // Staff CRM & Admin Dashboard (verified RBAC: ADMIN, MODERATOR, SALES, ANALYSER)
+    // Staff CRM & Admin Dashboard (verified granular RBAC — only shown when staff has at least one Admin-panel permission)
     ...((() => {
-      const roleUpper = (user.role || '').toUpperCase();
-      const isStaffUser =
-        ['ADMIN', 'MODERATOR', 'SALES', 'ANALYSER', 'ANALYST'].includes(roleUpper) ||
+      const canAccessAdminPanel =
+        hasStaffPermission(user, 'canViewAnalytics') ||
+        hasStaffPermission(user, 'canManageUsers') ||
+        hasStaffPermission(user, 'canSendPopups') ||
+        hasStaffPermission(user, 'canPostSignals') ||
+        hasStaffPermission(user, 'canPostAnalysis') ||
+        hasStaffPermission(user, 'canManageSystem') ||
         Boolean(user.isAdmin) ||
         user.email?.toLowerCase() === 'moe.albzour@gmail.com';
-      if (!isStaffUser) return [];
+      if (!canAccessAdminPanel) return [];
 
-      const isAnalyserRole = ['ANALYSER', 'ANALYST'].includes(roleUpper) && !user.isAdmin;
-      const isModOrSales = ['MODERATOR', 'SALES'].includes(roleUpper) && !user.isAdmin;
+      const isAnalyserRole =
+        !user.isAdmin &&
+        !hasStaffPermission(user, 'canManageUsers') &&
+        !hasStaffPermission(user, 'canViewAnalytics') &&
+        !hasStaffPermission(user, 'canSendPopups') &&
+        !hasStaffPermission(user, 'canManageSystem') &&
+        (hasStaffPermission(user, 'canPostSignals') || hasStaffPermission(user, 'canPostAnalysis'));
+      const isModOrSales =
+        !user.isAdmin &&
+        !hasStaffPermission(user, 'canManageSystem') &&
+        (hasStaffPermission(user, 'canManageUsers') ||
+          hasStaffPermission(user, 'canViewAnalytics') ||
+          hasStaffPermission(user, 'canSendPopups'));
 
       return [{
         id: 'admin' as WorkspaceView | 'heatmap',
@@ -1544,7 +1573,11 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                       activeSymbol={selectedSymbol}
                       onSelectSymbol={(sym) => onSelectSymbol(sym as MarketSymbol)}
                       isAdmin={Boolean(user.isAdmin || roleUpperForAdmin === 'ADMIN')}
-                      isAnalyser={['ANALYSER', 'ANALYST'].includes(roleUpperForAdmin)}
+                      isAnalyser={
+                        hasStaffPermission(user, 'canPostAnalysis') ||
+                        hasStaffPermission(user, 'canPostSignals') ||
+                        ['ANALYSER', 'ANALYST'].includes(roleUpperForAdmin)
+                      }
                       isVip={isVIP}
                       onOpenPlans={() => setPlansModalOpen(true)}
                     />
@@ -1589,7 +1622,15 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                 {activeView === 'calendar' && <EconomicCalendarPanel lang={lang} />}
 
                 {/* FREE TIER BASIC TOOL: ACADEMY */}
-                {activeView === 'academy' && <TradingAcademyPanel lang={lang} />}
+                {activeView === 'academy' && (
+                  <TradingAcademyPanel
+                    lang={lang}
+                    userProfile={user}
+                    isAdmin={Boolean(user.isAdmin || roleUpperForAdmin === 'ADMIN')}
+                    onOpenPlans={() => setPlansModalOpen(true)}
+                    onContactSupport={() => setSupportModalOpen(true)}
+                  />
+                )}
 
                 {/* ELITE LOCKED MODULES HUB */}
                 {activeView === 'elite' && (
@@ -1701,8 +1742,9 @@ export const TradingViewWorkspace: React.FC<Props> = ({
 
                 {/* VIEW 6: DEDICATED ADMIN CONTROL CENTER (Backed by Firestore & RBAC) */}
                 {activeView === 'admin' && (
-                  <div className="min-h-[calc(100vh-140px)] w-full rounded-2xl overflow-hidden border border-[#2a2e39] shadow-2xl">
+                  <div className="min-h-[calc(100vh-140px)] w-full rounded-xl overflow-hidden border border-[#2A2E39] shadow-2xl">
                     <AdminDashboard
+                      userProfile={user}
                       currentRole={user.role}
                       isAdmin={user.role === 'ADMIN' || user.isAdmin}
                       lang={lang}
@@ -2355,6 +2397,38 @@ export const TradingViewWorkspace: React.FC<Props> = ({
         onNavigateToCalendar={() => {
           setActiveMainView('chart');
           setActiveView('calendar');
+        }}
+        onNavigateToTab={(tab) => {
+          if (tab === 'dm') {
+            setMessengerSubTab('dm');
+            setSideDrawerView('dm');
+            setActiveMainView('chart');
+            setActiveView('chat');
+            markDmAsRead();
+          } else if (tab === 'chat') {
+            setMessengerSubTab('general');
+            setSideDrawerView('chat');
+            setActiveMainView('chart');
+            setActiveView('chat');
+            markChatAsRead();
+          } else {
+            setActiveMainView('chart');
+            setActiveView(tab as any);
+          }
+        }}
+        onOpenSupportChat={() => {
+          setDmTargetUser({
+            uid: 'mbktrading',
+            displayName: 'MBK Trading',
+            role: 'ADMIN',
+            initialTopic: 'support',
+            isPlatformTicket: true
+          });
+          setMessengerSubTab('dm');
+          setSideDrawerView('dm');
+          setActiveMainView('chart');
+          setActiveView('chat');
+          markDmAsRead();
         }}
       />
     </div>

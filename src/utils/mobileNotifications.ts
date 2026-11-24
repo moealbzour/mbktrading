@@ -19,7 +19,7 @@ const RECENT_ACTIVITY_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 const CLIENT_CHAT_PUSH_COOLDOWN_MS = 20_000; // 20 seconds client-side guard for high-frequency chat
 
 let cachedSwRegistration: ServiceWorkerRegistration | null = null;
-let lastWebPushSyncMeta: { isVip?: boolean; isAdmin?: boolean } = {};
+let lastWebPushSyncMeta: { isVip?: boolean; isAdmin?: boolean; canAccessInbox?: boolean } = {};
 let lastClientChatPushAtMs = 0;
 
 function cleanClientVapidKey(raw?: string): string {
@@ -89,12 +89,13 @@ export async function ensureBackgroundNotificationWorkerReady(): Promise<Service
  */
 export async function registerWebPushSubscription(
   idToken: string,
-  meta?: { isVip?: boolean; isAdmin?: boolean }
+  meta?: { isVip?: boolean; isAdmin?: boolean; canAccessInbox?: boolean }
 ): Promise<WebPushSubscribeResult> {
   if (meta) {
     lastWebPushSyncMeta = {
       isVip: Boolean(meta.isVip),
-      isAdmin: Boolean(meta.isAdmin)
+      isAdmin: Boolean(meta.isAdmin),
+      canAccessInbox: Boolean(meta.canAccessInbox ?? meta.isAdmin)
     };
   }
 
@@ -185,6 +186,12 @@ export async function registerWebPushSubscription(
         subscription: subJson,
         isVip: Boolean(meta?.isVip ?? lastWebPushSyncMeta.isVip),
         isAdmin: Boolean(meta?.isAdmin ?? lastWebPushSyncMeta.isAdmin),
+        canAccessInbox: Boolean(
+          meta?.canAccessInbox ??
+            lastWebPushSyncMeta.canAccessInbox ??
+            meta?.isAdmin ??
+            lastWebPushSyncMeta.isAdmin
+        ),
         muteChatPush: isChatPushMuted()
       })
     });
@@ -219,11 +226,13 @@ export async function registerWebPushSubscription(
 export async function syncCurrentUserWebPush(meta?: {
   isVip?: boolean;
   isAdmin?: boolean;
+  canAccessInbox?: boolean;
 }): Promise<WebPushSubscribeResult> {
   if (meta) {
     lastWebPushSyncMeta = {
       isVip: Boolean(meta.isVip),
-      isAdmin: Boolean(meta.isAdmin)
+      isAdmin: Boolean(meta.isAdmin),
+      canAccessInbox: Boolean(meta.canAccessInbox ?? meta.isAdmin)
     };
   }
   try {

@@ -44,6 +44,8 @@ import {
 interface Props {
   currentUserRole?: string;
   currentUserName?: string;
+  canPostSignals?: boolean;
+  canPostAnalysis?: boolean;
   lang?: 'ar' | 'en';
   onClose?: () => void;
 }
@@ -51,13 +53,20 @@ interface Props {
 export const PublishingCenter: React.FC<Props> = ({
   currentUserRole = 'ADMIN',
   currentUserName = 'MBK Chief Analyst',
+  canPostSignals,
+  canPostAnalysis,
   lang = 'ar',
   onClose
 }) => {
   const { setDbError, removeSignalLocally, updateSignalStatusLocally } = useSignalsContext();
   const isAr = lang === 'ar';
   const roleUpper = (currentUserRole || '').toUpperCase();
-  const isAuthorized = roleUpper === 'ADMIN' || roleUpper === 'ANALYSER' || roleUpper === 'ANALYST';
+  const isAuthorized =
+    Boolean(canPostSignals) ||
+    Boolean(canPostAnalysis) ||
+    roleUpper === 'ADMIN' ||
+    roleUpper === 'ANALYSER' ||
+    roleUpper === 'ANALYST';
 
   const [activeTab, setActiveTab] = useState<'signals' | 'manage'>('signals');
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);

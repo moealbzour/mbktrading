@@ -31,6 +31,7 @@ export interface PushSubscriptionDoc {
   uid: string;
   isVip: boolean;
   isAdmin: boolean;
+  canAccessInbox?: boolean;
   muteChatPush?: boolean;
   subscriptions: StoredPushEndpoint[];
   updatedAt: number;
@@ -260,6 +261,7 @@ export function toFirestoreRestPushDoc(docData: PushSubscriptionDoc) {
       uid: { stringValue: docData.uid },
       isVip: { booleanValue: docData.isVip },
       isAdmin: { booleanValue: docData.isAdmin },
+      canAccessInbox: { booleanValue: Boolean(docData.canAccessInbox || docData.isAdmin) },
       muteChatPush: { booleanValue: Boolean(docData.muteChatPush) },
       updatedAt: { integerValue: String(Math.trunc(docData.updatedAt)) },
       subscriptions: {
@@ -346,6 +348,7 @@ export default async function handler(req: Req, res: ServerResponse) {
   const isSuperAdmin = verifiedUser.email === 'moe.albzour@gmail.com';
   const isVip = Boolean(body?.isVip) || isSuperAdmin;
   const isAdmin = Boolean(body?.isAdmin) || isSuperAdmin;
+  const canAccessInbox = Boolean(body?.canAccessInbox) || isAdmin;
   const nowMs = Date.now();
 
   const newEntry: StoredPushEndpoint = {
@@ -385,6 +388,7 @@ export default async function handler(req: Req, res: ServerResponse) {
       uid: verifiedUser.uid,
       isVip,
       isAdmin,
+      canAccessInbox,
       muteChatPush,
       subscriptions: mergeEndpoints(existingEndpoints),
       updatedAt: nowMs
@@ -427,6 +431,7 @@ export default async function handler(req: Req, res: ServerResponse) {
         uid: verifiedUser.uid,
         isVip,
         isAdmin,
+        canAccessInbox,
         muteChatPush: adminMuteChat,
         subscriptions: mergeEndpoints(adminExisting),
         updatedAt: nowMs
