@@ -184,6 +184,7 @@ export interface AdminUserRecord {
   createdAtMs?: number;
   lastActiveAt?: string;
   lastActiveAtMs?: number;
+  altDocIds?: string[];
 }
 
 export interface AdminNewsRecord {
@@ -1876,6 +1877,13 @@ export const AdminDashboard: React.FC<Props> = ({
               const keepCandidate = tierScore(candidate) > tierScore(existingForEmail);
               const winner = keepCandidate ? candidate : existingForEmail;
               const loser = keepCandidate ? existingForEmail : candidate;
+              const mergedAltDocIds = Array.from(
+                new Set([
+                  ...(winner.altDocIds || []),
+                  ...(loser.altDocIds || []),
+                  loser.id
+                ])
+              ).filter((altId) => Boolean(altId) && altId !== winner.id);
               const mergedWinner: AdminUserRecord = {
                 ...loser,
                 ...winner,
@@ -1885,7 +1893,8 @@ export const AdminDashboard: React.FC<Props> = ({
                 totalPaid: Math.max(
                   Number(winner.totalPaid || 0),
                   Number(loser.totalPaid || 0)
-                )
+                ),
+                altDocIds: mergedAltDocIds.length > 0 ? mergedAltDocIds : undefined
               };
               byEmailMap.set(cleanEmail, mergedWinner);
               byIdMap.delete(loser.id);
@@ -2184,6 +2193,13 @@ export const AdminDashboard: React.FC<Props> = ({
       }
 
       await setDoc(userRef, rolePayload, { merge: true });
+      if (targetObj?.altDocIds && targetObj.altDocIds.length > 0) {
+        await Promise.all(
+          targetObj.altDocIds.map((altId) =>
+            setDoc(doc(db, 'users', altId), { ...rolePayload, uid: altId }, { merge: true }).catch(() => {})
+          )
+        );
+      }
 
       await setDoc(
         doc(db, 'chat_profiles', targetUserId),
@@ -2292,6 +2308,13 @@ export const AdminDashboard: React.FC<Props> = ({
       };
 
       await setDoc(doc(db, 'users', inspectUser.id), payload, { merge: true });
+      if (inspectUser.altDocIds && inspectUser.altDocIds.length > 0) {
+        await Promise.all(
+          inspectUser.altDocIds.map((altId) =>
+            setDoc(doc(db, 'users', altId), { ...payload, uid: altId }, { merge: true }).catch(() => {})
+          )
+        );
+      }
 
       await recordAdminAuditLog({
         action: 'USER_PLAN_UPDATED',
@@ -2396,6 +2419,13 @@ export const AdminDashboard: React.FC<Props> = ({
       };
 
       await setDoc(doc(db, 'users', inspectUser.id), payload, { merge: true });
+      if (inspectUser.altDocIds && inspectUser.altDocIds.length > 0) {
+        await Promise.all(
+          inspectUser.altDocIds.map((altId) =>
+            setDoc(doc(db, 'users', altId), { ...payload, uid: altId }, { merge: true }).catch(() => {})
+          )
+        );
+      }
 
       await recordAdminAuditLog({
         action: 'USER_EXPIRY_UPDATED',
@@ -2484,6 +2514,13 @@ export const AdminDashboard: React.FC<Props> = ({
       };
 
       await setDoc(doc(db, 'users', inspectUser.id), payload, { merge: true });
+      if (inspectUser.altDocIds && inspectUser.altDocIds.length > 0) {
+        await Promise.all(
+          inspectUser.altDocIds.map((altId) =>
+            setDoc(doc(db, 'users', altId), { ...payload, uid: altId }, { merge: true }).catch(() => {})
+          )
+        );
+      }
 
       await recordAdminAuditLog({
         action: 'USER_EXPIRY_UPDATED',
@@ -2655,15 +2692,20 @@ export const AdminDashboard: React.FC<Props> = ({
         [featureKey]: expiryIso
       };
 
-      await setDoc(
-        doc(db, 'users', inspectUser.id),
-        {
-          uid: inspectUser.id,
-          grantedFeatures: nextMap,
-          updatedAt: serverTimestamp()
-        },
-        { merge: true }
-      );
+      const grantPayload = {
+        uid: inspectUser.id,
+        role: (inspectUser.role || 'free').toLowerCase(),
+        grantedFeatures: nextMap,
+        updatedAt: serverTimestamp()
+      };
+      await setDoc(doc(db, 'users', inspectUser.id), grantPayload, { merge: true });
+      if (inspectUser.altDocIds && inspectUser.altDocIds.length > 0) {
+        await Promise.all(
+          inspectUser.altDocIds.map((altId) =>
+            setDoc(doc(db, 'users', altId), { ...grantPayload, uid: altId }, { merge: true }).catch(() => {})
+          )
+        );
+      }
 
       await recordAdminAuditLog({
         action: 'FEATURE_GRANT_UPDATED',
@@ -2703,15 +2745,20 @@ export const AdminDashboard: React.FC<Props> = ({
       };
       delete nextMap[featureKey];
 
-      await setDoc(
-        doc(db, 'users', inspectUser.id),
-        {
-          uid: inspectUser.id,
-          grantedFeatures: nextMap,
-          updatedAt: serverTimestamp()
-        },
-        { merge: true }
-      );
+      const revokePayload = {
+        uid: inspectUser.id,
+        role: (inspectUser.role || 'free').toLowerCase(),
+        grantedFeatures: nextMap,
+        updatedAt: serverTimestamp()
+      };
+      await setDoc(doc(db, 'users', inspectUser.id), revokePayload, { merge: true });
+      if (inspectUser.altDocIds && inspectUser.altDocIds.length > 0) {
+        await Promise.all(
+          inspectUser.altDocIds.map((altId) =>
+            setDoc(doc(db, 'users', altId), { ...revokePayload, uid: altId }, { merge: true }).catch(() => {})
+          )
+        );
+      }
 
       await recordAdminAuditLog({
         action: 'FEATURE_GRANT_UPDATED',
@@ -2778,6 +2825,13 @@ export const AdminDashboard: React.FC<Props> = ({
         updatedAt: serverTimestamp()
       };
       await setDoc(userRef, paymentPayload, { merge: true });
+      if (inspectUser.altDocIds && inspectUser.altDocIds.length > 0) {
+        await Promise.all(
+          inspectUser.altDocIds.map((altId) =>
+            setDoc(doc(db, 'users', altId), { ...paymentPayload, uid: altId }, { merge: true }).catch(() => {})
+          )
+        );
+      }
 
       await recordAdminAuditLog({
         action: 'MANUAL_PAYMENT_LOGGED',

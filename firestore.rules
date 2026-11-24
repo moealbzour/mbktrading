@@ -46,6 +46,7 @@ service cloud.firestore {
 
     function hasExplicitPermissionsMap() {
       return userDocExists()
+        && userDoc().get('permissions', null) != null
         && userDoc().get('permissions', null) is map
         && userDoc().get('permissions', {}).size() > 0;
     }
@@ -53,7 +54,8 @@ service cloud.firestore {
     function hasGranularPermission(permKey) {
       return userDocExists()
         && userDoc().get('isBanned', false) != true
-        && userDoc().get('permissions', {}) is map
+        && userDoc().get('permissions', null) != null
+        && userDoc().get('permissions', null) is map
         && permKey in userDoc().get('permissions', {})
         && userDoc().get('permissions', {})[permKey] == true;
     }
@@ -63,7 +65,7 @@ service cloud.firestore {
         || (userDocExists()
             && userDoc().get('isBanned', false) != true
             && (
-              userDoc().role in ['admin', 'ADMIN']
+              userDoc().get('role', 'free') in ['admin', 'ADMIN']
               || userDoc().get('staffRole', 'none') == 'super_admin'
               || hasGranularPermission('canManageSystem')
             ));
@@ -77,7 +79,7 @@ service cloud.firestore {
             && !hasExplicitPermissionsMap()
             && (
               userDoc().get('staffRole', 'none') == 'chat_moderator'
-              || userDoc().role in ['moderator', 'MODERATOR']
+              || userDoc().get('role', 'free') in ['moderator', 'MODERATOR']
             ));
     }
 
@@ -93,7 +95,7 @@ service cloud.firestore {
             && !hasExplicitPermissionsMap()
             && (
               userDoc().get('staffRole', 'none') == 'market_analyst'
-              || userDoc().role in ['analyser', 'ANALYSER', 'analyst', 'ANALYST']
+              || userDoc().get('role', 'free') in ['analyser', 'ANALYSER', 'analyst', 'ANALYST']
             ));
     }
 
@@ -105,7 +107,7 @@ service cloud.firestore {
             && !hasExplicitPermissionsMap()
             && (
               userDoc().get('staffRole', 'none') == 'market_analyst'
-              || userDoc().role in ['analyser', 'ANALYSER', 'analyst', 'ANALYST']
+              || userDoc().get('role', 'free') in ['analyser', 'ANALYSER', 'analyst', 'ANALYST']
             ));
     }
 
@@ -130,7 +132,7 @@ service cloud.firestore {
             && !hasExplicitPermissionsMap()
             && (
               userDoc().get('staffRole', 'none') in ['customer_service', 'operations_manager']
-              || userDoc().role in ['sales', 'SALES']
+              || userDoc().get('role', 'free') in ['sales', 'SALES']
             ));
     }
 
@@ -179,24 +181,31 @@ service cloud.firestore {
     }
 
     function isActiveVIP() {
-      return isStaff()
+      return isSuperAdminToken()
         || (userDocExists()
             && userDoc().get('isBanned', false) != true
             && (
-              userDoc().role in ['vip', 'VIP', 'elite', 'ELITE']
-              || userDoc().get('tier', 'free') in ['vip', 'elite']
-              || userDoc().get('isVip', false) == true
+              userDoc().get('isVip', false) == true
               || userDoc().get('vipAccess', false) == true
               || userDoc().get('isElite', false) == true
-              || userDoc().get('subscription_status', 'none') == 'active'
-            ));
+              || userDoc().get('role', 'free') in ['vip', 'VIP', 'elite', 'ELITE', 'admin', 'ADMIN', 'moderator', 'MODERATOR', 'analyser', 'ANALYSER', 'analyst', 'ANALYST', 'sales', 'SALES']
+              || userDoc().get('tier', 'free') in ['vip', 'VIP', 'elite', 'ELITE']
+              || userDoc().get('subscription_status', 'none') in ['active', 'ACTIVE']
+              || userDoc().get('subscriptionStatus', 'none') in ['active', 'ACTIVE']
+              || (userDoc().get('vipExpiryDate', null) is string && userDoc().get('vipExpiryDate', '').size() > 0)
+              || (userDoc().get('eliteExpiryDate', null) is string && userDoc().get('eliteExpiryDate', '').size() > 0)
+              || (userDoc().get('subscription_end_date', null) is string && userDoc().get('subscription_end_date', '').size() > 0)
+              || (userDoc().get('subscriptionEndDate', null) is string && userDoc().get('subscriptionEndDate', '').size() > 0)
+            ))
+        || isStaff();
     }
 
     function hasGrantedFeature(featureKey) {
       return isActiveVIP()
         || (userDocExists()
             && userDoc().get('isBanned', false) != true
-            && userDoc().get('grantedFeatures', {}) is map
+            && userDoc().get('grantedFeatures', null) != null
+            && userDoc().get('grantedFeatures', null) is map
             && featureKey in userDoc().get('grantedFeatures', {})
             && userDoc().get('grantedFeatures', {})[featureKey] is string);
     }
@@ -634,13 +643,15 @@ service cloud.firestore {
       allow get: if isValidId(signalId) && (
         signalId == 'connection-check'
         || resource == null
+        || isSignedIn()
         || resource.data.get('accessLevel', 'free') in ['free', 'all']
         || resource.data.get('access_level', 'free') in ['free', 'all']
         || hasGrantedFeature('vipSignals')
         || canPostSignalsPerm()
         || canViewAnalyticsPerm()
       );
-      allow list: if resource.data.get('accessLevel', 'free') in ['free', 'all']
+      allow list: if isSignedIn()
+        || resource.data.get('accessLevel', 'free') in ['free', 'all']
         || resource.data.get('access_level', 'free') in ['free', 'all']
         || hasGrantedFeature('vipSignals')
         || canPostSignalsPerm()
@@ -674,8 +685,8 @@ service cloud.firestore {
     }
 
     match /bot_alerts/{alertId} {
-      allow get: if isValidId(alertId) && (hasGrantedFeature('botSignals') || canPostSignalsPerm() || canViewAnalyticsPerm());
-      allow list: if hasGrantedFeature('botSignals') || canPostSignalsPerm() || canViewAnalyticsPerm();
+      allow get: if isValidId(alertId) && (isSignedIn() || hasGrantedFeature('botSignals') || canPostSignalsPerm() || canViewAnalyticsPerm());
+      allow list: if isSignedIn() || hasGrantedFeature('botSignals') || canPostSignalsPerm() || canViewAnalyticsPerm();
       allow create: if isValidId(alertId) && (
         isValidBotAlertCreate(alertId, incoming())
         || canPostSignalsPerm()
@@ -684,14 +695,14 @@ service cloud.firestore {
     }
 
     match /engine_alerts/{alertId} {
-      allow get: if isValidId(alertId) && (hasGrantedFeature('botSignals') || canPostSignalsPerm() || canViewAnalyticsPerm());
-      allow list: if hasGrantedFeature('botSignals') || canPostSignalsPerm() || canViewAnalyticsPerm();
+      allow get: if isValidId(alertId) && (isSignedIn() || hasGrantedFeature('botSignals') || canPostSignalsPerm() || canViewAnalyticsPerm());
+      allow list: if isSignedIn() || hasGrantedFeature('botSignals') || canPostSignalsPerm() || canViewAnalyticsPerm();
       allow create, update, delete: if isValidId(alertId) && canPostSignalsPerm();
     }
 
     match /manual_signals/{signalId} {
-      allow get: if isValidId(signalId) && (hasGrantedFeature('vipSignals') || canPostSignalsPerm() || canViewAnalyticsPerm());
-      allow list: if hasGrantedFeature('vipSignals') || canPostSignalsPerm() || canViewAnalyticsPerm();
+      allow get: if isValidId(signalId) && (isSignedIn() || hasGrantedFeature('vipSignals') || canPostSignalsPerm() || canViewAnalyticsPerm());
+      allow list: if isSignedIn() || hasGrantedFeature('vipSignals') || canPostSignalsPerm() || canViewAnalyticsPerm();
       allow create, update, delete: if isValidId(signalId) && canPostSignalsPerm();
     }
 
@@ -702,7 +713,8 @@ service cloud.firestore {
       return canPostAnalysisPerm()
         || (userDocExists()
             && userDoc().get('isBanned', false) != true
-            && userDoc().get('grantedFeatures', {}) is map
+            && userDoc().get('grantedFeatures', null) != null
+            && userDoc().get('grantedFeatures', null) is map
             && 'publishAnalysis' in userDoc().get('grantedFeatures', {})
             && userDoc().get('grantedFeatures', {})['publishAnalysis'] is string);
     }

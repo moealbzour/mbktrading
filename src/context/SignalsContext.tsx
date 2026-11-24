@@ -706,8 +706,16 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
           setLoading(false);
           return;
         }
-        console.warn('[SignalsContext] Firestore signals listener notice:', error?.message || error);
         const errMsg = error?.message || String(error);
+        const isPermDenied =
+          error?.code === 'permission-denied' ||
+          errMsg.toLowerCase().includes('insufficient permissions');
+        if (isPermDenied) {
+          console.warn('[SignalsContext] Transient permission notice on signals listener; serving cached signals:', errMsg);
+          setLoading(false);
+          return;
+        }
+        console.warn('[SignalsContext] Firestore signals listener notice:', errMsg);
         setDbError(`[Firestore signals collection error]: ${errMsg}`);
         setLoading(false);
       }
@@ -801,8 +809,16 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
             setBotAlertsLoading(false);
             return;
           }
-          console.warn('[SignalsContext] Firestore bot_alerts listener notice:', error?.message || error);
           const errMsg = error?.message || String(error);
+          const isPermDenied =
+            error?.code === 'permission-denied' ||
+            errMsg.toLowerCase().includes('insufficient permissions');
+          if (isPermDenied) {
+            console.warn('[SignalsContext] Transient permission notice on bot_alerts listener; serving cached bot alerts:', errMsg);
+            setBotAlertsLoading(false);
+            return;
+          }
+          console.warn('[SignalsContext] Firestore bot_alerts listener notice:', errMsg);
           setDbError((prev) =>
             prev
               ? `${prev} | [Firestore bot_alerts error]: ${errMsg}`
