@@ -585,7 +585,7 @@ export function getLastAutoBackupTime(): string | null {
 }
 
 export async function createFullBackupSnapshot(
-  mirrorToSecondaryDb = true,
+  mirrorToSecondaryDb = false,
   useCacheOnly = false
 ): Promise<MbkFullBackupSnapshot> {
   const snapshot: MbkFullBackupSnapshot = {
@@ -606,9 +606,7 @@ export async function createFullBackupSnapshot(
   const fetchCol = async (colName: string, maxDocs = 300): Promise<Record<string, any>[]> => {
     try {
       const q = query(collection(db, colName), limit(maxDocs));
-      const snap = useCacheOnly
-        ? await getDocsFromCache(q).catch(() => getDocs(q))
-        : await getDocs(q);
+      const snap = useCacheOnly ? await getDocsFromCache(q) : await getDocs(q);
       const list: Record<string, any>[] = [];
       snap.forEach((d) => list.push({ id: d.id, ...d.data() }));
       return list;
@@ -634,13 +632,17 @@ export async function createFullBackupSnapshot(
   snapshot.activation_keys = activationKeys;
 
   try {
-    const dmSnap = await getDocs(query(collection(db, 'dm_conversations'), limit(150)));
+    const dmQuery = query(collection(db, 'dm_conversations'), limit(150));
+    const dmSnap = useCacheOnly ? await getDocsFromCache(dmQuery) : await getDocs(dmQuery);
     for (const d of dmSnap.docs) {
       snapshot.dm_conversations.push({ id: d.id, ...d.data() });
       try {
-        const msgSnap = await getDocs(
-          query(collection(db, 'dm_conversations', d.id, 'messages'), orderBy('timestampMs', 'asc'), limit(100))
+        const msgQuery = query(
+          collection(db, 'dm_conversations', d.id, 'messages'),
+          orderBy('timestampMs', 'asc'),
+          limit(100)
         );
+        const msgSnap = useCacheOnly ? await getDocsFromCache(msgQuery) : await getDocs(msgQuery);
         msgSnap.forEach((m) => {
           snapshot.dm_messages.push({ convoId: d.id, id: m.id, data: m.data() });
         });
@@ -659,8 +661,8 @@ export async function createFullBackupSnapshot(
     // ignore storage quota errors
   }
 
-  // Also mirror critical records to the secondary database (legacyDb) as a hot-standby backup when available
-  if (mirrorToSecondaryDb) {
+  // Only mirror to secondary database if a distinct standby instance is actually configured
+  if (mirrorToSecondaryDb && legacyDb !== db) {
     try {
       for (const u of snapshot.users.slice(0, 100)) {
         const uid = u.id || u.uid;

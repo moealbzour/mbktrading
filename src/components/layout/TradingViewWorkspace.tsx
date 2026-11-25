@@ -48,7 +48,8 @@ import {
   Download,
   Sun,
   Moon,
-  Monitor
+  Monitor,
+  Compass
 } from 'lucide-react';
 import { soundManager } from '../../utils/audio';
 import { getEffectiveTier, ELITE_LOCK_BADGE_TEXT } from '../../utils/entitlements';
@@ -86,6 +87,11 @@ import { IndicatorsStorePanel } from '../store/IndicatorsStorePanel';
 import { MarketAnalysisHub } from '../analysis/MarketAnalysisHub';
 import { EliteLockedModule } from '../common/EliteLockedModule';
 import { MacroEventAndAnnouncementPopup } from '../common/MacroEventAndAnnouncementPopup';
+import {
+  OnboardingTourModal,
+  hasCompletedOnboardingTour,
+  hasCompletedPostVipTour
+} from '../common/OnboardingTourModal';
 import { MBKProCanvasChart } from '../charts/MBKProCanvasChart';
 
 // Utility Modals
@@ -428,6 +434,58 @@ export const TradingViewWorkspace: React.FC<Props> = ({
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [selectedCheckoutPlan, setSelectedCheckoutPlan] = useState<'vip' | 'elite'>('vip');
   const [activeEliteTab, setActiveEliteTab] = useState<'superAi' | 'copyTrading' | 'autoBotTrader' | 'tradingCourse' | 'indicatorsStore'>('superAi');
+
+  // Lightweight Zero-Quota Interactive Onboarding Tour State (strictly localStorage — 0 Firestore reads/writes)
+  const [onboardingTourOpen, setOnboardingTourOpen] = useState<boolean>(false);
+  const [onboardingTourPostVip, setOnboardingTourPostVip] = useState<boolean>(false);
+  const [isAnnouncementPopupVisible, setIsAnnouncementPopupVisible] = useState<boolean>(false);
+  const [pendingTourTrigger, setPendingTourTrigger] = useState<'none' | 'initial' | 'post_vip'>('none');
+  const [tourMountSettled, setTourMountSettled] = useState<boolean>(false);
+
+  // Brief settle delay on mount so MacroEventAndAnnouncementPopup evaluates first and never overlaps
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setTourMountSettled(true);
+    }, 900);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  // Queue initial first-time tour once for authenticated users who haven't seen v2.1 tour
+  useEffect(() => {
+    if (!tourMountSettled) return;
+    if (!user?.uid && !user?.id) return;
+    if (!hasCompletedOnboardingTour()) {
+      setPendingTourTrigger((prev) => (prev === 'none' ? 'initial' : prev));
+    }
+  }, [tourMountSettled, user?.uid, user?.id]);
+
+  // Queue post-activation tour immediately after a new VIP/Elite key is redeemed (if not yet seen)
+  useEffect(() => {
+    const handleSubscriptionActivated = () => {
+      if (!hasCompletedPostVipTour()) {
+        setPendingTourTrigger('post_vip');
+      }
+    };
+    window.addEventListener('mbk-subscription-activated', handleSubscriptionActivated);
+    return () => window.removeEventListener('mbk-subscription-activated', handleSubscriptionActivated);
+  }, []);
+
+  // Show queued tour strictly when MacroEventAndAnnouncementPopup is NOT visible
+  useEffect(() => {
+    if (pendingTourTrigger === 'none') return;
+    if (isAnnouncementPopupVisible) return;
+    if (onboardingTourOpen) return;
+
+    setOnboardingTourPostVip(pendingTourTrigger === 'post_vip');
+    setOnboardingTourOpen(true);
+    setPendingTourTrigger('none');
+  }, [pendingTourTrigger, isAnnouncementPopupVisible, onboardingTourOpen]);
+
+  const handleOpenOnboardingTourManual = () => {
+    soundManager.playClick();
+    setOnboardingTourPostVip(false);
+    setOnboardingTourOpen(true);
+  };
 
   const {
     alerts: priceAlerts,
@@ -1883,8 +1941,17 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                   </div>
                 </div>
 
-                {/* Move Helping Panel Controls: Left / Down / Right */}
+                {/* Move Helping Panel Controls: Platform Tour + Left / Down / Right */}
                 <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleOpenOnboardingTourManual}
+                    className="px-2 py-1 rounded-[3px] bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] border border-[#E0E3EB] dark:border-[#2A2E39] text-[#131722] dark:text-[#F8FAFC] transition-colors cursor-pointer flex items-center gap-1 text-[11px] font-semibold shrink-0 whitespace-nowrap"
+                    title={isAr ? 'جولة تعريفية في المنصة' : 'Platform Tour'}
+                  >
+                    <Compass className="w-3.5 h-3.5 text-[#B47B00] dark:text-[#F0B90B] shrink-0" />
+                    <span className="hidden sm:inline">{isAr ? 'جولة تعريفية' : 'Platform Tour'}</span>
+                  </button>
                   <span className="text-[10px] text-[#4A5162] dark:text-[#8b95a5] font-medium hidden md:inline">
                     {isAr ? 'موضع المساعد:' : 'Dock:'}
                   </span>
@@ -2081,7 +2148,18 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                     </button>
                   </div>
 
-                  <div className="flex flex-col items-center gap-1 pt-2 border-t border-[#E0E3EB] dark:border-[#1e2633] w-full">
+                  <div className="flex flex-col items-center gap-1.5 pt-2 border-t border-[#E0E3EB] dark:border-[#1e2633] w-full">
+                    <button
+                      type="button"
+                      onClick={handleOpenOnboardingTourManual}
+                      className="w-full py-1.5 px-1 rounded-[3px] flex flex-col items-center justify-center gap-1 text-[#4A5162] dark:text-[#94A3B8] hover:text-[#131722] dark:hover:text-white hover:bg-[#EDF1F7] dark:hover:bg-[#161c26] transition-colors cursor-pointer"
+                      title={isAr ? 'جولة تعريفية' : 'Platform Tour'}
+                    >
+                      <Compass className="w-3.5 h-3.5 text-[#B47B00] dark:text-[#F0B90B]" />
+                      <span className="text-[9px] font-semibold leading-tight text-center truncate w-full">
+                        {isAr ? 'جولة' : 'Tour'}
+                      </span>
+                    </button>
                     <ChatDockControls
                       currentPosition={chatPosition}
                       onSelectPosition={handleSetChatPosition}
@@ -2108,6 +2186,15 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                     </button>
 
                     <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={handleOpenOnboardingTourManual}
+                        className="px-2 py-1 rounded-[3px] bg-[#F0F3FA] dark:bg-[#0a0d12] hover:bg-[#EDF1F7] dark:hover:bg-[#161c26] border border-[#E0E3EB] dark:border-[#1e2633] text-[#131722] dark:text-[#F8FAFC] transition-colors cursor-pointer flex items-center gap-1 text-[11px] font-semibold shrink-0 whitespace-nowrap"
+                        title={isAr ? 'جولة تعريفية في المنصة' : 'Platform Tour'}
+                      >
+                        <Compass className="w-3.5 h-3.5 text-[#B47B00] dark:text-[#F0B90B] shrink-0" />
+                        <span>{isAr ? 'جولة تعريفية' : 'Platform Tour'}</span>
+                      </button>
                       <ChatDockControls
                         currentPosition={chatPosition}
                         onSelectPosition={handleSetChatPosition}
@@ -2351,6 +2438,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
         notificationPermission={notificationPermission}
         notificationsEnabled={notificationsEnabled}
         onToggleNotifications={handleToggleHeaderNotifications}
+        onOpenOnboardingTour={handleOpenOnboardingTourManual}
       />
 
       <SubscriptionPlansModal
@@ -2429,6 +2517,19 @@ export const TradingViewWorkspace: React.FC<Props> = ({
           setActiveMainView('chart');
           setActiveView('chat');
           markDmAsRead();
+        }}
+        onVisibilityChange={setIsAnnouncementPopupVisible}
+      />
+
+      {/* Lightweight Zero-Quota Interactive Bilingual Onboarding Tour (localStorage only) */}
+      <OnboardingTourModal
+        isOpen={onboardingTourOpen}
+        onClose={() => setOnboardingTourOpen(false)}
+        lang={lang}
+        isPostVipActivation={onboardingTourPostVip}
+        onNavigateToTab={(tab) => {
+          setActiveMainView('chart');
+          setActiveView(tab);
         }}
       />
     </div>

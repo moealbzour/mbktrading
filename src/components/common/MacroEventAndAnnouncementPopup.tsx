@@ -35,6 +35,7 @@ interface Props {
   onNavigateToCalendar?: () => void;
   onNavigateToTab?: (tabId: string) => void;
   onOpenSupportChat?: () => void;
+  onVisibilityChange?: (isVisible: boolean) => void;
 }
 
 function formatPopupCountdown(targetMs: number | null | undefined, nowMs: number) {
@@ -94,7 +95,8 @@ export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
   onOpenPromoModal,
   onNavigateToCalendar,
   onNavigateToTab,
-  onOpenSupportChat
+  onOpenSupportChat,
+  onVisibilityChange
 }) => {
   const isAr = lang === 'ar';
   const { resolvedTheme } = useTheme();
@@ -265,8 +267,16 @@ export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
     upcomingWithinOneHourEvent && !dismissedIds.has(upcomingWithinOneHourEvent.id);
   const showAdminAnnouncement =
     matchingAnnouncement && !dismissedIds.has(matchingAnnouncement.id);
+  const isAnyPopupVisible = Boolean(showMacroWarning || showAdminAnnouncement);
 
-  if (!showMacroWarning && !showAdminAnnouncement) {
+  useEffect(() => {
+    onVisibilityChange?.(isAnyPopupVisible);
+    return () => {
+      onVisibilityChange?.(false);
+    };
+  }, [isAnyPopupVisible, onVisibilityChange]);
+
+  if (!isAnyPopupVisible) {
     return null;
   }
 

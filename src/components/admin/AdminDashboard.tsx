@@ -854,7 +854,9 @@ export const AdminDashboard: React.FC<Props> = ({
       const idToken = await currentUser.getIdToken(true);
       const subRes = await registerWebPushSubscription(idToken, {
         isVip: true,
-        isAdmin: true
+        isAdmin: true,
+        canAccessInbox: true,
+        forceSync: true
       });
 
       if (!subRes.subscribed) {
@@ -1121,7 +1123,6 @@ export const AdminDashboard: React.FC<Props> = ({
     const nextMode: ActiveDatabaseMode =
       targetMode || (activeDbMode === 'default' ? 'secondary' : 'default');
     try {
-      await createFullBackupSnapshot(false, true).catch(() => {});
       setActiveDatabaseMode(nextMode);
       setActiveDbMode(nextMode);
       soundManager.playProfitChime();
@@ -1148,7 +1149,8 @@ export const AdminDashboard: React.FC<Props> = ({
     soundManager.playClick();
     setIsExportingBackup(true);
     try {
-      const snapshot = await createFullBackupSnapshot(true, false);
+      // Manual JSON export only (no redundant self-mirror writes onto the unified default DB)
+      const snapshot = await createFullBackupSnapshot(false, false);
       setLastAutoBackupIso(snapshot.createdAt);
       const blob = new Blob([JSON.stringify(snapshot, null, 2)], {
         type: 'application/json;charset=utf-8;'
@@ -1208,24 +1210,7 @@ export const AdminDashboard: React.FC<Props> = ({
     }
   };
 
-  // Automatic hourly snapshot backup from local cache (0 quota reads)
-  useEffect(() => {
-    if (!isFullAdmin) return;
-    const initialTimer = setTimeout(() => {
-      createFullBackupSnapshot(false, true)
-        .then((s) => setLastAutoBackupIso(s.createdAt))
-        .catch(() => {});
-    }, 15000);
-    const hourlyInterval = setInterval(() => {
-      createFullBackupSnapshot(false, true)
-        .then((s) => setLastAutoBackupIso(s.createdAt))
-        .catch(() => {});
-    }, 60 * 60 * 1000);
-    return () => {
-      clearTimeout(initialTimer);
-      clearInterval(hourlyInterval);
-    };
-  }, [isFullAdmin]);
+  // Automatic background backup removed to protect Firestore daily read quota (Manual JSON Export only)
 
   useEffect(() => {
     if (!isStaff || activeSection !== 'system') return;
@@ -4234,7 +4219,7 @@ export const AdminDashboard: React.FC<Props> = ({
                     </div>
                     {lastAutoBackupIso && (
                       <span className="text-[10px] font-mono text-[#787B86] dark:text-[#64748B]">
-                        {isAr ? 'آخر حفظ تلقائي:' : 'Last Auto-Snapshot:'}{' '}
+                        {isAr ? 'آخر نسخة احتياطية:' : 'Last Backup:'}{' '}
                         {new Date(lastAutoBackupIso).toLocaleTimeString()}
                       </span>
                     )}

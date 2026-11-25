@@ -233,6 +233,29 @@ export function getActiveTrialFeatures(user?: Partial<UserProfile> | null): Arra
 export function hasFeatureAccess(user: Partial<UserProfile> | null | undefined, feature: FeatureKey): boolean {
   if (!user || user.isBanned) return false;
   if (feature === 'vipChat') return true;
+
+  // Publishing Market Analysis is strictly limited to Admins, canPostAnalysis staff, or explicit publishAnalysis grants
+  if (feature === 'publishAnalysis') {
+    const roleUpper = (user.role || '').toString().toUpperCase();
+    const staffRoleLower = (user.staffRole || '').toString().toLowerCase();
+    const hasExplicitPerms =
+      user.permissions && typeof user.permissions === 'object' && Object.keys(user.permissions).length > 0;
+    const isAdminOrAnalyst =
+      Boolean(user.isAdmin) ||
+      user.email?.toLowerCase() === 'moe.albzour@gmail.com' ||
+      roleUpper === 'ADMIN' ||
+      staffRoleLower === 'super_admin' ||
+      Boolean(user.permissions?.canManageSystem) ||
+      Boolean(user.permissions?.canPostAnalysis) ||
+      (!hasExplicitPerms &&
+        (staffRoleLower === 'market_analyst' || roleUpper === 'ANALYSER' || roleUpper === 'ANALYST'));
+
+    if (isAdminOrAnalyst) return true;
+
+    const grantExpiry = user.grantedFeatures?.publishAnalysis;
+    return Boolean(grantExpiry && isTimestampActive(grantExpiry));
+  }
+
   if (isStaffOrAdminUser(user)) return true;
 
   const tier = getEffectiveTier(user);

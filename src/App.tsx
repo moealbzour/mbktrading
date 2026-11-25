@@ -527,6 +527,18 @@ export default function App() {
     } catch {
       // ignore
     }
+
+    if (grantTier === 'vip' || grantTier === 'elite') {
+      try {
+        window.dispatchEvent(
+          new CustomEvent('mbk-subscription-activated', {
+            detail: { tier: grantTier }
+          })
+        );
+      } catch {
+        // ignore
+      }
+    }
   };
 
   return (

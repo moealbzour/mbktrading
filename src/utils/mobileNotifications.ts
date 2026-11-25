@@ -15,12 +15,39 @@ export interface WebPushSubscribeResult {
 
 const NOTIFICATION_PREF_KEY = 'mbk_app_notifications_enabled';
 const CHAT_PUSH_MUTE_KEY = 'mbk_chat_push_muted';
+const WEB_PUSH_SYNC_CACHE_KEY = 'mbk_web_push_sync_fp_v1';
+const WEB_PUSH_SYNC_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours (instant bypass on any role/tier/endpoint/mute change)
 const RECENT_ACTIVITY_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 const CLIENT_CHAT_PUSH_COOLDOWN_MS = 20_000; // 20 seconds client-side guard for high-frequency chat
 
 let cachedSwRegistration: ServiceWorkerRegistration | null = null;
 let lastWebPushSyncMeta: { isVip?: boolean; isAdmin?: boolean; canAccessInbox?: boolean } = {};
 let lastClientChatPushAtMs = 0;
+
+function readWebPushSyncFingerprint(): { fingerprint: string; syncedAtMs: number } | null {
+  try {
+    const raw = localStorage.getItem(WEB_PUSH_SYNC_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed.fingerprint === 'string' && typeof parsed.syncedAtMs === 'number') {
+      return parsed;
+    }
+  } catch {
+    // ignore storage errors
+  }
+  return null;
+}
+
+function writeWebPushSyncFingerprint(fingerprint: string): void {
+  try {
+    localStorage.setItem(
+      WEB_PUSH_SYNC_CACHE_KEY,
+      JSON.stringify({ fingerprint, syncedAtMs: Date.now() })
+    );
+  } catch {
+    // ignore storage errors
+  }
+}
 
 function cleanClientVapidKey(raw?: string): string {
   return String(raw || '')
@@ -89,13 +116,18 @@ export async function ensureBackgroundNotificationWorkerReady(): Promise<Service
  */
 export async function registerWebPushSubscription(
   idToken: string,
-  meta?: { isVip?: boolean; isAdmin?: boolean; canAccessInbox?: boolean }
+  meta?: { isVip?: boolean; isAdmin?: boolean; canAccessInbox?: boolean; forceSync?: boolean }
 ): Promise<WebPushSubscribeResult> {
   if (meta) {
     lastWebPushSyncMeta = {
-      isVip: Boolean(meta.isVip),
-      isAdmin: Boolean(meta.isAdmin),
-      canAccessInbox: Boolean(meta.canAccessInbox ?? meta.isAdmin)
+      isVip: meta.isVip !== undefined ? Boolean(meta.isVip) : lastWebPushSyncMeta.isVip,
+      isAdmin: meta.isAdmin !== undefined ? Boolean(meta.isAdmin) : lastWebPushSyncMeta.isAdmin,
+      canAccessInbox:
+        meta.canAccessInbox !== undefined
+          ? Boolean(meta.canAccessInbox)
+          : meta.isAdmin !== undefined
+          ? Boolean(meta.isAdmin)
+          : lastWebPushSyncMeta.canAccessInbox
     };
   }
 
@@ -176,6 +208,35 @@ export async function registerWebPushSubscription(
       return { ok: false, subscribed: false, error: 'Browser returned incomplete PushSubscription keys' };
     }
 
+    const effectiveIsVip = Boolean(meta?.isVip ?? lastWebPushSyncMeta.isVip);
+    const effectiveIsAdmin = Boolean(meta?.isAdmin ?? lastWebPushSyncMeta.isAdmin);
+    const effectiveCanAccessInbox = Boolean(
+      meta?.canAccessInbox ??
+        lastWebPushSyncMeta.canAccessInbox ??
+        meta?.isAdmin ??
+        lastWebPushSyncMeta.isAdmin
+    );
+    const effectiveMuteChatPush = isChatPushMuted();
+    const uidForFingerprint = auth.currentUser?.uid || '';
+    const syncFingerprint = `${uidForFingerprint}|${subJson.endpoint}|${effectiveIsVip ? 1 : 0}|${
+      effectiveIsAdmin ? 1 : 0
+    }|${effectiveCanAccessInbox ? 1 : 0}|${effectiveMuteChatPush ? 1 : 0}`;
+
+    if (!meta?.forceSync && uidForFingerprint) {
+      const cachedSync = readWebPushSyncFingerprint();
+      if (
+        cachedSync &&
+        cachedSync.fingerprint === syncFingerprint &&
+        Date.now() - cachedSync.syncedAtMs < WEB_PUSH_SYNC_TTL_MS
+      ) {
+        return {
+          ok: true,
+          subscribed: true,
+          storageMode: 'client_cache'
+        };
+      }
+    }
+
     const res = await fetch('/api/push/subscribe', {
       method: 'POST',
       headers: {
@@ -184,15 +245,10 @@ export async function registerWebPushSubscription(
       },
       body: JSON.stringify({
         subscription: subJson,
-        isVip: Boolean(meta?.isVip ?? lastWebPushSyncMeta.isVip),
-        isAdmin: Boolean(meta?.isAdmin ?? lastWebPushSyncMeta.isAdmin),
-        canAccessInbox: Boolean(
-          meta?.canAccessInbox ??
-            lastWebPushSyncMeta.canAccessInbox ??
-            meta?.isAdmin ??
-            lastWebPushSyncMeta.isAdmin
-        ),
-        muteChatPush: isChatPushMuted()
+        isVip: effectiveIsVip,
+        isAdmin: effectiveIsAdmin,
+        canAccessInbox: effectiveCanAccessInbox,
+        muteChatPush: effectiveMuteChatPush
       })
     });
 
@@ -203,6 +259,10 @@ export async function registerWebPushSubscription(
         subscribed: false,
         error: data?.error || `Subscribe endpoint failed (HTTP ${res.status})`
       };
+    }
+
+    if (uidForFingerprint) {
+      writeWebPushSyncFingerprint(syncFingerprint);
     }
 
     return {
@@ -227,12 +287,18 @@ export async function syncCurrentUserWebPush(meta?: {
   isVip?: boolean;
   isAdmin?: boolean;
   canAccessInbox?: boolean;
+  forceSync?: boolean;
 }): Promise<WebPushSubscribeResult> {
   if (meta) {
     lastWebPushSyncMeta = {
-      isVip: Boolean(meta.isVip),
-      isAdmin: Boolean(meta.isAdmin),
-      canAccessInbox: Boolean(meta.canAccessInbox ?? meta.isAdmin)
+      isVip: meta.isVip !== undefined ? Boolean(meta.isVip) : lastWebPushSyncMeta.isVip,
+      isAdmin: meta.isAdmin !== undefined ? Boolean(meta.isAdmin) : lastWebPushSyncMeta.isAdmin,
+      canAccessInbox:
+        meta.canAccessInbox !== undefined
+          ? Boolean(meta.canAccessInbox)
+          : meta.isAdmin !== undefined
+          ? Boolean(meta.isAdmin)
+          : lastWebPushSyncMeta.canAccessInbox
     };
   }
   try {
@@ -241,7 +307,10 @@ export async function syncCurrentUserWebPush(meta?: {
       return { ok: false, subscribed: false, error: 'No signed-in Firebase user' };
     }
     const idToken = await currentUser.getIdToken();
-    return await registerWebPushSubscription(idToken, lastWebPushSyncMeta);
+    return await registerWebPushSubscription(idToken, {
+      ...lastWebPushSyncMeta,
+      forceSync: Boolean(meta?.forceSync)
+    });
   } catch (err: any) {
     return { ok: false, subscribed: false, error: err?.message || 'Failed to get Firebase ID token' };
   }
@@ -354,7 +423,7 @@ export function setChatPushMuted(muted: boolean): void {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('mbk-chat-push-mute-changed', { detail: { muted: Boolean(muted) } }));
     }
-    syncCurrentUserWebPush().catch(() => {});
+    syncCurrentUserWebPush({ forceSync: true }).catch(() => {});
   } catch {
     // ignore
   }
@@ -367,7 +436,7 @@ export function setAppNotificationsEnabled(enabled: boolean): void {
       window.dispatchEvent(new CustomEvent('mbk-notif-pref-changed', { detail: { enabled } }));
     }
     if (enabled) {
-      syncCurrentUserWebPush().catch(() => {});
+      syncCurrentUserWebPush({ forceSync: true }).catch(() => {});
     }
   } catch {
     // ignore
@@ -383,12 +452,12 @@ export async function requestAppNotificationPermission(): Promise<AppNotificatio
       const result = await Notification.requestPermission();
       if (result === 'granted') {
         setAppNotificationsEnabled(true);
-        syncCurrentUserWebPush().catch(() => {});
+        syncCurrentUserWebPush({ forceSync: true }).catch(() => {});
       }
       return result;
     }
     if (Notification.permission === 'granted') {
-      syncCurrentUserWebPush().catch(() => {});
+      syncCurrentUserWebPush({ forceSync: true }).catch(() => {});
     }
     return Notification.permission;
   } catch (err) {

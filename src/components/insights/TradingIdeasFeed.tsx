@@ -28,6 +28,102 @@ const SYMBOL_KEYWORDS: Record<MarketSymbol, RegExp> = {
   BTCUSD: /\b(btc|btcusd|bitcoin|crypto|ethereum|etf)\b|بيتكوين|البيتكوين|عملات رقمية|كريبتو/i
 };
 
+interface CachedRawMarketIdea {
+  id: string;
+  symbolTag: string;
+  title: string;
+  titleAr: string;
+  author: string;
+  link: string;
+  pubDate: string;
+}
+
+const MARKET_IDEAS_CACHE_KEY = 'mbk_market_ideas_cache_v1';
+const MARKET_IDEAS_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+let memoryCachedMarketIdeas: CachedRawMarketIdea[] | null = null;
+let memoryMarketIdeasCachedAtMs = 0;
+let inFlightMarketIdeasPromise: Promise<CachedRawMarketIdea[]> | null = null;
+
+async function fetchCachedFirestoreMarketIdeas(): Promise<CachedRawMarketIdea[]> {
+  const nowMs = Date.now();
+  if (
+    memoryCachedMarketIdeas !== null &&
+    nowMs - memoryMarketIdeasCachedAtMs < MARKET_IDEAS_CACHE_TTL_MS
+  ) {
+    return memoryCachedMarketIdeas;
+  }
+
+  try {
+    const raw = localStorage.getItem(MARKET_IDEAS_CACHE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (
+        parsed &&
+        typeof parsed.cachedAtMs === 'number' &&
+        nowMs - parsed.cachedAtMs < MARKET_IDEAS_CACHE_TTL_MS &&
+        Array.isArray(parsed.items)
+      ) {
+        memoryCachedMarketIdeas = parsed.items;
+        memoryMarketIdeasCachedAtMs = parsed.cachedAtMs;
+        return parsed.items;
+      }
+    }
+  } catch {
+    // ignore storage errors
+  }
+
+  if (inFlightMarketIdeasPromise) {
+    return inFlightMarketIdeasPromise;
+  }
+
+  inFlightMarketIdeasPromise = (async () => {
+    try {
+      const q = query(
+        collection(db, 'market_ideas'),
+        orderBy('timestampMs', 'desc'),
+        limit(12)
+      );
+      const snap = await getDocs(q);
+      const items: CachedRawMarketIdea[] = [];
+      snap.forEach((docSnap) => {
+        const d = docSnap.data();
+        if (!d) return;
+        const title = String(d.titleEn || d.title || d.titleAr || '').trim();
+        const titleAr = String(d.titleAr || d.title || d.titleEn || '').trim();
+        if (!title && !titleAr) return;
+        items.push({
+          id: docSnap.id,
+          symbolTag: String(d.symbol || '').toUpperCase(),
+          title: title || titleAr,
+          titleAr: titleAr || title,
+          author: String(d.author || d.authorName || 'MBK Analyst'),
+          link: String(d.link || d.chartUrl || ''),
+          pubDate: String(d.createdAt || d.pubDate || new Date().toISOString())
+        });
+      });
+
+      const completedAt = Date.now();
+      memoryCachedMarketIdeas = items;
+      memoryMarketIdeasCachedAtMs = completedAt;
+      try {
+        localStorage.setItem(
+          MARKET_IDEAS_CACHE_KEY,
+          JSON.stringify({ cachedAtMs: completedAt, items })
+        );
+      } catch {
+        // ignore storage quota errors
+      }
+      return items;
+    } catch {
+      return memoryCachedMarketIdeas || [];
+    } finally {
+      inFlightMarketIdeasPromise = null;
+    }
+  })();
+
+  return inFlightMarketIdeasPromise;
+}
+
 export const TradingIdeasFeed: React.FC<TradingIdeasFeedProps> = ({ symbol, lang = 'ar' }) => {
   const isAr = lang === 'ar';
   const [ideas, setIdeas] = useState<TradingViewIdea[]>([]);
@@ -41,43 +137,28 @@ export const TradingIdeasFeed: React.FC<TradingIdeasFeedProps> = ({ symbol, lang
       const collected: TradingViewIdea[] = [];
       const seenLinksOrTitles = new Set<string>();
 
-      // 1. Load real analyst posts from Firestore market_ideas (if any)
+      // 1. Load real analyst posts from 10-minute cached Firestore market_ideas (0 reads on symbol switch)
       try {
-        const q = query(
-          collection(db, 'market_ideas'),
-          orderBy('timestampMs', 'desc'),
-          limit(12)
-        );
-        const snap = await getDocs(q);
-        snap.forEach((docSnap) => {
-          const d = docSnap.data();
-          if (!d) return;
-          const docSym = String(d.symbol || '').toUpperCase();
+        const rawIdeas = await fetchCachedFirestoreMarketIdeas();
+        for (const item of rawIdeas) {
+          const docSym = item.symbolTag;
           if (symbol && docSym && docSym !== 'ALL' && !docSym.includes(symbol) && !symbol.includes(docSym)) {
-            return;
+            continue;
           }
-          const title = String(d.titleEn || d.title || d.titleAr || '').trim();
-          const titleAr = String(d.titleAr || d.title || d.titleEn || '').trim();
-          if (!title && !titleAr) return;
-
-          const key = (title || titleAr).toLowerCase();
-          if (seenLinksOrTitles.has(key)) return;
+          const key = (item.title || item.titleAr).toLowerCase();
+          if (seenLinksOrTitles.has(key)) continue;
           seenLinksOrTitles.add(key);
 
           collected.push({
-            id: `fs-idea-${docSnap.id}`,
-            title: title || titleAr,
-            titleAr: titleAr || title,
-            author: String(d.author || d.authorName || 'MBK Analyst'),
-            link: String(
-              d.link ||
-                d.chartUrl ||
-                `https://www.tradingview.com/symbols/${symbol}/ideas/`
-            ),
-            pubDate: String(d.createdAt || d.pubDate || new Date().toISOString()),
+            id: `fs-idea-${item.id}`,
+            title: item.title,
+            titleAr: item.titleAr,
+            author: item.author,
+            link: item.link || `https://www.tradingview.com/symbols/${symbol}/ideas/`,
+            pubDate: item.pubDate,
             symbolTag: docSym || symbol
           });
-        });
+        }
       } catch {
         // Ignore if market_ideas collection is empty or not accessible
       }

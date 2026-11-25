@@ -39,7 +39,8 @@ import {
   PanelBottom,
   PanelRight,
   Calculator,
-  Plus
+  Plus,
+  Compass
 } from 'lucide-react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
@@ -101,6 +102,7 @@ interface Props {
   notificationPermission?: string;
   notificationsEnabled?: boolean;
   onToggleNotifications?: () => void;
+  onOpenOnboardingTour?: () => void;
   initialTab?: ProfileModalTab;
 }
 
@@ -164,6 +166,7 @@ export const UserProfileModal: React.FC<Props> = ({
   notificationPermission,
   notificationsEnabled,
   onToggleNotifications,
+  onOpenOnboardingTour,
   initialTab = 'overview'
 }) => {
   const { themeMode, setThemeMode } = useTheme();
@@ -990,6 +993,26 @@ export const UserProfileModal: React.FC<Props> = ({
                       </div>
                     </button>
                   )}
+
+                  {onOpenOnboardingTour && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        soundManager.playClick();
+                        onClose();
+                        onOpenOnboardingTour();
+                      }}
+                      className="p-3 rounded-[3px] bg-[#F0F3FA] dark:bg-[#0a0d12] hover:bg-[#EDF1F7] dark:hover:bg-[#161c26] border border-[#E0E3EB] dark:border-[#1e2633] hover:border-[#CBD2DF] dark:hover:border-[#2a3446] flex items-center gap-2.5 text-[#131722] dark:text-white transition-colors cursor-pointer text-start sm:col-span-3"
+                    >
+                      <Compass className="w-4 h-4 text-[#B47B00] dark:text-[#F0B90B] shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <div className="font-semibold truncate">{isAr ? 'جولة تعريفية' : 'Platform Tour'}</div>
+                        <div className="text-[10px] text-[#4A5162] dark:text-[#8b95a5] truncate">
+                          {isAr ? 'دليل سريع لأهم أدوات الشارت والتوصيات واللوحة المساعدة' : 'Quick 7-step walkthrough of charts, signals, and tools'}
+                        </div>
+                      </div>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -1367,6 +1390,37 @@ export const UserProfileModal: React.FC<Props> = ({
                       {isAr ? 'تثبيت التطبيق' : 'Install App'}
                     </button>
                   </div>
+
+                  {/* Interactive Platform Tour Replay */}
+                  {onOpenOnboardingTour && (
+                    <div className="p-3.5 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5">
+                        <Compass className="w-4 h-4 text-[#B47B00] dark:text-[#F0B90B]" />
+                        <div>
+                          <div className="font-semibold text-[#131722] dark:text-white">
+                            {isAr ? 'جولة تعريفية في المنصة' : 'Platform Tour'}
+                          </div>
+                          <div className="text-[11px] text-[#4A5162] dark:text-[#8b95a5]">
+                            {isAr
+                              ? 'إعادة تشغيل الدليل التفاعلي لميزات MBK Trading في أي وقت'
+                              : 'Replay the interactive 7-step MBK Trading guide anytime'}
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          soundManager.playClick();
+                          onClose();
+                          onOpenOnboardingTour();
+                        }}
+                        className="px-3 py-1.5 rounded-[3px] bg-[#F8F9FD] dark:bg-[#161c26] hover:bg-[#EDF1F7] dark:hover:bg-[#1c2430] border border-[#CBD2DF] dark:border-[#2a3446] text-[#131722] dark:text-white text-[11px] font-semibold transition-colors cursor-pointer whitespace-nowrap"
+                      >
+                        {isAr ? 'جولة تعريفية' : 'Platform Tour'}
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {notifHint && (
