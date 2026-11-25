@@ -384,12 +384,19 @@ export const AdminAnalyticsOverview: React.FC<Props> = ({
   // ================= TIME-SERIES BUCKETS FOR CHART 1 (USER GROWTH) & CHART 3 (PLATFORM ACTIVITY) =================
   const timeSeriesBuckets = useMemo(() => {
     const days = getTimeframeDays(timeframe);
-    const now = new Date();
-    now.setHours(23, 59, 59, 999);
-    const endMs = now.getTime();
-    const startMs = endMs - (days - 1) * 24 * 60 * 60 * 1000;
+    const today = new Date();
+    const startDate = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate() - (days - 1),
+      0,
+      0,
+      0,
+      0
+    );
+    const startMs = startDate.getTime();
 
-    // Build daily buckets
+    // Build daily buckets using calendar-day arithmetic (DST-safe across 23h/25h transitions)
     const dailyMap = new Map<
       string,
       {
@@ -408,8 +415,18 @@ export const AdminAnalyticsOverview: React.FC<Props> = ({
 
     const orderedKeys: string[] = [];
     for (let i = 0; i < days; i++) {
-      const bucketTs = startMs + i * 24 * 60 * 60 * 1000;
+      const bucketDate = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate() - (days - 1) + i,
+        12,
+        0,
+        0,
+        0
+      );
+      const bucketTs = bucketDate.getTime();
       const key = formatDayKey(bucketTs);
+      if (dailyMap.has(key)) continue;
       orderedKeys.push(key);
       dailyMap.set(key, {
         dayKey: key,
