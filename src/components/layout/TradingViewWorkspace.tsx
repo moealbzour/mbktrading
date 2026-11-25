@@ -430,6 +430,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
   const [sessionsModalOpen, setSessionsModalOpen] = useState(false);
   const [priceAlertsModalOpen, setPriceAlertsModalOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [profileModalInitialTab, setProfileModalInitialTab] = useState<'overview' | 'settings'>('overview');
   const [plansModalOpen, setPlansModalOpen] = useState(false);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [selectedCheckoutPlan, setSelectedCheckoutPlan] = useState<'vip' | 'elite'>('vip');
@@ -1018,6 +1019,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
   ];
 
   const totalMenuUnread = (unreadTradesCount || 0) + (unreadChatCount || 0) + (unreadDmCount || 0);
+  const firstUserName = ((user.name || '').trim().split(/\s+/)[0]) || user.email.split('@')[0];
 
   return (
     <div
@@ -1061,16 +1063,17 @@ export const TradingViewWorkspace: React.FC<Props> = ({
           </button>
         </div>
 
-        {/* Left Side Overlay (Other Side of the Ticker): User Profile Button */}
-        <div className="absolute left-0 top-0 bottom-0 z-30 bg-[#FFFFFF] dark:bg-[#0b0e14] border-r border-[#E0E3EB] dark:border-[#1e2633] px-2 sm:px-2.5 flex items-center gap-1.5 shadow-[12px_0_18px_#FFFFFF] dark:shadow-[12px_0_18px_#0b0e14]">
+        {/* Left Side Overlay (Other Side of the Ticker): Compact Profile Box (Photo + First Name) + Small Settings + Small Tour */}
+        <div className="absolute left-0 top-0 bottom-0 z-30 bg-[#FFFFFF] dark:bg-[#0b0e14] border-r border-[#E0E3EB] dark:border-[#1e2633] px-1.5 sm:px-2 flex items-center gap-1 shadow-[12px_0_18px_#FFFFFF] dark:shadow-[12px_0_18px_#0b0e14]">
           <button
             type="button"
             onClick={() => {
               soundManager.playClick();
+              setProfileModalInitialTab('overview');
               setProfileModalOpen(true);
             }}
-            className="flex items-center gap-1.5 px-2 py-1 rounded-[3px] bg-[#F0F3FA] dark:bg-[#06080c] hover:bg-[#EDF1F7] dark:hover:bg-[#161c26] border border-[#E0E3EB] dark:border-[#1e2633] hover:border-[#CBD2DF] dark:hover:border-[#2a3446] text-xs transition-colors cursor-pointer shrink-0 whitespace-nowrap"
-            title={isAr ? 'الملف الشخصي وإعدادات المنصة' : 'Profile & App Settings'}
+            className="flex items-center gap-1.5 px-1.5 py-1 rounded-[3px] bg-[#F0F3FA] dark:bg-[#06080c] hover:bg-[#EDF1F7] dark:hover:bg-[#161c26] border border-[#E0E3EB] dark:border-[#1e2633] hover:border-[#CBD2DF] dark:hover:border-[#2a3446] text-xs transition-colors cursor-pointer shrink-0 whitespace-nowrap"
+            title={isAr ? 'الملف الشخصي' : 'Profile'}
           >
             <div className="w-5 h-5 rounded-[2px] bg-[#F8F9FD] dark:bg-[#161c26] border border-[#CBD2DF] dark:border-[#2a3446] text-[#131722] dark:text-white flex items-center justify-center font-mono font-bold text-[10px] uppercase shrink-0 overflow-hidden">
               {user.avatar ? (
@@ -1080,19 +1083,40 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                   referrerPolicy="no-referrer"
                   className="w-full h-full object-cover"
                 />
-              ) : user.name ? (
-                user.name[0].toUpperCase()
+              ) : firstUserName ? (
+                firstUserName[0].toUpperCase()
               ) : (
                 <User className="w-3 h-3" />
               )}
             </div>
-            <span className="font-semibold text-[#131722] dark:text-white truncate max-w-[75px] sm:max-w-[120px] text-[11px]">
-              {user.name || user.email.split('@')[0]}
+            <span className="font-semibold text-[#131722] dark:text-white truncate max-w-[64px] sm:max-w-[92px] text-[11px]">
+              {firstUserName}
             </span>
-            <span className="text-[10px] font-mono text-[#089981] dark:text-[#10b981] hidden sm:inline">
-              · {user.isAdmin || roleUpperForAdmin === 'ADMIN' ? 'ADMIN' : isEliteMember ? 'ELITE' : isVIP ? 'VIP' : 'STD'}
-            </span>
-            <Sliders className="w-3 h-3 text-[#4A5162] dark:text-[#8b95a5] shrink-0" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              soundManager.playClick();
+              setProfileModalInitialTab('settings');
+              setProfileModalOpen(true);
+            }}
+            className="p-1.5 rounded-[3px] bg-[#F0F3FA] dark:bg-[#06080c] hover:bg-[#EDF1F7] dark:hover:bg-[#161c26] border border-[#E0E3EB] dark:border-[#1e2633] hover:border-[#CBD2DF] dark:hover:border-[#2a3446] text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white transition-colors cursor-pointer flex items-center justify-center shrink-0"
+            title={isAr ? 'إعدادات المنصة' : 'App Settings'}
+            aria-label={isAr ? 'إعدادات المنصة' : 'App Settings'}
+          >
+            <Sliders className="w-3.5 h-3.5 shrink-0" />
+          </button>
+
+          <button
+            type="button"
+            onClick={handleOpenOnboardingTourManual}
+            className="p-1.5 sm:px-2 sm:py-1 rounded-[3px] bg-[#FDF6E3] dark:bg-[#F0B90B]/12 hover:bg-[#F7E8BD] dark:hover:bg-[#F0B90B]/20 border border-[#EFE0B4] dark:border-[#F0B90B]/35 text-[#9A6700] dark:text-[#F0B90B] text-[10px] font-bold transition-colors cursor-pointer flex items-center gap-1 shrink-0 whitespace-nowrap"
+            title={isAr ? 'جولة تعريفية في المنصة' : 'Platform Tour'}
+            aria-label={isAr ? 'جولة تعريفية في المنصة' : 'Platform Tour'}
+          >
+            <Compass className="w-3.5 h-3.5 shrink-0" />
+            <span className="hidden sm:inline">{isAr ? 'جولة' : 'Tour'}</span>
           </button>
         </div>
       </header>
@@ -2439,6 +2463,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
         notificationsEnabled={notificationsEnabled}
         onToggleNotifications={handleToggleHeaderNotifications}
         onOpenOnboardingTour={handleOpenOnboardingTourManual}
+        initialTab={profileModalInitialTab}
       />
 
       <SubscriptionPlansModal
