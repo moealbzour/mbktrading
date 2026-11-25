@@ -293,22 +293,22 @@ export const SupportDeskModal: React.FC<Props> = ({
   return (
     <div
       dir={isAr ? 'rtl' : 'ltr'}
-      className="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto select-none"
+      className="fixed inset-0 bg-[#FFFFFF]/90 dark:bg-[#131722]/50 dark:bg-black/85 dark:backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto select-none"
     >
-      <div className="bg-[#1e222d] border border-[#2a2e39] rounded-2xl max-w-xl w-full p-4 sm:p-6 shadow-2xl relative text-[#d1d4dc] my-auto max-h-[92dvh] flex flex-col overflow-hidden">
+      <div className="bg-[#F8F9FD] dark:bg-[#1e222d] border border-[#E0E3EB] dark:border-[#2a2e39] rounded-2xl max-w-xl w-full p-4 sm:p-6 shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl relative text-[#131722] dark:text-[#d1d4dc] my-auto max-h-[92dvh] flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-[#2a2e39] shrink-0">
+        <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-[#E0E3EB] dark:border-[#2a2e39] shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-[#089981]/15 border border-[#089981]/40 flex items-center justify-center text-[#089981] shadow-sm">
+            <div className="w-10 h-10 rounded-xl bg-[#E6F5F2] dark:bg-[#089981]/15 border border-[#B3E2D9] dark:border-[#089981]/40 flex items-center justify-center text-[#089981] shadow-sm">
               <Headphones className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-base sm:text-lg font-bold text-white">
+                <h3 className="text-base sm:text-lg font-bold text-[#131722] dark:text-white">
                   {isAr ? 'مكتب الدعم والاقتراحات 24/7' : '24/7 Support & Suggestions Desk'}
                 </h3>
                 {isVIP && (
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center gap-1">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#FDF6E3] dark:bg-amber-500/20 text-[#9A6700] dark:text-amber-400 border border-[#EFE0B4] dark:border-amber-500/40 flex items-center gap-1">
                     <Crown className="w-3 h-3" />
                     VIP PRIORITY
                   </span>
@@ -324,20 +324,20 @@ export const SupportDeskModal: React.FC<Props> = ({
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-[#787b86] hover:text-white transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg bg-[#FFFFFF] dark:bg-[#131722] hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] border border-[#E0E3EB] dark:border-[#2a2e39] text-[#787b86] hover:text-[#131722] dark:hover:text-white transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex items-center gap-1 bg-[#131722] p-1 rounded-xl border border-[#2a2e39] my-3 shrink-0 text-xs font-semibold">
+        <div className="flex items-center gap-1 bg-[#FFFFFF] dark:bg-[#131722] p-1 rounded-xl border border-[#E0E3EB] dark:border-[#2a2e39] my-3 shrink-0 text-xs font-semibold">
           <button
             onClick={() => setActiveTab('channels')}
             className={`flex-1 py-1.5 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
               activeTab === 'channels'
-                ? 'bg-white text-[#131722] shadow-sm font-bold'
-                : 'text-[#787b86] hover:text-white'
+                ? 'bg-[#131722] dark:bg-white text-white dark:text-[#131722] shadow-sm font-bold'
+                : 'text-[#787b86] hover:text-[#131722] dark:hover:text-white'
             }`}
           >
             <MessageCircle className="w-3.5 h-3.5 text-[#089981]" />
@@ -353,7 +353,7 @@ export const SupportDeskModal: React.FC<Props> = ({
               className={`flex-1 py-1.5 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                 activeTab === 'inbox'
                   ? 'bg-[#10b981] text-[#06080c] shadow-sm font-bold'
-                  : 'text-[#787b86] hover:text-white'
+                  : 'text-[#787b86] hover:text-[#131722] dark:hover:text-white'
               }`}
             >
               <Mail className="w-3.5 h-3.5" />
@@ -370,11 +370,11 @@ export const SupportDeskModal: React.FC<Props> = ({
             onClick={() => setActiveTab('faq')}
             className={`flex-1 py-1.5 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
               activeTab === 'faq'
-                ? 'bg-white text-[#131722] shadow-sm font-bold'
-                : 'text-[#787b86] hover:text-white'
+                ? 'bg-[#131722] dark:bg-white text-white dark:text-[#131722] shadow-sm font-bold'
+                : 'text-[#787b86] hover:text-[#131722] dark:hover:text-white'
             }`}
           >
-            <HelpCircle className="w-3.5 h-3.5 text-amber-400" />
+            <HelpCircle className="w-3.5 h-3.5 text-[#9A6700] dark:text-amber-400" />
             <span>{isAr ? 'الأسئلة الشائعة' : 'FAQs'}</span>
           </button>
         </div>
@@ -383,14 +383,14 @@ export const SupportDeskModal: React.FC<Props> = ({
         {activeTab === 'channels' && (
           <div className="space-y-3 overflow-y-auto flex-1 min-h-0 pr-0.5">
             {/* VIP Fast-track banner */}
-            <div className="p-3 rounded-xl bg-gradient-to-r from-[#089981]/15 to-[#089981]/5 border border-[#089981]/30 flex items-center justify-between">
+            <div className="p-3 rounded-xl bg-[#E6F5F2] dark:bg-gradient-to-r dark:from-[#089981]/15 dark:to-[#089981]/5 border border-[#B3E2D9] dark:border-[#089981]/30 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-5 h-5 text-[#089981]" />
                 <div>
-                  <div className="text-xs font-bold text-white">
+                  <div className="text-xs font-bold text-[#131722] dark:text-white">
                     {isAr ? 'استجابة سريعة ومضمونة' : 'Live Concierge Active'}
                   </div>
-                  <div className="text-[11px] text-[#787b86]">
+                  <div className="text-[11px] text-[#4A5162] dark:text-[#787b86]">
                     {isVIP
                       ? isAr
                         ? 'أولوية قصوى لمشتركي VIP خلال أقل من 3 دقائق'
@@ -406,24 +406,24 @@ export const SupportDeskModal: React.FC<Props> = ({
 
             {/* NEW: Official Platform Inbox (@mbktrading) for Support, Suggestions & Questions */}
             {myUid && (
-              <div className="p-3.5 rounded-xl bg-gradient-to-br from-[#10b981]/15 via-[#131722] to-[#131722] border border-[#10b981]/40 space-y-2.5">
+              <div className="p-3.5 rounded-xl bg-[#FFFFFF] dark:bg-gradient-to-br dark:from-[#10b981]/15 dark:via-[#131722] dark:to-[#131722] border border-[#B3E2D9] dark:border-[#10b981]/40 space-y-2.5">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/40 flex items-center justify-center font-bold shrink-0">
+                    <div className="w-10 h-10 rounded-xl bg-[#E6F5F2] dark:bg-[#10b981]/20 text-[#089981] dark:text-[#10b981] border border-[#B3E2D9] dark:border-[#10b981]/40 flex items-center justify-center font-bold shrink-0">
                       <Mail className="w-5 h-5" />
                     </div>
                     <div>
-                      <div className="text-sm font-bold text-white flex items-center gap-1.5 flex-wrap">
+                      <div className="text-sm font-bold text-[#131722] dark:text-white flex items-center gap-1.5 flex-wrap">
                         <span>
                           {isAr
                             ? 'صندوق بريد المنصة المباشر (@mbktrading)'
                             : 'Platform Support Inbox (@mbktrading)'}
                         </span>
-                        <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/40">
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-[#E6F5F2] dark:bg-[#10b981]/20 text-[#089981] dark:text-[#10b981] border border-[#B3E2D9] dark:border-[#10b981]/40">
                           IN-APP
                         </span>
                       </div>
-                      <div className="text-xs text-[#8b95a5]">
+                      <div className="text-xs text-[#4A5162] dark:text-[#8b95a5]">
                         {isAr
                           ? 'الدعم الفني • الاقتراحات • الأسئلة'
                           : 'Support • Suggestions • Questions'}
@@ -446,7 +446,7 @@ export const SupportDeskModal: React.FC<Props> = ({
                       key={topic.id}
                       type="button"
                       onClick={() => handleOpenInboxTopic(topic.id)}
-                      className="py-1.5 px-2 rounded-lg bg-[#0b0e14]/90 hover:bg-[#10b981]/20 border border-[#2a2e39] hover:border-[#10b981]/50 text-[11px] font-bold text-[#edf0f5] hover:text-[#10b981] transition-all cursor-pointer text-center"
+                      className="py-1.5 px-2 rounded-lg bg-[#FFFFFF]/95 dark:bg-[#0b0e14]/90 hover:bg-[#10b981]/20 border border-[#E0E3EB] dark:border-[#2a2e39] hover:border-[#10b981]/50 text-[11px] font-bold text-[#131722] dark:text-[#edf0f5] hover:text-[#10b981] transition-all cursor-pointer text-center"
                     >
                       {isAr ? topic.labelAr : topic.labelEn}
                     </button>
@@ -461,14 +461,14 @@ export const SupportDeskModal: React.FC<Props> = ({
                 href={whatsappUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-3.5 rounded-xl bg-[#131722] hover:bg-[#25D366]/15 border border-[#2a2e39] hover:border-[#25D366]/50 transition-all flex items-center justify-between group cursor-pointer"
+                className="p-3.5 rounded-xl bg-[#FFFFFF] dark:bg-[#131722] hover:bg-[#25D366]/15 border border-[#E0E3EB] dark:border-[#2a2e39] hover:border-[#25D366]/50 transition-all flex items-center justify-between group cursor-pointer"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-[#25D366]/20 text-[#25D366] flex items-center justify-center font-bold">
                     <MessageCircle className="w-5 h-5" />
                   </div>
                   <div>
-                    <div className="text-sm font-bold text-white group-hover:text-[#25D366] transition-colors flex items-center gap-1.5">
+                    <div className="text-sm font-bold text-[#131722] dark:text-white group-hover:text-[#25D366] transition-colors flex items-center gap-1.5">
                       <span>{isAr ? 'الدعم الفوري عبر واتساب (WhatsApp)' : 'Instant WhatsApp Concierge'}</span>
                       <ExternalLink className="w-3.5 h-3.5" />
                     </div>
@@ -482,13 +482,13 @@ export const SupportDeskModal: React.FC<Props> = ({
                 </span>
               </a>
             ) : (
-              <div className="p-3.5 rounded-xl bg-[#131722] border border-[#2a2e39] opacity-75 flex items-center justify-between">
+              <div className="p-3.5 rounded-xl bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] opacity-75 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-[#25D366]/10 text-[#25D366]/70 flex items-center justify-center font-bold">
                     <MessageCircle className="w-5 h-5" />
                   </div>
                   <div>
-                    <div className="text-sm font-bold text-white">
+                    <div className="text-sm font-bold text-[#131722] dark:text-white">
                       {isAr ? 'الدعم الفوري عبر واتساب (WhatsApp)' : 'WhatsApp Support'}
                     </div>
                     <div className="text-xs text-[#787b86]">
@@ -507,14 +507,14 @@ export const SupportDeskModal: React.FC<Props> = ({
                 href={telegramUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-3.5 rounded-xl bg-[#131722] hover:bg-[#229ED9]/15 border border-[#2a2e39] hover:border-[#229ED9]/50 transition-all flex items-center justify-between group cursor-pointer"
+                className="p-3.5 rounded-xl bg-[#FFFFFF] dark:bg-[#131722] hover:bg-[#229ED9]/15 border border-[#E0E3EB] dark:border-[#2a2e39] hover:border-[#229ED9]/50 transition-all flex items-center justify-between group cursor-pointer"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-[#229ED9]/20 text-[#229ED9] flex items-center justify-center font-bold">
                     <Send className="w-5 h-5" />
                   </div>
                   <div>
-                    <div className="text-sm font-bold text-white group-hover:text-[#229ED9] transition-colors flex items-center gap-1.5">
+                    <div className="text-sm font-bold text-[#131722] dark:text-white group-hover:text-[#229ED9] transition-colors flex items-center gap-1.5">
                       <span>{isAr ? 'قناة وتيليجرام الدعم الرسمي (Telegram)' : 'Official Telegram Support'}</span>
                       <ExternalLink className="w-3.5 h-3.5" />
                     </div>
@@ -529,13 +529,13 @@ export const SupportDeskModal: React.FC<Props> = ({
                 </span>
               </a>
             ) : (
-              <div className="p-3.5 rounded-xl bg-[#131722] border border-[#2a2e39] opacity-75 flex items-center justify-between">
+              <div className="p-3.5 rounded-xl bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] opacity-75 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-[#229ED9]/10 text-[#229ED9]/70 flex items-center justify-center font-bold">
                     <Send className="w-5 h-5" />
                   </div>
                   <div>
-                    <div className="text-sm font-bold text-white">
+                    <div className="text-sm font-bold text-[#131722] dark:text-white">
                       {isAr ? 'قناة وتيليجرام الدعم الرسمي (Telegram)' : 'Official Telegram Support'}
                     </div>
                     <div className="text-xs text-[#787b86]">
@@ -547,10 +547,10 @@ export const SupportDeskModal: React.FC<Props> = ({
             )}
 
             {/* Dynamic Email Support */}
-            <div className="p-3 rounded-xl bg-[#131722] border border-[#2a2e39] flex items-center justify-between text-xs">
+            <div className="p-3 rounded-xl bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] flex items-center justify-between text-xs">
               <div>
                 <span className="text-[#787b86]">{isAr ? 'البريد الإلكتروني المباشر:' : 'Email Desk:'} </span>
-                <span className="text-white font-mono font-bold">{supportEmail}</span>
+                <span className="text-[#131722] dark:text-white font-mono font-bold">{supportEmail}</span>
               </div>
               <span className="text-[#089981] font-mono text-[11px]">24/7 Available</span>
             </div>
@@ -559,24 +559,24 @@ export const SupportDeskModal: React.FC<Props> = ({
 
         {/* Tab 2: Live In-Modal @mbktrading Platform Inbox (Support, Suggestions & Questions) */}
         {activeTab === 'inbox' && myUid && (
-          <div className="flex-1 min-h-[340px] flex flex-col bg-[#131722] rounded-xl border border-[#2a2e39] overflow-hidden">
+          <div className="flex-1 min-h-[340px] flex flex-col bg-[#FFFFFF] dark:bg-[#131722] rounded-xl border border-[#E0E3EB] dark:border-[#2a2e39] overflow-hidden">
             {/* Top Bar inside Inbox Tab */}
-            <div className="px-3 py-2 bg-[#171b26] border-b border-[#2a2e39] flex items-center justify-between gap-2 shrink-0">
+            <div className="px-3 py-2 bg-[#FFFFFF] dark:bg-[#171b26] border-b border-[#E0E3EB] dark:border-[#2a2e39] flex items-center justify-between gap-2 shrink-0">
               <div className="flex items-center gap-2 min-w-0">
                 {isAdminUser && selectedAdminTicketUser && (
                   <button
                     type="button"
                     onClick={() => setSelectedAdminTicketUser(null)}
-                    className="p-1 rounded-lg bg-[#131722] border border-[#2a2e39] text-[#d1d4dc] hover:text-white cursor-pointer"
+                    className="p-1 rounded-lg bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] text-[#131722] dark:text-[#d1d4dc] hover:text-[#131722] dark:hover:text-white cursor-pointer"
                   >
                     {isAr ? <ArrowRight className="w-3.5 h-3.5" /> : <ArrowLeft className="w-3.5 h-3.5" />}
                   </button>
                 )}
-                <div className="w-7 h-7 rounded-lg bg-[#10b981]/20 border border-[#10b981]/40 flex items-center justify-center text-[#10b981] shrink-0">
+                <div className="w-7 h-7 rounded-lg bg-[#E6F5F2] dark:bg-[#10b981]/20 border border-[#B3E2D9] dark:border-[#10b981]/40 flex items-center justify-center text-[#089981] dark:text-[#10b981] shrink-0">
                   <Headphones className="w-4 h-4" />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-xs font-bold text-white truncate flex items-center gap-1.5">
+                  <div className="text-xs font-bold text-[#131722] dark:text-white truncate flex items-center gap-1.5">
                     <span>
                       {isAdminUser
                         ? selectedAdminTicketUser
@@ -586,7 +586,7 @@ export const SupportDeskModal: React.FC<Props> = ({
                           : 'All @mbktrading Support & Suggestion Tickets'
                         : `@${OFFICIAL_PLATFORM_USERNAME}`}
                     </span>
-                    <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-black bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/40">
+                    <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-black bg-[#E6F5F2] dark:bg-[#10b981]/20 text-[#089981] dark:text-[#10b981] border border-[#B3E2D9] dark:border-[#10b981]/40">
                       OFFICIAL
                     </span>
                   </div>
@@ -614,7 +614,7 @@ export const SupportDeskModal: React.FC<Props> = ({
                     );
                     onClose();
                   }}
-                  className="px-2.5 py-1 rounded-lg bg-[#1e222d] hover:bg-[#2a2e39] border border-[#363a45] text-[10px] font-bold text-[#10b981] cursor-pointer shrink-0"
+                  className="px-2.5 py-1 rounded-lg bg-[#F8F9FD] dark:bg-[#1e222d] hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] border border-[#CBD2DF] dark:border-[#363a45] text-[10px] font-bold text-[#089981] dark:text-[#10b981] cursor-pointer shrink-0"
                 >
                   {isAr ? 'فتح في صندوق الوارد الكامل ↗' : 'Open Full Inbox ↗'}
                 </button>
@@ -622,18 +622,18 @@ export const SupportDeskModal: React.FC<Props> = ({
             </div>
 
             {feedback && (
-              <div className="px-3 py-1.5 bg-rose-500/15 border-b border-rose-500/30 text-rose-300 text-[11px] font-bold">
+              <div className="px-3 py-1.5 bg-[#FDECEE] dark:bg-rose-500/15 border-b border-[#F5C2C7] dark:border-rose-500/30 text-[#D93848] dark:text-rose-300 text-[11px] font-bold">
                 {feedback}
               </div>
             )}
 
             {/* Admin Ticket List (when no specific user ticket is selected yet) */}
             {isAdminUser && !selectedAdminTicketUser ? (
-              <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-[#2a2e39]/60">
+              <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-[#E0E3EB] dark:divide-[#2a2e39]/60">
                 {adminTickets.length === 0 ? (
                   <div className="p-8 text-center text-[#787b86] text-xs space-y-2">
-                    <Mail className="w-8 h-8 mx-auto opacity-40 text-[#10b981]" />
-                    <p className="font-bold text-white">
+                    <Mail className="w-8 h-8 mx-auto opacity-40 text-[#089981] dark:text-[#10b981]" />
+                    <p className="font-bold text-[#131722] dark:text-white">
                       {isAr
                         ? 'لا توجد تذاكر دعم أو اقتراحات واردة حالياً'
                         : 'No incoming support or suggestion tickets yet'}
@@ -658,12 +658,12 @@ export const SupportDeskModal: React.FC<Props> = ({
                             role: traderRole
                           });
                         }}
-                        className="w-full p-3 flex items-center justify-between gap-2 hover:bg-[#1e222d] text-start transition-colors cursor-pointer"
+                        className="w-full p-3 flex items-center justify-between gap-2 hover:bg-[#EDF1F7] dark:hover:bg-[#1e222d] text-start transition-colors cursor-pointer"
                       >
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-white truncate">{traderName}</span>
-                            <span className="px-1.5 py-0.2 rounded text-[9px] font-mono bg-[#2a2e39] text-[#9db2c6]">
+                            <span className="text-xs font-bold text-[#131722] dark:text-white truncate">{traderName}</span>
+                            <span className="px-1.5 py-0.2 rounded text-[9px] font-mono bg-[#EDF1F7] dark:bg-[#2a2e39] text-[#4A5162] dark:text-[#9db2c6]">
                               {traderRole}
                             </span>
                             {unread > 0 && (
@@ -672,7 +672,7 @@ export const SupportDeskModal: React.FC<Props> = ({
                               </span>
                             )}
                           </div>
-                          <p className="text-[11px] text-[#8b95a5] truncate mt-0.5">
+                          <p className="text-[11px] text-[#4A5162] dark:text-[#8b95a5] truncate mt-0.5">
                             {convo.lastSenderUid === OFFICIAL_PLATFORM_UID ? '@mbktrading: ' : ''}
                             {convo.lastMessage}
                           </p>
@@ -694,8 +694,8 @@ export const SupportDeskModal: React.FC<Props> = ({
                 >
                   {messages.length === 0 ? (
                     <div className="h-full py-8 flex flex-col items-center justify-center text-center text-[#787b86] text-xs space-y-1.5">
-                      <Headphones className="w-7 h-7 text-[#10b981] opacity-60" />
-                      <p className="font-bold text-white">@{OFFICIAL_PLATFORM_USERNAME}</p>
+                      <Headphones className="w-7 h-7 text-[#089981] dark:text-[#10b981] opacity-60" />
+                      <p className="font-bold text-[#131722] dark:text-white">@{OFFICIAL_PLATFORM_USERNAME}</p>
                     </div>
                   ) : (
                     messages.map((msg) => {
@@ -707,16 +707,16 @@ export const SupportDeskModal: React.FC<Props> = ({
                           <div
                             className={`max-w-[85%] rounded-2xl px-3 py-2 text-xs leading-relaxed ${
                               isMine
-                                ? 'bg-gradient-to-br from-[#089981]/30 to-[#065f46]/30 border border-[#089981]/40 text-white rounded-ee-sm'
+                                ? 'bg-[#E6F5F2] dark:bg-gradient-to-br dark:from-[#089981]/30 dark:to-[#065f46]/30 border border-[#B3E2D9] dark:border-[#089981]/40 text-[#131722] dark:text-white rounded-ee-sm'
                                 : isFromPlatform
-                                ? 'bg-[#10b981]/15 border border-[#10b981]/40 text-white rounded-es-sm'
-                                : 'bg-[#1e222d] border border-[#2a2e39] text-[#e1e4ea] rounded-es-sm'
+                                ? 'bg-[#FFFFFF] dark:bg-[#10b981]/15 border border-[#B3E2D9] dark:border-[#10b981]/40 text-[#131722] dark:text-white rounded-es-sm'
+                                : 'bg-[#F8F9FD] dark:bg-[#1e222d] border border-[#E0E3EB] dark:border-[#2a2e39] text-[#131722] dark:text-[#e1e4ea] rounded-es-sm'
                             }`}
                           >
                             <div className="flex items-center justify-between gap-2 mb-0.5">
                               <span
                                 className={`text-[10px] font-mono font-bold ${
-                                  isFromPlatform ? 'text-[#10b981]' : 'text-[#8492a6]'
+                                  isFromPlatform ? 'text-[#089981] dark:text-[#10b981]' : 'text-[#4A5162] dark:text-[#8492a6]'
                                 }`}
                               >
                                 {isFromPlatform ? `@${OFFICIAL_PLATFORM_USERNAME}` : msg.senderName}
@@ -725,7 +725,7 @@ export const SupportDeskModal: React.FC<Props> = ({
                                 <button
                                   type="button"
                                   onClick={() => handleStartEditMessage(msg)}
-                                  className="px-1.5 py-0.5 rounded bg-black/25 hover:bg-amber-500/20 text-[10px] text-[#9db2c6] hover:text-amber-300 border border-white/10 hover:border-amber-500/40 flex items-center gap-1 cursor-pointer transition-colors"
+                                  className="px-1.5 py-0.5 rounded bg-[#FFFFFF] dark:bg-black/25 hover:bg-[#FDF6E3] dark:hover:bg-amber-500/20 text-[10px] text-[#4A5162] dark:text-[#9db2c6] hover:text-[#9A6700] dark:hover:text-amber-300 border border-[#CBD2DF] dark:border-white/10 hover:border-[#EFE0B4] dark:hover:border-amber-500/40 flex items-center gap-1 cursor-pointer transition-colors"
                                   title={isAr ? 'تعديل الرسالة' : 'Edit message'}
                                 >
                                   <Edit2 className="w-2.5 h-2.5" />
@@ -740,13 +740,13 @@ export const SupportDeskModal: React.FC<Props> = ({
                                   value={editingText}
                                   onChange={(e) => setEditingText(e.target.value.slice(0, 1000))}
                                   rows={2}
-                                  className="w-full rounded-xl bg-[#0b0e14] border border-amber-500/40 px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-amber-400 resize-none"
+                                  className="w-full rounded-xl bg-[#F0F3FA] dark:bg-[#0b0e14] border border-[#EFE0B4] dark:border-amber-500/40 px-2.5 py-1.5 text-xs text-[#131722] dark:text-white focus:outline-none focus:border-amber-400 resize-none"
                                 />
                                 <div className="flex items-center justify-end gap-1.5">
                                   <button
                                     type="button"
                                     onClick={handleCancelEditMessage}
-                                    className="px-2 py-1 rounded-lg bg-[#1e222d] hover:bg-[#2a2e39] text-[10px] font-bold text-[#9db2c6] flex items-center gap-1 cursor-pointer"
+                                    className="px-2 py-1 rounded-lg bg-[#F8F9FD] dark:bg-[#1e222d] hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] text-[10px] font-bold text-[#4A5162] dark:text-[#9db2c6] flex items-center gap-1 cursor-pointer"
                                   >
                                     <X className="w-3 h-3" />
                                     <span>{isAr ? 'إلغاء' : 'Cancel'}</span>
@@ -766,7 +766,7 @@ export const SupportDeskModal: React.FC<Props> = ({
                               <p className="break-words whitespace-pre-wrap">
                                 {msg.text}
                                 {msg.editedAt && (
-                                  <span className="ms-1.5 text-[9px] font-mono text-[#8b95a5] italic">
+                                  <span className="ms-1.5 text-[9px] font-mono text-[#4A5162] dark:text-[#8b95a5] italic">
                                     {isAr ? '(تم التعديل)' : '(edited)'}
                                   </span>
                                 )}
@@ -786,7 +786,7 @@ export const SupportDeskModal: React.FC<Props> = ({
 
                 {/* Topic Selector for Non-Admin Users */}
                 {!isAdminUser && (
-                  <div className="px-3 py-1.5 bg-[#171b26] border-t border-[#2a2e39] flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0">
+                  <div className="px-3 py-1.5 bg-[#FFFFFF] dark:bg-[#171b26] border-t border-[#E0E3EB] dark:border-[#2a2e39] flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0">
                     <span className="text-[10px] text-[#787b86] font-bold shrink-0">
                       {isAr ? 'التصنيف:' : 'Category:'}
                     </span>
@@ -800,8 +800,8 @@ export const SupportDeskModal: React.FC<Props> = ({
                         }}
                         className={`px-2.5 py-0.5 rounded-lg text-[10px] font-bold border transition-all cursor-pointer shrink-0 ${
                           selectedTopic === topic.id
-                            ? 'bg-[#10b981]/20 text-[#10b981] border-[#10b981]/50'
-                            : 'bg-[#131722] text-[#787b86] border-[#2a2e39] hover:text-white'
+                            ? 'bg-[#E6F5F2] dark:bg-[#10b981]/20 text-[#089981] dark:text-[#10b981] border-[#B3E2D9] dark:border-[#10b981]/50'
+                            : 'bg-[#FFFFFF] dark:bg-[#131722] text-[#787b86] border-[#E0E3EB] dark:border-[#2a2e39] hover:text-[#131722] dark:hover:text-white'
                         }`}
                       >
                         {isAr ? topic.labelAr : topic.labelEn}
@@ -813,7 +813,7 @@ export const SupportDeskModal: React.FC<Props> = ({
                 {/* Message Composer */}
                 <form
                   onSubmit={handleSendPlatformMessage}
-                  className="p-2.5 bg-[#1e222d] border-t border-[#2a2e39] flex items-center gap-2 shrink-0"
+                  className="p-2.5 bg-[#F8F9FD] dark:bg-[#1e222d] border-t border-[#E0E3EB] dark:border-[#2a2e39] flex items-center gap-2 shrink-0"
                 >
                   <input
                     type="text"
@@ -829,7 +829,7 @@ export const SupportDeskModal: React.FC<Props> = ({
                         ? 'اكتب رسالتك للدعم أو اقتراحك أو سؤالك هنا...'
                         : 'Write your support message, suggestion, or question...'
                     }
-                    className="flex-1 bg-[#131722] border border-[#2a2e39] focus:border-[#10b981] rounded-xl px-3 py-2 text-xs text-white placeholder-[#787b86] focus:outline-none"
+                    className="flex-1 bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] focus:border-[#1E53E5] dark:focus:border-[#10b981] rounded-xl px-3 py-2 text-xs text-[#131722] dark:text-white placeholder-[#787B86] dark:placeholder-[#787b86] focus:outline-none"
                   />
                   <button
                     type="submit"
@@ -857,8 +857,8 @@ export const SupportDeskModal: React.FC<Props> = ({
         {activeTab === 'faq' && (
           <div className="space-y-2.5 overflow-y-auto flex-1 min-h-0 pr-0.5">
             {faqs.map((faq, idx) => (
-              <div key={idx} className="p-3 rounded-xl bg-[#131722] border border-[#2a2e39] space-y-1">
-                <div className="text-xs font-bold text-white flex items-center gap-1.5">
+              <div key={idx} className="p-3 rounded-xl bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] space-y-1">
+                <div className="text-xs font-bold text-[#131722] dark:text-white flex items-center gap-1.5">
                   <span className="text-[#089981]">Q:</span>
                   <span>{faq.q}</span>
                 </div>

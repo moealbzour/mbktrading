@@ -1,30 +1,111 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *, [data-theme="dark"], [data-theme="dark"] *));
 
 @layer base {
-  :root {
+  /* ============================================================================
+     MBK TRADING — INDEPENDENT INSTITUTIONAL LIGHT MODE ("DAY DESK") TOKENS
+     ============================================================================ */
+  :root,
+  html[data-theme="light"],
+  .theme-light {
     --sat: env(safe-area-inset-top, 0px);
     --sar: env(safe-area-inset-right, 0px);
     --sab: env(safe-area-inset-bottom, 0px);
     --sal: env(safe-area-inset-left, 0px);
 
-    /* Original MBK Deep Obsidian Dark Palette (Default) */
-    --bg-canvas: #06080c;
-    --bg-panel: #0b0e14;
-    --bg-elevated: #0f141e;
-    --bg-hover: #161d2b;
-    --border-subtle: rgba(255, 255, 255, 0.08);
-    --border-strong: #1e2536;
-    --text-primary: #f1f5f9;
-    --text-secondary: #8b95a5;
-    --text-muted: #64748b;
-    --accent-primary: #10b981;
-    --accent-hover: #059669;
-    --color-bull: #10b981;
-    --color-bear: #ef4444;
+    /* Day Desk Semantic Surfaces */
+    --mbk-bg-canvas: #F0F3FA;
+    --mbk-bg-surface: #FFFFFF;
+    --mbk-bg-subtle: #F8F9FD;
+    --mbk-bg-hover: #EDF1F7;
+
+    /* Day Desk Hairline & Control Borders (Bold & High-Clarity) */
+    --mbk-border: #A8B3C5;
+    --mbk-border-strong: #7B89A0;
+
+    /* Day Desk Ink Hierarchy */
+    --mbk-text-primary: #131722;
+    --mbk-text-secondary: #4A5162;
+    --mbk-text-muted: #787B86;
+
+    /* Day Desk Brand Actions & Focus */
+    --mbk-action-bg: #131722;
+    --mbk-action-hover: #2A2E39;
+    --mbk-action-text: #FFFFFF;
+    --mbk-focus: #1E53E5;
+
+    /* Day Desk Trading Semantics (High-Contrast on White) */
+    --mbk-bull-text: #089981;
+    --mbk-bull-bg: #E6F5F2;
+    --mbk-bull-border: #6EC6B7;
+
+    --mbk-bear-text: #D93848;
+    --mbk-bear-bg: #FDECEE;
+    --mbk-bear-border: #E8949E;
+
+    --mbk-vip-text: #9A6700;
+    --mbk-vip-icon: #B47B00;
+    --mbk-vip-bg: #FDF6E3;
+    --mbk-vip-border: #D9B768;
+
+    /* Subtle Flat Elevation (Light Mode Only) */
+    --mbk-card-shadow: 0 1px 2px rgba(19, 23, 34, 0.04);
+
+    /* Legacy Token Aliases */
+    --bg-canvas: var(--mbk-bg-canvas);
+    --bg-panel: var(--mbk-bg-surface);
+    --bg-elevated: var(--mbk-bg-subtle);
+    --bg-hover: var(--mbk-bg-hover);
+    --border-subtle: var(--mbk-border);
+    --border-strong: var(--mbk-border-strong);
+    --text-primary: var(--mbk-text-primary);
+    --text-secondary: var(--mbk-text-secondary);
+    --text-muted: var(--mbk-text-muted);
+    --accent-primary: #089981;
+    --accent-hover: #067a67;
+    --color-bull: #089981;
+    --color-bear: #D93848;
   }
 
+  /* ============================================================================
+     MBK TRADING — INSTITUTIONAL DARK TERMINAL TOKENS (PRESERVED 100%)
+     ============================================================================ */
+  .dark,
   .theme-dark,
   html[data-theme="dark"] {
+    --mbk-bg-canvas: #0B0E11;
+    --mbk-bg-surface: #131722;
+    --mbk-bg-subtle: #1E222D;
+    --mbk-bg-hover: #2A2E39;
+
+    --mbk-border: #2A2E39;
+    --mbk-border-strong: #363A45;
+
+    --mbk-text-primary: #F8FAFC;
+    --mbk-text-secondary: #94A3B8;
+    --mbk-text-muted: #64748B;
+
+    --mbk-action-bg: #26A69A;
+    --mbk-action-hover: #1E8E82;
+    --mbk-action-text: #FFFFFF;
+    --mbk-focus: #26A69A;
+
+    --mbk-bull-text: #26A69A;
+    --mbk-bull-bg: rgba(38, 166, 154, 0.15);
+    --mbk-bull-border: rgba(38, 166, 154, 0.35);
+
+    --mbk-bear-text: #EF5350;
+    --mbk-bear-bg: rgba(239, 83, 80, 0.15);
+    --mbk-bear-border: rgba(239, 83, 80, 0.35);
+
+    --mbk-vip-text: #F0B90B;
+    --mbk-vip-icon: #F0B90B;
+    --mbk-vip-bg: rgba(240, 185, 11, 0.15);
+    --mbk-vip-border: rgba(240, 185, 11, 0.35);
+
+    --mbk-card-shadow: none;
+
+    /* Original MBK Deep Obsidian Dark Palette Aliases */
     --bg-canvas: #06080c;
     --bg-panel: #0b0e14;
     --bg-elevated: #0f141e;
@@ -34,23 +115,6 @@
     --text-primary: #f1f5f9;
     --text-secondary: #8b95a5;
     --text-muted: #64748b;
-    --accent-primary: #10b981;
-    --accent-hover: #059669;
-    --color-bull: #10b981;
-    --color-bear: #ef4444;
-  }
-
-  html[data-theme="light"] {
-    /* Institutional Light Theme */
-    --bg-canvas: #F0F3FA;
-    --bg-panel: #FFFFFF;
-    --bg-elevated: #F8FAFD;
-    --bg-hover: #E0E3EB;
-    --border-subtle: #E0E3EB;
-    --border-strong: #B2B5BE;
-    --text-primary: #0f172a;
-    --text-secondary: #64748b;
-    --text-muted: #94a3b8;
     --accent-primary: #10b981;
     --accent-hover: #059669;
     --color-bull: #10b981;
@@ -65,6 +129,7 @@
 
   body {
     font-family: 'Cairo', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-weight: 500;
     background-color: var(--bg-canvas);
     color: var(--text-primary);
     overflow-x: hidden;
@@ -72,6 +137,37 @@
     min-height: 100dvh;
     touch-action: manipulation;
     letter-spacing: -0.005em;
+  }
+
+  /* Day Desk (Light Mode): Crisp optical weight compensation for dark ink on white surfaces */
+  html[data-theme="light"] body,
+  .theme-light body {
+    font-weight: 600;
+    -webkit-font-smoothing: auto;
+    -moz-osx-font-smoothing: auto;
+  }
+
+  /* Native form controls: guarantee crisp contrast on <select> & <option> in both themes */
+  select,
+  option,
+  optgroup {
+    background-color: var(--mbk-bg-surface);
+    color: var(--mbk-text-primary);
+  }
+
+  /* Prevent Chromium/Safari color-scheme mismatch from forcing opaque white behind transparent embeds (TradingView ticker/widgets) in Dark Mode */
+  iframe {
+    color-scheme: light;
+    background-color: transparent;
+  }
+
+  /* Accessible institutional focus ring in Light Mode */
+  html[data-theme="light"] input:focus-visible,
+  html[data-theme="light"] textarea:focus-visible,
+  html[data-theme="light"] select:focus-visible,
+  html[data-theme="light"] button:focus-visible {
+    outline: 2px solid var(--mbk-focus);
+    outline-offset: 1px;
   }
 
   .pb-safe {
@@ -82,132 +178,171 @@
   }
 }
 
+@layer utilities {
+  /* Step up Light Mode typography weights by one crisp optical notch for maximum legibility */
+  html[data-theme="light"] .font-normal,
+  .theme-light .font-normal {
+    font-weight: 600;
+  }
+
+  html[data-theme="light"] .font-medium,
+  .theme-light .font-medium {
+    font-weight: 600;
+  }
+
+  html[data-theme="light"] .font-semibold,
+  .theme-light .font-semibold {
+    font-weight: 700;
+  }
+
+  html[data-theme="light"] .font-bold,
+  .theme-light .font-bold {
+    font-weight: 800;
+  }
+
+  html[data-theme="light"] .font-extrabold,
+  .theme-light .font-extrabold {
+    font-weight: 900;
+  }
+
+  /* Day Desk (Light Mode): Bold, crisp, unmistakable box borders & panel dividers */
+  html[data-theme="light"] .border-\[\#E0E3EB\],
+  .theme-light .border-\[\#E0E3EB\] {
+    border-color: var(--mbk-border);
+  }
+
+  html[data-theme="light"] .border-\[\#CBD2DF\],
+  .theme-light .border-\[\#CBD2DF\] {
+    border-color: var(--mbk-border-strong);
+  }
+
+  html[data-theme="light"] .border-\[\#B3E2D9\],
+  .theme-light .border-\[\#B3E2D9\] {
+    border-color: var(--mbk-bull-border);
+  }
+
+  html[data-theme="light"] .border-\[\#F5C2C7\],
+  .theme-light .border-\[\#F5C2C7\] {
+    border-color: var(--mbk-bear-border);
+  }
+
+  html[data-theme="light"] .border-\[\#EFE0B4\],
+  .theme-light .border-\[\#EFE0B4\] {
+    border-color: var(--mbk-vip-border);
+  }
+
+  html[data-theme="light"] .divide-\[\#E0E3EB\] > :not(:last-child),
+  .theme-light .divide-\[\#E0E3EB\] > :not(:last-child) {
+    border-color: var(--mbk-border);
+  }
+
+  html[data-theme="light"] .border.border-\[\#E0E3EB\],
+  html[data-theme="light"] .border.border-\[\#CBD2DF\],
+  .theme-light .border.border-\[\#E0E3EB\],
+  .theme-light .border.border-\[\#CBD2DF\] {
+    border-width: 1.5px;
+  }
+
+  html[data-theme="light"] .border-t.border-\[\#E0E3EB\],
+  html[data-theme="light"] .border-t.border-\[\#CBD2DF\],
+  .theme-light .border-t.border-\[\#E0E3EB\],
+  .theme-light .border-t.border-\[\#CBD2DF\] {
+    border-top-width: 1.5px;
+  }
+
+  html[data-theme="light"] .border-b.border-\[\#E0E3EB\],
+  html[data-theme="light"] .border-b.border-\[\#CBD2DF\],
+  .theme-light .border-b.border-\[\#E0E3EB\],
+  .theme-light .border-b.border-\[\#CBD2DF\] {
+    border-bottom-width: 1.5px;
+  }
+
+  html[data-theme="light"] .border-l.border-\[\#E0E3EB\],
+  html[data-theme="light"] .border-l.border-\[\#CBD2DF\],
+  .theme-light .border-l.border-\[\#E0E3EB\],
+  .theme-light .border-l.border-\[\#CBD2DF\] {
+    border-left-width: 1.5px;
+  }
+
+  html[data-theme="light"] .border-r.border-\[\#E0E3EB\],
+  html[data-theme="light"] .border-r.border-\[\#CBD2DF\],
+  .theme-light .border-r.border-\[\#E0E3EB\],
+  .theme-light .border-r.border-\[\#CBD2DF\] {
+    border-right-width: 1.5px;
+  }
+
+  html[data-theme="light"] .border-s.border-\[\#E0E3EB\],
+  html[data-theme="light"] .border-s.border-\[\#CBD2DF\],
+  .theme-light .border-s.border-\[\#E0E3EB\],
+  .theme-light .border-s.border-\[\#CBD2DF\] {
+    border-inline-start-width: 1.5px;
+  }
+
+  html[data-theme="light"] .border-e.border-\[\#E0E3EB\],
+  html[data-theme="light"] .border-e.border-\[\#CBD2DF\],
+  .theme-light .border-e.border-\[\#E0E3EB\],
+  .theme-light .border-e.border-\[\#CBD2DF\] {
+    border-inline-end-width: 1.5px;
+  }
+
+  html[data-theme="light"] .border-x.border-\[\#E0E3EB\],
+  html[data-theme="light"] .border-x.border-\[\#CBD2DF\],
+  .theme-light .border-x.border-\[\#E0E3EB\],
+  .theme-light .border-x.border-\[\#CBD2DF\] {
+    border-inline-width: 1.5px;
+  }
+
+  html[data-theme="light"] .border-y.border-\[\#E0E3EB\],
+  html[data-theme="light"] .border-y.border-\[\#CBD2DF\],
+  .theme-light .border-y.border-\[\#E0E3EB\],
+  .theme-light .border-y.border-\[\#CBD2DF\] {
+    border-block-width: 1.5px;
+  }
+
+  html[data-theme="light"] .divide-y.divide-\[\#E0E3EB\] > :not(:last-child),
+  .theme-light .divide-y.divide-\[\#E0E3EB\] > :not(:last-child) {
+    border-bottom-width: 1.5px;
+  }
+
+  html[data-theme="light"] .divide-x.divide-\[\#E0E3EB\] > :not(:last-child),
+  .theme-light .divide-x.divide-\[\#E0E3EB\] > :not(:last-child) {
+    border-inline-end-width: 1.5px;
+  }
+}
+
 /* ============================================================================
-   TRADINGVIEW SLATE-WHITE LIGHT-MODE ADAPTATION LAYER
+   SEMANTIC SURFACE ELEVATION & INSTITUTIONAL HELPERS
    ============================================================================ */
-html[data-theme="light"] .bg-\[\#131722\],
-html[data-theme="light"] .bg-\[\#06080c\],
-html[data-theme="light"] .bg-\[\#06080C\],
-html[data-theme="light"] .bg-\[\#0a0d12\],
-html[data-theme="light"] .bg-\[\#0a0d14\],
-html[data-theme="light"] .bg-\[\#0b0e14\],
-html[data-theme="light"] .bg-\[\#0d1017\],
-html[data-theme="light"] .bg-\[\#0d1117\],
-html[data-theme="light"] .bg-\[\#090D16\] {
-  background-color: var(--bg-canvas) !important;
+.mbk-surface-card {
+  background-color: var(--mbk-bg-surface);
+  border: 1.5px solid var(--mbk-border);
+  box-shadow: var(--mbk-card-shadow);
 }
 
-html[data-theme="light"] .bg-\[\#131722\]\/95,
-html[data-theme="light"] .bg-\[\#131722\]\/90,
-html[data-theme="light"] .bg-\[\#131722\]\/80,
-html[data-theme="light"] .bg-\[\#131722\]\/70,
-html[data-theme="light"] .bg-\[\#131722\]\/60,
-html[data-theme="light"] .bg-\[\#131722\]\/50,
-html[data-theme="light"] .bg-\[\#0a0d12\]\/95 {
-  background-color: rgba(240, 243, 250, 0.96) !important;
+.dark .mbk-surface-card,
+html[data-theme="dark"] .mbk-surface-card {
+  border-width: 1px;
 }
 
-html[data-theme="light"] .bg-\[\#1e222d\],
-html[data-theme="light"] .bg-\[\#1E222D\],
-html[data-theme="light"] .bg-\[\#1e222d\]\/95,
-html[data-theme="light"] .bg-\[\#1e222d\]\/90,
-html[data-theme="light"] .bg-\[\#1e222d\]\/70,
-html[data-theme="light"] .bg-\[\#1e222d\]\/60,
-html[data-theme="light"] .bg-\[\#0f141e\],
-html[data-theme="light"] .bg-\[\#0f141e\]\/90,
-html[data-theme="light"] .bg-\[\#0f141e\]\/80,
-html[data-theme="light"] .bg-\[\#10141c\],
-html[data-theme="light"] .bg-\[\#111622\],
-html[data-theme="light"] .bg-\[\#111726\],
-html[data-theme="light"] .bg-\[\#151924\],
-html[data-theme="light"] .bg-\[\#161b26\],
-html[data-theme="light"] .bg-\[\#171b26\],
-html[data-theme="light"] .bg-\[\#181c27\],
-html[data-theme="light"] .bg-\[\#1a1e28\],
-html[data-theme="light"] .bg-\[\#1a1e29\] {
-  background-color: var(--bg-panel) !important;
-}
-
-html[data-theme="light"] .bg-\[\#242834\],
-html[data-theme="light"] .bg-\[\#2a2e39\],
-html[data-theme="light"] .bg-\[\#2A2E39\],
-html[data-theme="light"] .bg-\[\#2a2e39\]\/60,
-html[data-theme="light"] .bg-\[\#161d2b\],
-html[data-theme="light"] .bg-\[\#182034\],
-html[data-theme="light"] .bg-\[\#161c26\] {
-  background-color: #E0E3EB !important;
-}
-
-html[data-theme="light"] .border-\[\#2a2e39\],
-html[data-theme="light"] .border-\[\#2A2E39\],
-html[data-theme="light"] .border-\[\#2a2e39\]\/60,
-html[data-theme="light"] .border-\[\#2a2e39\]\/70,
-html[data-theme="light"] .border-\[\#2a2e39\]\/80,
-html[data-theme="light"] .border-\[\#363a45\],
-html[data-theme="light"] .border-\[\#1e2536\],
-html[data-theme="light"] .border-\[\#1E293B\],
-html[data-theme="light"] .border-\[\#1e2633\],
-html[data-theme="light"] .border-\[\#2a3446\],
-html[data-theme="light"] .border-white\/10,
-html[data-theme="light"] .border-white\/5 {
-  border-color: var(--border-subtle) !important;
-}
-
-html[data-theme="light"] .text-white,
-html[data-theme="light"] .text-\[\#f1f5f9\],
-html[data-theme="light"] .text-\[\#d1d4dc\],
-html[data-theme="light"] .text-\[\#D1D4DC\],
-html[data-theme="light"] .text-\[\#e1e4ea\],
-html[data-theme="light"] .text-slate-100,
-html[data-theme="light"] .text-slate-200 {
-  color: var(--text-primary) !important;
-}
-
-/* Preserve white text on solid primary/semantic buttons in Light Mode */
-html[data-theme="light"] .bg-\[\#2962ff\] .text-white,
-html[data-theme="light"] .bg-\[\#2962ff\].text-white,
-html[data-theme="light"] .bg-\[\#2962FF\] .text-white,
-html[data-theme="light"] .bg-\[\#2962FF\].text-white,
-html[data-theme="light"] .bg-\[\#089981\] .text-white,
-html[data-theme="light"] .bg-\[\#089981\].text-white,
-html[data-theme="light"] .bg-\[\#10b981\].text-white,
-html[data-theme="light"] .bg-\[\#0f172a\].text-white,
-html[data-theme="light"] .bg-emerald-600.text-white,
-html[data-theme="light"] .bg-rose-600.text-white,
-html[data-theme="light"] .bg-\[\#f23645\].text-white,
-html[data-theme="light"] .bg-\[\#F23645\].text-white,
-html[data-theme="light"] .bg-\[\#e11d48\].text-white,
-html[data-theme="light"] .bg-blue-600.text-white,
-html[data-theme="light"] .bg-red-600.text-white {
-  color: #ffffff !important;
-}
-
-html[data-theme="light"] .text-\[\#787b86\],
-html[data-theme="light"] .text-\[\#787B86\],
-html[data-theme="light"] .text-\[\#8b95a5\],
-html[data-theme="light"] .text-\[\#9db2c6\],
-html[data-theme="light"] .text-\[\#8a93a6\],
-html[data-theme="light"] .text-slate-400 {
-  color: var(--text-secondary) !important;
-}
-
-/* Custom precision slim dark scrollbars */
+/* ============================================================================
+   PRECISION SCROLLBARS (ADAPTED FOR LIGHT DAY DESK & DARK TERMINAL)
+   ============================================================================ */
 ::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--bg-canvas);
+  background: var(--mbk-bg-canvas);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border-subtle);
-  border-radius: 2px;
+  background: var(--mbk-border-strong);
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #434651;
+  background: var(--mbk-text-muted);
 }
 
 /* Tabular numbers for financial digits */
@@ -221,7 +356,14 @@ html[data-theme="light"] .text-slate-400 {
 /* Subtle institutional grid background */
 .tv-grid-bg {
   background-size: 28px 28px;
-  background-image: 
+  background-image:
+    linear-gradient(to right, rgba(19, 23, 34, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(19, 23, 34, 0.045) 1px, transparent 1px);
+}
+
+.dark .tv-grid-bg,
+html[data-theme="dark"] .tv-grid-bg {
+  background-image:
     linear-gradient(to right, rgba(120, 123, 134, 0.08) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(120, 123, 134, 0.08) 1px, transparent 1px);
 }
@@ -307,11 +449,23 @@ html[data-theme="light"] .text-slate-400 {
   isolation: isolate;
 }
 
+/* Light Mode: Flat institutional elevation, zero colored neon glow */
 .trade-card-active-buy {
-  box-shadow: 0 0 18px -4px rgba(16, 185, 129, 0.28);
+  box-shadow: 0 1px 2px rgba(19, 23, 34, 0.05);
 }
 
 .trade-card-active-sell {
+  box-shadow: 0 1px 2px rgba(19, 23, 34, 0.05);
+}
+
+/* Dark Mode: Preserved 100% original active signal glow */
+.dark .trade-card-active-buy,
+html[data-theme="dark"] .trade-card-active-buy {
+  box-shadow: 0 0 18px -4px rgba(16, 185, 129, 0.28);
+}
+
+.dark .trade-card-active-sell,
+html[data-theme="dark"] .trade-card-active-sell {
   box-shadow: 0 0 18px -4px rgba(225, 29, 72, 0.28);
 }
 
@@ -347,6 +501,35 @@ html[data-theme="light"] .text-slate-400 {
   background: conic-gradient(
     from 0deg,
     transparent 0deg,
+    rgba(8, 153, 129, 0.14) 60deg,
+    #089981 140deg,
+    #089981 175deg,
+    transparent 200deg,
+    rgba(8, 153, 129, 0.18) 300deg,
+    #089981 350deg,
+    transparent 360deg
+  );
+}
+
+.trade-card-active-sell .trade-perimeter-glow::before {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(217, 56, 72, 0.14) 60deg,
+    #D93848 140deg,
+    #D93848 175deg,
+    transparent 200deg,
+    rgba(217, 56, 72, 0.18) 300deg,
+    #D93848 350deg,
+    transparent 360deg
+  );
+}
+
+.dark .trade-card-active-buy .trade-perimeter-glow::before,
+html[data-theme="dark"] .trade-card-active-buy .trade-perimeter-glow::before {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
     rgba(16, 185, 129, 0.15) 60deg,
     #10b981 140deg,
     #34d399 175deg,
@@ -357,7 +540,8 @@ html[data-theme="light"] .text-slate-400 {
   );
 }
 
-.trade-card-active-sell .trade-perimeter-glow::before {
+.dark .trade-card-active-sell .trade-perimeter-glow::before,
+html[data-theme="dark"] .trade-card-active-sell .trade-perimeter-glow::before {
   background: conic-gradient(
     from 0deg,
     transparent 0deg,
@@ -370,4 +554,3 @@ html[data-theme="light"] .text-slate-400 {
     transparent 360deg
   );
 }
-

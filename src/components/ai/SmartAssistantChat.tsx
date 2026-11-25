@@ -193,38 +193,38 @@ export const SmartAssistantChat: React.FC<SmartAssistantChatProps> = ({
   return (
     <div
       dir={isAr ? 'rtl' : 'ltr'}
-      className="h-full flex flex-col bg-[#131722] text-[#d1d4dc] overflow-hidden"
+      className="h-full flex flex-col bg-[#FFFFFF] dark:bg-[#131722] text-[#131722] dark:text-[#d1d4dc] overflow-hidden"
     >
       {/* Header */}
-      <div className="p-3 bg-[#1e222d] border-b border-[#2a2e39] flex items-center justify-between gap-2 shrink-0">
+      <div className="p-3 bg-[#F8F9FD] dark:bg-[#1e222d] border-b border-[#E0E3EB] dark:border-[#2a2e39] flex items-center justify-between gap-2 shrink-0">
         <div className="flex items-center gap-2 min-w-0">
-          <div className="w-8 h-8 rounded-lg bg-[#089981]/15 border border-[#089981]/35 flex items-center justify-center text-[#089981] shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-[#E6F5F2] dark:bg-[#089981]/15 border border-[#B3E2D9] dark:border-[#089981]/35 flex items-center justify-center text-[#089981] shrink-0">
             <Bot className="w-4 h-4" />
           </div>
           <div className="min-w-0">
-            <div className="text-xs font-bold text-white truncate">
+            <div className="text-xs font-bold text-[#131722] dark:text-white truncate">
               {isAr ? 'المساعد الذكي القياسي (Standard AI)' : 'Standard AI Assistant'}
             </div>
-            <div className="text-[10px] text-[#8a93a6] truncate">
+            <div className="text-[10px] text-[#4A5162] dark:text-[#8a93a6] truncate">
               {isAr ? 'متاح لباقة VIP ($100/mo) وأكواد التجربة' : 'VIP Tier ($100/mo) & AI Trial'}
             </div>
           </div>
         </div>
 
-        <span className="text-[10px] font-bold px-2 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 whitespace-nowrap shrink-0">
+        <span className="text-[10px] font-bold px-2 py-1 rounded-lg bg-[#FDF6E3] dark:bg-amber-500/10 border border-[#EFE0B4] dark:border-amber-500/30 text-[#9A6700] dark:text-amber-300 whitespace-nowrap shrink-0">
           🔒 Super AI · {isAr ? 'Elite قريباً' : 'Elite Soon'}
         </span>
       </div>
 
       {/* Super AI Elite Locked Banner */}
-      <div className="px-3 py-2 bg-[#1a1e2b] border-b border-[#2a2e39] flex items-center justify-between gap-2 text-[10px] shrink-0">
-        <div className="flex items-center gap-1.5 text-amber-300 font-semibold min-w-0">
+      <div className="px-3 py-2 bg-[#F8F9FD] dark:bg-[#1a1e2b] border-b border-[#E0E3EB] dark:border-[#2a2e39] flex items-center justify-between gap-2 text-[10px] shrink-0">
+        <div className="flex items-center gap-1.5 text-[#9A6700] dark:text-amber-300 font-semibold min-w-0">
           <Lock className="w-3.5 h-3.5 shrink-0" />
           <span className="truncate">
             🔒 {isAr ? 'المساعد الفائق (Super AI - صوتي ورؤية الشارت):' : 'Super AI (Voice & Chart Vision):'}
           </span>
         </div>
-        <span className="text-[9px] font-bold text-amber-300 whitespace-nowrap shrink-0">
+        <span className="text-[9px] font-bold text-[#9A6700] dark:text-amber-300 whitespace-nowrap shrink-0">
           {ELITE_LOCK_BADGE_TEXT}
         </span>
       </div>
@@ -232,13 +232,13 @@ export const SmartAssistantChat: React.FC<SmartAssistantChatProps> = ({
       {/* Main Content */}
       {!canUseStandardAi ? (
         <div className="flex-1 flex flex-col items-center justify-center p-5 text-center space-y-3">
-          <div className="w-12 h-12 rounded-2xl bg-[#1e222d] border border-amber-500/35 flex items-center justify-center text-amber-400">
+          <div className="w-12 h-12 rounded-2xl bg-[#F8F9FD] dark:bg-[#1e222d] border border-[#EFE0B4] dark:border-amber-500/35 flex items-center justify-center text-[#9A6700] dark:text-amber-400">
             <Lock className="w-5 h-5" />
           </div>
-          <h3 className="text-sm font-extrabold text-white">
+          <h3 className="text-sm font-extrabold text-[#131722] dark:text-white">
             {isAr ? 'المساعد الذكي متاح لباقة VIP ($100/mo)' : 'Standard AI Requires VIP Tier ($100/mo)'}
           </h3>
-          <p className="text-xs text-[#8a93a6] max-w-xs leading-relaxed">
+          <p className="text-xs text-[#4A5162] dark:text-[#8a93a6] max-w-xs leading-relaxed">
             {isAr
               ? 'قم بالترقية إلى باقة VIP أو فعّل رمز تجربة لميزة Standard AI للبدء بالمحادثة المباشرة.'
               : 'Upgrade to the VIP Tier or redeem a Standard AI trial key to start conversational assistance.'}
@@ -264,9 +264,9 @@ export const SmartAssistantChat: React.FC<SmartAssistantChatProps> = ({
                   soundManager.playClick();
                   onOpenPromoModal();
                 }}
-                className="px-4 py-2 rounded-xl bg-[#1e222d] hover:bg-[#2a2e39] border border-[#2a2e39] text-[#d1d4dc] font-bold text-xs flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                className="px-4 py-2 rounded-xl bg-[#F8F9FD] dark:bg-[#1e222d] hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] border border-[#E0E3EB] dark:border-[#2a2e39] text-[#131722] dark:text-[#d1d4dc] font-bold text-xs flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
               >
-                <Ticket className="w-3.5 h-3.5 text-amber-400" />
+                <Ticket className="w-3.5 h-3.5 text-[#9A6700] dark:text-amber-400" />
                 <span>{isAr ? 'تفعيل رمز تجربة' : 'Redeem Trial Key'}</span>
               </button>
             )}
@@ -285,8 +285,8 @@ export const SmartAssistantChat: React.FC<SmartAssistantChatProps> = ({
                     msg.role === 'user'
                       ? 'bg-[#089981] text-white'
                       : msg.isError
-                      ? 'bg-[#f23645]/10 border border-[#f23645]/40 text-[#f23645]'
-                      : 'bg-[#1e222d] border border-[#2a2e39] text-[#d1d4dc]'
+                      ? 'bg-[#FDECEE] dark:bg-[#f23645]/10 border border-[#F5C2C7] dark:border-[#f23645]/40 text-[#D93848] dark:text-[#f23645]'
+                      : 'bg-[#F8F9FD] dark:bg-[#1e222d] border border-[#E0E3EB] dark:border-[#2a2e39] text-[#131722] dark:text-[#d1d4dc]'
                   }`}
                 >
                   {msg.isError && <AlertCircle className="w-3.5 h-3.5 inline me-1.5" />}
@@ -300,7 +300,7 @@ export const SmartAssistantChat: React.FC<SmartAssistantChatProps> = ({
 
             {loading && (
               <div className="flex items-start">
-                <div className="bg-[#1e222d] border border-[#2a2e39] rounded-2xl px-3.5 py-2.5 text-xs text-[#8a93a6]">
+                <div className="bg-[#F8F9FD] dark:bg-[#1e222d] border border-[#E0E3EB] dark:border-[#2a2e39] rounded-2xl px-3.5 py-2.5 text-xs text-[#4A5162] dark:text-[#8a93a6]">
                   {isAr ? 'جاري إنشاء الإجابة...' : 'Generating response...'}
                 </div>
               </div>
@@ -310,7 +310,7 @@ export const SmartAssistantChat: React.FC<SmartAssistantChatProps> = ({
 
           <form
             onSubmit={handleSend}
-            className="p-2.5 bg-[#1e222d] border-t border-[#2a2e39] flex items-center gap-2 shrink-0"
+            className="p-2.5 bg-[#F8F9FD] dark:bg-[#1e222d] border-t border-[#E0E3EB] dark:border-[#2a2e39] flex items-center gap-2 shrink-0"
           >
             <input
               type="text"
@@ -318,7 +318,7 @@ export const SmartAssistantChat: React.FC<SmartAssistantChatProps> = ({
               onChange={(e) => setInput(e.target.value)}
               placeholder={isAr ? 'اسأل المساعد الذكي...' : 'Ask the assistant...'}
               disabled={loading}
-              className="flex-1 bg-[#131722] border border-[#2a2e39] focus:border-[#089981] rounded-xl px-3 py-2.5 text-xs text-white placeholder-[#787b86] focus:outline-hidden"
+              className="flex-1 bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] focus:border-[#1E53E5] dark:focus:border-[#089981] rounded-xl px-3 py-2.5 text-xs text-[#131722] dark:text-white placeholder-[#787B86] dark:placeholder-[#787b86] focus:outline-hidden"
             />
             <button
               type="submit"

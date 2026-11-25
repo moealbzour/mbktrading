@@ -27,15 +27,15 @@ export const TradingViewAIPanel: React.FC<Props> = ({
   const [aiTab, setAiTab] = useState<'standard' | 'super'>('standard');
 
   return (
-    <div dir={isAr ? 'rtl' : 'ltr'} className="h-full flex flex-col bg-[#131722]">
-      <div className="p-2 bg-[#1e222d] border-b border-[#2a2e39] flex items-center gap-1.5 shrink-0 text-xs">
+    <div dir={isAr ? 'rtl' : 'ltr'} className="h-full flex flex-col bg-[#FFFFFF] dark:bg-[#131722]">
+      <div className="p-2 bg-[#F8F9FD] dark:bg-[#1e222d] border-b border-[#E0E3EB] dark:border-[#2a2e39] flex items-center gap-1.5 shrink-0 text-xs">
         <button
           type="button"
           onClick={() => setAiTab('standard')}
           className={`flex-1 py-1.5 px-2.5 rounded-lg font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap ${
             aiTab === 'standard'
               ? 'bg-[#089981] text-white'
-              : 'bg-[#131722] text-[#8a93a6] hover:text-white'
+              : 'bg-[#FFFFFF] dark:bg-[#131722] text-[#4A5162] dark:text-[#8a93a6] hover:text-[#131722] dark:hover:text-white'
           }`}
         >
           <Bot className="w-3.5 h-3.5" />
@@ -46,11 +46,11 @@ export const TradingViewAIPanel: React.FC<Props> = ({
           onClick={() => setAiTab('super')}
           className={`flex-1 py-1.5 px-2.5 rounded-lg font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap ${
             aiTab === 'super'
-              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-              : 'bg-[#131722] text-[#8a93a6] hover:text-amber-300'
+              ? 'bg-[#FDF6E3] dark:bg-amber-500/20 text-[#9A6700] dark:text-amber-300 border border-[#EFE0B4] dark:border-amber-500/40'
+              : 'bg-[#FFFFFF] dark:bg-[#131722] text-[#4A5162] dark:text-[#8a93a6] hover:text-[#9A6700] dark:hover:text-amber-300'
           }`}
         >
-          <Lock className="w-3.5 h-3.5 text-amber-400" />
+          <Lock className="w-3.5 h-3.5 text-[#9A6700] dark:text-amber-400" />
           <span>🔒 {isAr ? 'Super AI (Elite)' : 'Super AI (Elite)'}</span>
         </button>
       </div>

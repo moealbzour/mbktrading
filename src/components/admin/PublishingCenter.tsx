@@ -369,25 +369,25 @@ export const PublishingCenter: React.FC<Props> = ({
 
   return (
     <div
-      className="bg-[#1e222d] border border-[#2a2e39] rounded-2xl overflow-hidden shadow-2xl flex flex-col h-full"
+      className="bg-[#F8F9FD] dark:bg-[#1e222d] border border-[#E0E3EB] dark:border-[#2a2e39] rounded-2xl overflow-hidden shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl flex flex-col h-full"
       dir={isAr ? 'rtl' : 'ltr'}
     >
       {/* 1. HEADER BAR */}
-      <div className="p-4 bg-[#131722]/80 backdrop-blur-md border-b border-[#2a2e39] flex flex-wrap items-center justify-between gap-3">
+      <div className="p-4 bg-[#FFFFFF]/95 dark:bg-[#131722]/80 dark:backdrop-blur-md border-b border-[#E0E3EB] dark:border-[#2a2e39] flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#089981]/20 to-blue-500/20 border border-[#089981]/40 flex items-center justify-center text-[#089981]">
+          <div className="w-10 h-10 rounded-xl bg-[#E6F5F2] dark:bg-gradient-to-br dark:from-[#089981]/20 dark:to-blue-500/20 border border-[#B3E2D9] dark:border-[#089981]/40 flex items-center justify-center text-[#089981]">
             <Send className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-base font-bold text-white">
+              <h2 className="text-base font-bold text-[#131722] dark:text-white">
                 {isAr ? 'مركز النشر وإدارة الصفقات المباشرة' : 'Signal Publishing Center'}
               </h2>
               <span
                 className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
                   roleUpper === 'ADMIN'
-                    ? 'bg-purple-500/20 text-purple-400 border border-purple-500/40'
-                    : 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
+                    ? 'bg-[#EDF1F7] dark:bg-purple-500/20 text-[#4A5162] dark:text-purple-400 border border-[#CBD2DF] dark:border-purple-500/40'
+                    : 'bg-[#FDF6E3] dark:bg-amber-500/20 text-[#9A6700] dark:text-amber-400 border border-[#EFE0B4] dark:border-amber-500/40'
                 }`}
               >
                 {roleUpper === 'ADMIN' ? 'ADMIN' : 'ANALYSER'}
@@ -403,14 +403,14 @@ export const PublishingCenter: React.FC<Props> = ({
 
         {/* Tab Switcher & Close button */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 bg-[#131722] p-1 rounded-xl border border-[#2a2e39]">
+          <div className="flex items-center gap-1 bg-[#FFFFFF] dark:bg-[#131722] p-1 rounded-xl border border-[#E0E3EB] dark:border-[#2a2e39]">
             <button
               onClick={() => {
                 soundManager.playClick();
                 setActiveTab('signals');
               }}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                activeTab === 'signals' ? 'bg-[#089981] text-white shadow-md' : 'text-[#787b86] hover:text-white'
+                activeTab === 'signals' ? 'bg-[#089981] text-white shadow-md' : 'text-[#787b86] hover:text-[#131722] dark:hover:text-white'
               }`}
             >
               <Zap className="w-3.5 h-3.5" />
@@ -424,12 +424,12 @@ export const PublishingCenter: React.FC<Props> = ({
                 fetchPublishedSignals();
               }}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                activeTab === 'manage' ? 'bg-[#2a2e39] text-white shadow-md' : 'text-[#787b86] hover:text-white'
+                activeTab === 'manage' ? 'bg-[#EDF1F7] dark:bg-[#2a2e39] text-[#131722] dark:text-white shadow-md' : 'text-[#787b86] hover:text-[#131722] dark:hover:text-white'
               }`}
             >
               <Activity className="w-3.5 h-3.5" />
               <span>{isAr ? 'إدارة الصفقات' : 'Manage'}</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-white/10 font-mono">
+              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[#EDF1F7] dark:bg-white/10 font-mono">
                 {publishedSignals.length}
               </span>
             </button>
@@ -438,7 +438,7 @@ export const PublishingCenter: React.FC<Props> = ({
           {onClose && (
             <button
               onClick={onClose}
-              className="p-2 rounded-xl bg-[#131722] hover:bg-[#2a2e39] text-[#787b86] hover:text-white transition-colors cursor-pointer border border-[#2a2e39]"
+              className="p-2 rounded-xl bg-[#FFFFFF] dark:bg-[#131722] hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] text-[#787b86] hover:text-[#131722] dark:hover:text-white transition-colors cursor-pointer border border-[#E0E3EB] dark:border-[#2a2e39]"
               title={isAr ? 'إغلاق' : 'Close'}
             >
               <X className="w-4 h-4" />
@@ -452,10 +452,10 @@ export const PublishingCenter: React.FC<Props> = ({
         <div
           className={`px-4 py-2.5 flex items-center justify-between text-xs font-semibold animate-in fade-in ${
             feedback.type === 'success'
-              ? 'bg-[#089981]/20 text-[#089981] border-b border-[#089981]/30'
+              ? 'bg-[#E6F5F2] dark:bg-[#089981]/20 text-[#089981] border-b border-[#B3E2D9] dark:border-[#089981]/30'
               : feedback.type === 'error'
-              ? 'bg-[#f23645]/20 text-[#f23645] border-b border-[#f23645]/30'
-              : 'bg-blue-500/20 text-blue-400 border-b border-blue-500/30'
+              ? 'bg-[#FDECEE] dark:bg-[#f23645]/20 text-[#D93848] dark:text-[#f23645] border-b border-[#F5C2C7] dark:border-[#f23645]/30'
+              : 'bg-[#EDF1F7] dark:bg-blue-500/20 text-[#1E53E5] dark:text-blue-400 border-b border-[#CBD2DF] dark:border-blue-500/30'
           }`}
         >
           <div className="flex items-center gap-2">
@@ -470,7 +470,7 @@ export const PublishingCenter: React.FC<Props> = ({
 
       {/* 3. ACCESS PERMISSION WARNING IF NOT AUTHORIZED */}
       {!isAuthorized && (
-        <div className="p-4 m-4 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 text-xs flex items-center gap-3">
+        <div className="p-4 m-4 rounded-xl bg-[#FDF6E3] dark:bg-amber-500/15 border border-[#EFE0B4] dark:border-amber-500/30 text-[#9A6700] dark:text-amber-400 text-xs flex items-center gap-3">
           <ShieldAlert className="w-5 h-5 shrink-0" />
           <p>
             {isAr
@@ -487,8 +487,8 @@ export const PublishingCenter: React.FC<Props> = ({
           <form onSubmit={handlePublishSignal} className="max-w-4xl mx-auto space-y-5">
             {/* Asset Symbol & Action Selector */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-[#131722] p-3.5 rounded-xl border border-[#2a2e39] space-y-2">
-                <label className="text-xs font-bold text-[#d1d4dc] block">
+              <div className="bg-[#FFFFFF] dark:bg-[#131722] p-3.5 rounded-xl border border-[#E0E3EB] dark:border-[#2a2e39] space-y-2">
+                <label className="text-xs font-bold text-[#131722] dark:text-[#d1d4dc] block">
                   {isAr ? 'الأصل المالي المستهدف:' : 'Target Asset Symbol:'}
                 </label>
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
@@ -500,7 +500,7 @@ export const PublishingCenter: React.FC<Props> = ({
                       className={`py-2 px-2.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
                         symbol === sym
                           ? 'bg-[#089981] text-white shadow-md ring-1 ring-[#089981]/60'
-                          : 'bg-[#1e222d] text-[#787b86] hover:text-white hover:bg-[#2a2e39]'
+                          : 'bg-[#F8F9FD] dark:bg-[#1e222d] text-[#787b86] hover:text-[#131722] dark:hover:text-white hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39]'
                       }`}
                     >
                       {sym}
@@ -509,8 +509,8 @@ export const PublishingCenter: React.FC<Props> = ({
                 </div>
               </div>
 
-              <div className="bg-[#131722] p-3.5 rounded-xl border border-[#2a2e39] space-y-2">
-                <label className="text-xs font-bold text-[#d1d4dc] block">
+              <div className="bg-[#FFFFFF] dark:bg-[#131722] p-3.5 rounded-xl border border-[#E0E3EB] dark:border-[#2a2e39] space-y-2">
+                <label className="text-xs font-bold text-[#131722] dark:text-[#d1d4dc] block">
                   {isAr ? 'نوع الأمر والاتجاه:' : 'Order Action:'}
                 </label>
                 <div className="grid grid-cols-2 gap-2">
@@ -519,8 +519,8 @@ export const PublishingCenter: React.FC<Props> = ({
                     onClick={() => handleActionToggle('BUY')}
                     className={`py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
                       action === 'BUY'
-                        ? 'bg-[#089981] text-white shadow-lg ring-2 ring-[#089981]/50'
-                        : 'bg-[#1e222d] text-[#089981] border border-[#089981]/30 hover:bg-[#089981]/15'
+                        ? 'bg-[#089981] text-white shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-lg ring-2 ring-[#089981]/50'
+                        : 'bg-[#F8F9FD] dark:bg-[#1e222d] text-[#089981] border border-[#B3E2D9] dark:border-[#089981]/30 hover:bg-[#089981]/15'
                     }`}
                   >
                     <TrendingUp className="w-4 h-4" />
@@ -532,8 +532,8 @@ export const PublishingCenter: React.FC<Props> = ({
                     onClick={() => handleActionToggle('SELL')}
                     className={`py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
                       action === 'SELL'
-                        ? 'bg-[#f23645] text-white shadow-lg ring-2 ring-[#f23645]/50'
-                        : 'bg-[#1e222d] text-[#f23645] border border-[#f23645]/30 hover:bg-[#f23645]/15'
+                        ? 'bg-[#f23645] text-white shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-lg ring-2 ring-[#f23645]/50'
+                        : 'bg-[#F8F9FD] dark:bg-[#1e222d] text-[#D93848] dark:text-[#f23645] border border-[#F5C2C7] dark:border-[#f23645]/30 hover:bg-[#f23645]/15'
                     }`}
                   >
                     <TrendingDown className="w-4 h-4" />
@@ -544,11 +544,11 @@ export const PublishingCenter: React.FC<Props> = ({
             </div>
 
             {/* VISIBILITY & ACCESS LEVEL TOGGLE (Free vs VIP) */}
-            <div className="bg-[#131722] p-4 rounded-xl border border-white/10 space-y-3">
+            <div className="bg-[#FFFFFF] dark:bg-[#131722] p-4 rounded-xl border border-[#E0E3EB] dark:border-white/10 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Lock className="w-4 h-4 text-amber-400" />
-                  <span className="text-xs font-bold text-white">
+                  <Lock className="w-4 h-4 text-[#9A6700] dark:text-amber-400" />
+                  <span className="text-xs font-bold text-[#131722] dark:text-white">
                     {isAr ? 'مستوى الوصول والظهور:' : 'Access Level & Visibility:'}
                   </span>
                 </div>
@@ -572,13 +572,13 @@ export const PublishingCenter: React.FC<Props> = ({
                   }}
                   className={`p-3 rounded-xl border text-start transition-all cursor-pointer flex items-start gap-3 ${
                     accessLevel === 'free'
-                      ? 'bg-blue-600/15 border-blue-500 text-white ring-1 ring-blue-500/50'
-                      : 'bg-[#1e222d] border-[#2a2e39] text-[#787b86] hover:text-white'
+                      ? 'bg-[#EDF1F7] dark:bg-blue-600/15 border-blue-500 text-[#131722] dark:text-white ring-1 ring-blue-500/50'
+                      : 'bg-[#F8F9FD] dark:bg-[#1e222d] border-[#E0E3EB] dark:border-[#2a2e39] text-[#787b86] hover:text-[#131722] dark:hover:text-white'
                   }`}
                 >
-                  <Radio className={`w-5 h-5 shrink-0 mt-0.5 ${accessLevel === 'free' ? 'text-blue-400' : 'text-[#787b86]'}`} />
+                  <Radio className={`w-5 h-5 shrink-0 mt-0.5 ${accessLevel === 'free' ? 'text-[#1E53E5] dark:text-blue-400' : 'text-[#787b86]'}`} />
                   <div>
-                    <div className="text-xs font-bold flex items-center gap-1.5 text-blue-400">
+                    <div className="text-xs font-bold flex items-center gap-1.5 text-[#1E53E5] dark:text-blue-400">
                       <span>{isAr ? 'عامة ومجانية (Free)' : 'Public & Free'}</span>
                       {accessLevel === 'free' && <CheckCircle2 className="w-3.5 h-3.5" />}
                     </div>
@@ -598,13 +598,13 @@ export const PublishingCenter: React.FC<Props> = ({
                   }}
                   className={`p-3 rounded-xl border text-start transition-all cursor-pointer flex items-start gap-3 ${
                     accessLevel === 'vip'
-                      ? 'bg-amber-500/15 border-amber-500 text-white ring-1 ring-amber-500/50'
-                      : 'bg-[#1e222d] border-[#2a2e39] text-[#787b86] hover:text-white'
+                      ? 'bg-[#FDF6E3] dark:bg-amber-500/15 border-amber-500 text-[#131722] dark:text-white ring-1 ring-amber-500/50'
+                      : 'bg-[#F8F9FD] dark:bg-[#1e222d] border-[#E0E3EB] dark:border-[#2a2e39] text-[#787b86] hover:text-[#131722] dark:hover:text-white'
                   }`}
                 >
-                  <Crown className={`w-5 h-5 shrink-0 mt-0.5 ${accessLevel === 'vip' ? 'text-amber-400' : 'text-[#787b86]'}`} />
+                  <Crown className={`w-5 h-5 shrink-0 mt-0.5 ${accessLevel === 'vip' ? 'text-[#9A6700] dark:text-amber-400' : 'text-[#787b86]'}`} />
                   <div>
-                    <div className="text-xs font-bold flex items-center gap-1.5 text-amber-400">
+                    <div className="text-xs font-bold flex items-center gap-1.5 text-[#9A6700] dark:text-amber-400">
                       <span>{isAr ? 'حصرية لـ VIP (VIP Only)' : 'VIP Exclusive'}</span>
                       {accessLevel === 'vip' && <CheckCircle2 className="w-3.5 h-3.5" />}
                     </div>
@@ -619,9 +619,9 @@ export const PublishingCenter: React.FC<Props> = ({
             </div>
 
             {/* Price Levels (Entry, TP1, TP2, SL) */}
-            <div className="bg-[#131722] p-4 rounded-xl border border-[#2a2e39] space-y-3">
+            <div className="bg-[#FFFFFF] dark:bg-[#131722] p-4 rounded-xl border border-[#E0E3EB] dark:border-[#2a2e39] space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-[#d1d4dc]">
+                <span className="text-xs font-bold text-[#131722] dark:text-[#d1d4dc]">
                   {isAr ? 'المستويات الرقمية للصفقة:' : 'Price Execution Levels:'}
                 </span>
                 <div className="flex items-center gap-2 font-mono text-xs">
@@ -645,12 +645,12 @@ export const PublishingCenter: React.FC<Props> = ({
                     value={entryPrice}
                     onChange={(e) => setEntryPrice(e.target.value)}
                     required
-                    className="w-full px-3 py-2 rounded-lg bg-[#1e222d] border border-[#2a2e39] text-white font-mono text-xs font-bold focus:outline-none focus:border-[#089981]"
+                    className="w-full px-3 py-2 rounded-lg bg-[#F8F9FD] dark:bg-[#1e222d] border border-[#E0E3EB] dark:border-[#2a2e39] text-[#131722] dark:text-white font-mono text-xs font-bold focus:outline-none focus:border-[#1E53E5] dark:focus:border-[#089981]"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[11px] text-[#f23645] block mb-1">
+                  <label className="text-[11px] text-[#D93848] dark:text-[#f23645] block mb-1">
                     {isAr ? 'وقف الخسارة (SL):' : 'Stop Loss (SL):'}
                   </label>
                   <input
@@ -659,7 +659,7 @@ export const PublishingCenter: React.FC<Props> = ({
                     value={sl}
                     onChange={(e) => setSl(e.target.value)}
                     required
-                    className="w-full px-3 py-2 rounded-lg bg-[#1e222d] border border-[#f23645]/40 text-[#f23645] font-mono text-xs font-bold focus:outline-none focus:border-[#f23645]"
+                    className="w-full px-3 py-2 rounded-lg bg-[#F8F9FD] dark:bg-[#1e222d] border border-[#F5C2C7] dark:border-[#f23645]/40 text-[#D93848] dark:text-[#f23645] font-mono text-xs font-bold focus:outline-none focus:border-[#f23645]"
                   />
                 </div>
 
@@ -673,7 +673,7 @@ export const PublishingCenter: React.FC<Props> = ({
                     value={tp1}
                     onChange={(e) => setTp1(e.target.value)}
                     required
-                    className="w-full px-3 py-2 rounded-lg bg-[#1e222d] border border-[#089981]/40 text-[#089981] font-mono text-xs font-bold focus:outline-none focus:border-[#089981]"
+                    className="w-full px-3 py-2 rounded-lg bg-[#F8F9FD] dark:bg-[#1e222d] border border-[#B3E2D9] dark:border-[#089981]/40 text-[#089981] font-mono text-xs font-bold focus:outline-none focus:border-[#1E53E5] dark:focus:border-[#089981]"
                   />
                 </div>
 
@@ -686,7 +686,7 @@ export const PublishingCenter: React.FC<Props> = ({
                     step="any"
                     value={tp2}
                     onChange={(e) => setTp2(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-[#1e222d] border border-[#089981]/20 text-[#089981] font-mono text-xs font-bold focus:outline-none focus:border-[#089981]"
+                    className="w-full px-3 py-2 rounded-lg bg-[#F8F9FD] dark:bg-[#1e222d] border border-[#B3E2D9] dark:border-[#089981]/20 text-[#089981] font-mono text-xs font-bold focus:outline-none focus:border-[#1E53E5] dark:focus:border-[#089981]"
                   />
                 </div>
               </div>
@@ -695,7 +695,7 @@ export const PublishingCenter: React.FC<Props> = ({
             {/* Strategy, Timeframe & Confidence */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="text-xs font-bold text-[#d1d4dc] block mb-1">
+                <label className="text-xs font-bold text-[#131722] dark:text-[#d1d4dc] block mb-1">
                   {isAr ? 'اسم الاستراتيجية / النموذج:' : 'Strategy Name:'}
                 </label>
                 <input
@@ -703,18 +703,18 @@ export const PublishingCenter: React.FC<Props> = ({
                   value={strategy}
                   onChange={(e) => setStrategy(e.target.value)}
                   placeholder="MBK Scalp Breakout & FVG"
-                  className="w-full px-3 py-2 rounded-lg bg-[#131722] border border-[#2a2e39] text-white text-xs font-medium focus:outline-none focus:border-[#089981]"
+                  className="w-full px-3 py-2 rounded-lg bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] text-[#131722] dark:text-white text-xs font-medium focus:outline-none focus:border-[#1E53E5] dark:focus:border-[#089981]"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-bold text-[#d1d4dc] block mb-1">
+                <label className="text-xs font-bold text-[#131722] dark:text-[#d1d4dc] block mb-1">
                   {isAr ? 'الإطار الزمني (Timeframe):' : 'Timeframe:'}
                 </label>
                 <select
                   value={timeframe}
                   onChange={(e) => setTimeframe(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-[#131722] border border-[#2a2e39] text-white text-xs font-medium focus:outline-none focus:border-[#089981]"
+                  className="w-full px-3 py-2 rounded-lg bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] text-[#131722] dark:text-white text-xs font-medium focus:outline-none focus:border-[#1E53E5] dark:focus:border-[#089981]"
                 >
                   <option value="5m">5 Minutes (5m)</option>
                   <option value="15m">15 Minutes (15m)</option>
@@ -726,7 +726,7 @@ export const PublishingCenter: React.FC<Props> = ({
               </div>
 
               <div>
-                <label className="text-xs font-bold text-[#d1d4dc] block mb-1">
+                <label className="text-xs font-bold text-[#131722] dark:text-[#d1d4dc] block mb-1">
                   {isAr ? `نسبة الثقة الفنية (${confidence}%):` : `Confidence (${confidence}%):`}
                 </label>
                 <input
@@ -743,14 +743,14 @@ export const PublishingCenter: React.FC<Props> = ({
             {/* Analysis Rationale & Trade Instructions */}
             <div className="space-y-3">
               <div>
-                <label className="text-xs font-bold text-[#d1d4dc] block mb-1">
+                <label className="text-xs font-bold text-[#131722] dark:text-[#d1d4dc] block mb-1">
                   {isAr ? 'الملاحظات والشروط الفنية للدخول (بالعربية):' : 'Technical Rationale (Arabic):'}
                 </label>
                 <textarea
                   rows={3}
                   value={notesAr}
                   onChange={(e) => setNotesAr(e.target.value)}
-                  className="w-full p-3 rounded-xl bg-[#131722] border border-[#2a2e39] text-white text-xs focus:outline-none focus:border-[#089981]"
+                  className="w-full p-3 rounded-xl bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] text-[#131722] dark:text-white text-xs focus:outline-none focus:border-[#1E53E5] dark:focus:border-[#089981]"
                   placeholder="اكتب أسباب الدخول وإدارة المخاطر المقترحة..."
                 />
               </div>
@@ -763,7 +763,7 @@ export const PublishingCenter: React.FC<Props> = ({
                   rows={2}
                   value={notesEn}
                   onChange={(e) => setNotesEn(e.target.value)}
-                  className="w-full p-2.5 rounded-xl bg-[#131722] border border-[#2a2e39] text-[#d1d4dc] text-xs focus:outline-none focus:border-[#089981]"
+                  className="w-full p-2.5 rounded-xl bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] text-[#131722] dark:text-[#d1d4dc] text-xs focus:outline-none focus:border-[#1E53E5] dark:focus:border-[#089981]"
                   placeholder="English technical notes..."
                 />
               </div>
@@ -774,7 +774,7 @@ export const PublishingCenter: React.FC<Props> = ({
               <button
                 type="submit"
                 disabled={isPublishingSignal || !isAuthorized}
-                className="px-6 py-3 rounded-xl bg-gradient-to-r from-[#089981] to-[#067a67] hover:brightness-110 text-white font-bold text-xs shadow-xl flex items-center gap-2 cursor-pointer transition-all disabled:opacity-50"
+                className="px-6 py-3 rounded-xl bg-[#131722] hover:bg-[#2A2E39] dark:bg-gradient-to-r dark:from-[#089981] dark:to-[#067a67] dark:hover:brightness-110 text-white font-bold text-xs shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-xl flex items-center gap-2 cursor-pointer transition-all disabled:opacity-50"
               >
                 {isPublishingSignal ? (
                   <>
@@ -799,17 +799,17 @@ export const PublishingCenter: React.FC<Props> = ({
         {/* TAB 2: MANAGE ACTIVE SIGNALS TABLE */}
         {activeTab === 'manage' && (
           <div className="space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-[#2a2e39]">
-              <h3 className="text-xs font-bold text-white flex items-center gap-2">
+            <div className="flex items-center justify-between pb-2 border-b border-[#E0E3EB] dark:border-[#2a2e39]">
+              <h3 className="text-xs font-bold text-[#131722] dark:text-white flex items-center gap-2">
                 <span>{isAr ? 'الصفقات المسجلة في Firestore' : 'Live Signals in Firestore'}</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#089981]/20 text-[#089981] font-mono">
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#E6F5F2] dark:bg-[#089981]/20 text-[#089981] font-mono">
                   {publishedSignals.length}
                 </span>
               </h3>
               <button
                 onClick={fetchPublishedSignals}
                 disabled={signalsLoading}
-                className="px-2.5 py-1 rounded-lg bg-[#131722] hover:bg-[#2a2e39] text-xs text-[#787b86] hover:text-white transition-colors cursor-pointer flex items-center gap-1.5"
+                className="px-2.5 py-1 rounded-lg bg-[#FFFFFF] dark:bg-[#131722] hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] text-xs text-[#787b86] hover:text-[#131722] dark:hover:text-white transition-colors cursor-pointer flex items-center gap-1.5"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${signalsLoading ? 'animate-spin text-[#089981]' : ''}`} />
                 <span>{isAr ? 'تحديث' : 'Refresh'}</span>
@@ -824,7 +824,7 @@ export const PublishingCenter: React.FC<Props> = ({
               <div className="overflow-x-auto">
                 <table className="w-full text-xs text-start">
                   <thead>
-                    <tr className="border-b border-[#2a2e39] text-[#787b86] text-[11px]">
+                    <tr className="border-b border-[#E0E3EB] dark:border-[#2a2e39] text-[#787b86] text-[11px]">
                       <th className="py-2.5 px-3 text-start">{isAr ? 'الأصل والنوع' : 'Symbol / Action'}</th>
                       <th className="py-2.5 px-3 text-start">{isAr ? 'الوصول' : 'Access'}</th>
                       <th className="py-2.5 px-3 text-start">{isAr ? 'الدخول' : 'Entry'}</th>
@@ -834,49 +834,49 @@ export const PublishingCenter: React.FC<Props> = ({
                       <th className="py-2.5 px-3 text-end">{isAr ? 'الإجراءات' : 'Actions'}</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#2a2e39]/50 font-mono">
+                  <tbody className="divide-y divide-[#E0E3EB] dark:divide-[#2a2e39]/50 font-mono">
                     {publishedSignals.map((sig) => {
                       const isVip = sig.accessLevel === 'vip' || sig.access_level === 'vip';
                       const isBuy = sig.action === 'BUY';
 
                       return (
-                        <tr key={sig.id} className="hover:bg-[#131722]/50 transition-colors">
+                        <tr key={sig.id} className="hover:bg-[#EDF1F7] dark:hover:bg-[#131722]/50 transition-colors">
                           <td className="py-3 px-3">
                             <div className="flex items-center gap-2">
                               <span
                                 className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
                                   isBuy
-                                    ? 'bg-[#089981]/20 text-[#089981] border border-[#089981]/30'
-                                    : 'bg-[#f23645]/20 text-[#f23645] border border-[#f23645]/30'
+                                    ? 'bg-[#E6F5F2] dark:bg-[#089981]/20 text-[#089981] border border-[#B3E2D9] dark:border-[#089981]/30'
+                                    : 'bg-[#FDECEE] dark:bg-[#f23645]/20 text-[#D93848] dark:text-[#f23645] border border-[#F5C2C7] dark:border-[#f23645]/30'
                                 }`}
                               >
                                 {sig.action}
                               </span>
-                              <span className="font-bold text-white text-xs">{sig.symbol}</span>
+                              <span className="font-bold text-[#131722] dark:text-white text-xs">{sig.symbol}</span>
                             </div>
                           </td>
 
                           <td className="py-3 px-3">
                             {isVip ? (
-                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center gap-1 w-fit">
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#FDF6E3] dark:bg-amber-500/20 text-[#9A6700] dark:text-amber-400 border border-[#EFE0B4] dark:border-amber-500/30 flex items-center gap-1 w-fit">
                                 <Crown className="w-3 h-3" />
                                 <span>VIP</span>
                               </span>
                             ) : (
-                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30 flex items-center gap-1 w-fit">
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#EDF1F7] dark:bg-blue-500/20 text-[#1E53E5] dark:text-blue-400 border border-[#CBD2DF] dark:border-blue-500/30 flex items-center gap-1 w-fit">
                                 <Radio className="w-3 h-3" />
                                 <span>FREE</span>
                               </span>
                             )}
                           </td>
 
-                          <td className="py-3 px-3 text-white font-bold">{sig.entryPrice}</td>
+                          <td className="py-3 px-3 text-[#131722] dark:text-white font-bold">{sig.entryPrice}</td>
 
                           <td className="py-3 px-3">
                             <div className="text-[11px]">
                               <span className="text-[#089981]">{sig.tp1}</span>
                               <span className="text-[#787b86] mx-1">/</span>
-                              <span className="text-[#f23645]">{sig.sl}</span>
+                              <span className="text-[#D93848] dark:text-[#f23645]">{sig.sl}</span>
                             </div>
                           </td>
 
@@ -885,12 +885,12 @@ export const PublishingCenter: React.FC<Props> = ({
                               <span
                                 className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                                   isTradeActiveStatus(sig.status)
-                                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                    ? 'bg-[#E6F5F2] dark:bg-emerald-500/20 text-[#089981] dark:text-emerald-300 border border-[#B3E2D9] dark:border-emerald-500/30'
                                     : isTradeTpHitStatus(sig.status)
-                                    ? 'bg-[#089981]/20 text-[#089981] border border-[#089981]/30'
+                                    ? 'bg-[#E6F5F2] dark:bg-[#089981]/20 text-[#089981] border border-[#B3E2D9] dark:border-[#089981]/30'
                                     : isTradeSlHitStatus(sig.status)
-                                    ? 'bg-[#f23645]/20 text-[#f23645] border border-[#f23645]/30'
-                                    : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                    ? 'bg-[#FDECEE] dark:bg-[#f23645]/20 text-[#D93848] dark:text-[#f23645] border border-[#F5C2C7] dark:border-[#f23645]/30'
+                                    : 'bg-[#FDF6E3] dark:bg-amber-500/20 text-[#9A6700] dark:text-amber-300 border border-[#EFE0B4] dark:border-amber-500/30'
                                 }`}
                               >
                                 {isTradeActiveStatus(sig.status)
@@ -901,7 +901,7 @@ export const PublishingCenter: React.FC<Props> = ({
                                   ? '🛑 SL HIT'
                                   : '⏹ ENDED'}
                               </span>
-                              <span className="text-white font-bold font-mono text-[11px]">
+                              <span className="text-[#131722] dark:text-white font-bold font-mono text-[11px]">
                                 {Number(sig.pips || 0) >= 0 ? `+${Number(sig.pips || 0)}p` : `${Number(sig.pips || 0)}p`}
                               </span>
                             </div>
@@ -924,7 +924,7 @@ export const PublishingCenter: React.FC<Props> = ({
                                 className={`px-2 py-1 rounded text-[10px] font-bold transition-all cursor-pointer ${
                                   isTradeTpHitStatus(sig.status)
                                     ? 'bg-[#10b981] text-[#06080c]'
-                                    : 'bg-[#089981]/20 hover:bg-[#089981]/30 text-[#089981]'
+                                    : 'bg-[#E6F5F2] dark:bg-[#089981]/20 hover:bg-[#089981]/30 text-[#089981]'
                                 }`}
                                 title={isAr ? 'تسجيل تحقيق الهدف' : 'Mark TP Hit'}
                               >
@@ -941,7 +941,7 @@ export const PublishingCenter: React.FC<Props> = ({
                                 className={`px-2 py-1 rounded text-[10px] font-bold transition-all cursor-pointer ${
                                   isTradeSlHitStatus(sig.status)
                                     ? 'bg-[#e11d48] text-white'
-                                    : 'bg-[#f23645]/20 hover:bg-[#f23645]/30 text-[#f23645]'
+                                    : 'bg-[#FDECEE] dark:bg-[#f23645]/20 hover:bg-[#f23645]/30 text-[#D93848] dark:text-[#f23645]'
                                 }`}
                                 title={isAr ? 'تسجيل ضرب الوقف' : 'Mark SL Hit'}
                               >
@@ -952,7 +952,7 @@ export const PublishingCenter: React.FC<Props> = ({
                                 className={`px-2 py-1 rounded text-[10px] font-bold transition-all cursor-pointer ${
                                   isTradeClosedStatus(sig.status)
                                     ? 'bg-amber-400 text-[#06080c]'
-                                    : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300'
+                                    : 'bg-[#FDF6E3] dark:bg-amber-500/20 hover:bg-amber-500/30 text-[#9A6700] dark:text-amber-300'
                                 }`}
                                 title={isAr ? 'إنهاء الصفقة' : 'Mark Ended'}
                               >
@@ -961,7 +961,7 @@ export const PublishingCenter: React.FC<Props> = ({
                               {!isTradeActiveStatus(sig.status) && (
                                 <button
                                   onClick={() => handleUpdateStatus(sig.id, 'RUNNING', Math.max(0, Number(sig.pips || 0)))}
-                                  className="px-2 py-1 rounded bg-[#161c26] hover:bg-[#1c2432] text-white border border-[#2a3446] text-[10px] font-bold transition-all cursor-pointer"
+                                  className="px-2 py-1 rounded bg-[#F8F9FD] dark:bg-[#161c26] hover:bg-[#EDF1F7] dark:hover:bg-[#1c2432] text-[#131722] dark:text-white border border-[#CBD2DF] dark:border-[#2a3446] text-[10px] font-bold transition-all cursor-pointer"
                                   title={isAr ? 'إعادة تنشيط الصفقة' : 'Set Active'}
                                 >
                                   ⚡ Active
@@ -978,7 +978,7 @@ export const PublishingCenter: React.FC<Props> = ({
                                   </button>
                                   <button
                                     onClick={() => setConfirmDeleteId(null)}
-                                    className="px-2 py-1 rounded bg-[#131722] text-[#787b86] hover:text-white text-[10px] cursor-pointer"
+                                    className="px-2 py-1 rounded bg-[#FFFFFF] dark:bg-[#131722] text-[#787b86] hover:text-[#131722] dark:hover:text-white text-[10px] cursor-pointer"
                                   >
                                     {isAr ? 'إلغاء' : 'Cancel'}
                                   </button>
@@ -986,7 +986,7 @@ export const PublishingCenter: React.FC<Props> = ({
                               ) : (
                                 <button
                                   onClick={() => setConfirmDeleteId(sig.id)}
-                                  className="p-1 rounded bg-red-500/10 hover:bg-red-500/25 text-red-400 transition-colors cursor-pointer"
+                                  className="p-1 rounded bg-[#FDECEE] dark:bg-red-500/10 hover:bg-red-500/25 text-[#D93848] dark:text-red-400 transition-colors cursor-pointer"
                                   title={isAr ? 'حذف من Firestore' : 'Delete from Firestore'}
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />

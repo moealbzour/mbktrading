@@ -132,7 +132,7 @@ const ChatDockControls: React.FC<ChatDockControlsProps> = ({
   ];
 
   return (
-    <div className="flex items-center gap-0.5 bg-[#0a0d12] p-0.5 rounded-[3px] border border-[#1e2633] shrink-0">
+    <div className="flex items-center gap-0.5 bg-[#F0F3FA] dark:bg-[#0a0d12] p-0.5 rounded-[3px] border border-[#E0E3EB] dark:border-[#1e2633] shrink-0">
       {options.map((opt) => {
         const Icon = opt.icon;
         const isActive = currentPosition === opt.id;
@@ -143,8 +143,8 @@ const ChatDockControls: React.FC<ChatDockControlsProps> = ({
             onClick={() => onSelectPosition(opt.id)}
             className={`p-1 rounded-[2px] transition-colors cursor-pointer flex items-center justify-center ${
               isActive
-                ? 'bg-[#2a3446] text-white'
-                : 'text-[#8b95a5] hover:text-white hover:bg-[#161c26]'
+                ? 'bg-[#EDF1F7] dark:bg-[#2a3446] text-[#131722] dark:text-white'
+                : 'text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white hover:bg-[#EDF1F7] dark:hover:bg-[#161c26]'
             }`}
             title={`${isAr ? opt.labelAr : opt.labelEn} - ${isAr ? 'نقل اللوحة الجانبية' : 'Move Side Panel'}`}
           >
@@ -965,26 +965,26 @@ export const TradingViewWorkspace: React.FC<Props> = ({
     <div
       onTouchStart={handleWorkspaceTouchStart}
       onTouchEnd={handleWorkspaceTouchEnd}
-      className="h-screen h-[100dvh] max-h-[100dvh] w-full max-w-full bg-[#0a0d12] text-[#f1f5f9] flex flex-col font-sans select-none overflow-hidden antialiased relative"
+      className="h-screen h-[100dvh] max-h-[100dvh] w-full max-w-full bg-[#F0F3FA] dark:bg-[#0a0d12] text-[#131722] dark:text-[#f1f5f9] flex flex-col font-sans select-none overflow-hidden antialiased relative"
       dir={isAr ? 'rtl' : 'ltr'}
     >
       {/* 1. UNIFIED TOP TICKER BAR — MBK LOGO ON TOP OF TRADINGVIEW WORD + LIVE PRICES + PROFILE ON OTHER SIDE */}
-      <header className="relative h-[42px] bg-[#0b0e14] border-b border-[#1e2633] shrink-0 z-40 overflow-hidden flex items-center">
+      <header className="relative h-[42px] bg-[#FFFFFF] dark:bg-[#0b0e14] border-b border-[#E0E3EB] dark:border-[#1e2633] shrink-0 z-40 overflow-hidden flex items-center">
         {/* Background Live Price Ticker (Non-clickable so users never leave the site) */}
         <div className="w-full h-full">
           <HeaderTicker tickers={tickers} onSelectSymbol={onSelectSymbol} lang={lang} />
         </div>
 
         {/* Right Side Overlay (Covers TradingView word/logo watermark on the ticker): MBK Logo + Install */}
-        <div className="absolute right-0 top-0 bottom-0 z-30 bg-[#0b0e14] border-l border-[#1e2633] px-2 sm:px-3 flex items-center gap-1.5 sm:gap-2 shadow-[-12px_0_18px_#0b0e14]">
+        <div className="absolute right-0 top-0 bottom-0 z-30 bg-[#FFFFFF] dark:bg-[#0b0e14] border-l border-[#E0E3EB] dark:border-[#1e2633] px-2 sm:px-3 flex items-center gap-1.5 sm:gap-2 shadow-[-12px_0_18px_#FFFFFF] dark:shadow-[-12px_0_18px_#0b0e14]">
           <div className="flex items-center gap-1.5 shrink-0">
             <img
               src="/mbk-logo.png"
               alt="MBK Trading"
               referrerPolicy="no-referrer"
-              className="h-6 sm:h-7 w-auto rounded-[3px] object-contain border border-[#1e2633] bg-[#06080c]"
+              className="h-6 sm:h-7 w-auto rounded-[3px] object-contain border border-[#E0E3EB] dark:border-[#1e2633] bg-[#F0F3FA] dark:bg-[#06080c]"
             />
-            <span className="font-bold text-white text-[11px] sm:text-xs tracking-tight whitespace-nowrap">
+            <span className="font-bold text-[#131722] dark:text-white text-[11px] sm:text-xs tracking-tight whitespace-nowrap">
               MBK TRADING
             </span>
           </div>
@@ -995,26 +995,26 @@ export const TradingViewWorkspace: React.FC<Props> = ({
               soundManager.playClick();
               window.dispatchEvent(new CustomEvent('mbk-open-pwa-install'));
             }}
-            className="p-1.5 sm:px-2 sm:py-1 rounded-[3px] bg-[#06080c] hover:bg-[#161c26] border border-[#1e2633] hover:border-[#2a3446] text-[#8b95a5] hover:text-white text-[10px] font-semibold transition-colors cursor-pointer flex items-center gap-1 shrink-0 whitespace-nowrap"
+            className="p-1.5 sm:px-2 sm:py-1 rounded-[3px] bg-[#F0F3FA] dark:bg-[#06080c] hover:bg-[#EDF1F7] dark:hover:bg-[#161c26] border border-[#E0E3EB] dark:border-[#1e2633] hover:border-[#CBD2DF] dark:hover:border-[#2a3446] text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white text-[10px] font-semibold transition-colors cursor-pointer flex items-center gap-1 shrink-0 whitespace-nowrap"
             title={isAr ? 'تحميل وتثبيت التطبيق' : 'Download & Install App'}
           >
-            <Download className="w-3 h-3 text-[#10b981] shrink-0" />
+            <Download className="w-3 h-3 text-[#089981] dark:text-[#10b981] shrink-0" />
             <span className="hidden md:inline">{isAr ? 'تثبيت' : 'Install'}</span>
           </button>
         </div>
 
         {/* Left Side Overlay (Other Side of the Ticker): User Profile Button */}
-        <div className="absolute left-0 top-0 bottom-0 z-30 bg-[#0b0e14] border-r border-[#1e2633] px-2 sm:px-2.5 flex items-center gap-1.5 shadow-[12px_0_18px_#0b0e14]">
+        <div className="absolute left-0 top-0 bottom-0 z-30 bg-[#FFFFFF] dark:bg-[#0b0e14] border-r border-[#E0E3EB] dark:border-[#1e2633] px-2 sm:px-2.5 flex items-center gap-1.5 shadow-[12px_0_18px_#FFFFFF] dark:shadow-[12px_0_18px_#0b0e14]">
           <button
             type="button"
             onClick={() => {
               soundManager.playClick();
               setProfileModalOpen(true);
             }}
-            className="flex items-center gap-1.5 px-2 py-1 rounded-[3px] bg-[#06080c] hover:bg-[#161c26] border border-[#1e2633] hover:border-[#2a3446] text-xs transition-colors cursor-pointer shrink-0 whitespace-nowrap"
+            className="flex items-center gap-1.5 px-2 py-1 rounded-[3px] bg-[#F0F3FA] dark:bg-[#06080c] hover:bg-[#EDF1F7] dark:hover:bg-[#161c26] border border-[#E0E3EB] dark:border-[#1e2633] hover:border-[#CBD2DF] dark:hover:border-[#2a3446] text-xs transition-colors cursor-pointer shrink-0 whitespace-nowrap"
             title={isAr ? 'الملف الشخصي وإعدادات المنصة' : 'Profile & App Settings'}
           >
-            <div className="w-5 h-5 rounded-[2px] bg-[#161c26] border border-[#2a3446] text-white flex items-center justify-center font-mono font-bold text-[10px] uppercase shrink-0 overflow-hidden">
+            <div className="w-5 h-5 rounded-[2px] bg-[#F8F9FD] dark:bg-[#161c26] border border-[#CBD2DF] dark:border-[#2a3446] text-[#131722] dark:text-white flex items-center justify-center font-mono font-bold text-[10px] uppercase shrink-0 overflow-hidden">
               {user.avatar ? (
                 <img
                   src={user.avatar}
@@ -1028,13 +1028,13 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                 <User className="w-3 h-3" />
               )}
             </div>
-            <span className="font-semibold text-white truncate max-w-[75px] sm:max-w-[120px] text-[11px]">
+            <span className="font-semibold text-[#131722] dark:text-white truncate max-w-[75px] sm:max-w-[120px] text-[11px]">
               {user.name || user.email.split('@')[0]}
             </span>
-            <span className="text-[10px] font-mono text-[#10b981] hidden sm:inline">
+            <span className="text-[10px] font-mono text-[#089981] dark:text-[#10b981] hidden sm:inline">
               · {user.isAdmin || roleUpperForAdmin === 'ADMIN' ? 'ADMIN' : isEliteMember ? 'ELITE' : isVIP ? 'VIP' : 'STD'}
             </span>
-            <Sliders className="w-3 h-3 text-[#8b95a5] shrink-0" />
+            <Sliders className="w-3 h-3 text-[#4A5162] dark:text-[#8b95a5] shrink-0" />
           </button>
         </div>
       </header>
@@ -1053,11 +1053,11 @@ export const TradingViewWorkspace: React.FC<Props> = ({
               setRightMenuDrawerOpen(true);
             }
           }}
-          className="fixed right-0 top-1/2 -translate-y-1/2 z-40 py-3 px-1.5 rounded-l-xl bg-[#06080c]/75 hover:bg-[#10b981]/25 backdrop-blur-xl border border-r-0 border-[#10b981]/45 text-white shadow-[0_0_24px_rgba(0,0,0,0.85)] flex flex-col items-center gap-1.5 cursor-pointer transition-all group"
+          className="fixed right-0 top-1/2 -translate-y-1/2 z-40 py-3 px-1.5 rounded-l-xl bg-[#F0F3FA]/90 dark:bg-[#06080c]/75 hover:bg-[#10b981]/25 dark:backdrop-blur-xl border border-r-0 border-[#B3E2D9] dark:border-[#10b981]/45 text-[#131722] dark:text-white shadow-[0_4px_16px_rgba(19,23,34,0.08)] dark:shadow-[0_0_24px_rgba(0,0,0,0.85)] flex flex-col items-center gap-1.5 cursor-pointer transition-all group"
           title={isAr ? 'اسحب لليسار أو اضغط لفتح القائمة' : 'Swipe left or tap to open Menu'}
         >
-          <ChevronLeft className="w-4 h-4 text-[#10b981] group-hover:-translate-x-0.5 transition-transform" />
-          <span className="text-[9px] font-extrabold tracking-wider text-[#e2e8f0] group-hover:text-[#10b981] leading-none">
+          <ChevronLeft className="w-4 h-4 text-[#089981] dark:text-[#10b981] group-hover:-translate-x-0.5 transition-transform" />
+          <span className="text-[9px] font-extrabold tracking-wider text-[#131722] dark:text-[#e2e8f0] group-hover:text-[#10b981] leading-none">
             {isAr ? 'القائمة' : 'MENU'}
           </span>
           {totalMenuUnread > 0 && (
@@ -1069,30 +1069,30 @@ export const TradingViewWorkspace: React.FC<Props> = ({
       {/* RIGHT-SIDE SLIDABLE TRANSPARENT GLASS DRAWER MENU */}
       {rightMenuDrawerOpen && (
         <div
-          className="fixed inset-0 z-50 bg-black/45 backdrop-blur-[2px] transition-opacity"
+          className="fixed inset-0 z-50 bg-[#131722]/35 dark:bg-black/45 dark:backdrop-blur-[2px] transition-opacity"
           onClick={() => setRightMenuDrawerOpen(false)}
         />
       )}
       <aside
         dir={isAr ? 'rtl' : 'ltr'}
-        className={`fixed inset-y-0 right-0 z-50 w-72 sm:w-80 max-w-[86vw] bg-[#06080c]/75 backdrop-blur-2xl border-l border-white/15 shadow-[0_0_50px_rgba(0,0,0,0.9)] flex flex-col transition-transform duration-300 ease-out ${
+        className={`fixed inset-y-0 right-0 z-50 w-72 sm:w-80 max-w-[86vw] bg-[#FFFFFF] dark:bg-[#06080c]/75 dark:backdrop-blur-2xl border-l border-[#E0E3EB] dark:border-white/15 shadow-[0_4px_16px_rgba(19,23,34,0.08)] dark:shadow-[0_0_50px_rgba(0,0,0,0.9)] flex flex-col transition-transform duration-300 ease-out ${
           rightMenuDrawerOpen ? 'translate-x-0' : 'translate-x-full pointer-events-none'
         }`}
       >
         {/* Drawer Header */}
-        <div className="px-4 py-3 bg-[#06080c]/60 border-b border-white/10 flex items-center justify-between gap-2 shrink-0">
+        <div className="px-4 py-3 bg-[#F8F9FD] dark:bg-[#06080c]/60 border-b border-[#E0E3EB] dark:border-white/10 flex items-center justify-between gap-2 shrink-0">
           <div className="flex items-center gap-2">
             <img
               src="/mbk-logo.png"
               alt="MBK Trading"
               referrerPolicy="no-referrer"
-              className="h-6 w-auto rounded-[3px] object-contain border border-white/15 bg-[#06080c]"
+              className="h-6 w-auto rounded-[3px] object-contain border border-[#CBD2DF] dark:border-white/15 bg-[#F0F3FA] dark:bg-[#06080c]"
             />
             <div>
-              <h3 className="text-xs sm:text-sm font-extrabold text-white">
+              <h3 className="text-xs sm:text-sm font-extrabold text-[#131722] dark:text-white">
                 {isAr ? 'قائمة أقسام المنصة' : 'Workspace Sections'}
               </h3>
-              <p className="text-[10px] text-[#9db2c6]">
+              <p className="text-[10px] text-[#4A5162] dark:text-[#9db2c6]">
                 {isAr ? 'اسحب لليمين أو اضغط خارج القائمة للإغلاق' : 'Swipe right or tap outside to close'}
               </p>
             </div>
@@ -1104,7 +1104,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
               soundManager.playClick();
               setRightMenuDrawerOpen(false);
             }}
-            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/15 border border-white/10 text-[#9db2c6] hover:text-white cursor-pointer"
+            className="p-1.5 rounded-lg bg-[#F8F9FD] dark:bg-white/5 hover:bg-[#EDF1F7] dark:hover:bg-white/15 border border-[#E0E3EB] dark:border-white/10 text-[#4A5162] dark:text-[#9db2c6] hover:text-[#131722] dark:hover:text-white cursor-pointer"
             title={isAr ? 'إغلاق القائمة' : 'Close Menu'}
           >
             <ChevronRight className="w-4 h-4" />
@@ -1140,8 +1140,8 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                 }}
                 className={`w-full p-2.5 rounded-xl border text-start flex items-center justify-between gap-2.5 transition-all cursor-pointer ${
                   isActive
-                    ? 'bg-[#10b981]/20 border-[#10b981]/50 text-white shadow-md'
-                    : 'bg-white/[0.03] hover:bg-white/[0.08] border-white/10 text-[#d1d4dc]'
+                    ? 'bg-[#E6F5F2] dark:bg-[#10b981]/20 border-[#B3E2D9] dark:border-[#10b981]/50 text-[#131722] dark:text-white shadow-md'
+                    : 'bg-white/[0.03] hover:bg-white/[0.08] border-[#E0E3EB] dark:border-white/10 text-[#131722] dark:text-[#d1d4dc]'
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
@@ -1149,16 +1149,16 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                     className={`w-8 h-8 rounded-lg border flex items-center justify-center shrink-0 ${
                       isActive
                         ? 'bg-[#10b981] border-[#10b981] text-[#06080c]'
-                        : 'bg-[#0b0e14]/80 border-white/10 text-[#10b981]'
+                        : 'bg-[#FFFFFF]/95 dark:bg-[#0b0e14]/80 border-[#E0E3EB] dark:border-white/10 text-[#089981] dark:text-[#10b981]'
                     }`}
                   >
                     <Icon className="w-4 h-4" />
                   </div>
                   <div className="min-w-0">
-                    <div className="text-xs font-extrabold text-white truncate">
+                    <div className="text-xs font-extrabold text-[#131722] dark:text-white truncate">
                       {isAr ? item.labelAr : item.labelEn}
                     </div>
-                    <div className="text-[10px] text-[#9db2c6] truncate">
+                    <div className="text-[10px] text-[#4A5162] dark:text-[#9db2c6] truncate">
                       {isAr ? item.topicAr : item.topicEn}
                     </div>
                   </div>
@@ -1174,8 +1174,8 @@ export const TradingViewWorkspace: React.FC<Props> = ({
           })}
 
           {/* Quick Utility Tools inside Right Drawer */}
-          <div className="pt-3 mt-2 border-t border-white/10 space-y-1.5">
-            <span className="px-1 text-[10px] font-mono font-bold text-[#8b95a5] uppercase tracking-wider block">
+          <div className="pt-3 mt-2 border-t border-[#E0E3EB] dark:border-white/10 space-y-1.5">
+            <span className="px-1 text-[10px] font-mono font-bold text-[#4A5162] dark:text-[#8b95a5] uppercase tracking-wider block">
               {isAr ? 'أدوات المتداول السريعة' : 'Quick Trader Tools'}
             </span>
             <div className="grid grid-cols-2 gap-1.5">
@@ -1186,9 +1186,9 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                   setRightMenuDrawerOpen(false);
                   setCalculatorModalOpen(true);
                 }}
-                className="p-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer"
+                className="p-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-[#E0E3EB] dark:border-white/10 text-xs font-bold text-[#131722] dark:text-white flex items-center gap-1.5 cursor-pointer"
               >
-                <Calculator className="w-3.5 h-3.5 text-[#10b981] shrink-0" />
+                <Calculator className="w-3.5 h-3.5 text-[#089981] dark:text-[#10b981] shrink-0" />
                 <span className="truncate">{isAr ? 'حاسبة اللوت' : 'Lot Calc'}</span>
               </button>
 
@@ -1199,9 +1199,9 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                   setRightMenuDrawerOpen(false);
                   setSessionsModalOpen(true);
                 }}
-                className="p-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer"
+                className="p-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-[#E0E3EB] dark:border-white/10 text-xs font-bold text-[#131722] dark:text-white flex items-center gap-1.5 cursor-pointer"
               >
-                <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <Clock className="w-3.5 h-3.5 text-[#9A6700] dark:text-amber-400 shrink-0" />
                 <span className="truncate">{isAr ? 'جلسات السوق' : 'Sessions'}</span>
               </button>
 
@@ -1212,9 +1212,9 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                   setRightMenuDrawerOpen(false);
                   setSupportModalOpen(true);
                 }}
-                className="p-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer"
+                className="p-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-[#E0E3EB] dark:border-white/10 text-xs font-bold text-[#131722] dark:text-white flex items-center gap-1.5 cursor-pointer"
               >
-                <Headphones className="w-3.5 h-3.5 text-[#10b981] shrink-0" />
+                <Headphones className="w-3.5 h-3.5 text-[#089981] dark:text-[#10b981] shrink-0" />
                 <span className="truncate">{isAr ? 'الدعم والبريد' : 'Support'}</span>
               </button>
 
@@ -1225,9 +1225,9 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                   setRightMenuDrawerOpen(false);
                   setPlansModalOpen(true);
                 }}
-                className="p-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 text-xs font-bold text-amber-300 flex items-center gap-1.5 cursor-pointer"
+                className="p-2 rounded-xl bg-[#FDF6E3] dark:bg-amber-500/15 hover:bg-amber-500/25 border border-[#EFE0B4] dark:border-amber-500/35 text-xs font-bold text-[#9A6700] dark:text-amber-300 flex items-center gap-1.5 cursor-pointer"
               >
-                <Crown className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <Crown className="w-3.5 h-3.5 text-[#9A6700] dark:text-amber-400 shrink-0" />
                 <span className="truncate">{isAr ? 'باقات VIP' : 'VIP Plans'}</span>
               </button>
 
@@ -1238,10 +1238,10 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                   setRightMenuDrawerOpen(false);
                   setPriceAlertsModalOpen(true);
                 }}
-                className="col-span-2 p-2 rounded-xl bg-[#089981]/15 hover:bg-[#089981]/25 border border-[#089981]/40 text-xs font-bold text-white flex items-center justify-between gap-1.5 cursor-pointer"
+                className="col-span-2 p-2 rounded-xl bg-[#E6F5F2] dark:bg-[#089981]/15 hover:bg-[#089981]/25 border border-[#B3E2D9] dark:border-[#089981]/40 text-xs font-bold text-[#131722] dark:text-white flex items-center justify-between gap-1.5 cursor-pointer"
               >
                 <span className="flex items-center gap-1.5 truncate">
-                  <Bell className="w-3.5 h-3.5 text-[#10b981] shrink-0" />
+                  <Bell className="w-3.5 h-3.5 text-[#089981] dark:text-[#10b981] shrink-0" />
                   <span className="truncate">{isAr ? 'منبه الأسعار الذكي (Price Alerts)' : 'Smart Price Alerts'}</span>
                 </span>
                 {activePriceAlertsCount > 0 && (
@@ -1269,7 +1269,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
             <button
               type="button"
               onClick={toggleNewsBanner}
-              className="p-0.5 rounded-b-[3px] bg-[#10141c]/95 hover:bg-[#161c26] text-[#8b95a5] hover:text-white border-x border-b border-[#2a3446] shadow-sm transition-colors cursor-pointer flex items-center justify-center"
+              className="p-0.5 rounded-b-[3px] bg-[#FFFFFF] dark:bg-[#10141c]/95 hover:bg-[#EDF1F7] dark:hover:bg-[#161c26] text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white border-x border-b border-[#CBD2DF] dark:border-[#2a3446] shadow-sm transition-colors cursor-pointer flex items-center justify-center"
               title={isAr ? 'إظهار شريط الأخبار' : 'Restore news banner'}
             >
               <ChevronDown className="w-3.5 h-3.5" />
@@ -1285,18 +1285,18 @@ export const TradingViewWorkspace: React.FC<Props> = ({
         <div className={`flex-1 flex flex-col min-w-0 overflow-hidden ${getMainCenterOrder()} relative`}>
           {/* MAIN VIEWPORT */}
           {activeMainView === 'heatmap' ? (
-            <main className="flex-1 min-w-0 h-full w-full overflow-y-auto p-3 sm:p-5 bg-[#0a0d12] z-30">
+            <main className="flex-1 min-w-0 h-full w-full overflow-y-auto p-3 sm:p-5 bg-[#F0F3FA] dark:bg-[#0a0d12] z-30">
               <MarketHeatmap lang={lang} />
             </main>
           ) : isAnalysisMode ? (
-            <main className="flex-1 min-h-0 h-full w-full overflow-hidden relative bg-[#0a0d12] p-0 z-30">
+            <main className="flex-1 min-h-0 h-full w-full overflow-hidden relative bg-[#F0F3FA] dark:bg-[#0a0d12] p-0 z-30">
               <TradingViewChart
                 symbol={selectedSymbol}
                 onSymbolChange={onSelectSymbol}
                 tickers={tickers}
               />
               <div className="absolute top-2.5 right-2.5 z-50 flex flex-wrap items-center justify-end gap-1.5">
-                <div className="flex items-center gap-1 bg-[#0b0e14]/90 backdrop-blur-md p-1 rounded-xl border border-[#2a3446] shadow-xl">
+                <div className="flex items-center gap-1 bg-[#FFFFFF]/95 dark:bg-[#0b0e14]/90 dark:backdrop-blur-md p-1 rounded-xl border border-[#CBD2DF] dark:border-[#2a3446] shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-xl">
                   {CHART_QUICK_SYMBOLS.map((sym) => {
                     const isActive = selectedSymbol === sym;
                     return (
@@ -1309,8 +1309,8 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                         }}
                         className={`px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold transition-all cursor-pointer shrink-0 ${
                           isActive
-                            ? 'bg-[#089981] text-white shadow-md shadow-[#089981]/30 ring-1 ring-[#089981]/50'
-                            : 'text-[#8b95a5] hover:text-white hover:bg-white/10'
+                            ? 'bg-[#089981] text-white shadow-md shadow-none dark:shadow-[#089981]/30 ring-1 ring-[#089981]/50'
+                            : 'text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white hover:bg-[#EDF1F7] dark:hover:bg-white/10'
                         }`}
                       >
                         {sym}
@@ -1324,9 +1324,9 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                     soundManager.playClick();
                     setPriceAlertsModalOpen(true);
                   }}
-                  className="px-2.5 py-1.5 rounded-xl bg-[#10141c]/95 hover:bg-[#161c26] text-white font-semibold text-xs flex items-center gap-1.5 transition-colors cursor-pointer border border-[#089981]/50 shadow-xl"
+                  className="px-2.5 py-1.5 rounded-xl bg-[#FFFFFF] dark:bg-[#10141c]/95 hover:bg-[#EDF1F7] dark:hover:bg-[#161c26] text-[#131722] dark:text-white font-semibold text-xs flex items-center gap-1.5 transition-colors cursor-pointer border border-[#B3E2D9] dark:border-[#089981]/50 shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-xl"
                 >
-                  <Bell className="w-3.5 h-3.5 text-amber-400" />
+                  <Bell className="w-3.5 h-3.5 text-[#9A6700] dark:text-amber-400" />
                   <span>{isAr ? 'تنبيه سعر' : 'Alert'}</span>
                   {activePriceAlertsCount > 0 && (
                     <span className="px-1.5 py-0.2 rounded-full bg-[#089981] text-white font-mono text-[9px] font-bold">
@@ -1339,7 +1339,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                     soundManager.playClick();
                     setIsAnalysisMode(false);
                   }}
-                  className="px-3 py-1.5 rounded-xl bg-[#10141c]/95 hover:bg-[#161c26] text-white font-semibold text-xs flex items-center gap-1.5 transition-colors cursor-pointer border border-[#2a3446] shadow-xl"
+                  className="px-3 py-1.5 rounded-xl bg-[#FFFFFF] dark:bg-[#10141c]/95 hover:bg-[#EDF1F7] dark:hover:bg-[#161c26] text-[#131722] dark:text-white font-semibold text-xs flex items-center gap-1.5 transition-colors cursor-pointer border border-[#CBD2DF] dark:border-[#2a3446] shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-xl"
                 >
                   <Minimize2 className="w-3.5 h-3.5 text-[#089981]" />
                   <span>{isAr ? 'إنهاء الشارت الكامل' : 'Exit Full Chart'}</span>
@@ -1347,8 +1347,8 @@ export const TradingViewWorkspace: React.FC<Props> = ({
               </div>
             </main>
           ) : activeView === 'chat' || activeView === 'dm' ? (
-            <main className="flex-1 min-h-0 h-full overflow-hidden p-1 sm:p-2.5 flex flex-col bg-[#131722]">
-              <div className="flex-1 min-h-0 h-full w-full rounded-xl overflow-hidden border border-[#2a2e39] shadow-2xl flex flex-col bg-[#1e222d]">
+            <main className="flex-1 min-h-0 h-full overflow-hidden p-1 sm:p-2.5 flex flex-col bg-[#FFFFFF] dark:bg-[#131722]">
+              <div className="flex-1 min-h-0 h-full w-full rounded-xl overflow-hidden border border-[#E0E3EB] dark:border-[#2a2e39] shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl flex flex-col bg-[#F8F9FD] dark:bg-[#1e222d]">
                 <UnifiedMessengerHub
                   user={user}
                   currentUserName={user.name || user.email.split('@')[0]}
@@ -1385,7 +1385,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
               </div>
             </main>
           ) : (
-            <main className="flex-1 overflow-y-auto bg-[#131722] p-2 sm:p-4 md:p-5 pb-4 min-w-0 transition-all duration-300">
+            <main className="flex-1 overflow-y-auto bg-[#FFFFFF] dark:bg-[#131722] p-2 sm:p-4 md:p-5 pb-4 min-w-0 transition-all duration-300">
               <div className="max-w-7xl mx-auto space-y-4">
                 {/* VIEW 1: SIGNALS CHANNEL HUB (Free + VIP + Webhook Bot) */}
                 {activeView === 'signals' && (
@@ -1411,7 +1411,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                 {activeView === 'chart' && (
                   <div className="flex flex-col space-y-4 w-full">
                     {isMobile ? (
-                      <div className="h-[36vh] min-h-[240px] w-full rounded-xl overflow-hidden border border-[#1e2633] bg-[#0a0d12] relative shrink-0">
+                      <div className="h-[36vh] min-h-[240px] w-full rounded-xl overflow-hidden border border-[#E0E3EB] dark:border-[#1e2633] bg-[#F0F3FA] dark:bg-[#0a0d12] relative shrink-0">
                         <TradingViewLiteChart
                           symbol={selectedSymbol}
                           onSymbolChange={onSelectSymbol}
@@ -1421,7 +1421,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                         {/* Top-Right Overlay Over the Chart: Symbol Switcher + Full Chart Button + Rotate Phone Notification */}
                         <div className="absolute top-2 right-2 z-20 flex flex-col items-end gap-1.5 max-w-[96%]">
                           <div className="flex items-center gap-1.5 flex-wrap justify-end">
-                            <div className="flex items-center gap-1 bg-[#0b0e14]/90 backdrop-blur-md p-1 rounded-xl border border-[#2a3446] shadow-lg overflow-x-auto scrollbar-none">
+                            <div className="flex items-center gap-1 bg-[#FFFFFF]/95 dark:bg-[#0b0e14]/90 dark:backdrop-blur-md p-1 rounded-xl border border-[#CBD2DF] dark:border-[#2a3446] shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-lg overflow-x-auto scrollbar-none">
                               {CHART_QUICK_SYMBOLS.map((sym) => {
                                 const isActive = selectedSymbol === sym;
                                 return (
@@ -1434,8 +1434,8 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                                     }}
                                     className={`px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold transition-all cursor-pointer shrink-0 ${
                                       isActive
-                                        ? 'bg-[#089981] text-white shadow-md shadow-[#089981]/30 ring-1 ring-[#089981]/50'
-                                        : 'text-[#8b95a5] hover:text-white hover:bg-white/10'
+                                        ? 'bg-[#089981] text-white shadow-md shadow-none dark:shadow-[#089981]/30 ring-1 ring-[#089981]/50'
+                                        : 'text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white hover:bg-[#EDF1F7] dark:hover:bg-white/10'
                                     }`}
                                   >
                                     {sym}
@@ -1450,9 +1450,9 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                                 soundManager.playClick();
                                 setPriceAlertsModalOpen(true);
                               }}
-                              className="px-2.5 py-1.5 rounded-xl bg-[#10141c]/95 hover:bg-[#161c26] text-white text-[10px] font-bold flex items-center gap-1 cursor-pointer border border-amber-500/45 shadow-lg shrink-0"
+                              className="px-2.5 py-1.5 rounded-xl bg-[#FFFFFF] dark:bg-[#10141c]/95 hover:bg-[#EDF1F7] dark:hover:bg-[#161c26] text-[#131722] dark:text-white text-[10px] font-bold flex items-center gap-1 cursor-pointer border border-[#EFE0B4] dark:border-amber-500/45 shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-lg shrink-0"
                             >
-                              <Bell className="w-3 h-3 text-amber-400" />
+                              <Bell className="w-3 h-3 text-[#9A6700] dark:text-amber-400" />
                               <span>{isAr ? 'تنبيه سعر' : 'Alert'}</span>
                               {activePriceAlertsCount > 0 && (
                                 <span className="px-1 rounded-full bg-[#089981] text-white font-mono text-[9px] font-bold">
@@ -1467,7 +1467,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                                 soundManager.playClick();
                                 handleEnableAnalysisMode();
                               }}
-                              className="px-2.5 py-1.5 rounded-xl bg-[#10141c]/95 hover:bg-[#161c26] text-white text-[10px] font-bold flex items-center gap-1 cursor-pointer border border-[#089981]/50 shadow-lg shrink-0"
+                              className="px-2.5 py-1.5 rounded-xl bg-[#FFFFFF] dark:bg-[#10141c]/95 hover:bg-[#EDF1F7] dark:hover:bg-[#161c26] text-[#131722] dark:text-white text-[10px] font-bold flex items-center gap-1 cursor-pointer border border-[#B3E2D9] dark:border-[#089981]/50 shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-lg shrink-0"
                             >
                               <Maximize2 className="w-3 h-3 text-[#089981]" />
                               <span>{isAr ? 'شارت كامل' : 'Full Chart'}</span>
@@ -1480,9 +1480,9 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                               soundManager.playClick();
                               handleEnableAnalysisMode();
                             }}
-                            className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 backdrop-blur-md border border-amber-500/45 text-amber-300 text-[9.5px] font-bold flex items-center gap-1.5 shadow-md cursor-pointer"
+                            className="px-2.5 py-1 rounded-lg bg-[#FDF6E3] dark:bg-amber-500/20 hover:bg-amber-500/30 dark:backdrop-blur-md border border-[#EFE0B4] dark:border-amber-500/45 text-[#9A6700] dark:text-amber-300 text-[9.5px] font-bold flex items-center gap-1.5 shadow-md cursor-pointer"
                           >
-                            <Smartphone className="w-3 h-3 text-amber-400 rotate-90 shrink-0" />
+                            <Smartphone className="w-3 h-3 text-[#9A6700] dark:text-amber-400 rotate-90 shrink-0" />
                             <span>
                               {isAr
                                 ? 'قم بتدوير الهاتف أفقياً للحصول على الشارت الكامل'
@@ -1492,7 +1492,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                         </div>
                       </div>
                     ) : (
-                      <div className={`${isBottomFolded ? 'h-[calc(100vh-280px)] min-h-[380px]' : 'h-[450px] sm:h-[500px]'} w-full rounded-xl overflow-hidden border border-[#2a2e39] shadow-2xl relative transition-all duration-300 shrink-0`}>
+                      <div className={`${isBottomFolded ? 'h-[calc(100vh-280px)] min-h-[380px]' : 'h-[450px] sm:h-[500px]'} w-full rounded-xl overflow-hidden border border-[#E0E3EB] dark:border-[#2a2e39] shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl relative transition-all duration-300 shrink-0`}>
                         <TradingViewChart
                           symbol={selectedSymbol}
                           onSymbolChange={onSelectSymbol}
@@ -1500,7 +1500,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                         />
                         {/* Top-Right Overlay Over the Chart: Symbol Switcher + Price Alert + Full Chart Button */}
                         <div className="absolute top-2.5 right-2.5 z-20 flex items-center gap-1.5 flex-wrap justify-end">
-                          <div className="flex items-center gap-1 bg-[#0b0e14]/90 backdrop-blur-md p-1 rounded-xl border border-[#2a3446] shadow-xl">
+                          <div className="flex items-center gap-1 bg-[#FFFFFF]/95 dark:bg-[#0b0e14]/90 dark:backdrop-blur-md p-1 rounded-xl border border-[#CBD2DF] dark:border-[#2a3446] shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-xl">
                             {CHART_QUICK_SYMBOLS.map((sym) => {
                               const isActive = selectedSymbol === sym;
                               return (
@@ -1513,8 +1513,8 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                                   }}
                                   className={`px-2.5 py-0.5 rounded-lg text-[10px] font-mono font-bold transition-all cursor-pointer shrink-0 ${
                                     isActive
-                                      ? 'bg-[#089981] text-white shadow-md shadow-[#089981]/30 ring-1 ring-[#089981]/50'
-                                      : 'text-[#8b95a5] hover:text-white hover:bg-white/10'
+                                      ? 'bg-[#089981] text-white shadow-md shadow-none dark:shadow-[#089981]/30 ring-1 ring-[#089981]/50'
+                                      : 'text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white hover:bg-[#EDF1F7] dark:hover:bg-white/10'
                                   }`}
                                 >
                                   {sym}
@@ -1529,9 +1529,9 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                               soundManager.playClick();
                               setPriceAlertsModalOpen(true);
                             }}
-                            className="px-2.5 py-1.5 rounded-xl bg-[#10141c]/95 hover:bg-[#161c26] text-white text-[10px] font-bold flex items-center gap-1 cursor-pointer border border-amber-500/45 shadow-xl shrink-0"
+                            className="px-2.5 py-1.5 rounded-xl bg-[#FFFFFF] dark:bg-[#10141c]/95 hover:bg-[#EDF1F7] dark:hover:bg-[#161c26] text-[#131722] dark:text-white text-[10px] font-bold flex items-center gap-1 cursor-pointer border border-[#EFE0B4] dark:border-amber-500/45 shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-xl shrink-0"
                           >
-                            <Bell className="w-3 h-3 text-amber-400" />
+                            <Bell className="w-3 h-3 text-[#9A6700] dark:text-amber-400" />
                             <span>{isAr ? 'تنبيه سعر' : 'Price Alert'}</span>
                             {activePriceAlertsCount > 0 && (
                               <span className="px-1.5 py-0.2 rounded-full bg-[#089981] text-white font-mono text-[9px] font-bold">
@@ -1546,7 +1546,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                               soundManager.playClick();
                               handleEnableAnalysisMode();
                             }}
-                            className="px-2.5 py-1.5 rounded-xl bg-[#10141c]/95 hover:bg-[#161c26] text-white text-[10px] font-bold flex items-center gap-1 cursor-pointer border border-[#089981]/50 shadow-xl shrink-0"
+                            className="px-2.5 py-1.5 rounded-xl bg-[#FFFFFF] dark:bg-[#10141c]/95 hover:bg-[#EDF1F7] dark:hover:bg-[#161c26] text-[#131722] dark:text-white text-[10px] font-bold flex items-center gap-1 cursor-pointer border border-[#B3E2D9] dark:border-[#089981]/50 shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-xl shrink-0"
                           >
                             <Maximize2 className="w-3 h-3 text-[#089981]" />
                             <span>{isAr ? 'شارت كامل' : 'Full Chart'}</span>
@@ -1567,7 +1567,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
 
                 {/* VIEW 3B: MBK PRO CANVAS CHART (Native Open-Source Canvas + Drawing Toolbar + Signal Plotter) */}
                 {activeView === 'proChart' && (
-                  <div className="h-[calc(100vh-150px)] min-h-[540px] rounded-xl overflow-hidden border border-white/10 shadow-2xl bg-[#06080c]">
+                  <div className="h-[calc(100vh-150px)] min-h-[540px] rounded-xl overflow-hidden border border-[#E0E3EB] dark:border-white/10 shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl bg-[#F0F3FA] dark:bg-[#06080c]">
                     <MBKProCanvasChart
                       lang={lang}
                       activeSymbol={selectedSymbol}
@@ -1586,7 +1586,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
 
                 {/* VIEW 4: AI MARKET ANALYST FULL VIEW */}
                 {activeView === 'ai' && (
-                  <div className="min-h-[calc(100vh-150px)] rounded-2xl overflow-hidden border border-[#2a2e39]">
+                  <div className="min-h-[calc(100vh-150px)] rounded-2xl overflow-hidden border border-[#E0E3EB] dark:border-[#2a2e39]">
                     <TradingViewAIPanel
                       user={user}
                       isVIP={isVIP}
@@ -1635,16 +1635,16 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                 {/* ELITE LOCKED MODULES HUB */}
                 {activeView === 'elite' && (
                   <div className="space-y-4">
-                    <div className="p-4 sm:p-5 rounded-2xl bg-[#1e222d] border border-amber-500/30 flex flex-wrap items-center justify-between gap-3">
+                    <div className="p-4 sm:p-5 rounded-2xl bg-[#F8F9FD] dark:bg-[#1e222d] border border-[#EFE0B4] dark:border-amber-500/30 flex flex-wrap items-center justify-between gap-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/35 flex items-center justify-center text-amber-400">
+                        <div className="w-10 h-10 rounded-xl bg-[#FDF6E3] dark:bg-amber-500/15 border border-[#EFE0B4] dark:border-amber-500/35 flex items-center justify-center text-[#9A6700] dark:text-amber-400">
                           <Gem className="w-5 h-5" />
                         </div>
                         <div>
-                          <h2 className="text-sm sm:text-base font-extrabold text-white flex items-center gap-2">
+                          <h2 className="text-sm sm:text-base font-extrabold text-[#131722] dark:text-white flex items-center gap-2">
                             <span>🔒 {isAr ? 'وحدات باقة Elite المؤسسية ($500/mo)' : 'Elite Tier Modules ($500/mo)'}</span>
                           </h2>
-                          <p className="text-xs text-[#8a93a6] mt-0.5">{ELITE_LOCK_BADGE_TEXT}</p>
+                          <p className="text-xs text-[#4A5162] dark:text-[#8a93a6] mt-0.5">{ELITE_LOCK_BADGE_TEXT}</p>
                         </div>
                       </div>
                       <button
@@ -1659,7 +1659,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                       </button>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-1.5 bg-[#1e222d] p-1.5 rounded-xl border border-[#2a2e39]">
+                    <div className="flex flex-wrap items-center gap-1.5 bg-[#F8F9FD] dark:bg-[#1e222d] p-1.5 rounded-xl border border-[#E0E3EB] dark:border-[#2a2e39]">
                       {[
                         { id: 'superAi' as const, labelAr: '🔒 Super AI', labelEn: '🔒 Super AI' },
                         { id: 'copyTrading' as const, labelAr: '🔒 Copy Trading', labelEn: '🔒 Copy Trading' },
@@ -1676,11 +1676,11 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                           }}
                           className={`px-3 py-2 rounded-lg text-xs font-bold transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
                             activeEliteTab === tab.id
-                              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                              : 'text-[#8a93a6] hover:text-white'
+                              ? 'bg-[#FDF6E3] dark:bg-amber-500/20 text-[#9A6700] dark:text-amber-300 border border-[#EFE0B4] dark:border-amber-500/40'
+                              : 'text-[#4A5162] dark:text-[#8a93a6] hover:text-[#131722] dark:hover:text-white'
                           }`}
                         >
-                          <Lock className="w-3 h-3 text-amber-400" />
+                          <Lock className="w-3 h-3 text-[#9A6700] dark:text-amber-400" />
                           <span>{isAr ? tab.labelAr.replace('🔒 ', '') : tab.labelEn.replace('🔒 ', '')}</span>
                         </button>
                       ))}
@@ -1726,10 +1726,10 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                 {/* VIEW 5: EXPANDED NEWS WIRES */}
                 {activeView === 'news' && (
                   <div className="space-y-4">
-                    <div className="bg-[#1e222d] border border-[#2a2e39] rounded-xl p-4 flex items-center justify-between">
+                    <div className="bg-[#F8F9FD] dark:bg-[#1e222d] border border-[#E0E3EB] dark:border-[#2a2e39] rounded-xl p-4 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Newspaper className="w-5 h-5 text-[#089981]" />
-                        <h2 className="text-sm font-bold text-white">
+                        <h2 className="text-sm font-bold text-[#131722] dark:text-white">
                           {isAr ? 'أخبار MBK' : 'MBK News'}
                         </h2>
                       </div>
@@ -1742,7 +1742,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
 
                 {/* VIEW 6: DEDICATED ADMIN CONTROL CENTER (Backed by Firestore & RBAC) */}
                 {activeView === 'admin' && (
-                  <div className="min-h-[calc(100vh-140px)] w-full rounded-xl overflow-hidden border border-[#2A2E39] shadow-2xl">
+                  <div className="min-h-[calc(100vh-140px)] w-full rounded-xl overflow-hidden border border-[#E0E3EB] dark:border-[#2A2E39] shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl">
                     <AdminDashboard
                       userProfile={user}
                       currentRole={user.role}
@@ -1772,7 +1772,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                 maxHeight: isBottomFolded ? '46px' : '82vh',
                 minHeight: isBottomFolded ? '46px' : '135px'
               }}
-              className={`w-full bg-[#0b0e14]/95 backdrop-blur-xl border-t border-white/15 flex flex-col shrink-0 shadow-2xl relative z-30 ${
+              className={`w-full bg-[#FFFFFF]/95 dark:bg-[#0b0e14]/95 dark:backdrop-blur-xl border-t border-[#CBD2DF] dark:border-white/15 flex flex-col shrink-0 shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl relative z-30 ${
                 isResizingBottom ? 'transition-none' : 'transition-all duration-200'
               } ${isBottomFolded ? 'h-[46px] min-h-[46px] max-h-[46px]' : ''}`}
             >
@@ -1783,24 +1783,24 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                 onTouchStart={handleStartResizeBottom}
                 onDoubleClick={handleResetBottomHeight}
                 className={`h-3 -mt-1.5 w-full hover:h-3.5 transition-all cursor-row-resize z-40 shrink-0 flex items-center justify-center group select-none relative ${
-                  isResizingBottom ? 'bg-[#10b981] shadow-[0_0_12px_#10b981]' : 'bg-transparent hover:bg-[#10b981]/40'
+                  isResizingBottom ? 'bg-[#10b981] shadow-none dark:shadow-[0_0_12px_#10b981]' : 'bg-transparent hover:bg-[#10b981]/40'
                 }`}
                 title={isAr ? 'اسحب للأعلى أو الأسفل لتحريك اللوحة المساعدة (أو انقر مرتين للضبط التلقائي)' : 'Slide up or down to resize Helping Panel (or double-click to reset)'}
               >
                 <div className="w-14 h-1 rounded-full bg-white/35 group-hover:bg-[#10b981] transition-colors" />
                 {isResizingBottom && (
-                  <div className="absolute -top-7 start-1/2 -translate-x-1/2 z-50 px-2.5 py-0.5 rounded bg-[#06080c] border border-[#10b981] text-[10px] font-mono font-bold text-[#10b981] whitespace-nowrap shadow-2xl pointer-events-none">
+                  <div className="absolute -top-7 start-1/2 -translate-x-1/2 z-50 px-2.5 py-0.5 rounded bg-[#F0F3FA] dark:bg-[#06080c] border border-[#10b981] text-[10px] font-mono font-bold text-[#089981] dark:text-[#10b981] whitespace-nowrap shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl pointer-events-none">
                     {bottomChatHeight}px
                   </div>
                 )}
               </div>
 
               {/* Bottom Helping Panel Header Bar */}
-              <div className="px-2.5 sm:px-3 py-1 bg-[#10141c] border-b border-white/10 flex items-center justify-between shrink-0 gap-2 h-[38px]">
+              <div className="px-2.5 sm:px-3 py-1 bg-[#FFFFFF] dark:bg-[#10141c] border-b border-[#E0E3EB] dark:border-white/10 flex items-center justify-between shrink-0 gap-2 h-[38px]">
                 <div className="flex items-center gap-1.5 min-w-0">
                   <button
                     onClick={toggleBottomFold}
-                    className="p-1 sm:px-2 sm:py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[#9db2c6] hover:text-white transition-all cursor-pointer flex items-center gap-1 text-xs shrink-0 group"
+                    className="p-1 sm:px-2 sm:py-1 rounded-lg bg-[#F8F9FD] dark:bg-white/5 hover:bg-[#EDF1F7] dark:hover:bg-white/10 border border-[#E0E3EB] dark:border-white/10 text-[#4A5162] dark:text-[#9db2c6] hover:text-[#131722] dark:hover:text-white transition-all cursor-pointer flex items-center gap-1 text-xs shrink-0 group"
                     title={
                       isBottomFolded
                         ? (isAr ? 'توسيع اللوحة المساعدة' : 'Expand Helping Panel')
@@ -1809,14 +1809,14 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                   >
                     {isBottomFolded ? (
                       <>
-                        <ChevronUp className="w-3.5 h-3.5 text-[#10b981] group-hover:scale-110 transition-transform" />
-                        <span className="text-[11px] font-bold text-[#10b981] hidden xxs:inline">
+                        <ChevronUp className="w-3.5 h-3.5 text-[#089981] dark:text-[#10b981] group-hover:scale-110 transition-transform" />
+                        <span className="text-[11px] font-bold text-[#089981] dark:text-[#10b981] hidden xxs:inline">
                           {isAr ? 'توسيع' : 'Expand'}
                         </span>
                       </>
                     ) : (
                       <>
-                        <ChevronDown className="w-3.5 h-3.5 text-[#9db2c6] group-hover:text-white group-hover:scale-110 transition-transform" />
+                        <ChevronDown className="w-3.5 h-3.5 text-[#4A5162] dark:text-[#9db2c6] group-hover:text-[#131722] dark:group-hover:text-white group-hover:scale-110 transition-transform" />
                         <span className="text-[11px] font-medium hidden xxs:inline">
                           {isAr ? 'طي' : 'Fold'}
                         </span>
@@ -1825,7 +1825,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                   </button>
 
                   {/* 3 Unified Helping Panel Tabs: Bot & Trades | Messenger | MBK AI */}
-                  <div className="flex items-center gap-0.5 bg-[#06080c] p-0.5 rounded-[4px] border border-[#1e2633] min-w-0 overflow-x-auto scrollbar-none">
+                  <div className="flex items-center gap-0.5 bg-[#F0F3FA] dark:bg-[#06080c] p-0.5 rounded-[4px] border border-[#E0E3EB] dark:border-[#1e2633] min-w-0 overflow-x-auto scrollbar-none">
                     <button
                       onClick={() => {
                         handleSelectTopic('trades');
@@ -1833,14 +1833,14 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                       }}
                       className={`px-2.5 py-1 rounded-[3px] text-[11px] font-bold transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 ${
                         sideDrawerView === 'trades'
-                          ? 'bg-[#10b981]/20 text-white border border-[#10b981]/50'
-                          : 'text-[#8b95a5] hover:text-white'
+                          ? 'bg-[#E6F5F2] dark:bg-[#10b981]/20 text-[#131722] dark:text-white border border-[#B3E2D9] dark:border-[#10b981]/50'
+                          : 'text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white'
                       }`}
                     >
-                      <BarChart3 className="w-3.5 h-3.5 text-[#10b981]" />
+                      <BarChart3 className="w-3.5 h-3.5 text-[#089981] dark:text-[#10b981]" />
                       <span>{isAr ? 'البوت والصفقات' : 'Bot & Trades'}</span>
                       {unreadTradesCount > 0 && (
-                        <span className="font-mono text-[10px] text-[#10b981] font-bold">
+                        <span className="font-mono text-[10px] text-[#089981] dark:text-[#10b981] font-bold">
                           ({unreadTradesCount > 99 ? '99+' : unreadTradesCount})
                         </span>
                       )}
@@ -1853,14 +1853,14 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                       }}
                       className={`px-2.5 py-1 rounded-[3px] text-[11px] font-bold transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 ${
                         sideDrawerView === 'chat' || sideDrawerView === 'dm'
-                          ? 'bg-[#10b981]/20 text-white border border-[#10b981]/50'
-                          : 'text-[#8b95a5] hover:text-white'
+                          ? 'bg-[#E6F5F2] dark:bg-[#10b981]/20 text-[#131722] dark:text-white border border-[#B3E2D9] dark:border-[#10b981]/50'
+                          : 'text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white'
                       }`}
                     >
-                      <MessageSquare className="w-3.5 h-3.5 text-[#10b981]" />
+                      <MessageSquare className="w-3.5 h-3.5 text-[#089981] dark:text-[#10b981]" />
                       <span>{isAr ? 'الماسنجر' : 'Messenger'}</span>
                       {unreadChatCount + unreadDmCount > 0 && (
-                        <span className="font-mono text-[10px] text-[#e11d48] font-bold">
+                        <span className="font-mono text-[10px] text-[#D93848] dark:text-[#e11d48] font-bold">
                           ({unreadChatCount + unreadDmCount > 99 ? '99+' : unreadChatCount + unreadDmCount})
                         </span>
                       )}
@@ -1873,11 +1873,11 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                       }}
                       className={`px-2.5 py-1 rounded-[3px] text-[11px] font-bold transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 ${
                         sideDrawerView === 'ai'
-                          ? 'bg-[#10b981]/20 text-white border border-[#10b981]/50'
-                          : 'text-[#8b95a5] hover:text-white'
+                          ? 'bg-[#E6F5F2] dark:bg-[#10b981]/20 text-[#131722] dark:text-white border border-[#B3E2D9] dark:border-[#10b981]/50'
+                          : 'text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white'
                       }`}
                     >
-                      <Bot className="w-3.5 h-3.5 text-[#10b981]" />
+                      <Bot className="w-3.5 h-3.5 text-[#089981] dark:text-[#10b981]" />
                       <span>{isAr ? 'ذكاء MBK' : 'MBK AI'}</span>
                     </button>
                   </div>
@@ -1885,7 +1885,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
 
                 {/* Move Helping Panel Controls: Left / Down / Right */}
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="text-[10px] text-[#8b95a5] font-medium hidden md:inline">
+                  <span className="text-[10px] text-[#4A5162] dark:text-[#8b95a5] font-medium hidden md:inline">
                     {isAr ? 'موضع المساعد:' : 'Dock:'}
                   </span>
                   <ChatDockControls
@@ -1967,18 +1967,18 @@ export const TradingViewWorkspace: React.FC<Props> = ({
             onTouchStart={handleStartResize}
             onDoubleClick={handleResetSidebarWidth}
             className={`w-3 -mx-1 hover:w-3.5 transition-colors cursor-col-resize z-40 shrink-0 flex items-center justify-center group select-none relative ${getDividerOrder()} ${
-              isResizingSidebar ? 'bg-[#10b981]/30' : 'hover:bg-[#1e2633]'
+              isResizingSidebar ? 'bg-[#E6F5F2] dark:bg-[#10b981]/30' : 'hover:bg-[#EDF1F7] dark:hover:bg-[#1e2633]'
             }`}
             title={isAr ? 'اسحب لتحريك حجم اللوحة المساعدة أو انقر مرتين للضبط التلقائي' : 'Slide to resize Helping Panel or double-click to reset'}
           >
             <div
               className={`w-[2px] h-full transition-colors ${
-                isResizingSidebar ? 'bg-[#10b981]' : 'bg-[#1e2633] group-hover:bg-[#10b981]'
+                isResizingSidebar ? 'bg-[#10b981]' : 'bg-[#F8F9FD] dark:bg-[#1e2633] group-hover:bg-[#10b981]'
               }`}
             />
             <div className="absolute top-1/2 -translate-y-1/2 w-1.5 h-10 rounded-full bg-white/30 group-hover:bg-[#10b981] transition-colors pointer-events-none" />
             {isResizingSidebar && (
-              <div className="absolute top-12 z-50 px-2 py-0.5 rounded-[2px] bg-[#0a0d12] border border-[#10b981] text-[10px] font-mono font-bold text-[#10b981] whitespace-nowrap">
+              <div className="absolute top-12 z-50 px-2 py-0.5 rounded-[2px] bg-[#F0F3FA] dark:bg-[#0a0d12] border border-[#10b981] text-[10px] font-mono font-bold text-[#089981] dark:text-[#10b981] whitespace-nowrap">
                 {customSidebarWidth}px
               </div>
             )}
@@ -1990,18 +1990,18 @@ export const TradingViewWorkspace: React.FC<Props> = ({
           <aside
             data-no-drawer-swipe="true"
             style={getSidebarWidthStyle()}
-            className={`flex flex-col h-full shrink-0 z-30 bg-[#10141c] border-s border-[#1e2633] select-none overflow-hidden ${getSidePanelOrder()} ${
+            className={`flex flex-col h-full shrink-0 z-30 bg-[#FFFFFF] dark:bg-[#10141c] border-s border-[#E0E3EB] dark:border-[#1e2633] select-none overflow-hidden ${getSidePanelOrder()} ${
               isResizingSidebar ? 'transition-none' : 'transition-all duration-200'
             }`}
           >
-            <div className={`p-1.5 border-b border-[#1e2633] flex ${isSidebarShrinked ? 'flex-col items-center py-2 gap-2.5 h-full' : 'items-center justify-between'} bg-[#10141c] shrink-0 overflow-hidden`}>
+            <div className={`p-1.5 border-b border-[#E0E3EB] dark:border-[#1e2633] flex ${isSidebarShrinked ? 'flex-col items-center py-2 gap-2.5 h-full' : 'items-center justify-between'} bg-[#FFFFFF] dark:bg-[#10141c] shrink-0 overflow-hidden`}>
               {isSidebarShrinked ? (
                 /* Folded Slim Strip View (68px wide with written topic labels on every button) */
                 <div className="flex flex-col items-center gap-2 w-full h-full justify-between py-1">
                   <div className="flex flex-col items-center gap-1.5 w-full">
                     <button
                       onClick={handleToggleShrink}
-                      className="w-full py-1 px-1 rounded-[3px] bg-[#0a0d12] hover:bg-[#161c26] border border-[#1e2633] text-[#8b95a5] hover:text-white transition-colors cursor-pointer flex flex-col items-center justify-center gap-0.5 shrink-0"
+                      className="w-full py-1 px-1 rounded-[3px] bg-[#F0F3FA] dark:bg-[#0a0d12] hover:bg-[#EDF1F7] dark:hover:bg-[#161c26] border border-[#E0E3EB] dark:border-[#1e2633] text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white transition-colors cursor-pointer flex flex-col items-center justify-center gap-0.5 shrink-0"
                       title={isAr ? 'توسيع اللوحة المساعدة' : 'Expand Helping Panel'}
                     >
                       {chatPosition === 'right' ? (
@@ -2014,7 +2014,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                       </span>
                     </button>
 
-                    <div className="w-full h-[1px] bg-[#1e2633]" />
+                    <div className="w-full h-[1px] bg-[#F8F9FD] dark:bg-[#1e2633]" />
 
                     <button
                       onClick={() => {
@@ -2023,12 +2023,12 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                       }}
                       className={`w-full py-1.5 px-1 rounded-[3px] flex flex-col items-center justify-center gap-1 relative transition-colors cursor-pointer ${
                         sideDrawerView === 'trades'
-                          ? 'bg-[#161c26] text-white border border-[#2a3446]'
-                          : 'text-[#8b95a5] hover:text-white hover:bg-[#161c26]'
+                          ? 'bg-[#F8F9FD] dark:bg-[#161c26] text-[#131722] dark:text-white border border-[#CBD2DF] dark:border-[#2a3446]'
+                          : 'text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white hover:bg-[#EDF1F7] dark:hover:bg-[#161c26]'
                       }`}
                       title={isAr ? 'البوت والصفقات المباشرة' : 'Bot & Live Trades'}
                     >
-                      <BarChart3 className="w-3.5 h-3.5 text-[#10b981]" />
+                      <BarChart3 className="w-3.5 h-3.5 text-[#089981] dark:text-[#10b981]" />
                       <span className="text-[9px] font-semibold leading-tight text-center truncate w-full">
                         {isAr ? 'البوت والصفقات' : 'Trades'}
                       </span>
@@ -2046,12 +2046,12 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                       }}
                       className={`w-full py-1.5 px-1 rounded-[3px] flex flex-col items-center justify-center gap-1 relative transition-colors cursor-pointer ${
                         sideDrawerView === 'chat' || sideDrawerView === 'dm'
-                          ? 'bg-[#161c26] text-white border border-[#2a3446]'
-                          : 'text-[#8b95a5] hover:text-white hover:bg-[#161c26]'
+                          ? 'bg-[#F8F9FD] dark:bg-[#161c26] text-[#131722] dark:text-white border border-[#CBD2DF] dark:border-[#2a3446]'
+                          : 'text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white hover:bg-[#EDF1F7] dark:hover:bg-[#161c26]'
                       }`}
                       title={isAr ? 'الشات العام والرسائل الخاصة' : 'Trading Floor & Direct DMs'}
                     >
-                      <MessageSquare className="w-3.5 h-3.5 text-[#10b981]" />
+                      <MessageSquare className="w-3.5 h-3.5 text-[#089981] dark:text-[#10b981]" />
                       <span className="text-[9px] font-semibold leading-tight text-center truncate w-full">
                         {isAr ? 'الماسنجر' : 'Messenger'}
                       </span>
@@ -2069,19 +2069,19 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                       }}
                       className={`w-full py-1.5 px-1 rounded-[3px] flex flex-col items-center justify-center gap-1 relative transition-colors cursor-pointer ${
                         sideDrawerView === 'ai'
-                          ? 'bg-[#161c26] text-white border border-[#2a3446]'
-                          : 'text-[#8b95a5] hover:text-white hover:bg-[#161c26]'
+                          ? 'bg-[#F8F9FD] dark:bg-[#161c26] text-[#131722] dark:text-white border border-[#CBD2DF] dark:border-[#2a3446]'
+                          : 'text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white hover:bg-[#EDF1F7] dark:hover:bg-[#161c26]'
                       }`}
                       title={isAr ? 'ذكاء MBK' : 'MBK AI'}
                     >
-                      <Bot className="w-3.5 h-3.5 text-[#10b981]" />
+                      <Bot className="w-3.5 h-3.5 text-[#089981] dark:text-[#10b981]" />
                       <span className="text-[9px] font-semibold leading-tight text-center truncate w-full">
                         {isAr ? 'ذكاء MBK' : 'MBK AI'}
                       </span>
                     </button>
                   </div>
 
-                  <div className="flex flex-col items-center gap-1 pt-2 border-t border-[#1e2633] w-full">
+                  <div className="flex flex-col items-center gap-1 pt-2 border-t border-[#E0E3EB] dark:border-[#1e2633] w-full">
                     <ChatDockControls
                       currentPosition={chatPosition}
                       onSelectPosition={handleSetChatPosition}
@@ -2096,7 +2096,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                   <div className="flex items-center justify-between gap-2 w-full">
                     <button
                       onClick={handleToggleShrink}
-                      className="px-2 py-1 rounded-[3px] bg-[#0a0d12] hover:bg-[#161c26] border border-[#1e2633] text-[#8b95a5] hover:text-white transition-colors cursor-pointer flex items-center gap-1 text-xs shrink-0"
+                      className="px-2 py-1 rounded-[3px] bg-[#F0F3FA] dark:bg-[#0a0d12] hover:bg-[#EDF1F7] dark:hover:bg-[#161c26] border border-[#E0E3EB] dark:border-[#1e2633] text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white transition-colors cursor-pointer flex items-center gap-1 text-xs shrink-0"
                       title={isAr ? 'طي اللوحة المساعدة' : 'Fold Helping Panel'}
                     >
                       {chatPosition === 'right' ? (
@@ -2118,25 +2118,25 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                   </div>
 
                   {/* Full-Width 3-Tab Grid: Bot & Trades | Messenger | MBK AI */}
-                  <div className="grid grid-cols-3 gap-1 bg-[#0a0d12] p-1 rounded-[3px] border border-[#1e2633] w-full">
+                  <div className="grid grid-cols-3 gap-1 bg-[#F0F3FA] dark:bg-[#0a0d12] p-1 rounded-[3px] border border-[#E0E3EB] dark:border-[#1e2633] w-full">
                     <button
                       onClick={() => handleSelectTopic('trades')}
                       className={`px-2 py-1.5 rounded-[2px] transition-colors cursor-pointer flex flex-col items-center justify-center gap-0.5 relative ${
                         sideDrawerView === 'trades'
-                          ? 'bg-[#161c26] text-white border border-[#2a3446]'
-                          : 'text-[#8b95a5] hover:text-white'
+                          ? 'bg-[#F8F9FD] dark:bg-[#161c26] text-[#131722] dark:text-white border border-[#CBD2DF] dark:border-[#2a3446]'
+                          : 'text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white'
                       }`}
                     >
                       <div className="flex items-center gap-1">
-                        <BarChart3 className="w-3.5 h-3.5 text-[#10b981] shrink-0" />
+                        <BarChart3 className="w-3.5 h-3.5 text-[#089981] dark:text-[#10b981] shrink-0" />
                         <span className="text-[11px] font-semibold truncate">{isAr ? 'البوت والصفقات' : 'Bot & Trades'}</span>
                         {unreadTradesCount > 0 && (
-                          <span className="font-mono text-[9px] text-[#10b981] font-bold">
+                          <span className="font-mono text-[9px] text-[#089981] dark:text-[#10b981] font-bold">
                             ({unreadTradesCount > 99 ? '99+' : unreadTradesCount})
                           </span>
                         )}
                       </div>
-                      <span className="text-[9px] text-[#8492a6] truncate w-full text-center">
+                      <span className="text-[9px] text-[#4A5162] dark:text-[#8492a6] truncate w-full text-center">
                         {isAr ? 'صفقات VIP والبوت' : 'VIP & Bot Stream'}
                       </span>
                     </button>
@@ -2145,20 +2145,20 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                       onClick={() => handleSelectTopic('chat')}
                       className={`px-2 py-1.5 rounded-[2px] transition-colors cursor-pointer flex flex-col items-center justify-center gap-0.5 relative ${
                         sideDrawerView === 'chat' || sideDrawerView === 'dm'
-                          ? 'bg-[#161c26] text-white border border-[#2a3446]'
-                          : 'text-[#8b95a5] hover:text-white'
+                          ? 'bg-[#F8F9FD] dark:bg-[#161c26] text-[#131722] dark:text-white border border-[#CBD2DF] dark:border-[#2a3446]'
+                          : 'text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white'
                       }`}
                     >
                       <div className="flex items-center gap-1">
-                        <MessageSquare className="w-3.5 h-3.5 text-[#10b981] shrink-0" />
+                        <MessageSquare className="w-3.5 h-3.5 text-[#089981] dark:text-[#10b981] shrink-0" />
                         <span className="text-[11px] font-semibold truncate">{isAr ? 'الماسنجر' : 'Messenger'}</span>
                         {unreadChatCount + unreadDmCount > 0 && (
-                          <span className="font-mono text-[9px] text-[#e11d48] font-bold">
+                          <span className="font-mono text-[9px] text-[#D93848] dark:text-[#e11d48] font-bold">
                             ({unreadChatCount + unreadDmCount > 99 ? '99+' : unreadChatCount + unreadDmCount})
                           </span>
                         )}
                       </div>
-                      <span className="text-[9px] text-[#8492a6] truncate w-full text-center">
+                      <span className="text-[9px] text-[#4A5162] dark:text-[#8492a6] truncate w-full text-center">
                         {isAr ? 'الشات والرسائل' : 'Chat & Direct DMs'}
                       </span>
                     </button>
@@ -2167,15 +2167,15 @@ export const TradingViewWorkspace: React.FC<Props> = ({
                       onClick={() => handleSelectTopic('ai')}
                       className={`px-2 py-1.5 rounded-[2px] transition-colors cursor-pointer flex flex-col items-center justify-center gap-0.5 relative ${
                         sideDrawerView === 'ai'
-                          ? 'bg-[#161c26] text-white border border-[#2a3446]'
-                          : 'text-[#8b95a5] hover:text-white'
+                          ? 'bg-[#F8F9FD] dark:bg-[#161c26] text-[#131722] dark:text-white border border-[#CBD2DF] dark:border-[#2a3446]'
+                          : 'text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white'
                       }`}
                     >
                       <div className="flex items-center gap-1">
-                        <Bot className="w-3.5 h-3.5 text-[#10b981] shrink-0" />
+                        <Bot className="w-3.5 h-3.5 text-[#089981] dark:text-[#10b981] shrink-0" />
                         <span className="text-[11px] font-semibold truncate">{isAr ? 'ذكاء MBK' : 'MBK AI'}</span>
                       </div>
-                      <span className="text-[9px] text-[#8492a6] truncate w-full text-center">
+                      <span className="text-[9px] text-[#4A5162] dark:text-[#8492a6] truncate w-full text-center">
                         {isAr ? 'المحلل الذكي' : 'Analyst AI'}
                       </span>
                     </button>
@@ -2375,7 +2375,7 @@ export const TradingViewWorkspace: React.FC<Props> = ({
 
       {/* Temporary Rotate Phone Toast Message when Analysis Mode is activated */}
       {showRotatePrompt && (
-        <div className="fixed top-14 start-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-2xl bg-amber-500 text-black font-bold text-xs shadow-2xl flex items-center gap-2 border border-amber-300 animate-bounce pointer-events-auto">
+        <div className="fixed top-14 start-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-2xl bg-amber-500 text-black font-bold text-xs shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl flex items-center gap-2 border border-amber-300 animate-bounce pointer-events-auto">
           <Smartphone className="w-4 h-4 text-black shrink-0" />
           <span>{isAr ? 'يرجى تدوير الهاتف لأفضل تجربة 📱' : 'Please rotate your phone for the best experience 📱'}</span>
           <button

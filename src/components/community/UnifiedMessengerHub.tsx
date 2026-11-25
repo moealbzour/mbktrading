@@ -60,12 +60,12 @@ export const UnifiedMessengerHub: React.FC<UnifiedMessengerHubProps> = ({
 
   return (
     <div
-      className="h-full w-full flex-1 min-h-0 flex flex-col bg-[#10141c] overflow-hidden select-none"
+      className="h-full w-full flex-1 min-h-0 flex flex-col bg-[#FFFFFF] dark:bg-[#10141c] overflow-hidden select-none"
       dir={isAr ? 'rtl' : 'ltr'}
     >
       {/* Top Unified Messenger Switcher Bar */}
-      <div className="px-2.5 sm:px-3 py-1.5 bg-[#0a0d12] border-b border-[#1e2633] flex items-center justify-between gap-2 shrink-0">
-        <div className="flex items-center gap-0.5 bg-[#10141c] p-0.5 rounded-[3px] border border-[#1e2633]">
+      <div className="px-2.5 sm:px-3 py-1.5 bg-[#F0F3FA] dark:bg-[#0a0d12] border-b border-[#E0E3EB] dark:border-[#1e2633] flex items-center justify-between gap-2 shrink-0">
+        <div className="flex items-center gap-0.5 bg-[#FFFFFF] dark:bg-[#10141c] p-0.5 rounded-[3px] border border-[#E0E3EB] dark:border-[#1e2633]">
           {/* Tab 1: General Trading Floor */}
           <button
             type="button"
@@ -75,8 +75,8 @@ export const UnifiedMessengerHub: React.FC<UnifiedMessengerHubProps> = ({
             }}
             className={`px-2.5 py-1 rounded-[2px] text-[11px] font-medium flex items-center gap-1.5 transition-colors cursor-pointer relative ${
               activeTab === 'general'
-                ? 'bg-[#1c2432] text-[#edf0f5] font-semibold border border-[#2a3446]'
-                : 'text-[#8492a6] hover:text-[#edf0f5]'
+                ? 'bg-[#F8F9FD] dark:bg-[#1c2432] text-[#131722] dark:text-[#edf0f5] font-semibold border border-[#CBD2DF] dark:border-[#2a3446]'
+                : 'text-[#4A5162] dark:text-[#8492a6] hover:text-[#131722] dark:hover:text-[#edf0f5]'
             }`}
           >
             <MessageSquare className="w-3.5 h-3.5 shrink-0" />
@@ -97,8 +97,8 @@ export const UnifiedMessengerHub: React.FC<UnifiedMessengerHubProps> = ({
             }}
             className={`px-2.5 py-1 rounded-[2px] text-[11px] font-medium flex items-center gap-1.5 transition-colors cursor-pointer relative ${
               activeTab === 'dm'
-                ? 'bg-[#1c2432] text-[#edf0f5] font-semibold border border-[#2a3446]'
-                : 'text-[#8492a6] hover:text-[#edf0f5]'
+                ? 'bg-[#F8F9FD] dark:bg-[#1c2432] text-[#131722] dark:text-[#edf0f5] font-semibold border border-[#CBD2DF] dark:border-[#2a3446]'
+                : 'text-[#4A5162] dark:text-[#8492a6] hover:text-[#131722] dark:hover:text-[#edf0f5]'
             }`}
           >
             <Mail className="w-3.5 h-3.5 shrink-0" />
@@ -113,7 +113,7 @@ export const UnifiedMessengerHub: React.FC<UnifiedMessengerHubProps> = ({
 
         {/* Right Desk Status Indicator */}
         {!isCompact && (
-          <div className="hidden sm:flex items-center gap-1.5 text-[10px] font-mono text-[#8492a6]">
+          <div className="hidden sm:flex items-center gap-1.5 text-[10px] font-mono text-[#4A5162] dark:text-[#8492a6]">
             <span className="w-1.5 h-1.5 rounded-[1px] bg-[#10b981]" />
             <span>{isAr ? 'غرفة التداول المباشرة' : 'COMMUNICATIONS DESK'}</span>
           </div>

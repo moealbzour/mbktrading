@@ -540,7 +540,7 @@ const SubjectVirtualThumbnail: React.FC<{
   isLocked: boolean;
 }> = ({ visualType, accentColor, chartLabel, moduleCode, isLocked }) => {
   return (
-    <div className="relative w-24 h-20 sm:w-28 sm:h-20 shrink-0 rounded-xl bg-[#06080c] border border-white/10 overflow-hidden flex flex-col justify-between p-1.5 select-none">
+    <div className="relative w-24 h-20 sm:w-28 sm:h-20 shrink-0 rounded-xl bg-[#F0F3FA] dark:bg-[#06080c] border border-[#E0E3EB] dark:border-white/10 overflow-hidden flex flex-col justify-between p-1.5 select-none">
       {/* Subtle Grid Background */}
       <svg className="absolute inset-0 w-full h-full opacity-90" viewBox="0 0 120 84" fill="none">
         <line x1="0" y1="21" x2="120" y2="21" stroke="#1e293b" strokeWidth="0.6" strokeDasharray="2 2" />
@@ -629,14 +629,14 @@ const SubjectVirtualThumbnail: React.FC<{
 
       {/* Top Module Badge & Lock Pill */}
       <div className="relative z-10 flex items-center justify-between gap-1">
-        <span className="px-1.5 py-0.5 rounded bg-black/80 border border-white/10 text-[8px] font-mono font-bold text-white">
+        <span className="px-1.5 py-0.5 rounded bg-[#131722]/85 dark:bg-black/80 border border-white/15 dark:border-white/10 text-[8px] font-mono font-bold text-white">
           {moduleCode}
         </span>
         <span
           className={`w-4 h-4 rounded-md flex items-center justify-center border ${
             isLocked
-              ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
-              : 'bg-[#10b981]/20 border-[#10b981]/50 text-[#10b981]'
+              ? 'bg-[#FDF6E3] dark:bg-amber-500/20 border-[#EFE0B4] dark:border-amber-500/50 text-[#9A6700] dark:text-amber-300'
+              : 'bg-[#E6F5F2] dark:bg-[#10b981]/20 border-[#B3E2D9] dark:border-[#10b981]/50 text-[#089981] dark:text-[#10b981]'
           }`}
         >
           <Lock className="w-2.5 h-2.5" />
@@ -644,7 +644,7 @@ const SubjectVirtualThumbnail: React.FC<{
       </div>
 
       {/* Bottom Virtual Chart Tag */}
-      <div className="relative z-10 px-1.5 py-0.5 rounded bg-black/80 border border-white/10 text-[8px] font-mono text-[#d1d4dc] truncate text-center">
+      <div className="relative z-10 px-1.5 py-0.5 rounded bg-[#131722]/85 dark:bg-black/80 border border-white/15 dark:border-white/10 text-[8px] font-mono text-white dark:text-[#d1d4dc] truncate text-center">
         {chartLabel}
       </div>
     </div>
@@ -922,23 +922,23 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
   const previewParsedLink = useMemo(() => parseAcademyVideoUrl(formVideoUrl), [formVideoUrl]);
 
   return (
-    <div dir={isAr ? 'rtl' : 'ltr'} className="h-full flex flex-col bg-[#0b0e14] text-[#d1d4dc] overflow-hidden">
+    <div dir={isAr ? 'rtl' : 'ltr'} className="h-full flex flex-col bg-[#F0F3FA] dark:bg-[#0b0e14] text-[#131722] dark:text-[#d1d4dc] overflow-hidden">
       {/* TOP BAR */}
-      <div className="shrink-0 px-3 sm:px-5 py-2.5 bg-[#10141c] border-b border-white/10 flex flex-wrap items-center justify-between gap-2.5">
+      <div className="shrink-0 px-3 sm:px-5 py-2.5 bg-[#FFFFFF] dark:bg-[#10141c] border-b border-[#E0E3EB] dark:border-white/10 flex flex-wrap items-center justify-between gap-2.5">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-[#10b981]/15 border border-[#10b981]/35 flex items-center justify-center text-[#10b981] shrink-0">
+          <div className="w-9 h-9 rounded-xl bg-[#E6F5F2] dark:bg-[#10b981]/15 border border-[#B3E2D9] dark:border-[#10b981]/35 flex items-center justify-center text-[#089981] dark:text-[#10b981] shrink-0">
             <GraduationCap className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-xs sm:text-base font-extrabold text-white">
+              <h2 className="text-xs sm:text-base font-extrabold text-[#131722] dark:text-white">
                 {isAr ? 'أكاديمية MBK الاحترافية للتداول الكمي والمؤسسي' : 'MBK Institutional & Quantum Trading Academy'}
               </h2>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#10b981]/15 text-[#10b981] border border-[#10b981]/30">
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#E6F5F2] dark:bg-[#10b981]/15 text-[#089981] dark:text-[#10b981] border border-[#B3E2D9] dark:border-[#10b981]/30">
                 {isAr ? 'الرئيسية: شورتات مجانية • مع خيار قفل فيديوهات محددة' : 'Default: Free Shorts • Per-Video Lock Option'}
               </span>
             </div>
-            <p className="text-[11px] text-[#8a93a6] mt-0.5 hidden sm:block">
+            <p className="text-[11px] text-[#4A5162] dark:text-[#8a93a6] mt-0.5 hidden sm:block">
               {isAr
                 ? 'الشورتات التعليمية هي الصفحة الرئيسية المفتوحة، والأقسام الجانبية مرتبة للأسفل للدورات الاحترافية'
                 : 'Short learning videos open by default, with vertical side menu tabs for full professional courses'}
@@ -951,7 +951,7 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
             <button
               type="button"
               onClick={() => handleOpenAddModal('shorts')}
-              className="px-3 py-1.5 rounded-lg bg-[#10b981] hover:bg-[#059669] text-white text-xs font-extrabold flex items-center gap-1.5 cursor-pointer shadow-md shadow-[#10b981]/20"
+              className="px-3 py-1.5 rounded-lg bg-[#10b981] hover:bg-[#059669] text-white text-xs font-extrabold flex items-center gap-1.5 cursor-pointer shadow-md shadow-none dark:shadow-[#10b981]/20"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>{isAr ? 'إضافة شورت / فيديو' : 'Add Short / Video'}</span>
@@ -961,7 +961,7 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
           <button
             type="button"
             onClick={() => handleCopyWebsiteLink(null)}
-            className="px-2.5 py-1.5 rounded-lg bg-[#161c26] hover:bg-[#1c2432] border border-white/10 text-[11px] font-bold text-[#10b981] flex items-center gap-1.5 cursor-pointer"
+            className="px-2.5 py-1.5 rounded-lg bg-[#F8F9FD] dark:bg-[#161c26] hover:bg-[#EDF1F7] dark:hover:bg-[#1c2432] border border-[#E0E3EB] dark:border-white/10 text-[11px] font-bold text-[#089981] dark:text-[#10b981] flex items-center gap-1.5 cursor-pointer"
           >
             {copiedId === `sec-${activeSection}` ? (
               <>
@@ -982,7 +982,7 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
               soundManager.playClick();
               onContactSupport?.();
             }}
-            className="px-2.5 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 text-[11px] font-bold flex items-center gap-1.5 cursor-pointer"
+            className="px-2.5 py-1.5 rounded-lg bg-[#FDF6E3] dark:bg-amber-500/15 hover:bg-amber-500/25 border border-[#EFE0B4] dark:border-amber-500/40 text-[#9A6700] dark:text-amber-300 text-[11px] font-bold flex items-center gap-1.5 cursor-pointer"
           >
             <Headphones className="w-3.5 h-3.5" />
             <span>{isAr ? 'تواصل مع الدعم' : 'Contact Support'}</span>
@@ -994,10 +994,10 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
               soundManager.playClick();
               loadVideos(true);
             }}
-            className="p-1.5 rounded-lg bg-[#161c26] hover:bg-[#1c2432] border border-white/10 text-[#8a93a6] hover:text-white cursor-pointer"
+            className="p-1.5 rounded-lg bg-[#F8F9FD] dark:bg-[#161c26] hover:bg-[#EDF1F7] dark:hover:bg-[#1c2432] border border-[#E0E3EB] dark:border-white/10 text-[#4A5162] dark:text-[#8a93a6] hover:text-[#131722] dark:hover:text-white cursor-pointer"
             title={isAr ? 'تحديث القائمة' : 'Refresh'}
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-[#10b981]' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-[#089981] dark:text-[#10b981]' : ''}`} />
           </button>
         </div>
       </div>
@@ -1016,25 +1016,25 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                ===================================================================== */
             <div className="space-y-4">
               {/* Compact Shorts Main Page Banner */}
-              <div className="p-4 sm:p-5 rounded-2xl bg-[#0f141e] border border-white/10 flex flex-wrap items-center justify-between gap-3 shadow-lg">
+              <div className="p-4 sm:p-5 rounded-2xl bg-[#FFFFFF] dark:bg-[#0f141e] border border-[#E0E3EB] dark:border-white/10 flex flex-wrap items-center justify-between gap-3 shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-lg">
                 <div className="space-y-1 max-w-2xl">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-md bg-[#10b981]/15 text-[#10b981] border border-[#10b981]/35">
+                    <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-md bg-[#E6F5F2] dark:bg-[#10b981]/15 text-[#089981] dark:text-[#10b981] border border-[#B3E2D9] dark:border-[#10b981]/35">
                       {isAr ? 'الصفحة الرئيسية • مفتوح مجاناً' : 'MAIN PAGE • FREE & OPEN'}
                     </span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#FDF6E3] dark:bg-amber-500/15 text-[#9A6700] dark:text-amber-300 border border-[#EFE0B4] dark:border-amber-500/30 flex items-center gap-1">
                       <Lock className="w-2.5 h-2.5" />
                       <span>
                         {isAr ? 'إمكانية قفل فيديوهات محددة' : 'Per-Video Lock Available'}
                       </span>
                     </span>
                   </div>
-                  <h3 className="text-sm sm:text-lg font-extrabold text-white pt-0.5">
+                  <h3 className="text-sm sm:text-lg font-extrabold text-[#131722] dark:text-white pt-0.5">
                     {isAr
                       ? 'شورتات وريلز التداول التعليمية (Shorts & Reels)'
                       : 'Short Learning Videos & Reels'}
                   </h3>
-                  <p className="text-xs text-[#8a93a6] leading-relaxed">
+                  <p className="text-xs text-[#4A5162] dark:text-[#8a93a6] leading-relaxed">
                     {isAr
                       ? 'مقاطع تعليمية قصيرة ومباشرة تعمل داخل الموقع مجاناً، مع إمكانية تخصيص بعض الفيديوهات كمحتوى مغلق ومشاركة رابط أي فيديو من موقعك مباشرة إلى المنصات الأخرى.'
                       : 'Short learning videos embedded directly in your website for free, with the option to lock specific videos and share your website link to any platform.'}
@@ -1045,7 +1045,7 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                   <button
                     type="button"
                     onClick={() => handleCopyWebsiteLink(null)}
-                    className="px-3 py-2 rounded-xl bg-[#161c26] hover:bg-[#1c2432] border border-white/10 text-xs font-bold text-[#10b981] flex items-center gap-1.5 cursor-pointer"
+                    className="px-3 py-2 rounded-xl bg-[#F8F9FD] dark:bg-[#161c26] hover:bg-[#EDF1F7] dark:hover:bg-[#1c2432] border border-[#E0E3EB] dark:border-white/10 text-xs font-bold text-[#089981] dark:text-[#10b981] flex items-center gap-1.5 cursor-pointer"
                   >
                     <Share2 className="w-3.5 h-3.5" />
                     <span>{isAr ? 'مشاركة صفحة الشورتات' : 'Share Shorts Page'}</span>
@@ -1055,7 +1055,7 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                     <button
                       type="button"
                       onClick={() => handleOpenAddModal('shorts')}
-                      className="px-4 py-2 rounded-xl bg-[#10b981] hover:bg-[#059669] text-white text-xs font-extrabold flex items-center gap-1.5 cursor-pointer shadow-lg shadow-[#10b981]/20"
+                      className="px-4 py-2 rounded-xl bg-[#10b981] hover:bg-[#059669] text-white text-xs font-extrabold flex items-center gap-1.5 cursor-pointer shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-lg shadow-none dark:shadow-[#10b981]/20"
                     >
                       <Plus className="w-4 h-4" />
                       <span>{isAr ? 'إضافة فيديو شورت جديد' : 'Add New Short Video'}</span>
@@ -1066,25 +1066,25 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
 
               {/* Shorts Feed: Empty State (0 videos pre-uploaded) vs Uploaded Shorts Grid */}
               {sectionVideos.length === 0 ? (
-                <div className="p-6 sm:p-10 rounded-2xl bg-[#0f141e] border border-dashed border-white/15 flex flex-col items-center justify-center text-center space-y-3.5">
-                  <div className="w-14 h-14 rounded-2xl bg-[#10b981]/15 border border-[#10b981]/35 flex items-center justify-center text-[#10b981]">
+                <div className="p-6 sm:p-10 rounded-2xl bg-[#FFFFFF] dark:bg-[#0f141e] border border-dashed border-[#CBD2DF] dark:border-white/15 flex flex-col items-center justify-center text-center space-y-3.5">
+                  <div className="w-14 h-14 rounded-2xl bg-[#E6F5F2] dark:bg-[#10b981]/15 border border-[#B3E2D9] dark:border-[#10b981]/35 flex items-center justify-center text-[#089981] dark:text-[#10b981]">
                     <Film className="w-7 h-7" />
                   </div>
 
                   <div className="space-y-1.5 max-w-lg">
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-[#10b981]/15 border border-[#10b981]/30 text-[#10b981] text-[10px] font-extrabold">
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-[#E6F5F2] dark:bg-[#10b981]/15 border border-[#B3E2D9] dark:border-[#10b981]/30 text-[#089981] dark:text-[#10b981] text-[10px] font-extrabold">
                       <span>
                         {isAr
                           ? 'القسم فارغ حالياً • جاهز لإضافة ومشاركة الفيديوهات لاحقاً'
                           : 'Currently Empty • Ready to Add & Share Videos Later'}
                       </span>
                     </div>
-                    <h4 className="text-sm sm:text-base font-extrabold text-white">
+                    <h4 className="text-sm sm:text-base font-extrabold text-[#131722] dark:text-white">
                       {isAr
                         ? 'مكتبة الشورتات التعليمية مفتوحة وجاهزة لرفع المقاطع'
                         : 'Short Learning Videos Feed is Open & Ready'}
                     </h4>
-                    <p className="text-xs text-[#8a93a6] leading-relaxed">
+                    <p className="text-xs text-[#4A5162] dark:text-[#8a93a6] leading-relaxed">
                       {isAr
                         ? 'لم يتم رفع أي فيديو مسبقاً كما طلبت. يمكنك إضافة روابط YouTube Shorts أو فيديوهات قصيرة في أي وقت، واختيار ما إذا كان الفيديو مفتوحاً مجاناً للجميع أو مغلقاً 🔒، ومشاركة رابطه من موقعك إلى واتساب وتيليجرام وإكس.'
                         : 'No videos are pre-uploaded. You can add YouTube Shorts or video links anytime, choose whether each video is Free Open or Locked 🔒, and share its website link to WhatsApp, Telegram, and X.'}
@@ -1096,7 +1096,7 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                       <button
                         type="button"
                         onClick={() => handleOpenAddModal('shorts')}
-                        className="px-5 py-2.5 rounded-xl bg-[#10b981] hover:bg-[#059669] text-white text-xs font-extrabold flex items-center gap-2 cursor-pointer shadow-lg shadow-[#10b981]/20"
+                        className="px-5 py-2.5 rounded-xl bg-[#10b981] hover:bg-[#059669] text-white text-xs font-extrabold flex items-center gap-2 cursor-pointer shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-lg shadow-none dark:shadow-[#10b981]/20"
                       >
                         <Plus className="w-4 h-4" />
                         <span>{isAr ? 'إضافة / تضمين فيديو شورت الآن' : 'Add / Embed Short Video Now'}</span>
@@ -1106,9 +1106,9 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                     <button
                       type="button"
                       onClick={() => handleCopyWebsiteLink(null)}
-                      className="px-4 py-2.5 rounded-xl bg-[#161c26] hover:bg-[#1c2432] border border-white/10 text-xs font-bold text-[#d1d4dc] flex items-center gap-1.5 cursor-pointer"
+                      className="px-4 py-2.5 rounded-xl bg-[#F8F9FD] dark:bg-[#161c26] hover:bg-[#EDF1F7] dark:hover:bg-[#1c2432] border border-[#E0E3EB] dark:border-white/10 text-xs font-bold text-[#131722] dark:text-[#d1d4dc] flex items-center gap-1.5 cursor-pointer"
                     >
-                      <Share2 className="w-3.5 h-3.5 text-[#10b981]" />
+                      <Share2 className="w-3.5 h-3.5 text-[#089981] dark:text-[#10b981]" />
                       <span>{isAr ? 'نسخ رابط صفحة الشورتات للمشاركة' : 'Copy Shorts Page Share Link'}</span>
                     </button>
                   </div>
@@ -1123,16 +1123,16 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                     return (
                       <div
                         key={video.id}
-                        className="rounded-2xl bg-[#0f141e] border border-white/10 overflow-hidden flex flex-col justify-between shadow-xl"
+                        className="rounded-2xl bg-[#FFFFFF] dark:bg-[#0f141e] border border-[#E0E3EB] dark:border-white/10 overflow-hidden flex flex-col justify-between shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-xl"
                       >
                         <div>
                           {/* Top Status Bar on each Short Card */}
-                          <div className="px-3.5 py-2 bg-[#0b0e14] border-b border-white/10 flex items-center justify-between gap-2">
+                          <div className="px-3.5 py-2 bg-[#F0F3FA] dark:bg-[#0b0e14] border-b border-[#E0E3EB] dark:border-white/10 flex items-center justify-between gap-2">
                             <span
                               className={`text-[10px] font-extrabold px-2 py-0.5 rounded flex items-center gap-1 ${
                                 isVideoLocked
-                                  ? 'bg-amber-500/15 text-amber-300 border border-amber-500/35'
-                                  : 'bg-[#10b981]/15 text-[#10b981] border border-[#10b981]/35'
+                                  ? 'bg-[#FDF6E3] dark:bg-amber-500/15 text-[#9A6700] dark:text-amber-300 border border-[#EFE0B4] dark:border-amber-500/35'
+                                  : 'bg-[#E6F5F2] dark:bg-[#10b981]/15 text-[#089981] dark:text-[#10b981] border border-[#B3E2D9] dark:border-[#10b981]/35'
                               }`}
                             >
                               {isVideoLocked ? (
@@ -1148,13 +1148,13 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                               )}
                             </span>
 
-                            <span className="text-[10px] font-mono text-[#8a93a6]">
+                            <span className="text-[10px] font-mono text-[#4A5162] dark:text-[#8a93a6]">
                               {isAr ? video.durationLabelAr : video.durationLabelEn}
                             </span>
                           </div>
 
                           {/* 9:16 Vertical Player or Locked Gate */}
-                          <div className="relative w-full aspect-[9/16] max-h-[450px] bg-[#06080c] border-b border-white/10 overflow-hidden">
+                          <div className="relative w-full aspect-[9/16] max-h-[450px] bg-[#F0F3FA] dark:bg-[#06080c] border-b border-[#E0E3EB] dark:border-white/10 overflow-hidden">
                             {canWatch ? (
                               video.videoKind === 'direct_mp4' ? (
                                 <video
@@ -1177,18 +1177,18 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                               )
                             ) : (
                               /* Locked Short Video Overlay for non-enrolled users */
-                              <div className="w-full h-full p-5 flex flex-col items-center justify-center text-center bg-gradient-to-b from-[#0b0e14] via-[#101622] to-[#06080c] space-y-3">
-                                <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/40 flex items-center justify-center text-amber-400">
+                              <div className="w-full h-full p-5 flex flex-col items-center justify-center text-center bg-[#F0F3FA] dark:bg-gradient-to-b dark:from-[#0b0e14] dark:via-[#101622] dark:to-[#06080c] space-y-3">
+                                <div className="w-12 h-12 rounded-2xl bg-[#FDF6E3] dark:bg-amber-500/15 border border-[#EFE0B4] dark:border-amber-500/40 flex items-center justify-center text-[#9A6700] dark:text-amber-400">
                                   <Lock className="w-6 h-6" />
                                 </div>
                                 <div className="space-y-1">
-                                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-[#FDF6E3] dark:bg-amber-500/15 text-[#9A6700] dark:text-amber-300 border border-[#EFE0B4] dark:border-amber-500/30">
                                     {isAr ? 'محتوى خاص مغلق 🔒' : 'LOCKED SHORT 🔒'}
                                   </span>
-                                  <h6 className="text-xs sm:text-sm font-extrabold text-white pt-1">
+                                  <h6 className="text-xs sm:text-sm font-extrabold text-[#131722] dark:text-white pt-1">
                                     {isAr ? video.titleAr : video.titleEn}
                                   </h6>
-                                  <p className="text-[11px] text-[#8a93a6] leading-relaxed">
+                                  <p className="text-[11px] text-[#4A5162] dark:text-[#8a93a6] leading-relaxed">
                                     {isAr
                                       ? 'هذا الفيديو مخصص للمسجلين. تواصل مع الدعم الفني أو فعّل باقة Elite لمشاهدته.'
                                       : 'This video is locked. Contact Support or activate Elite to unlock playback.'}
@@ -1213,9 +1213,9 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                                         soundManager.playClick();
                                         onOpenPlans();
                                       }}
-                                      className="w-full py-1.5 px-3 rounded-xl bg-[#161c26] hover:bg-[#1c2432] border border-white/10 text-white font-bold text-[11px] flex items-center justify-center gap-1.5 cursor-pointer"
+                                      className="w-full py-1.5 px-3 rounded-xl bg-[#F8F9FD] dark:bg-[#161c26] hover:bg-[#EDF1F7] dark:hover:bg-[#1c2432] border border-[#E0E3EB] dark:border-white/10 text-[#131722] dark:text-white font-bold text-[11px] flex items-center justify-center gap-1.5 cursor-pointer"
                                     >
-                                      <Crown className="w-3.5 h-3.5 text-amber-400" />
+                                      <Crown className="w-3.5 h-3.5 text-[#9A6700] dark:text-amber-400" />
                                       <span>{isAr ? 'باقة Elite' : 'Elite Plan'}</span>
                                     </button>
                                   )}
@@ -1225,14 +1225,14 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                           </div>
 
                           <div className="p-3.5 space-y-1.5">
-                            <div className="flex items-center justify-between text-[10px] text-[#10b981] font-bold">
+                            <div className="flex items-center justify-between text-[10px] text-[#089981] dark:text-[#10b981] font-bold">
                               <span>{isAr ? video.topicTagAr : video.topicTagEn}</span>
                             </div>
-                            <h5 className="text-xs sm:text-sm font-extrabold text-white">
+                            <h5 className="text-xs sm:text-sm font-extrabold text-[#131722] dark:text-white">
                               {isAr ? video.titleAr : video.titleEn}
                             </h5>
                             { (isAr ? video.descriptionAr : video.descriptionEn) && (
-                              <p className="text-[11px] text-[#8a93a6] leading-relaxed">
+                              <p className="text-[11px] text-[#4A5162] dark:text-[#8a93a6] leading-relaxed">
                                 {isAr ? video.descriptionAr : video.descriptionEn}
                               </p>
                             )}
@@ -1240,12 +1240,12 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                         </div>
 
                         {/* Share & Admin Lock/Edit Controls */}
-                        <div className="px-3.5 pb-3.5 pt-2 border-t border-white/5 flex items-center justify-between gap-2 flex-wrap">
+                        <div className="px-3.5 pb-3.5 pt-2 border-t border-[#E0E3EB] dark:border-white/5 flex items-center justify-between gap-2 flex-wrap">
                           <div className="flex items-center gap-1.5 flex-1">
                             <button
                               type="button"
                               onClick={() => handleShareVideoFromWebsite(video)}
-                              className="flex-1 py-2 px-3 rounded-xl bg-[#10b981]/15 hover:bg-[#10b981]/25 border border-[#10b981]/40 text-[#10b981] text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+                              className="flex-1 py-2 px-3 rounded-xl bg-[#E6F5F2] dark:bg-[#10b981]/15 hover:bg-[#10b981]/25 border border-[#B3E2D9] dark:border-[#10b981]/40 text-[#089981] dark:text-[#10b981] text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
                             >
                               <Share2 className="w-3.5 h-3.5" />
                               <span>{isAr ? 'مشاركة من الموقع' : 'Share Website Link'}</span>
@@ -1253,11 +1253,11 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                             <button
                               type="button"
                               onClick={() => handleCopyWebsiteLink(video)}
-                              className="p-2 rounded-xl bg-[#161c26] hover:bg-[#1c2432] border border-white/10 text-[#d1d4dc] cursor-pointer"
+                              className="p-2 rounded-xl bg-[#F8F9FD] dark:bg-[#161c26] hover:bg-[#EDF1F7] dark:hover:bg-[#1c2432] border border-[#E0E3EB] dark:border-white/10 text-[#131722] dark:text-[#d1d4dc] cursor-pointer"
                               title={isAr ? 'نسخ رابط الفيديو' : 'Copy Video Link'}
                             >
                               {isCopied ? (
-                                <Check className="w-4 h-4 text-[#10b981]" />
+                                <Check className="w-4 h-4 text-[#089981] dark:text-[#10b981]" />
                               ) : (
                                 <Copy className="w-4 h-4" />
                               )}
@@ -1271,8 +1271,8 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                                 onClick={() => handleToggleVideoLock(video)}
                                 className={`p-2 rounded-xl border cursor-pointer ${
                                   isVideoLocked
-                                    ? 'bg-amber-500/15 border-amber-500/40 text-amber-300'
-                                    : 'bg-[#161c26] border-white/10 text-[#10b981]'
+                                    ? 'bg-[#FDF6E3] dark:bg-amber-500/15 border-[#EFE0B4] dark:border-amber-500/40 text-[#9A6700] dark:text-amber-300'
+                                    : 'bg-[#F8F9FD] dark:bg-[#161c26] border-[#E0E3EB] dark:border-white/10 text-[#089981] dark:text-[#10b981]'
                                 }`}
                                 title={
                                   isVideoLocked
@@ -1293,7 +1293,7 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                               <button
                                 type="button"
                                 onClick={() => handleOpenEditModal(video)}
-                                className="p-2 rounded-xl bg-[#161c26] hover:bg-[#1c2432] border border-white/10 text-amber-300 cursor-pointer"
+                                className="p-2 rounded-xl bg-[#F8F9FD] dark:bg-[#161c26] hover:bg-[#EDF1F7] dark:hover:bg-[#1c2432] border border-[#E0E3EB] dark:border-white/10 text-[#9A6700] dark:text-amber-300 cursor-pointer"
                                 title={isAr ? 'تعديل' : 'Edit'}
                               >
                                 <Edit3 className="w-3.5 h-3.5" />
@@ -1301,7 +1301,7 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                               <button
                                 type="button"
                                 onClick={() => handleDeleteVideo(video.id)}
-                                className="p-2 rounded-xl bg-[#161c26] hover:bg-[#ef4444]/20 border border-white/10 text-[#ef4444] cursor-pointer"
+                                className="p-2 rounded-xl bg-[#F8F9FD] dark:bg-[#161c26] hover:bg-[#ef4444]/20 border border-[#E0E3EB] dark:border-white/10 text-[#D93848] dark:text-[#ef4444] cursor-pointer"
                                 title={isAr ? 'حذف' : 'Delete'}
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -1321,32 +1321,32 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                ===================================================================== */
             <>
               {/* 1. DETAILED PROFESSIONAL COURSE / TRACK DESCRIPTION HEADER */}
-              <div className="p-4 sm:p-5 rounded-2xl bg-[#0f141e] border border-white/10 space-y-3.5 shadow-lg">
+              <div className="p-4 sm:p-5 rounded-2xl bg-[#FFFFFF] dark:bg-[#0f141e] border border-[#E0E3EB] dark:border-white/10 space-y-3.5 shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-lg">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="space-y-1.5 max-w-3xl">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-md border bg-amber-500/15 text-amber-300 border-amber-500/35">
+                      <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-md border bg-[#FDF6E3] dark:bg-amber-500/15 text-[#9A6700] dark:text-amber-300 border-[#EFE0B4] dark:border-amber-500/35">
                         {isAr ? activeTrack.badgeAr : activeTrack.badgeEn}
                       </span>
-                      <span className="text-[11px] font-mono text-[#8a93a6] px-2 py-0.5 rounded bg-[#06080c] border border-white/10">
+                      <span className="text-[11px] font-mono text-[#4A5162] dark:text-[#8a93a6] px-2 py-0.5 rounded bg-[#F0F3FA] dark:bg-[#06080c] border border-[#E0E3EB] dark:border-white/10">
                         {isAr ? activeTrack.priceTagAr : activeTrack.priceTagEn}
                       </span>
-                      <span className="text-[11px] font-mono text-[#10b981] px-2 py-0.5 rounded bg-[#10b981]/10 border border-[#10b981]/25">
+                      <span className="text-[11px] font-mono text-[#089981] dark:text-[#10b981] px-2 py-0.5 rounded bg-[#E6F5F2] dark:bg-[#10b981]/10 border border-[#B3E2D9] dark:border-[#10b981]/25">
                         {isAr
                           ? `${activeTrack.subjects.length} وحدات ومواضيع تفصيلية`
                           : `${activeTrack.subjects.length} Core Subject Modules`}
                       </span>
                     </div>
 
-                    <h3 className="text-base sm:text-xl font-extrabold text-white pt-1">
+                    <h3 className="text-base sm:text-xl font-extrabold text-[#131722] dark:text-white pt-1">
                       {isAr ? activeTrack.titleAr : activeTrack.titleEn}
                     </h3>
 
-                    <p className="text-xs sm:text-sm text-[#d1d4dc] leading-relaxed">
+                    <p className="text-xs sm:text-sm text-[#131722] dark:text-[#d1d4dc] leading-relaxed">
                       {isAr ? activeTrack.descriptionAr : activeTrack.descriptionEn}
                     </p>
 
-                    <p className="text-xs text-[#8a93a6] leading-relaxed pt-1">
+                    <p className="text-xs text-[#4A5162] dark:text-[#8a93a6] leading-relaxed pt-1">
                       {isAr ? activeTrack.extendedOverviewAr : activeTrack.extendedOverviewEn}
                     </p>
                   </div>
@@ -1358,7 +1358,7 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                         soundManager.playClick();
                         onContactSupport?.();
                       }}
-                      className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-amber-500/15"
+                      className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-lg shadow-none dark:shadow-amber-500/15"
                     >
                       <Headphones className="w-4 h-4" />
                       <span>{isAr ? 'تواصل مع الدعم للتسجيل' : 'Contact Support to Enroll'}</span>
@@ -1370,23 +1370,23 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                         soundManager.playClick();
                         onOpenPlans?.();
                       }}
-                      className="px-3.5 py-2.5 rounded-xl bg-[#161c26] hover:bg-[#1c2432] border border-white/10 text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                      className="px-3.5 py-2.5 rounded-xl bg-[#F8F9FD] dark:bg-[#161c26] hover:bg-[#EDF1F7] dark:hover:bg-[#1c2432] border border-[#E0E3EB] dark:border-white/10 text-[#131722] dark:text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
                     >
-                      <Crown className="w-3.5 h-3.5 text-amber-400" />
+                      <Crown className="w-3.5 h-3.5 text-[#9A6700] dark:text-amber-400" />
                       <span>{isAr ? 'باقة Elite' : 'Elite Plan'}</span>
                     </button>
                   </div>
                 </div>
 
                 {/* Key Course Outcomes / Syllabus Highlights */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 pt-3 border-t border-white/10">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 pt-3 border-t border-[#E0E3EB] dark:border-white/10">
                   {(isAr ? activeTrack.curriculumPointsAr : activeTrack.curriculumPointsEn).map((pt, idx) => (
                     <div
                       key={idx}
-                      className="p-3 rounded-xl bg-[#0b0e14] border border-white/5 flex items-start gap-2.5"
+                      className="p-3 rounded-xl bg-[#F0F3FA] dark:bg-[#0b0e14] border border-[#E0E3EB] dark:border-white/5 flex items-start gap-2.5"
                     >
-                      <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
-                      <span className="text-[11px] text-[#d1d4dc] leading-relaxed">{pt}</span>
+                      <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-[#9A6700] dark:text-amber-400" />
+                      <span className="text-[11px] text-[#131722] dark:text-[#d1d4dc] leading-relaxed">{pt}</span>
                     </div>
                   ))}
                 </div>
@@ -1396,14 +1396,14 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div className="flex items-center gap-2">
-                    <BookOpen className="w-4 h-4 text-amber-400" />
-                    <h4 className="text-xs sm:text-sm font-extrabold text-white">
+                    <BookOpen className="w-4 h-4 text-[#9A6700] dark:text-amber-400" />
+                    <h4 className="text-xs sm:text-sm font-extrabold text-[#131722] dark:text-white">
                       {isAr
                         ? `مواضيع ووحدات الدورة بالتفصيل (${activeTrack.subjects.length})`
                         : `Course Subjects & Virtual Video Previews (${activeTrack.subjects.length})`}
                     </h4>
                   </div>
-                  <span className="text-[11px] text-[#8a93a6]">
+                  <span className="text-[11px] text-[#4A5162] dark:text-[#8a93a6]">
                     {isAr
                       ? 'مقفلة حالياً • تواصل مع الدعم للتسجيل'
                       : 'Currently Locked • Contact Support to Enroll'}
@@ -1414,7 +1414,7 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                   {activeTrack.subjects.map((sub) => (
                     <div
                       key={sub.id}
-                      className="p-3.5 rounded-2xl bg-[#0f141e] border border-white/10 hover:border-white/20 transition-all flex items-start gap-3.5"
+                      className="p-3.5 rounded-2xl bg-[#FFFFFF] dark:bg-[#0f141e] border border-[#E0E3EB] dark:border-white/10 hover:border-[#CBD2DF] dark:hover:border-white/20 transition-all flex items-start gap-3.5"
                     >
                       {/* Small Compact Virtual Photo of the Course Subject */}
                       <SubjectVirtualThumbnail
@@ -1428,10 +1428,10 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                       {/* Subject Title, Metadata, and Detailed Description */}
                       <div className="flex-1 min-w-0 space-y-1.5">
                         <div className="flex items-center justify-between gap-2 flex-wrap">
-                          <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-[#06080c] border border-white/10 text-[#10b981]">
+                          <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-[#F0F3FA] dark:bg-[#06080c] border border-[#E0E3EB] dark:border-white/10 text-[#089981] dark:text-[#10b981]">
                             {isAr ? sub.durationAr : sub.durationEn}
                           </span>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1 bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1 bg-[#FDF6E3] dark:bg-amber-500/15 text-[#9A6700] dark:text-amber-300 border border-[#EFE0B4] dark:border-amber-500/30">
                             <Lock className="w-2.5 h-2.5" />
                             <span>
                               {isAr ? 'مغلق • للتسجيل تواصل مع الدعم' : 'Locked • Contact Support'}
@@ -1439,11 +1439,11 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                           </span>
                         </div>
 
-                        <h5 className="text-xs sm:text-sm font-extrabold text-white leading-snug">
+                        <h5 className="text-xs sm:text-sm font-extrabold text-[#131722] dark:text-white leading-snug">
                           {isAr ? sub.titleAr : sub.titleEn}
                         </h5>
 
-                        <p className="text-[11px] text-[#8a93a6] leading-relaxed">
+                        <p className="text-[11px] text-[#4A5162] dark:text-[#8a93a6] leading-relaxed">
                           {isAr ? sub.summaryAr : sub.summaryEn}
                         </p>
                       </div>
@@ -1457,8 +1457,8 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                 <div className="space-y-3 pt-2">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <Video className="w-4 h-4 text-[#10b981]" />
-                      <h4 className="text-sm font-extrabold text-white">
+                      <Video className="w-4 h-4 text-[#089981] dark:text-[#10b981]" />
+                      <h4 className="text-sm font-extrabold text-[#131722] dark:text-white">
                         {isAr
                           ? `محاضرات الفيديو المرفوعة في هذا القسم (${sectionVideos.length})`
                           : `Uploaded Course Videos (${sectionVideos.length})`}
@@ -1472,28 +1472,28 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                       return (
                         <div
                           key={video.id}
-                          className="p-4 rounded-2xl bg-[#0f141e] border border-white/10 space-y-3"
+                          className="p-4 rounded-2xl bg-[#FFFFFF] dark:bg-[#0f141e] border border-[#E0E3EB] dark:border-white/10 space-y-3"
                         >
                           <div className="flex items-center justify-between gap-2 text-xs">
-                            <span className="font-bold text-amber-400">
+                            <span className="font-bold text-[#9A6700] dark:text-amber-400">
                               0{idx + 1}. {isAr ? video.topicTagAr : video.topicTagEn}
                             </span>
-                            <span className="font-mono text-[11px] text-[#8a93a6]">
+                            <span className="font-mono text-[11px] text-[#4A5162] dark:text-[#8a93a6]">
                               {isAr ? video.durationLabelAr : video.durationLabelEn}
                             </span>
                           </div>
 
-                          <h5 className="text-sm font-extrabold text-white">
+                          <h5 className="text-sm font-extrabold text-[#131722] dark:text-white">
                             {isAr ? video.titleAr : video.titleEn}
                           </h5>
 
-                          <p className="text-xs text-[#8a93a6] leading-relaxed">
+                          <p className="text-xs text-[#4A5162] dark:text-[#8a93a6] leading-relaxed">
                             {isAr ? video.descriptionAr : video.descriptionEn}
                           </p>
 
                           {canWatchCourseVideo ? (
                             <div className="space-y-2">
-                              <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-[#06080c] border border-white/10">
+                              <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-[#F0F3FA] dark:bg-[#06080c] border border-[#E0E3EB] dark:border-white/10">
                                 {video.videoKind === 'direct_mp4' ? (
                                   <video src={video.embedUrl} controls playsInline className="w-full h-full" />
                                 ) : (
@@ -1510,7 +1510,7 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => handleShareVideoFromWebsite(video)}
-                                  className="px-3 py-1.5 rounded-lg bg-[#161c26] border border-white/10 text-xs font-bold text-[#10b981] flex items-center gap-1.5 cursor-pointer"
+                                  className="px-3 py-1.5 rounded-lg bg-[#F8F9FD] dark:bg-[#161c26] border border-[#E0E3EB] dark:border-white/10 text-xs font-bold text-[#089981] dark:text-[#10b981] flex items-center gap-1.5 cursor-pointer"
                                 >
                                   <Share2 className="w-3.5 h-3.5" />
                                   <span>{isAr ? 'مشاركة الرابط' : 'Share Link'}</span>
@@ -1520,11 +1520,11 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                                     <button
                                       type="button"
                                       onClick={() => handleToggleVideoLock(video)}
-                                      className="px-2.5 py-1 rounded-lg bg-[#161c26] border border-white/10 text-xs text-amber-300 flex items-center gap-1 cursor-pointer"
+                                      className="px-2.5 py-1 rounded-lg bg-[#F8F9FD] dark:bg-[#161c26] border border-[#E0E3EB] dark:border-white/10 text-xs text-[#9A6700] dark:text-amber-300 flex items-center gap-1 cursor-pointer"
                                     >
                                       {video.isFreeAccess ? (
                                         <>
-                                          <Unlock className="w-3 h-3 text-[#10b981]" />
+                                          <Unlock className="w-3 h-3 text-[#089981] dark:text-[#10b981]" />
                                           <span>{isAr ? 'مفتوح' : 'Free'}</span>
                                         </>
                                       ) : (
@@ -1537,7 +1537,7 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                                     <button
                                       type="button"
                                       onClick={() => handleOpenEditModal(video)}
-                                      className="px-2.5 py-1 rounded-lg bg-[#161c26] border border-white/10 text-xs text-amber-300 flex items-center gap-1 cursor-pointer"
+                                      className="px-2.5 py-1 rounded-lg bg-[#F8F9FD] dark:bg-[#161c26] border border-[#E0E3EB] dark:border-white/10 text-xs text-[#9A6700] dark:text-amber-300 flex items-center gap-1 cursor-pointer"
                                     >
                                       <Edit3 className="w-3 h-3" />
                                       <span>{isAr ? 'تعديل' : 'Edit'}</span>
@@ -1545,7 +1545,7 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                                     <button
                                       type="button"
                                       onClick={() => handleDeleteVideo(video.id)}
-                                      className="px-2.5 py-1 rounded-lg bg-[#161c26] border border-white/10 text-xs text-[#ef4444] flex items-center gap-1 cursor-pointer"
+                                      className="px-2.5 py-1 rounded-lg bg-[#F8F9FD] dark:bg-[#161c26] border border-[#E0E3EB] dark:border-white/10 text-xs text-[#D93848] dark:text-[#ef4444] flex items-center gap-1 cursor-pointer"
                                     >
                                       <Trash2 className="w-3 h-3" />
                                       <span>{isAr ? 'حذف' : 'Delete'}</span>
@@ -1555,8 +1555,8 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                               </div>
                             </div>
                           ) : (
-                            <div className="p-3 rounded-xl bg-[#0b0e14] border border-amber-500/30 flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-2 text-xs text-amber-300 font-bold">
+                            <div className="p-3 rounded-xl bg-[#F0F3FA] dark:bg-[#0b0e14] border border-[#EFE0B4] dark:border-amber-500/30 flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 text-xs text-[#9A6700] dark:text-amber-300 font-bold">
                                 <Lock className="w-4 h-4 shrink-0" />
                                 <span>
                                   {isAr
@@ -1584,14 +1584,14 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
               )}
 
               {/* 4. ENROLLMENT INSTRUCTIONS & CONTACT SUPPORT GATE (WITH HIDDEN ADMIN VIDEO UPLOAD PLACE BEHIND IT) */}
-              <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-b from-[#121826] to-[#0f141e] border border-amber-500/35 space-y-4 shadow-xl">
+              <div className="p-5 sm:p-6 rounded-2xl bg-[#FFFFFF] dark:bg-gradient-to-b dark:from-[#121826] dark:to-[#0f141e] border border-[#EFE0B4] dark:border-amber-500/35 space-y-4 shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-xl">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="flex items-start gap-3.5 max-w-2xl">
-                    <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
+                    <div className="w-12 h-12 rounded-2xl bg-[#FDF6E3] dark:bg-amber-500/15 border border-[#EFE0B4] dark:border-amber-500/40 flex items-center justify-center text-[#9A6700] dark:text-amber-400 shrink-0">
                       <Lock className="w-6 h-6" />
                     </div>
                     <div className="space-y-1.5">
-                      <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[10px] font-extrabold">
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-[#FDF6E3] dark:bg-amber-500/15 border border-[#EFE0B4] dark:border-amber-500/30 text-[#9A6700] dark:text-amber-300 text-[10px] font-extrabold">
                         <Sparkles className="w-3 h-3" />
                         <span>
                           {isAr
@@ -1600,13 +1600,13 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                         </span>
                       </div>
 
-                      <h4 className="text-sm sm:text-base font-extrabold text-white">
+                      <h4 className="text-sm sm:text-base font-extrabold text-[#131722] dark:text-white">
                         {isAr
                           ? `كيفية التسجيل وفتح فيديوهات: ${activeTrack.shortAr}`
                           : `How to Enroll & Unlock Videos for: ${activeTrack.shortEn}`}
                       </h4>
 
-                      <p className="text-xs text-[#b2b5be] leading-relaxed">
+                      <p className="text-xs text-[#4A5162] dark:text-[#b2b5be] leading-relaxed">
                         {isAr
                           ? 'جميع محاضرات الفيديو التطبيقية في هذا القسم مقفلة لحماية المحتوى المؤسسي. للتسجيل في الدورة أو تفعيل وصول باقة Elite على حسابك، تواصل مباشرة مع فريق دعم MBK Trading (@mbktrading) عبر الماسنجر الداخلي.'
                           : 'All video lectures in this track are locked for enrolled members. To enroll in this course or activate Elite access on your account, contact MBK Trading Support (@mbktrading) directly.'}
@@ -1621,7 +1621,7 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                         soundManager.playClick();
                         onContactSupport?.();
                       }}
-                      className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs flex items-center gap-2 cursor-pointer shadow-lg shadow-amber-500/20"
+                      className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs flex items-center gap-2 cursor-pointer shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-lg shadow-none dark:shadow-amber-500/20"
                     >
                       <MessageSquare className="w-4 h-4" />
                       <span>{isAr ? 'مراسلة الدعم للتسجيل الآن' : 'Message Support to Enroll'}</span>
@@ -1633,43 +1633,43 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                         soundManager.playClick();
                         onOpenPlans?.();
                       }}
-                      className="px-4 py-2.5 rounded-xl bg-[#161c26] hover:bg-[#1c2432] border border-white/15 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer"
+                      className="px-4 py-2.5 rounded-xl bg-[#F8F9FD] dark:bg-[#161c26] hover:bg-[#EDF1F7] dark:hover:bg-[#1c2432] border border-[#CBD2DF] dark:border-white/15 text-[#131722] dark:text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer"
                     >
-                      <Crown className="w-3.5 h-3.5 text-amber-400" />
+                      <Crown className="w-3.5 h-3.5 text-[#9A6700] dark:text-amber-400" />
                       <span>{isAr ? 'استعراض باقة Elite' : 'View Elite Plan'}</span>
                     </button>
                   </div>
                 </div>
 
                 {/* 3-Step Enrollment Instructions */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 pt-2 border-t border-white/10 text-xs">
-                  <div className="p-3 rounded-xl bg-[#0b0e14] border border-white/5 space-y-1">
-                    <div className="font-extrabold text-amber-400">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 pt-2 border-t border-[#E0E3EB] dark:border-white/10 text-xs">
+                  <div className="p-3 rounded-xl bg-[#F0F3FA] dark:bg-[#0b0e14] border border-[#E0E3EB] dark:border-white/5 space-y-1">
+                    <div className="font-extrabold text-[#9A6700] dark:text-amber-400">
                       {isAr ? '1. اختر المسار التدريبي' : '1. Select Your Course Track'}
                     </div>
-                    <p className="text-[11px] text-[#8a93a6]">
+                    <p className="text-[11px] text-[#4A5162] dark:text-[#8a93a6]">
                       {isAr
                         ? 'راجع وصف الوحدات والمواضيع أعلاه وحدد الدورة المناسبة لمستواك (الدورات الكاملة، المدفوعة، أو التداول الكمي).'
                         : 'Review the detailed subject modules above and choose your track (Full Courses, Paid Bootcamp, or Quantum Trading).'}
                     </p>
                   </div>
 
-                  <div className="p-3 rounded-xl bg-[#0b0e14] border border-white/5 space-y-1">
-                    <div className="font-extrabold text-[#10b981]">
+                  <div className="p-3 rounded-xl bg-[#F0F3FA] dark:bg-[#0b0e14] border border-[#E0E3EB] dark:border-white/5 space-y-1">
+                    <div className="font-extrabold text-[#089981] dark:text-[#10b981]">
                       {isAr ? '2. تواصل مع الدعم (@mbktrading)' : '2. Contact Support (@mbktrading)'}
                     </div>
-                    <p className="text-[11px] text-[#8a93a6]">
+                    <p className="text-[11px] text-[#4A5162] dark:text-[#8a93a6]">
                       {isAr
                         ? 'اضغط على زر "مراسلة الدعم للتسجيل" لإرسال طلب انضمامك للدورة أو طلب تفعيل باقة Elite.'
                         : 'Click "Message Support to Enroll" to open a direct ticket with the MBK Desk for enrollment.'}
                     </p>
                   </div>
 
-                  <div className="p-3 rounded-xl bg-[#0b0e14] border border-white/5 space-y-1">
-                    <div className="font-extrabold text-sky-400">
+                  <div className="p-3 rounded-xl bg-[#F0F3FA] dark:bg-[#0b0e14] border border-[#E0E3EB] dark:border-white/5 space-y-1">
+                    <div className="font-extrabold text-[#1E53E5] dark:text-sky-400">
                       {isAr ? '3. التفعيل الفوري للمحاضرات' : '3. Instant Video Activation'}
                     </div>
-                    <p className="text-[11px] text-[#8a93a6]">
+                    <p className="text-[11px] text-[#4A5162] dark:text-[#8a93a6]">
                       {isAr
                         ? 'يقوم المشرف بتفعيل صلاحية حسابك لتعمل جميع الفيديوهات المرفوعة داخل مشغل الموقع مباشرة.'
                         : 'Once activated, all uploaded course videos play natively inside your account workspace.'}
@@ -1679,10 +1679,10 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
 
                 {/* ADMIN ONLY: HIDDEN VIDEO UPLOAD STUDIO TOGGLE BEHIND ENROLLMENT INSTRUCTIONS */}
                 {isRealAdmin && (
-                  <div className="pt-3 border-t border-white/10 space-y-3">
+                  <div className="pt-3 border-t border-[#E0E3EB] dark:border-white/10 space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-[11px] font-bold text-[#8a93a6] flex items-center gap-1.5">
-                        <ShieldCheck className="w-3.5 h-3.5 text-[#10b981]" />
+                      <span className="text-[11px] font-bold text-[#4A5162] dark:text-[#8a93a6] flex items-center gap-1.5">
+                        <ShieldCheck className="w-3.5 h-3.5 text-[#089981] dark:text-[#10b981]" />
                         <span>
                           {isAr
                             ? 'لوحة المشرف فقط (مخفية خلف تعليمات التسجيل): رفع وتضمين الفيديوهات لهذا القسم'
@@ -1696,7 +1696,7 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                           soundManager.playClick();
                           setShowAdminUploadStudio((prev) => !prev);
                         }}
-                        className="px-3 py-1.5 rounded-lg bg-[#161c26] hover:bg-[#1c2432] border border-white/15 text-[11px] font-bold text-[#10b981] flex items-center gap-1.5 cursor-pointer"
+                        className="px-3 py-1.5 rounded-lg bg-[#F8F9FD] dark:bg-[#161c26] hover:bg-[#EDF1F7] dark:hover:bg-[#1c2432] border border-[#CBD2DF] dark:border-white/15 text-[11px] font-bold text-[#089981] dark:text-[#10b981] flex items-center gap-1.5 cursor-pointer"
                       >
                         {showAdminUploadStudio ? (
                           <>
@@ -1717,18 +1717,18 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                     </div>
 
                     {showAdminUploadStudio && (
-                      <div className="p-4 rounded-xl bg-[#0b0e14] border border-[#10b981]/35 space-y-3">
+                      <div className="p-4 rounded-xl bg-[#F0F3FA] dark:bg-[#0b0e14] border border-[#B3E2D9] dark:border-[#10b981]/35 space-y-3">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div>
-                            <div className="text-xs font-extrabold text-white flex items-center gap-1.5">
-                              <Video className="w-4 h-4 text-[#10b981]" />
+                            <div className="text-xs font-extrabold text-[#131722] dark:text-white flex items-center gap-1.5">
+                              <Video className="w-4 h-4 text-[#089981] dark:text-[#10b981]" />
                               <span>
                                 {isAr
                                   ? `مكان رفع وتضمين الفيديوهات لقسم: ${activeTrack.titleAr}`
                                   : `Video Upload & Link Embed Place for: ${activeTrack.titleEn}`}
                               </span>
                             </div>
-                            <p className="text-[11px] text-[#8a93a6] mt-0.5">
+                            <p className="text-[11px] text-[#4A5162] dark:text-[#8a93a6] mt-0.5">
                               {isAr
                                 ? 'أضف روابط YouTube Shorts أو فيديوهات YouTube (غير مدرجة/عامة) أو Vimeo أو MP4 عندما تكون جاهزاً.'
                                 : 'Add YouTube Shorts, YouTube (Unlisted/Public), Vimeo, or MP4 links whenever you are ready.'}
@@ -1739,7 +1739,7 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                             <button
                               type="button"
                               onClick={() => setShowHostingGuide((prev) => !prev)}
-                              className="px-2.5 py-1.5 rounded-lg bg-[#161c26] border border-white/10 text-[11px] font-semibold text-amber-300 flex items-center gap-1 cursor-pointer"
+                              className="px-2.5 py-1.5 rounded-lg bg-[#F8F9FD] dark:bg-[#161c26] border border-[#E0E3EB] dark:border-white/10 text-[11px] font-semibold text-[#9A6700] dark:text-amber-300 flex items-center gap-1 cursor-pointer"
                             >
                               <HardDrive className="w-3.5 h-3.5" />
                               <span>{isAr ? 'نصيحة الاستضافة' : 'Hosting Tip'}</span>
@@ -1761,7 +1761,7 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                         </div>
 
                         {showHostingGuide && (
-                          <div className="p-3 rounded-lg bg-[#121824] border border-amber-500/30 text-[11px] text-[#d1d4dc] leading-relaxed">
+                          <div className="p-3 rounded-lg bg-[#FFFFFF] dark:bg-[#121824] border border-[#EFE0B4] dark:border-amber-500/30 text-[11px] text-[#131722] dark:text-[#d1d4dc] leading-relaxed">
                             {isAr
                               ? '💡 نصيحة هندسية: ارفع فيديوهات الدورات كـ "غير مدرج (Unlisted)" على يوتيوب أو ارفع الشورتس كـ YouTube Shorts، ثم الصق الرابط هنا. سيعمل الفيديو داخل مشغل موقعك مباشرة بأعلى جودة وبدون أي ثقل على الموقع.'
                               : '💡 Engineering Tip: Host course videos as Unlisted YouTube/Vimeo or YouTube Shorts and paste the link here—they embed directly inside your website player with zero server bandwidth load.'}
@@ -1779,10 +1779,10 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
         {/* RIGHT FIXED VERTICAL SIDE MENU (<aside> and aside > div:nth-of-type(1) ALWAYS listed vertically down on the right side) */}
         <aside
           dir={isAr ? 'rtl' : 'ltr'}
-          className="w-44 sm:w-56 md:w-64 lg:w-72 shrink-0 bg-[#0b0e14] border-l border-white/10 flex flex-col justify-between overflow-y-auto select-none"
+          className="w-44 sm:w-56 md:w-64 lg:w-72 shrink-0 bg-[#F0F3FA] dark:bg-[#0b0e14] border-l border-[#E0E3EB] dark:border-white/10 flex flex-col justify-between overflow-y-auto select-none"
         >
           <div className="p-2 sm:p-2.5 flex flex-col gap-1.5">
-            <div className="flex items-center justify-between px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[#8a93a6] border-b border-white/5 mb-0.5">
+            <div className="flex items-center justify-between px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[#4A5162] dark:text-[#8a93a6] border-b border-[#E0E3EB] dark:border-white/5 mb-0.5">
               <span>{isAr ? 'أقسام الأكاديمية' : 'ACADEMY MENU'}</span>
               <span>{ACADEMY_TRACKS.length}</span>
             </div>
@@ -1805,9 +1805,9 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                   className={`group w-full text-start px-2.5 sm:px-3 py-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-2 ${
                     isSelected
                       ? track.id === 'shorts'
-                        ? 'bg-[#10b981]/15 border-[#10b981] text-white shadow-md'
-                        : 'bg-amber-500/15 border-amber-500/60 text-white shadow-md'
-                      : 'bg-[#0f141e]/80 border-white/5 text-[#8a93a6] hover:bg-[#161c26] hover:text-white'
+                        ? 'bg-[#E6F5F2] dark:bg-[#10b981]/15 border-[#10b981] text-[#131722] dark:text-white shadow-md'
+                        : 'bg-[#FDF6E3] dark:bg-amber-500/15 border-[#EFE0B4] dark:border-amber-500/60 text-[#131722] dark:text-white shadow-md'
+                      : 'bg-[#FFFFFF] dark:bg-[#0f141e]/80 border-[#E0E3EB] dark:border-white/5 text-[#4A5162] dark:text-[#8a93a6] hover:bg-[#EDF1F7] dark:hover:bg-[#161c26] hover:text-[#131722] dark:hover:text-white'
                   }`}
                 >
                   <div className="flex items-center gap-2 min-w-0">
@@ -1815,9 +1815,9 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                       className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center shrink-0 border ${
                         isSelected
                           ? track.id === 'shorts'
-                            ? 'bg-[#10b981]/20 border-[#10b981]/50 text-[#10b981]'
-                            : 'bg-amber-500/20 border-amber-500/50 text-amber-400'
-                          : 'bg-[#131722] border-white/10 text-[#8a93a6]'
+                            ? 'bg-[#E6F5F2] dark:bg-[#10b981]/20 border-[#B3E2D9] dark:border-[#10b981]/50 text-[#089981] dark:text-[#10b981]'
+                            : 'bg-[#FDF6E3] dark:bg-amber-500/20 border-[#EFE0B4] dark:border-amber-500/50 text-[#9A6700] dark:text-amber-400'
+                          : 'bg-[#FFFFFF] dark:bg-[#131722] border-[#E0E3EB] dark:border-white/10 text-[#4A5162] dark:text-[#8a93a6]'
                       }`}
                     >
                       <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -1828,11 +1828,11 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                       </div>
                       <div className="flex items-center gap-1 text-[9px] sm:text-[10px] mt-0.5 truncate">
                         {track.id === 'shorts' ? (
-                          <span className="text-[#10b981] font-semibold truncate">
+                          <span className="text-[#089981] dark:text-[#10b981] font-semibold truncate">
                             {isAr ? 'الرئيسية • مفتوح' : 'Default • Free Open'}
                           </span>
                         ) : (
-                          <span className="text-amber-400/90 font-semibold truncate">
+                          <span className="text-[#9A6700] dark:text-amber-400/90 font-semibold truncate">
                             {isAr ? 'مغلق • عبر الدعم' : 'Locked • Support'}
                           </span>
                         )}
@@ -1842,14 +1842,14 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
 
                   <div className="flex items-center gap-1 shrink-0">
                     {uploadedCount > 0 && (
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#06080c] border border-white/10 text-[#d1d4dc]">
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#F0F3FA] dark:bg-[#06080c] border border-[#E0E3EB] dark:border-white/10 text-[#131722] dark:text-[#d1d4dc]">
                         {uploadedCount}
                       </span>
                     )}
                     {track.id === 'shorts' ? (
                       <span className="w-2 h-2 rounded-full bg-[#10b981]" />
                     ) : (
-                      <Lock className="w-3.5 h-3.5 text-amber-400" />
+                      <Lock className="w-3.5 h-3.5 text-[#9A6700] dark:text-amber-400" />
                     )}
                   </div>
                 </button>
@@ -1858,17 +1858,17 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
           </div>
 
           {/* Bottom Fixed Support & Enrollment Callout inside Right Sidebar */}
-          <div className="p-2.5 m-2 rounded-xl bg-gradient-to-b from-[#131824] to-[#0f141e] border border-amber-500/30 space-y-2">
+          <div className="p-2.5 m-2 rounded-xl bg-[#FFFFFF] dark:bg-gradient-to-b dark:from-[#131824] dark:to-[#0f141e] border border-[#EFE0B4] dark:border-amber-500/30 space-y-2">
             <div className="flex items-center justify-between gap-1">
-              <span className="text-[10px] sm:text-[11px] font-extrabold text-amber-300 flex items-center gap-1">
+              <span className="text-[10px] sm:text-[11px] font-extrabold text-[#9A6700] dark:text-amber-300 flex items-center gap-1">
                 <Headphones className="w-3 h-3 shrink-0" />
                 <span className="truncate">{isAr ? 'التسجيل في الدورات' : 'Enrollment'}</span>
               </span>
-              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">
+              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#FDF6E3] dark:bg-amber-500/15 text-[#9A6700] dark:text-amber-300 border border-[#EFE0B4] dark:border-amber-500/30">
                 ELITE
               </span>
             </div>
-            <p className="text-[10px] text-[#8a93a6] leading-relaxed hidden sm:block">
+            <p className="text-[10px] text-[#4A5162] dark:text-[#8a93a6] leading-relaxed hidden sm:block">
               {isAr
                 ? 'تواصل مع فريق الدعم الفني للتسجيل وفتح الدورات المغلقة.'
                 : 'Contact Support to enroll and unlock course tracks.'}
@@ -1890,34 +1890,34 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
 
       {/* SHARE LINK FROM WEBSITE TO OTHER PLATFORMS MODAL */}
       {shareModalVideo && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-2xl bg-[#10141c] border border-white/15 p-5 space-y-4 shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-[#131722]/45 dark:bg-black/75 dark:backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-2xl bg-[#FFFFFF] dark:bg-[#10141c] border border-[#CBD2DF] dark:border-white/15 p-5 space-y-4 shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <Share2 className="w-4 h-4 text-[#10b981]" />
-                <h4 className="text-sm font-extrabold text-white">
+                <Share2 className="w-4 h-4 text-[#089981] dark:text-[#10b981]" />
+                <h4 className="text-sm font-extrabold text-[#131722] dark:text-white">
                   {isAr ? 'مشاركة الفيديو من موقعك إلى المنصات الأخرى' : 'Share Video From Your Website'}
                 </h4>
               </div>
               <button
                 type="button"
                 onClick={() => setShareModalVideo(null)}
-                className="text-[#8a93a6] hover:text-white cursor-pointer"
+                className="text-[#4A5162] dark:text-[#8a93a6] hover:text-[#131722] dark:hover:text-white cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="p-3 rounded-xl bg-[#0b0e14] border border-white/10 space-y-1">
-              <div className="text-xs font-bold text-white">
+            <div className="p-3 rounded-xl bg-[#F0F3FA] dark:bg-[#0b0e14] border border-[#E0E3EB] dark:border-white/10 space-y-1">
+              <div className="text-xs font-bold text-[#131722] dark:text-white">
                 {isAr ? shareModalVideo.titleAr : shareModalVideo.titleEn}
               </div>
-              <div className="text-[11px] text-[#8a93a6]">
+              <div className="text-[11px] text-[#4A5162] dark:text-[#8a93a6]">
                 {isAr
                   ? 'هذا الرابط يفتح موقعك مباشرة على قسم الأكاديمية:'
                   : 'This link directs visitors straight to your website Academy:'}
               </div>
-              <div className="mt-2 p-2 rounded-lg bg-[#06080c] border border-white/10 font-mono text-[11px] text-[#10b981] break-all">
+              <div className="mt-2 p-2 rounded-lg bg-[#F0F3FA] dark:bg-[#06080c] border border-[#E0E3EB] dark:border-white/10 font-mono text-[11px] text-[#089981] dark:text-[#10b981] break-all">
                 {buildWebsiteShareUrl(shareModalVideo)}
               </div>
             </div>
@@ -1936,7 +1936,7 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                     href={`https://wa.me/?text=${encodedText}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="p-2.5 rounded-xl bg-[#10b981]/15 hover:bg-[#10b981]/25 border border-[#10b981]/35 text-[#10b981] flex items-center justify-center gap-2"
+                    className="p-2.5 rounded-xl bg-[#E6F5F2] dark:bg-[#10b981]/15 hover:bg-[#10b981]/25 border border-[#B3E2D9] dark:border-[#10b981]/35 text-[#089981] dark:text-[#10b981] flex items-center justify-center gap-2"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
                     <span>WhatsApp</span>
@@ -1945,7 +1945,7 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                     href={`https://t.me/share/url?url=${encodedUrl}&text=${encodeURIComponent(shareText)}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="p-2.5 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/35 text-sky-400 flex items-center justify-center gap-2"
+                    className="p-2.5 rounded-xl bg-[#EDF1F7] dark:bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/35 text-[#1E53E5] dark:text-sky-400 flex items-center justify-center gap-2"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
                     <span>Telegram</span>
@@ -1954,7 +1954,7 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                     href={`https://twitter.com/intent/tweet?text=${encodedText}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="p-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 text-white flex items-center justify-center gap-2"
+                    className="p-2.5 rounded-xl bg-[#EDF1F7] dark:bg-white/10 hover:bg-[#EDF1F7] dark:hover:bg-white/15 border border-[#CBD2DF] dark:border-white/20 text-[#131722] dark:text-white flex items-center justify-center gap-2"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
                     <span>X (Twitter)</span>
@@ -1962,11 +1962,11 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                   <button
                     type="button"
                     onClick={() => handleCopyWebsiteLink(shareModalVideo)}
-                    className="p-2.5 rounded-xl bg-[#161c26] hover:bg-[#1c2432] border border-white/15 text-white flex items-center justify-center gap-2 cursor-pointer"
+                    className="p-2.5 rounded-xl bg-[#F8F9FD] dark:bg-[#161c26] hover:bg-[#EDF1F7] dark:hover:bg-[#1c2432] border border-[#CBD2DF] dark:border-white/15 text-[#131722] dark:text-white flex items-center justify-center gap-2 cursor-pointer"
                   >
                     {copiedId === shareModalVideo.id ? (
                       <>
-                        <Check className="w-3.5 h-3.5 text-[#10b981]" />
+                        <Check className="w-3.5 h-3.5 text-[#089981] dark:text-[#10b981]" />
                         <span>{isAr ? 'تم النسخ!' : 'Copied!'}</span>
                       </>
                     ) : (
@@ -1985,12 +1985,12 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
 
       {/* ADMIN ONLY: ADD / EDIT VIDEO OR SHORT MODAL */}
       {isRealAdmin && isEditorOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="w-full max-w-xl rounded-2xl bg-[#10141c] border border-white/15 p-5 space-y-4 shadow-2xl my-auto">
-            <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-3">
+        <div className="fixed inset-0 z-50 bg-[#131722]/45 dark:bg-black/80 dark:backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="w-full max-w-xl rounded-2xl bg-[#FFFFFF] dark:bg-[#10141c] border border-[#CBD2DF] dark:border-white/15 p-5 space-y-4 shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl my-auto">
+            <div className="flex items-center justify-between gap-2 border-b border-[#E0E3EB] dark:border-white/10 pb-3">
               <div className="flex items-center gap-2">
-                <Video className="w-5 h-5 text-[#10b981]" />
-                <h3 className="text-sm sm:text-base font-extrabold text-white">
+                <Video className="w-5 h-5 text-[#089981] dark:text-[#10b981]" />
+                <h3 className="text-sm sm:text-base font-extrabold text-[#131722] dark:text-white">
                   {editingId
                     ? isAr
                       ? 'تعديل الفيديو / الدورة (للمشرف فقط)'
@@ -2003,7 +2003,7 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
               <button
                 type="button"
                 onClick={() => setIsEditorOpen(false)}
-                className="text-[#8a93a6] hover:text-white cursor-pointer"
+                className="text-[#4A5162] dark:text-[#8a93a6] hover:text-[#131722] dark:hover:text-white cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -2012,7 +2012,7 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
             <form onSubmit={handleSaveVideo} className="space-y-3.5 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-[#d1d4dc] mb-1">
+                  <label className="block font-bold text-[#131722] dark:text-[#d1d4dc] mb-1">
                     {isAr ? 'القسم في القائمة الجانبية اليمنى' : 'Academy Right Sidebar Section'}
                   </label>
                   <select
@@ -2026,7 +2026,7 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                         setFormIsFreeAccess(false);
                       }
                     }}
-                    className="w-full px-3 py-2 rounded-xl bg-[#0b0e14] border border-white/15 text-white"
+                    className="w-full px-3 py-2 rounded-xl bg-[#F0F3FA] dark:bg-[#0b0e14] border border-[#CBD2DF] dark:border-white/15 text-[#131722] dark:text-white"
                   >
                     {ACADEMY_TRACKS.map((t) => (
                       <option key={t.id} value={t.id}>
@@ -2037,7 +2037,7 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                 </div>
 
                 <div>
-                  <label className="block font-bold text-[#d1d4dc] mb-1">
+                  <label className="block font-bold text-[#131722] dark:text-[#d1d4dc] mb-1">
                     {isAr ? 'رابط الفيديو (YouTube Shorts / YouTube / MP4)' : 'Video Link (YouTube Shorts / YouTube / MP4)'}
                   </label>
                   <input
@@ -2046,14 +2046,14 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                     value={formVideoUrl}
                     onChange={(e) => setFormVideoUrl(e.target.value)}
                     placeholder="https://www.youtube.com/shorts/..."
-                    className="w-full px-3 py-2 rounded-xl bg-[#0b0e14] border border-white/15 text-white font-mono"
+                    className="w-full px-3 py-2 rounded-xl bg-[#F0F3FA] dark:bg-[#0b0e14] border border-[#CBD2DF] dark:border-white/15 text-[#131722] dark:text-white font-mono"
                   />
                 </div>
               </div>
 
               {/* Per-Video Free Open vs Locked Choice */}
-              <div className="p-3 rounded-xl bg-[#0b0e14] border border-white/10 space-y-2">
-                <label className="block font-bold text-[#d1d4dc]">
+              <div className="p-3 rounded-xl bg-[#F0F3FA] dark:bg-[#0b0e14] border border-[#E0E3EB] dark:border-white/10 space-y-2">
+                <label className="block font-bold text-[#131722] dark:text-[#d1d4dc]">
                   {isAr
                     ? 'صلاحية مشاهدة هذا الفيديو (مفتوح مجاناً أو مغلق 🔒):'
                     : 'Video Access Permission (Free Open or Locked 🔒):'}
@@ -2064,8 +2064,8 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                     onClick={() => setFormIsFreeAccess(true)}
                     className={`py-2 px-3 rounded-xl border font-extrabold text-xs flex items-center justify-center gap-1.5 cursor-pointer ${
                       formIsFreeAccess
-                        ? 'bg-[#10b981]/20 border-[#10b981] text-[#10b981]'
-                        : 'bg-[#161c26] border-white/10 text-[#8a93a6]'
+                        ? 'bg-[#E6F5F2] dark:bg-[#10b981]/20 border-[#10b981] text-[#089981] dark:text-[#10b981]'
+                        : 'bg-[#F8F9FD] dark:bg-[#161c26] border-[#E0E3EB] dark:border-white/10 text-[#4A5162] dark:text-[#8a93a6]'
                     }`}
                   >
                     <Unlock className="w-3.5 h-3.5" />
@@ -2076,8 +2076,8 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                     onClick={() => setFormIsFreeAccess(false)}
                     className={`py-2 px-3 rounded-xl border font-extrabold text-xs flex items-center justify-center gap-1.5 cursor-pointer ${
                       !formIsFreeAccess
-                        ? 'bg-amber-500/20 border-amber-500 text-amber-300'
-                        : 'bg-[#161c26] border-white/10 text-[#8a93a6]'
+                        ? 'bg-[#FDF6E3] dark:bg-amber-500/20 border-amber-500 text-[#9A6700] dark:text-amber-300'
+                        : 'bg-[#F8F9FD] dark:bg-[#161c26] border-[#E0E3EB] dark:border-white/10 text-[#4A5162] dark:text-[#8a93a6]'
                     }`}
                   >
                     <Lock className="w-3.5 h-3.5" />
@@ -2090,8 +2090,8 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                 <div
                   className={`p-2.5 rounded-xl border text-[11px] flex items-center justify-between ${
                     previewParsedLink.isValid
-                      ? 'bg-[#10b981]/10 border-[#10b981]/30 text-[#10b981]'
-                      : 'bg-[#ef4444]/10 border-[#ef4444]/30 text-[#ef4444]'
+                      ? 'bg-[#E6F5F2] dark:bg-[#10b981]/10 border-[#B3E2D9] dark:border-[#10b981]/30 text-[#089981] dark:text-[#10b981]'
+                      : 'bg-[#FDECEE] dark:bg-[#ef4444]/10 border-[#F5C2C7] dark:border-[#ef4444]/30 text-[#D93848] dark:text-[#ef4444]'
                   }`}
                 >
                   <span>
@@ -2108,7 +2108,7 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-[#d1d4dc] mb-1">
+                  <label className="block font-bold text-[#131722] dark:text-[#d1d4dc] mb-1">
                     {isAr ? 'عنوان الفيديو / الدورة (عربي)' : 'Title (Arabic)'}
                   </label>
                   <input
@@ -2117,12 +2117,12 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                     value={formTitleAr}
                     onChange={(e) => setFormTitleAr(e.target.value)}
                     placeholder={isAr ? 'مثال: استراتيجية قنص سيولة الذهب XAUUSD' : 'Arabic title'}
-                    className="w-full px-3 py-2 rounded-xl bg-[#0b0e14] border border-white/15 text-white"
+                    className="w-full px-3 py-2 rounded-xl bg-[#F0F3FA] dark:bg-[#0b0e14] border border-[#CBD2DF] dark:border-white/15 text-[#131722] dark:text-white"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-[#d1d4dc] mb-1">
+                  <label className="block font-bold text-[#131722] dark:text-[#d1d4dc] mb-1">
                     {isAr ? 'العنوان بالإنجليزية (اختياري)' : 'Title (English - Optional)'}
                   </label>
                   <input
@@ -2130,13 +2130,13 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                     value={formTitleEn}
                     onChange={(e) => setFormTitleEn(e.target.value)}
                     placeholder="Optional English title"
-                    className="w-full px-3 py-2 rounded-xl bg-[#0b0e14] border border-white/15 text-white"
+                    className="w-full px-3 py-2 rounded-xl bg-[#F0F3FA] dark:bg-[#0b0e14] border border-[#CBD2DF] dark:border-white/15 text-[#131722] dark:text-white"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block font-bold text-[#d1d4dc] mb-1">
+                <label className="block font-bold text-[#131722] dark:text-[#d1d4dc] mb-1">
                   {isAr ? 'وصف الفيديو أو منهج الدورة' : 'Course / Video Description'}
                 </label>
                 <textarea
@@ -2148,37 +2148,37 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                       ? 'اكتب شرحاً واضحاً لمحتوى الفيديو أو النقاط التي سيتعلمها المتداول...'
                       : 'Describe what traders will learn in this video or course...'
                   }
-                  className="w-full px-3 py-2 rounded-xl bg-[#0b0e14] border border-white/15 text-white"
+                  className="w-full px-3 py-2 rounded-xl bg-[#F0F3FA] dark:bg-[#0b0e14] border border-[#CBD2DF] dark:border-white/15 text-[#131722] dark:text-white"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block font-bold text-[#d1d4dc] mb-1">
+                  <label className="block font-bold text-[#131722] dark:text-[#d1d4dc] mb-1">
                     {isAr ? 'وسم الموضوع' : 'Topic Tag'}
                   </label>
                   <input
                     type="text"
                     value={formTopicTagAr}
                     onChange={(e) => setFormTopicTagAr(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-[#0b0e14] border border-white/15 text-white"
+                    className="w-full px-3 py-2 rounded-xl bg-[#F0F3FA] dark:bg-[#0b0e14] border border-[#CBD2DF] dark:border-white/15 text-[#131722] dark:text-white"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-[#d1d4dc] mb-1">
+                  <label className="block font-bold text-[#131722] dark:text-[#d1d4dc] mb-1">
                     {isAr ? 'المدة / عدد الدروس' : 'Duration'}
                   </label>
                   <input
                     type="text"
                     value={formDurationAr}
                     onChange={(e) => setFormDurationAr(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-[#0b0e14] border border-white/15 text-white"
+                    className="w-full px-3 py-2 rounded-xl bg-[#F0F3FA] dark:bg-[#0b0e14] border border-[#CBD2DF] dark:border-white/15 text-[#131722] dark:text-white"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-[#d1d4dc] mb-1">
+                  <label className="block font-bold text-[#131722] dark:text-[#d1d4dc] mb-1">
                     {isAr ? 'سعر الدورة ($ USD)' : 'Course Price ($ USD)'}
                   </label>
                   <input
@@ -2186,22 +2186,22 @@ export const TradingAcademyPanel: React.FC<TradingAcademyPanelProps> = ({
                     min="0"
                     value={formPriceUsd}
                     onChange={(e) => setFormPriceUsd(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-[#0b0e14] border border-white/15 text-white font-mono"
+                    className="w-full px-3 py-2 rounded-xl bg-[#F0F3FA] dark:bg-[#0b0e14] border border-[#CBD2DF] dark:border-white/15 text-[#131722] dark:text-white font-mono"
                   />
                 </div>
               </div>
 
               {formError && (
-                <div className="p-2.5 rounded-xl bg-[#ef4444]/15 border border-[#ef4444]/40 text-[#ef4444] font-semibold">
+                <div className="p-2.5 rounded-xl bg-[#FDECEE] dark:bg-[#ef4444]/15 border border-[#F5C2C7] dark:border-[#ef4444]/40 text-[#D93848] dark:text-[#ef4444] font-semibold">
                   {formError}
                 </div>
               )}
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#E0E3EB] dark:border-white/10">
                 <button
                   type="button"
                   onClick={() => setIsEditorOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-[#161c26] hover:bg-[#1c2432] text-[#d1d4dc] font-bold cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-[#F8F9FD] dark:bg-[#161c26] hover:bg-[#EDF1F7] dark:hover:bg-[#1c2432] text-[#131722] dark:text-[#d1d4dc] font-bold cursor-pointer"
                 >
                   {isAr ? 'إلغاء' : 'Cancel'}
                 </button>

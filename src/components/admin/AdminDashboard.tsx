@@ -3035,17 +3035,17 @@ export const AdminDashboard: React.FC<Props> = ({
   // ACCESS DENIED VIEW IF NOT STAFF
   if (!isStaff) {
     return (
-      <div className="w-full min-h-[500px] flex items-center justify-center p-6 bg-[#0B0E11]">
-        <div className="max-w-md w-full bg-[#131722] border border-[#2A2E39] rounded-lg p-6 sm:p-8 text-center shadow-2xl">
-          <div className="w-12 h-12 rounded-md bg-[#EF5350]/10 border border-[#EF5350]/30 flex items-center justify-center text-[#EF5350] mx-auto mb-4">
+      <div className="w-full min-h-[500px] flex items-center justify-center p-6 bg-[#F0F3FA] dark:bg-[#0B0E11]">
+        <div className="max-w-md w-full bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] rounded-lg p-6 sm:p-8 text-center shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl">
+          <div className="w-12 h-12 rounded-md bg-[#FDECEE] dark:bg-[#EF5350]/10 border border-[#F5C2C7] dark:border-[#EF5350]/30 flex items-center justify-center text-[#D93848] dark:text-[#EF5350] mx-auto mb-4">
             <Lock className="w-6 h-6" />
           </div>
-          <h2 className="text-base font-bold text-[#E2E8F0] mb-2">
+          <h2 className="text-base font-bold text-[#131722] dark:text-[#E2E8F0] mb-2">
             {isAr
               ? 'منطقة مقتصرة على فريق الإدارة والعمليات'
               : 'Restricted Institutional Terminal'}
           </h2>
-          <p className="text-xs text-[#94A3B8] leading-relaxed mb-6">
+          <p className="text-xs text-[#4A5162] dark:text-[#94A3B8] leading-relaxed mb-6">
             {isAr
               ? 'لوحة التحكم وإدارة العملاء مقتصرة فقط على أعضاء الفريق المصرح لهم.'
               : 'This administrative terminal is strictly reserved for authorized staff members.'}
@@ -3053,7 +3053,7 @@ export const AdminDashboard: React.FC<Props> = ({
           {onClose && (
             <button
               onClick={onClose}
-              className="w-full py-2.5 px-4 rounded-md bg-[#1E222D] hover:bg-[#2A2E39] border border-[#2A2E39] text-white font-semibold text-xs transition-colors cursor-pointer"
+              className="w-full py-2.5 px-4 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] border border-[#E0E3EB] dark:border-[#2A2E39] text-[#131722] dark:text-white font-semibold text-xs transition-colors cursor-pointer"
             >
               {isAr ? 'العودة إلى منصة التداول' : 'Return to Trading Workspace'}
             </button>
@@ -3065,25 +3065,25 @@ export const AdminDashboard: React.FC<Props> = ({
 
   return (
     <div
-      className="w-full min-h-full flex flex-col bg-[#0B0E11] text-[#E2E8F0] font-sans select-none antialiased"
+      className="w-full min-h-full flex flex-col bg-[#F0F3FA] dark:bg-[#0B0E11] text-[#131722] dark:text-[#E2E8F0] font-sans select-none antialiased"
       dir={isAr ? 'rtl' : 'ltr'}
     >
       {/* 1. INSTITUTIONAL TOP HEADER BAR */}
-      <header className="px-4 py-2.5 bg-[#131722] border-b border-[#2A2E39] flex flex-wrap items-center justify-between gap-3 sticky top-0 z-30">
+      <header className="px-4 py-2.5 bg-[#FFFFFF] dark:bg-[#131722] border-b border-[#E0E3EB] dark:border-[#2A2E39] flex flex-wrap items-center justify-between gap-3 sticky top-0 z-30">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-md bg-[#1E222D] border border-[#2A2E39] flex items-center justify-center text-[#26A69A] shrink-0">
+          <div className="w-8 h-8 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] flex items-center justify-center text-[#089981] dark:text-[#26A69A] shrink-0">
             <ShieldCheck className="w-4 h-4" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-sm sm:text-base font-bold text-[#F8FAFC] tracking-tight">
+              <h1 className="text-sm sm:text-base font-bold text-[#131722] dark:text-[#F8FAFC] tracking-tight">
                 {isAr ? 'وحدة تحكم الإدارة والعمليات • MBK Terminal' : 'MBK Institutional Admin Terminal'}
               </h1>
-              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-[#1E222D] text-[#26A69A] border border-[#2A2E39]">
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-[#F8F9FD] dark:bg-[#1E222D] text-[#089981] dark:text-[#26A69A] border border-[#E0E3EB] dark:border-[#2A2E39]">
                 {getStaffRoleLabel(currentActorProfile, isAr)}
               </span>
             </div>
-            <p className="text-[11px] text-[#64748B]">
+            <p className="text-[11px] text-[#787B86] dark:text-[#64748B]">
               {isAr
                 ? 'إدارة المشتركين، الصلاحيات، التوصيات، والنظام المؤسسي'
                 : 'Subscriptions CRM, RBAC Permissions, Signal Desk & System Operations'}
@@ -3114,9 +3114,9 @@ export const AdminDashboard: React.FC<Props> = ({
                 type="button"
                 disabled={isExportingBackup}
                 onClick={handleExportFullBackupJson}
-                className="px-2.5 py-1.5 rounded-md bg-[#1E222D] hover:bg-[#2A2E39] border border-[#2A2E39] text-[#E2E8F0] text-[11px] font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
+                className="px-2.5 py-1.5 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] border border-[#E0E3EB] dark:border-[#2A2E39] text-[#131722] dark:text-[#E2E8F0] text-[11px] font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
               >
-                <Download className="w-3.5 h-3.5 text-[#26A69A]" />
+                <Download className="w-3.5 h-3.5 text-[#089981] dark:text-[#26A69A]" />
                 <span>{isAr ? 'نسخة احتياطية' : 'Backup JSON'}</span>
               </button>
 
@@ -3124,10 +3124,10 @@ export const AdminDashboard: React.FC<Props> = ({
                 type="button"
                 disabled={isTestingBackgroundPush}
                 onClick={handleTestBackgroundPush}
-                className="px-2.5 py-1.5 rounded-md bg-[#1E222D] hover:bg-[#2A2E39] border border-[#2A2E39] text-[#E2E8F0] disabled:opacity-50 text-[11px] font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
+                className="px-2.5 py-1.5 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] border border-[#E0E3EB] dark:border-[#2A2E39] text-[#131722] dark:text-[#E2E8F0] disabled:opacity-50 text-[11px] font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
               >
                 <BellRing
-                  className={`w-3.5 h-3.5 text-[#F0B90B] ${
+                  className={`w-3.5 h-3.5 text-[#9A6700] dark:text-[#F0B90B] ${
                     isTestingBackgroundPush ? 'animate-pulse' : ''
                   }`}
                 />
@@ -3150,7 +3150,7 @@ export const AdminDashboard: React.FC<Props> = ({
                 soundManager.playClick();
                 onClose();
               }}
-              className="px-2.5 py-1.5 rounded-md bg-[#1E222D] hover:bg-[#2A2E39] border border-[#2A2E39] text-[#94A3B8] hover:text-white text-[11px] font-semibold transition-colors cursor-pointer flex items-center gap-1"
+              className="px-2.5 py-1.5 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] border border-[#E0E3EB] dark:border-[#2A2E39] text-[#4A5162] dark:text-[#94A3B8] hover:text-[#131722] dark:hover:text-white text-[11px] font-semibold transition-colors cursor-pointer flex items-center gap-1"
             >
               <X className="w-3.5 h-3.5" />
               <span>{isAr ? 'إغلاق' : 'Close'}</span>
@@ -3161,17 +3161,17 @@ export const AdminDashboard: React.FC<Props> = ({
 
       {/* Background Push Test Diagnostic Output */}
       {backgroundPushResult && (
-        <div className="px-4 py-2 bg-[#131722] border-b border-[#2A2E39] flex items-center justify-between gap-3">
+        <div className="px-4 py-2 bg-[#FFFFFF] dark:bg-[#131722] border-b border-[#E0E3EB] dark:border-[#2A2E39] flex items-center justify-between gap-3">
           <pre
             dir="ltr"
-            className="flex-1 overflow-x-auto rounded bg-[#0B0E11] border border-[#2A2E39] px-3 py-1.5 text-[10px] font-mono text-[#E2E8F0] select-text whitespace-pre-wrap break-all"
+            className="flex-1 overflow-x-auto rounded bg-[#F0F3FA] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39] px-3 py-1.5 text-[10px] font-mono text-[#131722] dark:text-[#E2E8F0] select-text whitespace-pre-wrap break-all"
           >
             {JSON.stringify(backgroundPushResult, null, 2)}
           </pre>
           <button
             type="button"
             onClick={() => setBackgroundPushResult(null)}
-            className="p-1.5 rounded bg-[#1E222D] hover:bg-[#2A2E39] text-[#94A3B8] hover:text-white cursor-pointer"
+            className="p-1.5 rounded bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] text-[#4A5162] dark:text-[#94A3B8] hover:text-[#131722] dark:hover:text-white cursor-pointer"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -3183,10 +3183,10 @@ export const AdminDashboard: React.FC<Props> = ({
         <div
           className={`px-4 py-2 text-xs font-semibold flex items-center justify-between border-b ${
             feedback.type === 'success'
-              ? 'bg-[#26A69A]/15 text-[#26A69A] border-[#26A69A]/30'
+              ? 'bg-[#E6F5F2] dark:bg-[#26A69A]/15 text-[#089981] dark:text-[#26A69A] border-[#B3E2D9] dark:border-[#26A69A]/30'
               : feedback.type === 'error'
-              ? 'bg-[#EF5350]/15 text-[#EF5350] border-[#EF5350]/30'
-              : 'bg-[#F0B90B]/15 text-[#F0B90B] border-[#F0B90B]/30'
+              ? 'bg-[#FDECEE] dark:bg-[#EF5350]/15 text-[#D93848] dark:text-[#EF5350] border-[#F5C2C7] dark:border-[#EF5350]/30'
+              : 'bg-[#FDF6E3] dark:bg-[#F0B90B]/15 text-[#9A6700] dark:text-[#F0B90B] border-[#EFE0B4] dark:border-[#F0B90B]/30'
           }`}
         >
           <span>{feedback.message}</span>
@@ -3198,11 +3198,11 @@ export const AdminDashboard: React.FC<Props> = ({
 
       {/* Firestore Quota Banner */}
       {dbQuotaExceeded && (
-        <div className="px-4 py-2.5 bg-[#F0B90B]/10 border-b border-[#F0B90B]/30 flex flex-wrap items-center justify-between gap-3">
+        <div className="px-4 py-2.5 bg-[#FDF6E3] dark:bg-[#F0B90B]/10 border-b border-[#EFE0B4] dark:border-[#F0B90B]/30 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <AlertCircle className="w-4 h-4 text-[#F0B90B] shrink-0" />
-            <div className="text-xs text-[#E2E8F0]">
-              <strong className="text-[#F0B90B]">
+            <AlertCircle className="w-4 h-4 text-[#9A6700] dark:text-[#F0B90B] shrink-0" />
+            <div className="text-xs text-[#131722] dark:text-[#E2E8F0]">
+              <strong className="text-[#9A6700] dark:text-[#F0B90B]">
                 {isAr ? 'تنبيه حصة القراءة اليومية:' : 'Daily Read Quota Notice:'}
               </strong>{' '}
               {isAr
@@ -3223,7 +3223,7 @@ export const AdminDashboard: React.FC<Props> = ({
             <button
               type="button"
               onClick={() => setCrmRetryTick((t) => t + 1)}
-              className="px-2.5 py-1 rounded bg-[#1E222D] border border-[#2A2E39] text-white text-[11px] font-semibold cursor-pointer"
+              className="px-2.5 py-1 rounded bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] text-[#131722] dark:text-white text-[11px] font-semibold cursor-pointer"
             >
               {isAr ? 'إعادة المحاولة' : 'Retry'}
             </button>
@@ -3232,7 +3232,7 @@ export const AdminDashboard: React.FC<Props> = ({
       )}
 
       {/* MOBILE HORIZONTAL 6-SECTION TAB BAR */}
-      <div className="md:hidden px-3 py-1.5 bg-[#131722] border-b border-[#2A2E39] flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+      <div className="md:hidden px-3 py-1.5 bg-[#FFFFFF] dark:bg-[#131722] border-b border-[#E0E3EB] dark:border-[#2A2E39] flex items-center gap-1.5 overflow-x-auto scrollbar-none">
         {navSections.map((sec) => {
           const Icon = sec.icon;
           const active = activeSection === sec.id;
@@ -3246,14 +3246,14 @@ export const AdminDashboard: React.FC<Props> = ({
               }}
               className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer border ${
                 active
-                  ? 'bg-[#1E222D] text-[#26A69A] border-[#26A69A]/50'
-                  : 'bg-transparent text-[#94A3B8] border-transparent hover:text-white hover:bg-[#1E222D]'
+                  ? 'bg-[#F8F9FD] dark:bg-[#1E222D] text-[#089981] dark:text-[#26A69A] border-[#B3E2D9] dark:border-[#26A69A]/50'
+                  : 'bg-transparent text-[#4A5162] dark:text-[#94A3B8] border-transparent hover:text-[#131722] dark:hover:text-white hover:bg-[#EDF1F7] dark:hover:bg-[#1E222D]'
               }`}
             >
               <Icon className="w-3.5 h-3.5" />
               <span>{isAr ? sec.shortAr : sec.shortEn}</span>
               {sec.id === 'users' && (
-                <span className="px-1.5 py-0.2 rounded text-[10px] font-mono tabular-nums bg-[#0B0E11] text-[#94A3B8]">
+                <span className="px-1.5 py-0.2 rounded text-[10px] font-mono tabular-nums bg-[#F0F3FA] dark:bg-[#0B0E11] text-[#4A5162] dark:text-[#94A3B8]">
                   {users.length}
                 </span>
               )}
@@ -3266,7 +3266,7 @@ export const AdminDashboard: React.FC<Props> = ({
       <div className="flex-1 flex min-h-0 overflow-hidden">
         {/* Desktop Collapsible Sidebar */}
         <aside
-          className={`hidden md:flex flex-col bg-[#131722] border-e border-[#2A2E39] shrink-0 transition-all duration-200 ${
+          className={`hidden md:flex flex-col bg-[#FFFFFF] dark:bg-[#131722] border-e border-[#E0E3EB] dark:border-[#2A2E39] shrink-0 transition-all duration-200 ${
             sidebarCollapsed ? 'w-[60px]' : 'w-[228px]'
           }`}
         >
@@ -3285,14 +3285,14 @@ export const AdminDashboard: React.FC<Props> = ({
                   title={isAr ? sec.labelAr : sec.labelEn}
                   className={`w-full px-2.5 py-2 rounded-md text-xs font-semibold transition-colors flex items-center justify-between gap-2 cursor-pointer border ${
                     active
-                      ? 'bg-[#1E222D] text-[#F8FAFC] border-[#26A69A]/50'
-                      : 'bg-transparent text-[#94A3B8] border-transparent hover:text-[#F8FAFC] hover:bg-[#1E222D]/60'
+                      ? 'bg-[#F8F9FD] dark:bg-[#1E222D] text-[#131722] dark:text-[#F8FAFC] border-[#B3E2D9] dark:border-[#26A69A]/50'
+                      : 'bg-transparent text-[#4A5162] dark:text-[#94A3B8] border-transparent hover:text-[#131722] dark:hover:text-[#F8FAFC] hover:bg-[#EDF1F7] dark:hover:bg-[#1E222D]/60'
                   }`}
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
                     <Icon
                       className={`w-4 h-4 shrink-0 ${
-                        active ? 'text-[#26A69A]' : 'text-[#64748B]'
+                        active ? 'text-[#089981] dark:text-[#26A69A]' : 'text-[#787B86] dark:text-[#64748B]'
                       }`}
                     />
                     {!sidebarCollapsed && (
@@ -3300,7 +3300,7 @@ export const AdminDashboard: React.FC<Props> = ({
                     )}
                   </div>
                   {!sidebarCollapsed && sec.id === 'users' && (
-                    <span className="px-1.5 py-0.5 rounded text-[10px] font-mono tabular-nums bg-[#0B0E11] text-[#94A3B8] border border-[#2A2E39]">
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-mono tabular-nums bg-[#F0F3FA] dark:bg-[#0B0E11] text-[#4A5162] dark:text-[#94A3B8] border border-[#E0E3EB] dark:border-[#2A2E39]">
                       {users.length}
                     </span>
                   )}
@@ -3310,11 +3310,11 @@ export const AdminDashboard: React.FC<Props> = ({
           </div>
 
           {/* Sidebar Collapse Toggle */}
-          <div className="p-2 border-t border-[#2A2E39]">
+          <div className="p-2 border-t border-[#E0E3EB] dark:border-[#2A2E39]">
             <button
               type="button"
               onClick={() => setSidebarCollapsed((c) => !c)}
-              className="w-full px-2.5 py-1.5 rounded-md bg-[#1E222D] hover:bg-[#2A2E39] text-[#94A3B8] hover:text-white text-[11px] font-medium flex items-center justify-center gap-1.5 cursor-pointer"
+              className="w-full px-2.5 py-1.5 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] text-[#4A5162] dark:text-[#94A3B8] hover:text-[#131722] dark:hover:text-white text-[11px] font-medium flex items-center justify-center gap-1.5 cursor-pointer"
             >
               {sidebarCollapsed ? (
                 isAr ? (
@@ -3368,46 +3368,46 @@ export const AdminDashboard: React.FC<Props> = ({
             <div className="space-y-4">
               {/* Top KPI Mini Bar */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                <div className="p-3 rounded-lg bg-[#131722] border border-[#2A2E39] flex items-center justify-between">
-                  <span className="text-[11px] text-[#94A3B8] font-medium">
+                <div className="p-3 rounded-lg bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] flex items-center justify-between">
+                  <span className="text-[11px] text-[#4A5162] dark:text-[#94A3B8] font-medium">
                     {isAr ? 'النتائج المطابقة' : 'Matched Users'}
                   </span>
-                  <span className="text-sm font-bold text-[#F8FAFC] font-mono tabular-nums">
+                  <span className="text-sm font-bold text-[#131722] dark:text-[#F8FAFC] font-mono tabular-nums">
                     {filteredAndSortedUsers.length} / {users.length}
                   </span>
                 </div>
-                <div className="p-3 rounded-lg bg-[#131722] border border-[#2A2E39] flex items-center justify-between">
-                  <span className="text-[11px] text-[#F0B90B] font-medium">
+                <div className="p-3 rounded-lg bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] flex items-center justify-between">
+                  <span className="text-[11px] text-[#9A6700] dark:text-[#F0B90B] font-medium">
                     {isAr ? 'ينتهي خلال 72س' : 'Expiring <= 72h'}
                   </span>
-                  <span className="text-sm font-bold text-[#F0B90B] font-mono tabular-nums">
+                  <span className="text-sm font-bold text-[#9A6700] dark:text-[#F0B90B] font-mono tabular-nums">
                     {expiringSoonUsers.length}
                   </span>
                 </div>
-                <div className="p-3 rounded-lg bg-[#131722] border border-[#2A2E39] flex items-center justify-between">
-                  <span className="text-[11px] text-[#26A69A] font-medium">
+                <div className="p-3 rounded-lg bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] flex items-center justify-between">
+                  <span className="text-[11px] text-[#089981] dark:text-[#26A69A] font-medium">
                     {isAr ? 'VIP / Elite نشط' : 'Active Paid'}
                   </span>
-                  <span className="text-sm font-bold text-[#26A69A] font-mono tabular-nums">
+                  <span className="text-sm font-bold text-[#089981] dark:text-[#26A69A] font-mono tabular-nums">
                     {totalVipCount + totalEliteCount}
                   </span>
                 </div>
-                <div className="p-3 rounded-lg bg-[#131722] border border-[#2A2E39] flex items-center justify-between">
-                  <span className="text-[11px] text-[#EF5350] font-medium">
+                <div className="p-3 rounded-lg bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] flex items-center justify-between">
+                  <span className="text-[11px] text-[#D93848] dark:text-[#EF5350] font-medium">
                     {isAr ? 'محظور / مكتوم' : 'Banned / Muted'}
                   </span>
-                  <span className="text-sm font-bold text-[#EF5350] font-mono tabular-nums">
+                  <span className="text-sm font-bold text-[#D93848] dark:text-[#EF5350] font-mono tabular-nums">
                     {totalBannedCount} / {users.filter((u) => u.isMutedFromChat).length}
                   </span>
                 </div>
               </div>
 
               {/* Filter & Search Command Bar */}
-              <div className="p-3.5 rounded-lg bg-[#131722] border border-[#2A2E39] space-y-3">
+              <div className="p-3.5 rounded-lg bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] space-y-3">
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 items-center">
                   {/* Instant Search Input (Name, Email, Phone, UID) */}
                   <div className="md:col-span-4 relative">
-                    <Search className="w-3.5 h-3.5 absolute start-3 top-1/2 -translate-y-1/2 text-[#64748B]" />
+                    <Search className="w-3.5 h-3.5 absolute start-3 top-1/2 -translate-y-1/2 text-[#787B86] dark:text-[#64748B]" />
                     <input
                       type="text"
                       value={userSearch}
@@ -3417,7 +3417,7 @@ export const AdminDashboard: React.FC<Props> = ({
                           ? 'بحث بالاسم، البريد، رقم الهاتف، أو UID...'
                           : 'Search Name, Email, Phone Number, or UID...'
                       }
-                      className="w-full ps-9 pe-3 py-1.5 bg-[#1E222D] border border-[#2A2E39] focus:border-[#26A69A] rounded-md text-xs text-[#F8FAFC] placeholder-[#64748B] focus:outline-hidden"
+                      className="w-full ps-9 pe-3 py-1.5 bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] focus:border-[#1E53E5] dark:focus:border-[#26A69A] rounded-md text-xs text-[#131722] dark:text-[#F8FAFC] placeholder-[#787B86] dark:placeholder-[#64748B] focus:outline-hidden"
                     />
                   </div>
 
@@ -3426,7 +3426,7 @@ export const AdminDashboard: React.FC<Props> = ({
                     <select
                       value={planFilter}
                       onChange={(e) => setPlanFilter(e.target.value as any)}
-                      className="w-full px-2.5 py-1.5 bg-[#1E222D] border border-[#2A2E39] rounded-md text-xs text-[#E2E8F0] focus:outline-hidden cursor-pointer"
+                      className="w-full px-2.5 py-1.5 bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] rounded-md text-xs text-[#131722] dark:text-[#E2E8F0] focus:outline-hidden cursor-pointer"
                     >
                       <option value="ALL">{isAr ? 'الباقة: الكل' : 'Plan: All'}</option>
                       <option value="FREE">{isAr ? 'مجاني (Free)' : 'Plan: Free'}</option>
@@ -3440,7 +3440,7 @@ export const AdminDashboard: React.FC<Props> = ({
                     <select
                       value={subStatusFilter}
                       onChange={(e) => setSubStatusFilter(e.target.value as any)}
-                      className="w-full px-2.5 py-1.5 bg-[#1E222D] border border-[#2A2E39] rounded-md text-xs text-[#E2E8F0] focus:outline-hidden cursor-pointer"
+                      className="w-full px-2.5 py-1.5 bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] rounded-md text-xs text-[#131722] dark:text-[#E2E8F0] focus:outline-hidden cursor-pointer"
                     >
                       <option value="ALL">
                         {isAr ? 'حالة الاشتراك: الكل' : 'Sub Status: All'}
@@ -3464,7 +3464,7 @@ export const AdminDashboard: React.FC<Props> = ({
                     <select
                       value={accountStatusFilter}
                       onChange={(e) => setAccountStatusFilter(e.target.value as any)}
-                      className="w-full px-2.5 py-1.5 bg-[#1E222D] border border-[#2A2E39] rounded-md text-xs text-[#E2E8F0] focus:outline-hidden cursor-pointer"
+                      className="w-full px-2.5 py-1.5 bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] rounded-md text-xs text-[#131722] dark:text-[#E2E8F0] focus:outline-hidden cursor-pointer"
                     >
                       <option value="ALL">
                         {isAr ? 'حالة الحساب: الكل' : 'Account: All'}
@@ -3484,7 +3484,7 @@ export const AdminDashboard: React.FC<Props> = ({
                     <select
                       value={staffFilter}
                       onChange={(e) => setStaffFilter(e.target.value as any)}
-                      className="w-1/2 px-2 py-1.5 bg-[#1E222D] border border-[#2A2E39] rounded-md text-xs text-[#E2E8F0] focus:outline-hidden cursor-pointer"
+                      className="w-1/2 px-2 py-1.5 bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] rounded-md text-xs text-[#131722] dark:text-[#E2E8F0] focus:outline-hidden cursor-pointer"
                     >
                       <option value="ALL">{isAr ? 'الكل' : 'All'}</option>
                       <option value="CLIENTS_ONLY">{isAr ? 'العملاء' : 'Clients'}</option>
@@ -3494,7 +3494,7 @@ export const AdminDashboard: React.FC<Props> = ({
                     <select
                       value={userSortBy}
                       onChange={(e) => setUserSortBy(e.target.value as any)}
-                      className="w-1/2 px-2 py-1.5 bg-[#1E222D] border border-[#2A2E39] rounded-md text-xs text-[#E2E8F0] focus:outline-hidden cursor-pointer"
+                      className="w-1/2 px-2 py-1.5 bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] rounded-md text-xs text-[#131722] dark:text-[#E2E8F0] focus:outline-hidden cursor-pointer"
                       title={isAr ? 'ترتيب حسب' : 'Sort By'}
                     >
                       <option value="NEWEST">{isAr ? 'الأحدث' : 'Newest'}</option>
@@ -3508,11 +3508,11 @@ export const AdminDashboard: React.FC<Props> = ({
               </div>
 
               {/* Pro Users CRM Table */}
-              <div className="bg-[#131722] border border-[#2A2E39] rounded-lg overflow-hidden">
+              <div className="bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] rounded-lg overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-start text-xs border-collapse">
                     <thead>
-                      <tr className="border-b border-[#2A2E39] bg-[#0B0E11] text-[#64748B] font-mono text-[11px] uppercase">
+                      <tr className="border-b border-[#E0E3EB] dark:border-[#2A2E39] bg-[#F0F3FA] dark:bg-[#0B0E11] text-[#787B86] dark:text-[#64748B] font-mono text-[11px] uppercase">
                         <th className="py-2.5 px-3 text-start">{isAr ? 'العميل' : 'User'}</th>
                         <th className="py-2.5 px-3 text-start">
                           {isAr ? 'الهاتف والدولة' : 'Phone & Country'}
@@ -3534,10 +3534,10 @@ export const AdminDashboard: React.FC<Props> = ({
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#2A2E39]">
+                    <tbody className="divide-y divide-[#E0E3EB] dark:divide-[#2A2E39]">
                       {filteredAndSortedUsers.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="py-10 text-center text-[#64748B]">
+                          <td colSpan={7} className="py-10 text-center text-[#787B86] dark:text-[#64748B]">
                             {usersLoading
                               ? isAr
                                 ? 'جاري تحميل سجل العملاء...'
@@ -3565,22 +3565,22 @@ export const AdminDashboard: React.FC<Props> = ({
                                 soundManager.playClick();
                                 setInspectUser(u);
                               }}
-                              className="hover:bg-[#1E222D] transition-colors cursor-pointer"
+                              className="hover:bg-[#EDF1F7] dark:hover:bg-[#1E222D] transition-colors cursor-pointer"
                             >
                               {/* User Identity */}
                               <td className="py-2.5 px-3">
                                 <div className="flex items-center gap-2.5">
-                                  <div className="w-7 h-7 rounded bg-[#1E222D] text-[#E2E8F0] font-mono font-bold text-xs flex items-center justify-center shrink-0 border border-[#2A2E39]">
+                                  <div className="w-7 h-7 rounded bg-[#F8F9FD] dark:bg-[#1E222D] text-[#131722] dark:text-[#E2E8F0] font-mono font-bold text-xs flex items-center justify-center shrink-0 border border-[#E0E3EB] dark:border-[#2A2E39]">
                                     {u.displayName ? u.displayName[0].toUpperCase() : 'U'}
                                   </div>
                                   <div className="min-w-0">
                                     <div className="flex items-center gap-1.5">
-                                      <span className="font-semibold text-[#F8FAFC] truncate">
+                                      <span className="font-semibold text-[#131722] dark:text-[#F8FAFC] truncate">
                                         {u.displayName}
                                       </span>
                                       {notesCount > 0 && (
                                         <span
-                                          className="px-1.5 py-0.2 rounded bg-[#F0B90B]/15 text-[#F0B90B] border border-[#F0B90B]/30 text-[9px] font-mono"
+                                          className="px-1.5 py-0.2 rounded bg-[#FDF6E3] dark:bg-[#F0B90B]/15 text-[#9A6700] dark:text-[#F0B90B] border border-[#EFE0B4] dark:border-[#F0B90B]/30 text-[9px] font-mono"
                                           title={
                                             isAr
                                               ? `${notesCount} ملاحظة إدارية`
@@ -3591,7 +3591,7 @@ export const AdminDashboard: React.FC<Props> = ({
                                         </span>
                                       )}
                                     </div>
-                                    <span className="text-[10px] text-[#64748B] font-mono truncate block">
+                                    <span className="text-[10px] text-[#787B86] dark:text-[#64748B] font-mono truncate block">
                                       {u.email}
                                     </span>
                                   </div>
@@ -3604,7 +3604,7 @@ export const AdminDashboard: React.FC<Props> = ({
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 <div className="flex items-center gap-1.5">
-                                  <span className="text-[#E2E8F0] text-[11px] truncate">
+                                  <span className="text-[#131722] dark:text-[#E2E8F0] text-[11px] truncate">
                                     {u.phone || '—'}
                                   </span>
                                   {u.phone && (
@@ -3618,14 +3618,14 @@ export const AdminDashboard: React.FC<Props> = ({
                                           isAr ? 'تم نسخ رقم الهاتف' : 'Phone number copied'
                                         );
                                       }}
-                                      className="p-1 rounded hover:bg-[#2A2E39] text-[#64748B] hover:text-white cursor-pointer"
+                                      className="p-1 rounded hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] text-[#787B86] dark:text-[#64748B] hover:text-[#131722] dark:hover:text-white cursor-pointer"
                                       title={isAr ? 'نسخ الرقم' : 'Copy Phone'}
                                     >
                                       <Copy className="w-3 h-3" />
                                     </button>
                                   )}
                                 </div>
-                                <span className="text-[10px] text-[#64748B] block truncate">
+                                <span className="text-[10px] text-[#787B86] dark:text-[#64748B] block truncate">
                                   {u.country || 'Global'}
                                 </span>
                               </td>
@@ -3634,27 +3634,27 @@ export const AdminDashboard: React.FC<Props> = ({
                               <td className="py-2.5 px-3 font-mono">
                                 <div className="flex flex-wrap items-center gap-1">
                                   {effTier === 'elite' ? (
-                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#F0B90B]/15 text-[#F0B90B] border border-[#F0B90B]/40">
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#FDF6E3] dark:bg-[#F0B90B]/15 text-[#9A6700] dark:text-[#F0B90B] border border-[#EFE0B4] dark:border-[#F0B90B]/40">
                                       ELITE
                                     </span>
                                   ) : effTier === 'vip' ? (
-                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#26A69A]/15 text-[#26A69A] border border-[#26A69A]/40">
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#E6F5F2] dark:bg-[#26A69A]/15 text-[#089981] dark:text-[#26A69A] border border-[#B3E2D9] dark:border-[#26A69A]/40">
                                       VIP
                                     </span>
                                   ) : (
-                                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#1E222D] text-[#64748B] border border-[#2A2E39]">
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#F8F9FD] dark:bg-[#1E222D] text-[#787B86] dark:text-[#64748B] border border-[#E0E3EB] dark:border-[#2A2E39]">
                                       FREE
                                     </span>
                                   )}
 
                                   {isStaffRow && (
-                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#1E222D] text-[#38BDF8] border border-[#38BDF8]/30">
+                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#F8F9FD] dark:bg-[#1E222D] text-[#1E53E5] dark:text-[#38BDF8] border border-[#CBD2DF] dark:border-[#38BDF8]/30">
                                       {getStaffRoleLabel(u, false).toUpperCase()}
                                     </span>
                                   )}
                                 </div>
                                 {activeTrials.length > 0 && (
-                                  <span className="block text-[9px] text-[#26A69A] mt-0.5">
+                                  <span className="block text-[9px] text-[#089981] dark:text-[#26A69A] mt-0.5">
                                     +{activeTrials.length}{' '}
                                     {isAr ? 'ميزة مخصصة' : 'Feature Grant(s)'}
                                   </span>
@@ -3667,18 +3667,18 @@ export const AdminDashboard: React.FC<Props> = ({
                                   <span
                                     className={`text-[11px] font-semibold ${
                                       new Date(u.subscriptionEndDate).getTime() <= Date.now()
-                                        ? 'text-[#EF5350]'
+                                        ? 'text-[#D93848] dark:text-[#EF5350]'
                                         : new Date(u.subscriptionEndDate).getTime() -
                                             Date.now() <=
                                           3 * 24 * 60 * 60 * 1000
-                                        ? 'text-[#F0B90B]'
-                                        : 'text-[#E2E8F0]'
+                                        ? 'text-[#9A6700] dark:text-[#F0B90B]'
+                                        : 'text-[#131722] dark:text-[#E2E8F0]'
                                     }`}
                                   >
                                     {formatExpiryShort(u.subscriptionEndDate, isAr)}
                                   </span>
                                 ) : (
-                                  <span className="text-[11px] text-[#64748B]">
+                                  <span className="text-[11px] text-[#787B86] dark:text-[#64748B]">
                                     {effTier !== 'free'
                                       ? isAr
                                         ? 'مفتوح'
@@ -3686,7 +3686,7 @@ export const AdminDashboard: React.FC<Props> = ({
                                       : '—'}
                                   </span>
                                 )}
-                                <span className="block text-[9px] text-[#64748B]">
+                                <span className="block text-[9px] text-[#787B86] dark:text-[#64748B]">
                                   {isAr ? 'انضم:' : 'Joined:'}{' '}
                                   {formatDateTimeCompact(u.createdAtMs, u.createdAt, isAr)}
                                 </span>
@@ -3696,15 +3696,15 @@ export const AdminDashboard: React.FC<Props> = ({
                               <td className="py-2.5 px-3">
                                 <div className="flex flex-wrap items-center gap-1.5">
                                   {u.isBanned ? (
-                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-[#EF5350]/15 text-[#EF5350] border border-[#EF5350]/40">
+                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-[#FDECEE] dark:bg-[#EF5350]/15 text-[#D93848] dark:text-[#EF5350] border border-[#F5C2C7] dark:border-[#EF5350]/40">
                                       BANNED
                                     </span>
                                   ) : u.isMutedFromChat ? (
-                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-[#F0B90B]/15 text-[#F0B90B] border border-[#F0B90B]/40">
+                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-[#FDF6E3] dark:bg-[#F0B90B]/15 text-[#9A6700] dark:text-[#F0B90B] border border-[#EFE0B4] dark:border-[#F0B90B]/40">
                                       MUTED
                                     </span>
                                   ) : (
-                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-semibold bg-[#26A69A]/10 text-[#26A69A] border border-[#26A69A]/30">
+                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-semibold bg-[#E6F5F2] dark:bg-[#26A69A]/10 text-[#089981] dark:text-[#26A69A] border border-[#B3E2D9] dark:border-[#26A69A]/30">
                                       ACTIVE
                                     </span>
                                   )}
@@ -3712,8 +3712,8 @@ export const AdminDashboard: React.FC<Props> = ({
                                   <span
                                     className={`px-1.5 py-0.5 rounded text-[9px] font-mono inline-flex items-center gap-1 border ${
                                       isPushActive
-                                        ? 'bg-[#26A69A]/10 text-[#26A69A] border-[#26A69A]/30'
-                                        : 'bg-[#1E222D] text-[#64748B] border-[#2A2E39]'
+                                        ? 'bg-[#E6F5F2] dark:bg-[#26A69A]/10 text-[#089981] dark:text-[#26A69A] border-[#B3E2D9] dark:border-[#26A69A]/30'
+                                        : 'bg-[#F8F9FD] dark:bg-[#1E222D] text-[#787B86] dark:text-[#64748B] border-[#E0E3EB] dark:border-[#2A2E39]'
                                     }`}
                                     title={
                                       isPushActive
@@ -3733,7 +3733,7 @@ export const AdminDashboard: React.FC<Props> = ({
 
                               {/* Revenue Paid */}
                               <td className="py-2.5 px-3 text-end font-mono tabular-nums">
-                                <span className="text-xs font-semibold text-[#26A69A]">
+                                <span className="text-xs font-semibold text-[#089981] dark:text-[#26A69A]">
                                   ${(u.totalPaid || 0).toLocaleString()}
                                 </span>
                               </td>
@@ -3756,7 +3756,7 @@ export const AdminDashboard: React.FC<Props> = ({
                                           role: u.role
                                         });
                                       }}
-                                      className="p-1.5 rounded bg-[#1E222D] hover:bg-[#2A2E39] text-[#94A3B8] hover:text-white border border-[#2A2E39] cursor-pointer"
+                                      className="p-1.5 rounded bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] text-[#4A5162] dark:text-[#94A3B8] hover:text-[#131722] dark:hover:text-white border border-[#E0E3EB] dark:border-[#2A2E39] cursor-pointer"
                                       title={isAr ? 'مراسلة على الخاص' : 'Direct Message'}
                                     >
                                       <MessageCircle className="w-3.5 h-3.5" />
@@ -3769,7 +3769,7 @@ export const AdminDashboard: React.FC<Props> = ({
                                     className={`p-1.5 rounded border cursor-pointer ${
                                       u.isMutedFromChat
                                         ? 'bg-[#F0B90B] text-black border-[#F0B90B]'
-                                        : 'bg-[#1E222D] text-[#64748B] hover:text-white border-[#2A2E39]'
+                                        : 'bg-[#F8F9FD] dark:bg-[#1E222D] text-[#787B86] dark:text-[#64748B] hover:text-[#131722] dark:hover:text-white border-[#E0E3EB] dark:border-[#2A2E39]'
                                     }`}
                                     title={u.isMutedFromChat ? 'Unmute Chat' : 'Mute in Chat'}
                                   >
@@ -3782,7 +3782,7 @@ export const AdminDashboard: React.FC<Props> = ({
                                     className={`p-1.5 rounded border cursor-pointer ${
                                       u.isBanned
                                         ? 'bg-[#EF5350] text-white border-[#EF5350]'
-                                        : 'bg-[#1E222D] text-[#64748B] hover:text-white border-[#2A2E39]'
+                                        : 'bg-[#F8F9FD] dark:bg-[#1E222D] text-[#787B86] dark:text-[#64748B] hover:text-[#131722] dark:hover:text-white border-[#E0E3EB] dark:border-[#2A2E39]'
                                     }`}
                                     title={u.isBanned ? 'Unban User' : 'Suspend / Ban User'}
                                   >
@@ -3843,7 +3843,7 @@ export const AdminDashboard: React.FC<Props> = ({
           {/* ========================================================================= */}
           {activeSection === 'trading' && (
             <div className="space-y-4">
-              <div className="bg-[#131722] border border-[#2A2E39] rounded-lg p-4 sm:p-5">
+              <div className="bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] rounded-lg p-4 sm:p-5">
                 <PublishingCenter
                   lang={lang}
                   currentUserRole={effectiveRole}
@@ -3863,14 +3863,14 @@ export const AdminDashboard: React.FC<Props> = ({
           {/* ========================================================================= */}
           {activeSection === 'team' && isFullAdmin && (
             <div className="space-y-5">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#2A2E39] pb-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E0E3EB] dark:border-[#2A2E39] pb-3">
                 <div>
-                  <h2 className="text-sm sm:text-base font-bold text-[#F8FAFC]">
+                  <h2 className="text-sm sm:text-base font-bold text-[#131722] dark:text-[#F8FAFC]">
                     {isAr
                       ? 'إدارة الفريق والصلاحيات الدقيقة (Granular RBAC) وسجل التدقيق'
                       : 'Team Roles, Granular Permissions (RBAC) & Staff Audit Log'}
                   </h2>
-                  <p className="text-xs text-[#64748B]">
+                  <p className="text-xs text-[#787B86] dark:text-[#64748B]">
                     {isAr
                       ? 'عيّن قوالب الرتب بضغطة واحدة أو خصص الصلاحيات الفردية لكل عضو في الفريق'
                       : 'Assign 1-click role presets or customize individual permission flags stored on /users/{userId}'}
@@ -3880,18 +3880,18 @@ export const AdminDashboard: React.FC<Props> = ({
 
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
                 {/* Left Column: Staff & User Selector */}
-                <div className="lg:col-span-5 bg-[#131722] border border-[#2A2E39] rounded-lg p-4 space-y-3">
+                <div className="lg:col-span-5 bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] rounded-lg p-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-bold text-[#F8FAFC] uppercase tracking-wider">
+                    <h3 className="text-xs font-bold text-[#131722] dark:text-[#F8FAFC] uppercase tracking-wider">
                       {isAr ? 'أعضاء الفريق والبحث عن مستخدم' : 'Active Staff & User Lookup'}
                     </h3>
-                    <span className="text-[11px] font-mono text-[#26A69A]">
+                    <span className="text-[11px] font-mono text-[#089981] dark:text-[#26A69A]">
                       {totalStaffCount} {isAr ? 'عضو طاقم' : 'Staff'}
                     </span>
                   </div>
 
                   <div className="relative">
-                    <Search className="w-3.5 h-3.5 absolute start-3 top-1/2 -translate-y-1/2 text-[#64748B]" />
+                    <Search className="w-3.5 h-3.5 absolute start-3 top-1/2 -translate-y-1/2 text-[#787B86] dark:text-[#64748B]" />
                     <input
                       type="text"
                       value={teamSearchQuery}
@@ -3901,11 +3901,11 @@ export const AdminDashboard: React.FC<Props> = ({
                           ? 'ابحث عن أي مستخدم لترقيته أو تعديل صلاحياته...'
                           : 'Search any user by name, email, or phone to assign role...'
                       }
-                      className="w-full ps-9 pe-3 py-1.5 bg-[#1E222D] border border-[#2A2E39] focus:border-[#26A69A] rounded-md text-xs text-white placeholder-[#64748B] focus:outline-hidden"
+                      className="w-full ps-9 pe-3 py-1.5 bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] focus:border-[#1E53E5] dark:focus:border-[#26A69A] rounded-md text-xs text-[#131722] dark:text-white placeholder-[#787B86] dark:placeholder-[#64748B] focus:outline-hidden"
                     />
                   </div>
 
-                  <div className="max-h-[380px] overflow-y-auto divide-y divide-[#2A2E39] border border-[#2A2E39] rounded-md bg-[#0B0E11]">
+                  <div className="max-h-[380px] overflow-y-auto divide-y divide-[#E0E3EB] dark:divide-[#2A2E39] border border-[#E0E3EB] dark:border-[#2A2E39] rounded-md bg-[#F0F3FA] dark:bg-[#0B0E11]">
                     {users
                       .filter((u) => {
                         const q = teamSearchQuery.trim().toLowerCase();
@@ -3947,22 +3947,22 @@ export const AdminDashboard: React.FC<Props> = ({
                             type="button"
                             onClick={() => handleSelectUserForRbac(u)}
                             className={`w-full p-2.5 text-start flex items-center justify-between gap-2 transition-colors cursor-pointer ${
-                              isSelected ? 'bg-[#1E222D]' : 'hover:bg-[#131722]'
+                              isSelected ? 'bg-[#F8F9FD] dark:bg-[#1E222D]' : 'hover:bg-[#EDF1F7] dark:hover:bg-[#131722]'
                             }`}
                           >
                             <div className="min-w-0">
-                              <div className="text-xs font-semibold text-[#F8FAFC] truncate">
+                              <div className="text-xs font-semibold text-[#131722] dark:text-[#F8FAFC] truncate">
                                 {u.displayName}
                               </div>
-                              <div className="text-[10px] font-mono text-[#64748B] truncate">
+                              <div className="text-[10px] font-mono text-[#787B86] dark:text-[#64748B] truncate">
                                 {u.email}
                               </div>
                             </div>
                             <span
                               className={`px-2 py-0.5 rounded text-[10px] font-mono font-semibold shrink-0 border ${
                                 isStaffMember
-                                  ? 'bg-[#26A69A]/15 text-[#26A69A] border-[#26A69A]/40'
-                                  : 'bg-[#131722] text-[#64748B] border-[#2A2E39]'
+                                  ? 'bg-[#E6F5F2] dark:bg-[#26A69A]/15 text-[#089981] dark:text-[#26A69A] border-[#B3E2D9] dark:border-[#26A69A]/40'
+                                  : 'bg-[#FFFFFF] dark:bg-[#131722] text-[#787B86] dark:text-[#64748B] border-[#E0E3EB] dark:border-[#2A2E39]'
                               }`}
                             >
                               {getStaffRoleLabel(u, isAr)}
@@ -3974,25 +3974,25 @@ export const AdminDashboard: React.FC<Props> = ({
                 </div>
 
                 {/* Right Column: 1-Click Role Presets + 8 Granular Checkboxes */}
-                <div className="lg:col-span-7 bg-[#131722] border border-[#2A2E39] rounded-lg p-4 space-y-4">
+                <div className="lg:col-span-7 bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] rounded-lg p-4 space-y-4">
                   {!selectedRbacUser ? (
-                    <div className="py-16 text-center text-xs text-[#64748B]">
+                    <div className="py-16 text-center text-xs text-[#787B86] dark:text-[#64748B]">
                       {isAr
                         ? 'اختر عضواً من القائمة الجانبية لتعديل رتبته أو تخصيص صلاحياته الفردية.'
                         : 'Select a user from the directory on the left to assign a role preset or customize granular permissions.'}
                     </div>
                   ) : (
                     <>
-                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#2A2E39] pb-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E0E3EB] dark:border-[#2A2E39] pb-3">
                         <div>
-                          <h3 className="text-sm font-bold text-[#F8FAFC]">
+                          <h3 className="text-sm font-bold text-[#131722] dark:text-[#F8FAFC]">
                             {selectedRbacUser.displayName}
                           </h3>
-                          <p className="text-[11px] font-mono text-[#64748B]">
+                          <p className="text-[11px] font-mono text-[#787B86] dark:text-[#64748B]">
                             {selectedRbacUser.email} • UID: {selectedRbacUser.id}
                           </p>
                         </div>
-                        <span className="px-2.5 py-1 rounded bg-[#1E222D] border border-[#2A2E39] text-xs font-mono font-semibold text-[#26A69A]">
+                        <span className="px-2.5 py-1 rounded bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] text-xs font-mono font-semibold text-[#089981] dark:text-[#26A69A]">
                           {getStaffRoleLabel(
                             {
                               ...selectedRbacUser,
@@ -4006,7 +4006,7 @@ export const AdminDashboard: React.FC<Props> = ({
 
                       {/* 1-Click Role Presets */}
                       <div className="space-y-2">
-                        <label className="block text-[11px] font-semibold text-[#94A3B8] uppercase tracking-wider">
+                        <label className="block text-[11px] font-semibold text-[#4A5162] dark:text-[#94A3B8] uppercase tracking-wider">
                           {isAr ? 'قوالب الرتب الجاهزة (1-Click Role Presets)' : '1-Click Role Presets'}
                         </label>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -4019,8 +4019,8 @@ export const AdminDashboard: React.FC<Props> = ({
                                 onClick={() => handleApplyRbacPreset(preset.id)}
                                 className={`p-2.5 rounded-md border text-start transition-colors cursor-pointer ${
                                   active
-                                    ? 'bg-[#1E222D] border-[#26A69A] text-[#F8FAFC]'
-                                    : 'bg-[#0B0E11] border-[#2A2E39] text-[#94A3B8] hover:text-white hover:bg-[#1E222D]/50'
+                                    ? 'bg-[#F8F9FD] dark:bg-[#1E222D] border-[#26A69A] text-[#131722] dark:text-[#F8FAFC]'
+                                    : 'bg-[#F0F3FA] dark:bg-[#0B0E11] border-[#E0E3EB] dark:border-[#2A2E39] text-[#4A5162] dark:text-[#94A3B8] hover:text-[#131722] dark:hover:text-white hover:bg-[#EDF1F7] dark:hover:bg-[#1E222D]/50'
                                 }`}
                               >
                                 <div className="text-xs font-bold truncate">
@@ -4034,7 +4034,7 @@ export const AdminDashboard: React.FC<Props> = ({
 
                       {/* Granular Permission Checkboxes */}
                       <div className="space-y-2">
-                        <label className="block text-[11px] font-semibold text-[#94A3B8] uppercase tracking-wider">
+                        <label className="block text-[11px] font-semibold text-[#4A5162] dark:text-[#94A3B8] uppercase tracking-wider">
                           {isAr
                             ? 'الصلاحيات التفصيلية (Granular Permission Flags)'
                             : 'Granular Permission Flags (/users/{uid}.permissions)'}
@@ -4049,18 +4049,18 @@ export const AdminDashboard: React.FC<Props> = ({
                                 onClick={() => handleTogglePermissionFlag(perm.key)}
                                 className={`p-3 rounded-md border text-start flex items-start justify-between gap-2.5 transition-colors cursor-pointer ${
                                   checked
-                                    ? 'bg-[#1E222D] border-[#26A69A]/60 text-[#F8FAFC]'
-                                    : 'bg-[#0B0E11] border-[#2A2E39] text-[#64748B] hover:text-[#E2E8F0]'
+                                    ? 'bg-[#F8F9FD] dark:bg-[#1E222D] border-[#B3E2D9] dark:border-[#26A69A]/60 text-[#131722] dark:text-[#F8FAFC]'
+                                    : 'bg-[#F0F3FA] dark:bg-[#0B0E11] border-[#E0E3EB] dark:border-[#2A2E39] text-[#787B86] dark:text-[#64748B] hover:text-[#131722] dark:hover:text-[#E2E8F0]'
                                 }`}
                               >
                                 <div className="space-y-0.5 min-w-0">
-                                  <div className="text-xs font-bold text-[#F8FAFC]">
+                                  <div className="text-xs font-bold text-[#131722] dark:text-[#F8FAFC]">
                                     {isAr ? perm.labelAr : perm.labelEn}
                                   </div>
-                                  <div className="text-[10px] text-[#94A3B8] leading-snug">
+                                  <div className="text-[10px] text-[#4A5162] dark:text-[#94A3B8] leading-snug">
                                     {isAr ? perm.descriptionAr : perm.descriptionEn}
                                   </div>
-                                  <span className="inline-block text-[9px] font-mono text-[#64748B]">
+                                  <span className="inline-block text-[9px] font-mono text-[#787B86] dark:text-[#64748B]">
                                     {perm.key}
                                   </span>
                                 </div>
@@ -4068,7 +4068,7 @@ export const AdminDashboard: React.FC<Props> = ({
                                   className={`w-4 h-4 rounded flex items-center justify-center shrink-0 mt-0.5 border ${
                                     checked
                                       ? 'bg-[#26A69A] border-[#26A69A] text-white'
-                                      : 'border-[#2A2E39] bg-[#131722]'
+                                      : 'border-[#E0E3EB] dark:border-[#2A2E39] bg-[#FFFFFF] dark:bg-[#131722]'
                                   }`}
                                 >
                                   {checked && <Check className="w-3 h-3" />}
@@ -4079,7 +4079,7 @@ export const AdminDashboard: React.FC<Props> = ({
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#2A2E39]">
+                      <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#E0E3EB] dark:border-[#2A2E39]">
                         <button
                           type="button"
                           disabled={isSavingRbac}
@@ -4104,11 +4104,11 @@ export const AdminDashboard: React.FC<Props> = ({
               </div>
 
               {/* STAFF AUDIT LOG TABLE (admin_audit_logs) */}
-              <div className="bg-[#131722] border border-[#2A2E39] rounded-lg p-4 space-y-3">
+              <div className="bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] rounded-lg p-4 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <History className="w-4 h-4 text-[#26A69A]" />
-                    <h3 className="text-xs sm:text-sm font-bold text-[#F8FAFC]">
+                    <History className="w-4 h-4 text-[#089981] dark:text-[#26A69A]" />
+                    <h3 className="text-xs sm:text-sm font-bold text-[#131722] dark:text-[#F8FAFC]">
                       {isAr
                         ? 'سجل تدقيق عمليات الإدارة والطاقم (Staff Audit Log)'
                         : 'Staff Audit Log (admin_audit_logs)'}
@@ -4119,7 +4119,7 @@ export const AdminDashboard: React.FC<Props> = ({
                     <select
                       value={auditActionFilter}
                       onChange={(e) => setAuditActionFilter(e.target.value)}
-                      className="px-2.5 py-1 bg-[#1E222D] border border-[#2A2E39] rounded text-xs text-[#E2E8F0] focus:outline-hidden"
+                      className="px-2.5 py-1 bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] rounded text-xs text-[#131722] dark:text-[#E2E8F0] focus:outline-hidden"
                     >
                       <option value="ALL">{isAr ? 'كل العمليات' : 'All Actions'}</option>
                       <option value="USER_PLAN_UPDATED">Plan Updates</option>
@@ -4141,7 +4141,7 @@ export const AdminDashboard: React.FC<Props> = ({
                     <button
                       type="button"
                       onClick={loadAuditLogs}
-                      className="px-2.5 py-1 rounded bg-[#1E222D] hover:bg-[#2A2E39] border border-[#2A2E39] text-xs text-[#E2E8F0] flex items-center gap-1 cursor-pointer"
+                      className="px-2.5 py-1 rounded bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] border border-[#E0E3EB] dark:border-[#2A2E39] text-xs text-[#131722] dark:text-[#E2E8F0] flex items-center gap-1 cursor-pointer"
                     >
                       <RefreshCw
                         className={`w-3 h-3 ${auditLogsLoading ? 'animate-spin' : ''}`}
@@ -4151,9 +4151,9 @@ export const AdminDashboard: React.FC<Props> = ({
                   </div>
                 </div>
 
-                <div className="overflow-x-auto max-h-[340px] overflow-y-auto border border-[#2A2E39] rounded-md bg-[#0B0E11]">
+                <div className="overflow-x-auto max-h-[340px] overflow-y-auto border border-[#E0E3EB] dark:border-[#2A2E39] rounded-md bg-[#F0F3FA] dark:bg-[#0B0E11]">
                   <table className="w-full text-start text-xs border-collapse">
-                    <thead className="sticky top-0 bg-[#131722] border-b border-[#2A2E39] text-[#64748B] font-mono text-[10px] uppercase">
+                    <thead className="sticky top-0 bg-[#FFFFFF] dark:bg-[#131722] border-b border-[#E0E3EB] dark:border-[#2A2E39] text-[#787B86] dark:text-[#64748B] font-mono text-[10px] uppercase">
                       <tr>
                         <th className="py-2 px-3 text-start">{isAr ? 'التوقيت' : 'Timestamp'}</th>
                         <th className="py-2 px-3 text-start">{isAr ? 'المسؤول' : 'Staff Actor'}</th>
@@ -4162,12 +4162,12 @@ export const AdminDashboard: React.FC<Props> = ({
                         <th className="py-2 px-3 text-start">{isAr ? 'التفاصيل' : 'Details'}</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#2A2E39]">
+                    <tbody className="divide-y divide-[#E0E3EB] dark:divide-[#2A2E39]">
                       {auditLogs.filter(
                         (l) => auditActionFilter === 'ALL' || l.action === auditActionFilter
                       ).length === 0 ? (
                         <tr>
-                          <td colSpan={5} className="py-8 text-center text-[#64748B]">
+                          <td colSpan={5} className="py-8 text-center text-[#787B86] dark:text-[#64748B]">
                             {auditLogsLoading
                               ? isAr
                                 ? 'جاري تحميل سجل التدقيق...'
@@ -4183,22 +4183,22 @@ export const AdminDashboard: React.FC<Props> = ({
                             (l) => auditActionFilter === 'ALL' || l.action === auditActionFilter
                           )
                           .map((log) => (
-                            <tr key={log.id} className="hover:bg-[#1E222D]/60">
-                              <td className="py-2 px-3 font-mono tabular-nums text-[11px] text-[#94A3B8] whitespace-nowrap">
+                            <tr key={log.id} className="hover:bg-[#EDF1F7] dark:hover:bg-[#1E222D]/60">
+                              <td className="py-2 px-3 font-mono tabular-nums text-[11px] text-[#4A5162] dark:text-[#94A3B8] whitespace-nowrap">
                                 {new Date(log.timestampMs).toLocaleString()}
                               </td>
-                              <td className="py-2 px-3 font-semibold text-[#F8FAFC]">
+                              <td className="py-2 px-3 font-semibold text-[#131722] dark:text-[#F8FAFC]">
                                 {log.actorName}
                               </td>
                               <td className="py-2 px-3 font-mono text-[10px]">
-                                <span className="px-1.5 py-0.5 rounded bg-[#1E222D] border border-[#2A2E39] text-[#26A69A]">
+                                <span className="px-1.5 py-0.5 rounded bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] text-[#089981] dark:text-[#26A69A]">
                                   {log.action}
                                 </span>
                               </td>
-                              <td className="py-2 px-3 font-mono text-[11px] text-[#E2E8F0]">
+                              <td className="py-2 px-3 font-mono text-[11px] text-[#131722] dark:text-[#E2E8F0]">
                                 {log.targetLabel || log.targetUid || '—'}
                               </td>
-                              <td className="py-2 px-3 text-[11px] text-[#94A3B8]">
+                              <td className="py-2 px-3 text-[11px] text-[#4A5162] dark:text-[#94A3B8]">
                                 {log.details}
                               </td>
                             </tr>
@@ -4218,22 +4218,22 @@ export const AdminDashboard: React.FC<Props> = ({
             <div className="space-y-6">
               {/* System Operations Bar (Super Admin only) */}
               {isFullAdmin && (
-                <div className="p-4 rounded-lg bg-[#131722] border border-[#2A2E39] space-y-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#2A2E39] pb-3">
+                <div className="p-4 rounded-lg bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E0E3EB] dark:border-[#2A2E39] pb-3">
                     <div>
-                      <h3 className="text-sm font-bold text-[#F8FAFC]">
+                      <h3 className="text-sm font-bold text-[#131722] dark:text-[#F8FAFC]">
                         {isAr
                           ? 'أدوات النظام، النسخ الاحتياطي، والتحديث الإجباري'
                           : 'System Operations, Database Backup & Remote Force-Update'}
                       </h3>
-                      <p className="text-xs text-[#64748B]">
+                      <p className="text-xs text-[#787B86] dark:text-[#64748B]">
                         {isAr
                           ? 'إدارة النسخ الاحتياطية JSON، التبديل بين قواعد البيانات، وفحص إشعارات الخلفية'
                           : 'Manage JSON snapshots, database failover mode, and live client updates'}
                       </p>
                     </div>
                     {lastAutoBackupIso && (
-                      <span className="text-[10px] font-mono text-[#64748B]">
+                      <span className="text-[10px] font-mono text-[#787B86] dark:text-[#64748B]">
                         {isAr ? 'آخر حفظ تلقائي:' : 'Last Auto-Snapshot:'}{' '}
                         {new Date(lastAutoBackupIso).toLocaleTimeString()}
                       </span>
@@ -4245,18 +4245,18 @@ export const AdminDashboard: React.FC<Props> = ({
                       type="button"
                       disabled={isPushingAppUpdate}
                       onClick={handlePushAppUpdateToAllUsers}
-                      className="p-3 rounded-md bg-[#1E222D] hover:bg-[#2A2E39] border border-[#2A2E39] text-start flex items-center justify-between cursor-pointer"
+                      className="p-3 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] border border-[#E0E3EB] dark:border-[#2A2E39] text-start flex items-center justify-between cursor-pointer"
                     >
                       <div>
-                        <div className="text-xs font-bold text-[#26A69A]">
+                        <div className="text-xs font-bold text-[#089981] dark:text-[#26A69A]">
                           {isAr ? 'دفع التحديث لجميع المستخدمين' : 'Force Update All Users'}
                         </div>
-                        <div className="text-[10px] text-[#64748B]">
+                        <div className="text-[10px] text-[#787B86] dark:text-[#64748B]">
                           {remoteAppVersionInfo?.versionId || 'Live broadcast reload'}
                         </div>
                       </div>
                       <RefreshCw
-                        className={`w-4 h-4 text-[#26A69A] ${
+                        className={`w-4 h-4 text-[#089981] dark:text-[#26A69A] ${
                           isPushingAppUpdate ? 'animate-spin' : ''
                         }`}
                       />
@@ -4266,30 +4266,30 @@ export const AdminDashboard: React.FC<Props> = ({
                       type="button"
                       disabled={isExportingBackup}
                       onClick={handleExportFullBackupJson}
-                      className="p-3 rounded-md bg-[#1E222D] hover:bg-[#2A2E39] border border-[#2A2E39] text-start flex items-center justify-between cursor-pointer"
+                      className="p-3 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] border border-[#E0E3EB] dark:border-[#2A2E39] text-start flex items-center justify-between cursor-pointer"
                     >
                       <div>
-                        <div className="text-xs font-bold text-[#F8FAFC]">
+                        <div className="text-xs font-bold text-[#131722] dark:text-[#F8FAFC]">
                           {isAr ? 'تصدير نسخة احتياطية كاملة (JSON)' : 'Export Full Backup JSON'}
                         </div>
-                        <div className="text-[10px] text-[#64748B]">
+                        <div className="text-[10px] text-[#787B86] dark:text-[#64748B]">
                           {isAr ? 'الأعضاء، الصفقات، الشات، والرسائل' : 'Users, signals, chat & DMs'}
                         </div>
                       </div>
-                      <Download className="w-4 h-4 text-[#26A69A]" />
+                      <Download className="w-4 h-4 text-[#089981] dark:text-[#26A69A]" />
                     </button>
 
-                    <label className="p-3 rounded-md bg-[#1E222D] hover:bg-[#2A2E39] border border-[#2A2E39] text-start flex items-center justify-between cursor-pointer">
+                    <label className="p-3 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] border border-[#E0E3EB] dark:border-[#2A2E39] text-start flex items-center justify-between cursor-pointer">
                       <div>
-                        <div className="text-xs font-bold text-[#F8FAFC]">
+                        <div className="text-xs font-bold text-[#131722] dark:text-[#F8FAFC]">
                           {isAr ? 'استرجاع نسخة احتياطية (Restore)' : 'Restore From JSON Backup'}
                         </div>
-                        <div className="text-[10px] text-[#64748B]">
+                        <div className="text-[10px] text-[#787B86] dark:text-[#64748B]">
                           {isAr ? 'رفع ملف JSON لاستعادة البيانات' : 'Upload backup snapshot file'}
                         </div>
                       </div>
                       <Database
-                        className={`w-4 h-4 text-[#F0B90B] ${
+                        className={`w-4 h-4 text-[#9A6700] dark:text-[#F0B90B] ${
                           isImportingBackup ? 'animate-spin' : ''
                         }`}
                       />
@@ -4305,18 +4305,18 @@ export const AdminDashboard: React.FC<Props> = ({
                       type="button"
                       disabled={isSyncingLegacyDb}
                       onClick={() => handleSyncLegacyData(false)}
-                      className="p-3 rounded-md bg-[#1E222D] hover:bg-[#2A2E39] border border-[#2A2E39] text-start flex items-center justify-between cursor-pointer"
+                      className="p-3 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] border border-[#E0E3EB] dark:border-[#2A2E39] text-start flex items-center justify-between cursor-pointer"
                     >
                       <div>
-                        <div className="text-xs font-bold text-[#F0B90B]">
+                        <div className="text-xs font-bold text-[#9A6700] dark:text-[#F0B90B]">
                           {isAr ? 'استعادة البيانات القديمة' : 'Restore Legacy Data & Chats'}
                         </div>
-                        <div className="text-[10px] text-[#64748B]">
+                        <div className="text-[10px] text-[#787B86] dark:text-[#64748B]">
                           {isAr ? 'مزامنة السجلات التاريخية' : 'Sync historical records'}
                         </div>
                       </div>
                       <Database
-                        className={`w-4 h-4 text-[#F0B90B] ${
+                        className={`w-4 h-4 text-[#9A6700] dark:text-[#F0B90B] ${
                           isSyncingLegacyDb ? 'animate-spin' : ''
                         }`}
                       />
@@ -4325,10 +4325,10 @@ export const AdminDashboard: React.FC<Props> = ({
                     <button
                       type="button"
                       onClick={() => handleSwitchDatabaseMode()}
-                      className="p-3 rounded-md bg-[#1E222D] hover:bg-[#2A2E39] border border-[#2A2E39] text-start flex items-center justify-between cursor-pointer"
+                      className="p-3 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] border border-[#E0E3EB] dark:border-[#2A2E39] text-start flex items-center justify-between cursor-pointer"
                     >
                       <div>
-                        <div className="text-xs font-bold text-[#F8FAFC]">
+                        <div className="text-xs font-bold text-[#131722] dark:text-[#F8FAFC]">
                           {isAr
                             ? `قاعدة البيانات: ${
                                 activeDbMode === 'default' ? 'الرئيسية (1)' : 'الاحتياطية (2)'
@@ -4337,47 +4337,47 @@ export const AdminDashboard: React.FC<Props> = ({
                                 activeDbMode === 'default' ? 'Primary (1)' : 'Standby (2)'
                               }`}
                         </div>
-                        <div className="text-[10px] text-[#64748B]">
+                        <div className="text-[10px] text-[#787B86] dark:text-[#64748B]">
                           {isAr ? 'اضغط للتبديل الفوري' : 'Click to toggle database instance'}
                         </div>
                       </div>
-                      <Database className="w-4 h-4 text-[#94A3B8]" />
+                      <Database className="w-4 h-4 text-[#4A5162] dark:text-[#94A3B8]" />
                     </button>
 
                     <button
                       type="button"
                       disabled={isTestingBackgroundPush}
                       onClick={handleTestBackgroundPush}
-                      className="p-3 rounded-md bg-[#1E222D] hover:bg-[#2A2E39] border border-[#2A2E39] text-start flex items-center justify-between cursor-pointer"
+                      className="p-3 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] border border-[#E0E3EB] dark:border-[#2A2E39] text-start flex items-center justify-between cursor-pointer"
                     >
                       <div>
-                        <div className="text-xs font-bold text-[#F8FAFC]">
+                        <div className="text-xs font-bold text-[#131722] dark:text-[#F8FAFC]">
                           {isAr ? 'اختبار إشعار الخلفية (Web Push)' : 'Test Background Web Push'}
                         </div>
-                        <div className="text-[10px] text-[#64748B]">
+                        <div className="text-[10px] text-[#787B86] dark:text-[#64748B]">
                           {isAr ? 'فحص اشتراك VAPID والإرسال' : 'Verify VAPID subscription & send'}
                         </div>
                       </div>
-                      <BellRing className="w-4 h-4 text-[#26A69A]" />
+                      <BellRing className="w-4 h-4 text-[#089981] dark:text-[#26A69A]" />
                     </button>
                   </div>
                 </div>
               )}
 
               {/* Bulk VIP / Elite Activation Key Generator */}
-              <div className="p-4 sm:p-5 rounded-lg bg-[#131722] border border-[#2A2E39] space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#2A2E39] pb-3">
+              <div className="p-4 sm:p-5 rounded-lg bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E0E3EB] dark:border-[#2A2E39] pb-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-md bg-[#1E222D] border border-[#2A2E39] flex items-center justify-center text-[#F0B90B]">
+                    <div className="w-9 h-9 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] flex items-center justify-center text-[#9A6700] dark:text-[#F0B90B]">
                       <Key className="w-4 h-4" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-bold text-[#F8FAFC]">
+                      <h3 className="text-sm font-bold text-[#131722] dark:text-[#F8FAFC]">
                         {isAr
                           ? 'مولد مفاتيح التفعيل الجماعي (VIP & Elite Key Generator)'
                           : 'Bulk VIP / Elite Activation Key Generator'}
                       </h3>
-                      <p className="text-xs text-[#64748B]">
+                      <p className="text-xs text-[#787B86] dark:text-[#64748B]">
                         {isAr
                           ? 'أنشئ حتى 200 مفتاح تفعيل ذو استخدام واحد لباقات VIP أو Elite مع تصدير CSV'
                           : 'Generate up to 200 single-use VIP or Elite activation keys with instant CSV export'}
@@ -4386,11 +4386,11 @@ export const AdminDashboard: React.FC<Props> = ({
                   </div>
 
                   <div className="flex items-center gap-2 text-[11px] font-mono tabular-nums">
-                    <span className="px-2.5 py-1 rounded bg-[#26A69A]/10 text-[#26A69A] border border-[#26A69A]/30 font-bold">
+                    <span className="px-2.5 py-1 rounded bg-[#E6F5F2] dark:bg-[#26A69A]/10 text-[#089981] dark:text-[#26A69A] border border-[#B3E2D9] dark:border-[#26A69A]/30 font-bold">
                       {activationKeys.filter((k) => k.status === 'active').length}{' '}
                       {isAr ? 'متاح' : 'ACTIVE'}
                     </span>
-                    <span className="px-2.5 py-1 rounded bg-[#1E222D] text-[#94A3B8] border border-[#2A2E39] font-bold">
+                    <span className="px-2.5 py-1 rounded bg-[#F8F9FD] dark:bg-[#1E222D] text-[#4A5162] dark:text-[#94A3B8] border border-[#E0E3EB] dark:border-[#2A2E39] font-bold">
                       {activationKeys.filter((k) => k.status === 'used').length}{' '}
                       {isAr ? 'مستخدم' : 'USED'}
                     </span>
@@ -4399,7 +4399,7 @@ export const AdminDashboard: React.FC<Props> = ({
 
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                   <div className="md:col-span-3">
-                    <label className="block text-[11px] font-semibold text-[#94A3B8] mb-1.5">
+                    <label className="block text-[11px] font-semibold text-[#4A5162] dark:text-[#94A3B8] mb-1.5">
                       {isAr ? 'الباقة المستهدفة' : 'Target Tier'}
                     </label>
                     <div className="grid grid-cols-2 gap-1.5">
@@ -4411,7 +4411,7 @@ export const AdminDashboard: React.FC<Props> = ({
                           className={`py-2 rounded-md text-xs font-mono font-bold uppercase transition-colors cursor-pointer border ${
                             bulkKeyTier === tierOpt
                               ? 'bg-[#F0B90B] text-black border-[#F0B90B]'
-                              : 'bg-[#1E222D] text-[#E2E8F0] border-[#2A2E39]'
+                              : 'bg-[#F8F9FD] dark:bg-[#1E222D] text-[#131722] dark:text-[#E2E8F0] border-[#E0E3EB] dark:border-[#2A2E39]'
                           }`}
                         >
                           {tierOpt}
@@ -4421,13 +4421,13 @@ export const AdminDashboard: React.FC<Props> = ({
                   </div>
 
                   <div className="md:col-span-3">
-                    <label className="block text-[11px] font-semibold text-[#94A3B8] mb-1.5">
+                    <label className="block text-[11px] font-semibold text-[#4A5162] dark:text-[#94A3B8] mb-1.5">
                       {isAr ? 'مدة الصلاحية' : 'Key Validity Duration'}
                     </label>
                     <select
                       value={selectedKeyDays}
                       onChange={(e) => setSelectedKeyDays(Number(e.target.value))}
-                      className="w-full px-3 py-2 bg-[#1E222D] border border-[#2A2E39] rounded-md text-xs text-white font-mono focus:outline-hidden cursor-pointer"
+                      className="w-full px-3 py-2 bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] rounded-md text-xs text-[#131722] dark:text-white font-mono focus:outline-hidden cursor-pointer"
                     >
                       <option value={30}>{isAr ? '30 يوم (شهر)' : '30 Days (1 Month)'}</option>
                       <option value={90}>{isAr ? '90 يوم (3 أشهر)' : '90 Days (3 Months)'}</option>
@@ -4438,7 +4438,7 @@ export const AdminDashboard: React.FC<Props> = ({
                   </div>
 
                   <div className="md:col-span-3">
-                    <label className="block text-[11px] font-semibold text-[#94A3B8] mb-1.5">
+                    <label className="block text-[11px] font-semibold text-[#4A5162] dark:text-[#94A3B8] mb-1.5">
                       {isAr ? 'الكمية (1 - 200)' : 'Quantity (1 - 200)'}
                     </label>
                     <div className="flex items-center gap-1">
@@ -4450,7 +4450,7 @@ export const AdminDashboard: React.FC<Props> = ({
                           className={`flex-1 py-2 rounded-md text-xs font-mono font-bold transition-colors cursor-pointer border ${
                             bulkKeyQuantity === qty
                               ? 'bg-[#26A69A] text-white border-[#26A69A]'
-                              : 'bg-[#1E222D] text-[#E2E8F0] border-[#2A2E39]'
+                              : 'bg-[#F8F9FD] dark:bg-[#1E222D] text-[#131722] dark:text-[#E2E8F0] border-[#E0E3EB] dark:border-[#2A2E39]'
                           }`}
                         >
                           {qty}
@@ -4476,8 +4476,8 @@ export const AdminDashboard: React.FC<Props> = ({
                 </div>
 
                 {lastGeneratedBatch.length > 0 && (
-                  <div className="p-3 rounded-md bg-[#26A69A]/10 border border-[#26A69A]/30 flex flex-wrap items-center justify-between gap-3">
-                    <span className="text-xs font-semibold text-[#26A69A]">
+                  <div className="p-3 rounded-md bg-[#E6F5F2] dark:bg-[#26A69A]/10 border border-[#B3E2D9] dark:border-[#26A69A]/30 flex flex-wrap items-center justify-between gap-3">
+                    <span className="text-xs font-semibold text-[#089981] dark:text-[#26A69A]">
                       {isAr
                         ? `الدفعة الأخيرة جاهزة: ${lastGeneratedBatch.length} مفتاح`
                         : `Latest batch ready: ${lastGeneratedBatch.length} keys`}
@@ -4504,18 +4504,18 @@ export const AdminDashboard: React.FC<Props> = ({
               </div>
 
               {/* Feature Trial Code Generator */}
-              <div className="p-4 sm:p-5 rounded-lg bg-[#131722] border border-[#2A2E39] space-y-4">
-                <div className="flex items-center gap-3 border-b border-[#2A2E39] pb-3">
-                  <div className="w-9 h-9 rounded-md bg-[#1E222D] border border-[#2A2E39] flex items-center justify-center text-[#26A69A]">
+              <div className="p-4 sm:p-5 rounded-lg bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] space-y-4">
+                <div className="flex items-center gap-3 border-b border-[#E0E3EB] dark:border-[#2A2E39] pb-3">
+                  <div className="w-9 h-9 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] flex items-center justify-center text-[#089981] dark:text-[#26A69A]">
                     <Sliders className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-[#F8FAFC]">
+                    <h3 className="text-sm font-bold text-[#131722] dark:text-[#F8FAFC]">
                       {isAr
                         ? 'مولد أكواد التجربة المخصصة (Trial Code Generator)'
                         : 'Feature Trial Code Generator'}
                     </h3>
-                    <p className="text-xs text-[#64748B]">
+                    <p className="text-xs text-[#787B86] dark:text-[#64748B]">
                       {isAr
                         ? 'أنشئ أكواد تفعيل مؤقتة مرتبطة بميزات محددة وبمدة مخصصة'
                         : 'Create single-use trial codes tied to specific features or tiers'}
@@ -4540,7 +4540,7 @@ export const AdminDashboard: React.FC<Props> = ({
                           className={`py-1.5 px-3 rounded-md text-xs font-semibold border cursor-pointer ${
                             trialTargetMode === modeOpt.id
                               ? 'bg-[#26A69A] text-white border-[#26A69A]'
-                              : 'bg-[#1E222D] text-[#E2E8F0] border-[#2A2E39]'
+                              : 'bg-[#F8F9FD] dark:bg-[#1E222D] text-[#131722] dark:text-[#E2E8F0] border-[#E0E3EB] dark:border-[#2A2E39]'
                           }`}
                         >
                           {isAr ? modeOpt.ar : modeOpt.en}
@@ -4559,8 +4559,8 @@ export const AdminDashboard: React.FC<Props> = ({
                               onClick={() => handleToggleTrialFeature(feat.key)}
                               className={`p-2 rounded-md border text-start flex items-center justify-between gap-2 cursor-pointer ${
                                 checked
-                                  ? 'bg-[#1E222D] border-[#26A69A] text-white'
-                                  : 'bg-[#0B0E11] border-[#2A2E39] text-[#64748B]'
+                                  ? 'bg-[#F8F9FD] dark:bg-[#1E222D] border-[#26A69A] text-[#131722] dark:text-white'
+                                  : 'bg-[#F0F3FA] dark:bg-[#0B0E11] border-[#E0E3EB] dark:border-[#2A2E39] text-[#787B86] dark:text-[#64748B]'
                               }`}
                             >
                               <span className="text-[11px] font-semibold truncate">
@@ -4570,7 +4570,7 @@ export const AdminDashboard: React.FC<Props> = ({
                                 className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border ${
                                   checked
                                     ? 'bg-[#26A69A] border-[#26A69A] text-white'
-                                    : 'border-[#2A2E39]'
+                                    : 'border-[#E0E3EB] dark:border-[#2A2E39]'
                                 }`}
                               >
                                 {checked && <Check className="w-3 h-3" />}
@@ -4584,7 +4584,7 @@ export const AdminDashboard: React.FC<Props> = ({
 
                   <div className="lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[11px] font-semibold text-[#94A3B8] mb-1">
+                      <label className="block text-[11px] font-semibold text-[#4A5162] dark:text-[#94A3B8] mb-1">
                         {isAr ? 'المدة بالأيام' : 'Duration (Days)'}
                       </label>
                       <div className="flex items-center gap-1 mb-2">
@@ -4596,7 +4596,7 @@ export const AdminDashboard: React.FC<Props> = ({
                             className={`flex-1 py-1 rounded text-[11px] font-mono font-bold border cursor-pointer ${
                               trialDurationDays === d
                                 ? 'bg-[#26A69A] text-white border-[#26A69A]'
-                                : 'bg-[#1E222D] text-[#E2E8F0] border-[#2A2E39]'
+                                : 'bg-[#F8F9FD] dark:bg-[#1E222D] text-[#131722] dark:text-[#E2E8F0] border-[#E0E3EB] dark:border-[#2A2E39]'
                             }`}
                           >
                             {d}d
@@ -4611,12 +4611,12 @@ export const AdminDashboard: React.FC<Props> = ({
                         onChange={(e) =>
                           setTrialDurationDays(Math.max(1, Number(e.target.value) || 1))
                         }
-                        className="w-full px-3 py-1.5 bg-[#1E222D] border border-[#2A2E39] rounded-md text-xs text-white font-mono"
+                        className="w-full px-3 py-1.5 bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] rounded-md text-xs text-[#131722] dark:text-white font-mono"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-semibold text-[#94A3B8] mb-1">
+                      <label className="block text-[11px] font-semibold text-[#4A5162] dark:text-[#94A3B8] mb-1">
                         {isAr ? 'عدد الأكواد (1 - 50)' : 'Code Quantity (1 - 50)'}
                       </label>
                       <div className="flex items-center gap-1 mb-2">
@@ -4628,7 +4628,7 @@ export const AdminDashboard: React.FC<Props> = ({
                             className={`flex-1 py-1 rounded text-[11px] font-mono font-bold border cursor-pointer ${
                               trialQuantity === q
                                 ? 'bg-[#26A69A] text-white border-[#26A69A]'
-                                : 'bg-[#1E222D] text-[#E2E8F0] border-[#2A2E39]'
+                                : 'bg-[#F8F9FD] dark:bg-[#1E222D] text-[#131722] dark:text-[#E2E8F0] border-[#E0E3EB] dark:border-[#2A2E39]'
                             }`}
                           >
                             {q}
@@ -4651,10 +4651,10 @@ export const AdminDashboard: React.FC<Props> = ({
               </div>
 
               {/* Activation Keys Registry Table */}
-              <div className="bg-[#131722] border border-[#2A2E39] rounded-lg p-4 space-y-3">
+              <div className="bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] rounded-lg p-4 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h4 className="text-xs font-bold text-[#F8FAFC] flex items-center gap-2">
-                    <Database className="w-4 h-4 text-[#26A69A]" />
+                  <h4 className="text-xs font-bold text-[#131722] dark:text-[#F8FAFC] flex items-center gap-2">
+                    <Database className="w-4 h-4 text-[#089981] dark:text-[#26A69A]" />
                     <span>
                       {isAr ? 'سجل مفاتيح التفعيل المولدة' : 'Generated Activation Keys Registry'} (
                       {activationKeys.length})
@@ -4667,7 +4667,7 @@ export const AdminDashboard: React.FC<Props> = ({
                       value={keySearchQuery}
                       onChange={(e) => setKeySearchQuery(e.target.value)}
                       placeholder={isAr ? 'بحث بالكود أو البريد...' : 'Filter code or email...'}
-                      className="px-2.5 py-1 bg-[#1E222D] border border-[#2A2E39] rounded text-[11px] text-white font-mono"
+                      className="px-2.5 py-1 bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] rounded text-[11px] text-[#131722] dark:text-white font-mono"
                     />
                     <div className="flex items-center gap-1">
                       {(['ALL', 'active', 'used', 'revoked'] as const).map((statusTab) => (
@@ -4678,7 +4678,7 @@ export const AdminDashboard: React.FC<Props> = ({
                           className={`px-2 py-1 rounded text-[10px] font-bold uppercase cursor-pointer ${
                             keyStatusFilter === statusTab
                               ? 'bg-[#26A69A] text-white'
-                              : 'bg-[#1E222D] text-[#94A3B8]'
+                              : 'bg-[#F8F9FD] dark:bg-[#1E222D] text-[#4A5162] dark:text-[#94A3B8]'
                           }`}
                         >
                           {statusTab}
@@ -4693,7 +4693,7 @@ export const AdminDashboard: React.FC<Props> = ({
                           'mbk-active-keys'
                         )
                       }
-                      className="px-2.5 py-1 rounded bg-[#1E222D] border border-[#2A2E39] text-[#F0B90B] font-semibold text-[11px] flex items-center gap-1 cursor-pointer"
+                      className="px-2.5 py-1 rounded bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] text-[#9A6700] dark:text-[#F0B90B] font-semibold text-[11px] flex items-center gap-1 cursor-pointer"
                     >
                       <Download className="w-3 h-3" />
                       <span>{isAr ? 'تصدير CSV' : 'Export CSV'}</span>
@@ -4701,9 +4701,9 @@ export const AdminDashboard: React.FC<Props> = ({
                   </div>
                 </div>
 
-                <div className="overflow-x-auto max-h-[360px] overflow-y-auto border border-[#2A2E39] rounded-md bg-[#0B0E11]">
+                <div className="overflow-x-auto max-h-[360px] overflow-y-auto border border-[#E0E3EB] dark:border-[#2A2E39] rounded-md bg-[#F0F3FA] dark:bg-[#0B0E11]">
                   <table className="w-full text-start text-xs border-collapse">
-                    <thead className="sticky top-0 bg-[#131722] border-b border-[#2A2E39] text-[#64748B] font-mono text-[10px] uppercase">
+                    <thead className="sticky top-0 bg-[#FFFFFF] dark:bg-[#131722] border-b border-[#E0E3EB] dark:border-[#2A2E39] text-[#787B86] dark:text-[#64748B] font-mono text-[10px] uppercase">
                       <tr>
                         <th className="py-2 px-3 text-start">{isAr ? 'الكود' : 'Code'}</th>
                         <th className="py-2 px-3 text-start">{isAr ? 'النطاق' : 'Scope'}</th>
@@ -4713,7 +4713,7 @@ export const AdminDashboard: React.FC<Props> = ({
                         <th className="py-2 px-3 text-end">{isAr ? 'إجراء' : 'Actions'}</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#2A2E39]">
+                    <tbody className="divide-y divide-[#E0E3EB] dark:divide-[#2A2E39]">
                       {activationKeys
                         .filter((k) => {
                           if (keyStatusFilter !== 'ALL' && k.status !== keyStatusFilter)
@@ -4728,16 +4728,16 @@ export const AdminDashboard: React.FC<Props> = ({
                           return true;
                         })
                         .map((k) => (
-                          <tr key={k.id} className="hover:bg-[#1E222D]/60">
+                          <tr key={k.id} className="hover:bg-[#EDF1F7] dark:hover:bg-[#1E222D]/60">
                             <td className="py-2 px-3 font-mono font-bold">
                               <div className="flex items-center gap-1.5">
-                                <span className="text-[#F0B90B]">{k.code}</span>
+                                <span className="text-[#9A6700] dark:text-[#F0B90B]">{k.code}</span>
                                 <button
                                   onClick={() => handleCopyKey(k.code)}
-                                  className="p-1 rounded bg-[#1E222D] text-[#94A3B8] hover:text-white cursor-pointer"
+                                  className="p-1 rounded bg-[#F8F9FD] dark:bg-[#1E222D] text-[#4A5162] dark:text-[#94A3B8] hover:text-[#131722] dark:hover:text-white cursor-pointer"
                                 >
                                   {copiedKeyCode === k.code ? (
-                                    <Check className="w-3 h-3 text-[#26A69A]" />
+                                    <Check className="w-3 h-3 text-[#089981] dark:text-[#26A69A]" />
                                   ) : (
                                     <Copy className="w-3 h-3" />
                                   )}
@@ -4756,16 +4756,16 @@ export const AdminDashboard: React.FC<Props> = ({
                               <span
                                 className={`px-1.5 py-0.5 rounded ${
                                   k.status === 'active'
-                                    ? 'bg-[#26A69A]/15 text-[#26A69A]'
+                                    ? 'bg-[#E6F5F2] dark:bg-[#26A69A]/15 text-[#089981] dark:text-[#26A69A]'
                                     : k.status === 'used'
-                                    ? 'bg-[#1E222D] text-[#94A3B8]'
-                                    : 'bg-[#EF5350]/15 text-[#EF5350]'
+                                    ? 'bg-[#F8F9FD] dark:bg-[#1E222D] text-[#4A5162] dark:text-[#94A3B8]'
+                                    : 'bg-[#FDECEE] dark:bg-[#EF5350]/15 text-[#D93848] dark:text-[#EF5350]'
                                 }`}
                               >
                                 {k.status}
                               </span>
                             </td>
-                            <td className="py-2 px-3 font-mono text-[11px] text-[#94A3B8]">
+                            <td className="py-2 px-3 font-mono text-[11px] text-[#4A5162] dark:text-[#94A3B8]">
                               {k.usedByUserEmail || '—'}
                             </td>
                             <td className="py-2 px-3 text-end">
@@ -4773,14 +4773,14 @@ export const AdminDashboard: React.FC<Props> = ({
                                 {k.status === 'active' && (
                                   <button
                                     onClick={() => handleRevokeKey(k.code)}
-                                    className="px-2 py-0.5 rounded bg-[#F0B90B]/15 text-[#F0B90B] text-[10px] font-semibold cursor-pointer"
+                                    className="px-2 py-0.5 rounded bg-[#FDF6E3] dark:bg-[#F0B90B]/15 text-[#9A6700] dark:text-[#F0B90B] text-[10px] font-semibold cursor-pointer"
                                   >
                                     {isAr ? 'إلغاء' : 'Revoke'}
                                   </button>
                                 )}
                                 <button
                                   onClick={() => handleDeleteKey(k.code)}
-                                  className="p-1 rounded bg-[#EF5350]/15 text-[#EF5350] cursor-pointer"
+                                  className="p-1 rounded bg-[#FDECEE] dark:bg-[#EF5350]/15 text-[#D93848] dark:text-[#EF5350] cursor-pointer"
                                 >
                                   <Trash2 className="w-3 h-3" />
                                 </button>
@@ -4798,19 +4798,19 @@ export const AdminDashboard: React.FC<Props> = ({
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
                   <form
                     onSubmit={handleSavePlatformSettings}
-                    className="lg:col-span-7 p-4 sm:p-5 rounded-lg bg-[#131722] border border-[#2A2E39] space-y-4"
+                    className="lg:col-span-7 p-4 sm:p-5 rounded-lg bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] space-y-4"
                   >
-                    <div className="flex items-center justify-between border-b border-[#2A2E39] pb-3">
+                    <div className="flex items-center justify-between border-b border-[#E0E3EB] dark:border-[#2A2E39] pb-3">
                       <div className="flex items-center gap-2">
-                        <Settings className="w-4 h-4 text-[#26A69A]" />
-                        <h3 className="text-sm font-bold text-[#F8FAFC]">
+                        <Settings className="w-4 h-4 text-[#089981] dark:text-[#26A69A]" />
+                        <h3 className="text-sm font-bold text-[#131722] dark:text-[#F8FAFC]">
                           {isAr
                             ? 'إعدادات روابط الدعم والتواصل (settings/platform)'
                             : 'Platform Contact & Support Settings'}
                         </h3>
                       </div>
                       {settingsUpdatedAt && (
-                        <span className="text-[10px] font-mono text-[#64748B]">
+                        <span className="text-[10px] font-mono text-[#787B86] dark:text-[#64748B]">
                           {new Date(settingsUpdatedAt).toLocaleDateString()}
                         </span>
                       )}
@@ -4818,7 +4818,7 @@ export const AdminDashboard: React.FC<Props> = ({
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-[11px] font-semibold text-[#94A3B8] mb-1">
+                        <label className="block text-[11px] font-semibold text-[#4A5162] dark:text-[#94A3B8] mb-1">
                           {isAr ? 'رقم الواتساب الرسمي' : 'Official WhatsApp Number'}
                         </label>
                         <input
@@ -4827,14 +4827,14 @@ export const AdminDashboard: React.FC<Props> = ({
                           onChange={(e) => setSettingsWhatsapp(e.target.value)}
                           placeholder="+971501234567"
                           dir="ltr"
-                          className="w-full px-3 py-2 rounded-md bg-[#1E222D] border border-[#2A2E39] text-xs font-mono text-white"
+                          className="w-full px-3 py-2 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] text-xs font-mono text-[#131722] dark:text-white"
                         />
                         {buildWhatsAppUrl(settingsWhatsapp) && (
                           <a
                             href={buildWhatsAppUrl(settingsWhatsapp)}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-[10px] font-mono text-[#26A69A] mt-1 hover:underline"
+                            className="inline-flex items-center gap-1 text-[10px] font-mono text-[#089981] dark:text-[#26A69A] mt-1 hover:underline"
                           >
                             <ExternalLink className="w-2.5 h-2.5" />
                             <span>{buildWhatsAppUrl(settingsWhatsapp)}</span>
@@ -4843,7 +4843,7 @@ export const AdminDashboard: React.FC<Props> = ({
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-semibold text-[#94A3B8] mb-1">
+                        <label className="block text-[11px] font-semibold text-[#4A5162] dark:text-[#94A3B8] mb-1">
                           {isAr ? 'رابط أو معرف التيليجرام' : 'Telegram Channel / Support'}
                         </label>
                         <input
@@ -4852,14 +4852,14 @@ export const AdminDashboard: React.FC<Props> = ({
                           onChange={(e) => setSettingsTelegram(e.target.value)}
                           placeholder="https://t.me/your_channel"
                           dir="ltr"
-                          className="w-full px-3 py-2 rounded-md bg-[#1E222D] border border-[#2A2E39] text-xs font-mono text-white"
+                          className="w-full px-3 py-2 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] text-xs font-mono text-[#131722] dark:text-white"
                         />
                         {normalizeTelegramUrl(settingsTelegram) && (
                           <a
                             href={normalizeTelegramUrl(settingsTelegram)}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-[10px] font-mono text-[#38BDF8] mt-1 hover:underline"
+                            className="inline-flex items-center gap-1 text-[10px] font-mono text-[#1E53E5] dark:text-[#38BDF8] mt-1 hover:underline"
                           >
                             <ExternalLink className="w-2.5 h-2.5" />
                             <span>{formatTelegramHandle(settingsTelegram)}</span>
@@ -4869,7 +4869,7 @@ export const AdminDashboard: React.FC<Props> = ({
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-semibold text-[#94A3B8] mb-1">
+                      <label className="block text-[11px] font-semibold text-[#4A5162] dark:text-[#94A3B8] mb-1">
                         {isAr ? 'البريد الإلكتروني الرسمي للدعم' : 'Official Support Email'}
                       </label>
                       <input
@@ -4878,7 +4878,7 @@ export const AdminDashboard: React.FC<Props> = ({
                         onChange={(e) => setSettingsEmail(e.target.value)}
                         placeholder="support@mbktrading.live"
                         dir="ltr"
-                        className="w-full px-3 py-2 rounded-md bg-[#1E222D] border border-[#2A2E39] text-xs font-mono text-white"
+                        className="w-full px-3 py-2 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] text-xs font-mono text-[#131722] dark:text-white"
                       />
                     </div>
 
@@ -4896,8 +4896,8 @@ export const AdminDashboard: React.FC<Props> = ({
 
                   {/* Bot Webhook Maintenance Cards */}
                   <div className="lg:col-span-5 space-y-4">
-                    <div className="p-4 rounded-lg bg-[#131722] border border-[#2A2E39] space-y-2.5">
-                      <div className="flex items-center gap-2 text-[#26A69A] font-bold text-xs">
+                    <div className="p-4 rounded-lg bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] space-y-2.5">
+                      <div className="flex items-center gap-2 text-[#089981] dark:text-[#26A69A] font-bold text-xs">
                         <Radio className="w-4 h-4" />
                         <span>
                           {isAr
@@ -4905,7 +4905,7 @@ export const AdminDashboard: React.FC<Props> = ({
                             : 'Simulate Test Webhook Alert'}
                         </span>
                       </div>
-                      <p className="text-[11px] text-[#64748B]">
+                      <p className="text-[11px] text-[#787B86] dark:text-[#64748B]">
                         {isAr
                           ? 'إرسال تنبيه تداول تجريبي لاختبار الصوت والتنبيهات الفورية.'
                           : 'Trigger a test webhook trading alert to verify audio chimes and live bot feed.'}
@@ -4913,7 +4913,7 @@ export const AdminDashboard: React.FC<Props> = ({
                       <button
                         type="button"
                         onClick={handleSimulateBotAlert}
-                        className="px-3.5 py-2 rounded-md bg-[#1E222D] hover:bg-[#2A2E39] border border-[#2A2E39] text-[#26A69A] font-bold text-xs cursor-pointer flex items-center gap-1.5"
+                        className="px-3.5 py-2 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] border border-[#E0E3EB] dark:border-[#2A2E39] text-[#089981] dark:text-[#26A69A] font-bold text-xs cursor-pointer flex items-center gap-1.5"
                       >
                         <Radio className="w-3.5 h-3.5" />
                         <span>
@@ -4922,8 +4922,8 @@ export const AdminDashboard: React.FC<Props> = ({
                       </button>
                     </div>
 
-                    <div className="p-4 rounded-lg bg-[#131722] border border-[#EF5350]/30 space-y-2.5">
-                      <div className="flex items-center gap-2 text-[#EF5350] font-bold text-xs">
+                    <div className="p-4 rounded-lg bg-[#FFFFFF] dark:bg-[#131722] border border-[#F5C2C7] dark:border-[#EF5350]/30 space-y-2.5">
+                      <div className="flex items-center gap-2 text-[#D93848] dark:text-[#EF5350] font-bold text-xs">
                         <Trash2 className="w-4 h-4" />
                         <span>
                           {isAr
@@ -4931,7 +4931,7 @@ export const AdminDashboard: React.FC<Props> = ({
                             : 'Wipe All Bot Server Signals'}
                         </span>
                       </div>
-                      <p className="text-[11px] text-[#64748B]">
+                      <p className="text-[11px] text-[#787B86] dark:text-[#64748B]">
                         {isAr
                           ? 'حذف كافة تنبيهات Webhook المخزنة في مجموعة bot_alerts.'
                           : 'Permanently delete all stored TradingView webhook alerts in bot_alerts.'}
@@ -4958,7 +4958,7 @@ export const AdminDashboard: React.FC<Props> = ({
                           <button
                             type="button"
                             onClick={() => setConfirmWipeBots(false)}
-                            className="px-3 py-2 rounded-md bg-[#1E222D] text-white text-xs font-semibold cursor-pointer"
+                            className="px-3 py-2 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] text-[#131722] dark:text-white text-xs font-semibold cursor-pointer"
                           >
                             {isAr ? 'إلغاء' : 'Cancel'}
                           </button>
@@ -4970,18 +4970,18 @@ export const AdminDashboard: React.FC<Props> = ({
                   {/* Plan Pricing & MRR Config Card (settings/pricing — restricted to role === 'admin' || permissions.canManageSystem) */}
                   <form
                     onSubmit={handleSavePlanPricing}
-                    className="lg:col-span-12 p-4 sm:p-5 rounded-lg bg-[#131722] border border-[#2A2E39] space-y-4"
+                    className="lg:col-span-12 p-4 sm:p-5 rounded-lg bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] space-y-4"
                   >
-                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#2A2E39] pb-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E0E3EB] dark:border-[#2A2E39] pb-3">
                       <div className="flex items-center gap-2">
-                        <DollarSign className="w-4 h-4 text-[#26A69A]" />
+                        <DollarSign className="w-4 h-4 text-[#089981] dark:text-[#26A69A]" />
                         <div>
-                          <h3 className="text-sm font-bold text-[#F8FAFC]">
+                          <h3 className="text-sm font-bold text-[#131722] dark:text-[#F8FAFC]">
                             {isAr
                               ? 'إعدادات أسعار الباقات وحساب الإيراد الشهري (Plan Pricing & MRR Config)'
                               : 'Plan Pricing & MRR Config (settings/pricing)'}
                           </h3>
-                          <p className="text-[11px] text-[#64748B]">
+                          <p className="text-[11px] text-[#787B86] dark:text-[#64748B]">
                             {isAr
                               ? 'تُستخدم هذه الأسعار لحساب الإيراد الشهري المتوقع (MRR) وتوزيع الإيرادات في قسم الإحصائيات'
                               : 'Dynamically drives Estimated MRR and Chart 2 Revenue Breakdown in Overview & Analytics'}
@@ -4989,7 +4989,7 @@ export const AdminDashboard: React.FC<Props> = ({
                         </div>
                       </div>
                       {loadedPlanPricing.updatedAt && (
-                        <span className="text-[10px] font-mono text-[#64748B]">
+                        <span className="text-[10px] font-mono text-[#787B86] dark:text-[#64748B]">
                           {isAr ? 'آخر تحديث:' : 'Last Saved:'}{' '}
                           {new Date(loadedPlanPricing.updatedAt).toLocaleString()}
                         </span>
@@ -4998,13 +4998,13 @@ export const AdminDashboard: React.FC<Props> = ({
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 items-start">
                       <div>
-                        <label className="block text-[11px] font-semibold text-[#F0B90B] mb-1">
+                        <label className="block text-[11px] font-semibold text-[#9A6700] dark:text-[#F0B90B] mb-1">
                           {isAr
                             ? 'سعر باقة VIP / Pro الشهري (USD $/mo)'
                             : 'VIP / Pro Monthly Price (USD $/mo)'}
                         </label>
                         <div className="relative">
-                          <span className="absolute inset-y-0 start-0 ps-3 flex items-center text-xs font-mono text-[#94A3B8] pointer-events-none">
+                          <span className="absolute inset-y-0 start-0 ps-3 flex items-center text-xs font-mono text-[#4A5162] dark:text-[#94A3B8] pointer-events-none">
                             $
                           </span>
                           <input
@@ -5015,23 +5015,23 @@ export const AdminDashboard: React.FC<Props> = ({
                             value={pricingVipInput}
                             onChange={(e) => setPricingVipInput(e.target.value)}
                             dir="ltr"
-                            className="w-full ps-7 pe-3 py-2 rounded-md bg-[#1E222D] border border-[#2A2E39] text-xs font-mono tabular-nums text-white focus:outline-hidden focus:border-[#F0B90B]"
+                            className="w-full ps-7 pe-3 py-2 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] text-xs font-mono tabular-nums text-[#131722] dark:text-white focus:outline-hidden focus:border-[#F0B90B]"
                           />
                         </div>
-                        <span className="block text-[10px] font-mono text-[#64748B] mt-1">
+                        <span className="block text-[10px] font-mono text-[#787B86] dark:text-[#64748B] mt-1">
                           {isAr ? 'السعر المحفوظ حالياً:' : 'Saved rate:'} $
                           {loadedPlanPricing.vipMonthlyUsd}/mo
                         </span>
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-semibold text-[#26A69A] mb-1">
+                        <label className="block text-[11px] font-semibold text-[#089981] dark:text-[#26A69A] mb-1">
                           {isAr
                             ? 'سعر باقة Elite الشهري (USD $/mo)'
                             : 'Elite Monthly Price (USD $/mo)'}
                         </label>
                         <div className="relative">
-                          <span className="absolute inset-y-0 start-0 ps-3 flex items-center text-xs font-mono text-[#94A3B8] pointer-events-none">
+                          <span className="absolute inset-y-0 start-0 ps-3 flex items-center text-xs font-mono text-[#4A5162] dark:text-[#94A3B8] pointer-events-none">
                             $
                           </span>
                           <input
@@ -5042,16 +5042,16 @@ export const AdminDashboard: React.FC<Props> = ({
                             value={pricingEliteInput}
                             onChange={(e) => setPricingEliteInput(e.target.value)}
                             dir="ltr"
-                            className="w-full ps-7 pe-3 py-2 rounded-md bg-[#1E222D] border border-[#2A2E39] text-xs font-mono tabular-nums text-white focus:outline-hidden focus:border-[#26A69A]"
+                            className="w-full ps-7 pe-3 py-2 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] text-xs font-mono tabular-nums text-[#131722] dark:text-white focus:outline-hidden focus:border-[#1E53E5] dark:focus:border-[#26A69A]"
                           />
                         </div>
-                        <span className="block text-[10px] font-mono text-[#64748B] mt-1">
+                        <span className="block text-[10px] font-mono text-[#787B86] dark:text-[#64748B] mt-1">
                           {isAr ? 'السعر المحفوظ حالياً:' : 'Saved rate:'} $
                           {loadedPlanPricing.eliteMonthlyUsd}/mo
                         </span>
                       </div>
 
-                      <div className="p-3 rounded-md bg-[#0B0E11] border border-[#2A2E39] space-y-2">
+                      <div className="p-3 rounded-md bg-[#F0F3FA] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39] space-y-2">
                         <label className="flex items-start gap-2.5 cursor-pointer select-none">
                           <input
                             type="checkbox"
@@ -5060,15 +5060,15 @@ export const AdminDashboard: React.FC<Props> = ({
                               soundManager.playClick();
                               setPricingSyncPublic(e.target.checked);
                             }}
-                            className="mt-0.5 rounded border-[#2A2E39] bg-[#1E222D] text-[#26A69A] focus:ring-0 cursor-pointer"
+                            className="mt-0.5 rounded border-[#E0E3EB] dark:border-[#2A2E39] bg-[#F8F9FD] dark:bg-[#1E222D] text-[#089981] dark:text-[#26A69A] focus:ring-0 cursor-pointer"
                           />
                           <div className="text-xs">
-                            <div className="font-semibold text-[#E2E8F0]">
+                            <div className="font-semibold text-[#131722] dark:text-[#E2E8F0]">
                               {isAr
                                 ? 'مزامنة الأسعار مع نافذة الترقية والباقات العامة'
                                 : 'Sync prices to public Upgrade/Plans modal'}
                             </div>
-                            <div className="text-[10px] text-[#64748B] mt-0.5">
+                            <div className="text-[10px] text-[#787B86] dark:text-[#64748B] mt-0.5">
                               {isAr
                                 ? 'افتراضياً (OFF): تبقى واجهة المستخدم العامة بدون تغيير ما لم يتم تفعيله'
                                 : 'Default OFF: keeps public pricing modal untouched unless enabled'}
@@ -5079,13 +5079,13 @@ export const AdminDashboard: React.FC<Props> = ({
                     </div>
 
                     <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                      <div className="text-[11px] font-mono tabular-nums text-[#94A3B8]">
+                      <div className="text-[11px] font-mono tabular-nums text-[#4A5162] dark:text-[#94A3B8]">
                         {isAr ? 'معاينة الأسعار في التقارير:' : 'Analytics MRR Formula:'}{' '}
-                        <span className="text-[#F0B90B]">
+                        <span className="text-[#9A6700] dark:text-[#F0B90B]">
                           VIP (${Number(pricingVipInput) || 0}/mo)
                         </span>{' '}
                         +{' '}
-                        <span className="text-[#26A69A]">
+                        <span className="text-[#089981] dark:text-[#26A69A]">
                           ELITE (${Number(pricingEliteInput) || 0}/mo)
                         </span>
                       </div>
@@ -5111,27 +5111,27 @@ export const AdminDashboard: React.FC<Props> = ({
       {/* USER CONTROL DRAWER / MODAL (SUBSCRIPTIONS, QUICK-EXTEND, NOTES, ACCOUNT) */}
       {/* ========================================================================= */}
       {inspectUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/75 backdrop-blur-xs animate-fade-in select-none">
+        <div className="fixed inset-0 z-50 flex items-center justify-end bg-[#131722]/45 dark:bg-black/75 dark:backdrop-blur-xs animate-fade-in select-none">
           <div
-            className="bg-[#131722] border-s border-[#2A2E39] w-full max-w-2xl h-full overflow-hidden shadow-2xl flex flex-col"
+            className="bg-[#FFFFFF] dark:bg-[#131722] border-s border-[#E0E3EB] dark:border-[#2A2E39] w-full max-w-2xl h-full overflow-hidden shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl flex flex-col"
             dir={isAr ? 'rtl' : 'ltr'}
           >
             {/* Drawer Header */}
-            <div className="px-5 py-3.5 bg-[#0B0E11] border-b border-[#2A2E39] flex items-center justify-between shrink-0">
+            <div className="px-5 py-3.5 bg-[#F0F3FA] dark:bg-[#0B0E11] border-b border-[#E0E3EB] dark:border-[#2A2E39] flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-9 h-9 rounded-md bg-[#1E222D] border border-[#2A2E39] text-[#26A69A] flex items-center justify-center font-mono font-bold text-sm shrink-0">
+                <div className="w-9 h-9 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] text-[#089981] dark:text-[#26A69A] flex items-center justify-center font-mono font-bold text-sm shrink-0">
                   {inspectUser.displayName ? inspectUser.displayName[0].toUpperCase() : 'U'}
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-bold text-[#F8FAFC] truncate">
+                    <h3 className="text-sm font-bold text-[#131722] dark:text-[#F8FAFC] truncate">
                       {inspectUser.displayName}
                     </h3>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#1E222D] text-[#F0B90B] border border-[#2A2E39] uppercase">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#F8F9FD] dark:bg-[#1E222D] text-[#9A6700] dark:text-[#F0B90B] border border-[#E0E3EB] dark:border-[#2A2E39] uppercase">
                       {getEffectiveTier(inspectUser)}
                     </span>
                   </div>
-                  <p className="text-[10px] text-[#64748B] font-mono truncate">
+                  <p className="text-[10px] text-[#787B86] dark:text-[#64748B] font-mono truncate">
                     {inspectUser.email} • UID: {inspectUser.id}
                   </p>
                 </div>
@@ -5139,7 +5139,7 @@ export const AdminDashboard: React.FC<Props> = ({
 
               <button
                 onClick={() => setInspectUser(null)}
-                className="p-1.5 rounded-md bg-[#1E222D] hover:bg-[#2A2E39] text-[#94A3B8] hover:text-white cursor-pointer"
+                className="p-1.5 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] text-[#4A5162] dark:text-[#94A3B8] hover:text-[#131722] dark:hover:text-white cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -5148,13 +5148,13 @@ export const AdminDashboard: React.FC<Props> = ({
             {/* Drawer Scrollable Body */}
             <div className="p-5 overflow-y-auto space-y-4 flex-1">
               {/* Status Indicators & Quick Account Actions Bar */}
-              <div className="p-3.5 rounded-lg bg-[#0B0E11] border border-[#2A2E39] space-y-3">
+              <div className="p-3.5 rounded-lg bg-[#F0F3FA] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39] space-y-3">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
                   <div>
-                    <span className="text-[#64748B] text-[10px] block">
+                    <span className="text-[#787B86] dark:text-[#64748B] text-[10px] block">
                       {isAr ? 'رقم الهاتف' : 'Phone Number'}
                     </span>
-                    <div className="flex items-center gap-1.5 font-mono font-semibold text-[#F8FAFC]">
+                    <div className="flex items-center gap-1.5 font-mono font-semibold text-[#131722] dark:text-[#F8FAFC]">
                       <span className="truncate">{inspectUser.phone || '—'}</span>
                       {inspectUser.phone && (
                         <button
@@ -5167,7 +5167,7 @@ export const AdminDashboard: React.FC<Props> = ({
                               isAr ? 'تم نسخ رقم الهاتف' : 'Copied phone number'
                             );
                           }}
-                          className="p-1 rounded bg-[#1E222D] hover:bg-[#2A2E39] text-[#94A3B8] hover:text-white cursor-pointer"
+                          className="p-1 rounded bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] text-[#4A5162] dark:text-[#94A3B8] hover:text-[#131722] dark:hover:text-white cursor-pointer"
                           title={isAr ? 'نسخ الرقم' : 'Copy Phone'}
                         >
                           <Copy className="w-3 h-3" />
@@ -5177,14 +5177,14 @@ export const AdminDashboard: React.FC<Props> = ({
                   </div>
 
                   <div>
-                    <span className="text-[#64748B] text-[10px] block">
+                    <span className="text-[#787B86] dark:text-[#64748B] text-[10px] block">
                       {isAr ? 'إشعارات Web Push' : 'Push Notifications'}
                     </span>
                     <span
                       className={`font-mono font-bold text-xs inline-flex items-center gap-1 ${
                         pushActiveUids.has(inspectUser.id)
-                          ? 'text-[#26A69A]'
-                          : 'text-[#64748B]'
+                          ? 'text-[#089981] dark:text-[#26A69A]'
+                          : 'text-[#787B86] dark:text-[#64748B]'
                       }`}
                     >
                       {pushActiveUids.has(inspectUser.id) ? (
@@ -5202,10 +5202,10 @@ export const AdminDashboard: React.FC<Props> = ({
                   </div>
 
                   <div>
-                    <span className="text-[#64748B] text-[10px] block">
+                    <span className="text-[#787B86] dark:text-[#64748B] text-[10px] block">
                       {isAr ? 'تاريخ الانضمام' : 'Join Date'}
                     </span>
-                    <span className="font-mono font-semibold text-[#E2E8F0] tabular-nums">
+                    <span className="font-mono font-semibold text-[#131722] dark:text-[#E2E8F0] tabular-nums">
                       {formatDateTimeCompact(
                         inspectUser.createdAtMs,
                         inspectUser.createdAt,
@@ -5215,10 +5215,10 @@ export const AdminDashboard: React.FC<Props> = ({
                   </div>
 
                   <div>
-                    <span className="text-[#64748B] text-[10px] block">
+                    <span className="text-[#787B86] dark:text-[#64748B] text-[10px] block">
                       {isAr ? 'آخر ظهور / نشاط' : 'Last Seen'}
                     </span>
-                    <span className="font-mono font-semibold text-[#E2E8F0] tabular-nums">
+                    <span className="font-mono font-semibold text-[#131722] dark:text-[#E2E8F0] tabular-nums">
                       {inspectUser.lastActiveAt ||
                         formatDateTimeCompact(inspectUser.lastActiveAtMs, 'Active', isAr)}
                     </span>
@@ -5226,7 +5226,7 @@ export const AdminDashboard: React.FC<Props> = ({
                 </div>
 
                 {/* Quick Action Buttons: Jump to DM, Mute in Chat, Suspend/Ban, Copy Phone */}
-                <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[#2A2E39]">
+                <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[#E0E3EB] dark:border-[#2A2E39]">
                   {onStartDirectMessage && inspectUser.uid !== auth.currentUser?.uid && (
                     <button
                       type="button"
@@ -5256,7 +5256,7 @@ export const AdminDashboard: React.FC<Props> = ({
                     className={`px-3 py-1.5 rounded-md border text-xs font-semibold flex items-center gap-1.5 cursor-pointer ${
                       inspectUser.isMutedFromChat
                         ? 'bg-[#F0B90B] text-black border-[#F0B90B]'
-                        : 'bg-[#1E222D] text-[#E2E8F0] border-[#2A2E39] hover:bg-[#2A2E39]'
+                        : 'bg-[#F8F9FD] dark:bg-[#1E222D] text-[#131722] dark:text-[#E2E8F0] border-[#E0E3EB] dark:border-[#2A2E39] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39]'
                     }`}
                   >
                     <VolumeX className="w-3.5 h-3.5" />
@@ -5277,7 +5277,7 @@ export const AdminDashboard: React.FC<Props> = ({
                     className={`px-3 py-1.5 rounded-md border text-xs font-semibold flex items-center gap-1.5 cursor-pointer ${
                       inspectUser.isBanned
                         ? 'bg-[#EF5350] text-white border-[#EF5350]'
-                        : 'bg-[#1E222D] text-[#EF5350] border-[#EF5350]/40 hover:bg-[#EF5350]/15'
+                        : 'bg-[#F8F9FD] dark:bg-[#1E222D] text-[#D93848] dark:text-[#EF5350] border-[#F5C2C7] dark:border-[#EF5350]/40 hover:bg-[#EF5350]/15'
                     }`}
                   >
                     <Ban className="w-3.5 h-3.5" />
@@ -5295,17 +5295,17 @@ export const AdminDashboard: React.FC<Props> = ({
               </div>
 
               {/* 1-CLICK QUICK EXTEND & SUBSCRIPTION PLAN CONTROL */}
-              <div className="p-4 rounded-lg bg-[#0B0E11] border border-[#2A2E39] space-y-3">
+              <div className="p-4 rounded-lg bg-[#F0F3FA] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39] space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-xs font-bold text-[#F8FAFC] flex items-center gap-2">
-                    <Crown className="w-4 h-4 text-[#F0B90B]" />
+                  <span className="text-xs font-bold text-[#131722] dark:text-[#F8FAFC] flex items-center gap-2">
+                    <Crown className="w-4 h-4 text-[#9A6700] dark:text-[#F0B90B]" />
                     <span>
                       {isAr
                         ? 'إدارة الباقة وتاريخ انتهاء الاشتراك'
                         : 'Subscription Plan & Expiry Control'}
                     </span>
                   </span>
-                  <span className="text-[11px] font-mono text-[#26A69A]">
+                  <span className="text-[11px] font-mono text-[#089981] dark:text-[#26A69A]">
                     {inspectUser.subscriptionEndDate
                       ? `${isAr ? 'ينتهي:' : 'Expires:'} ${formatExpiryShort(
                           inspectUser.subscriptionEndDate,
@@ -5319,7 +5319,7 @@ export const AdminDashboard: React.FC<Props> = ({
 
                 {/* 1-Click Quick-Extend Buttons (+7d, +30d, +90d, +1 Year, Revoke/Expire Now) */}
                 <div className="space-y-1.5">
-                  <span className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider block">
+                  <span className="text-[10px] font-semibold text-[#4A5162] dark:text-[#94A3B8] uppercase tracking-wider block">
                     {isAr
                       ? 'تمديد سريع بضغطة واحدة (Quick-Extend)'
                       : '1-Click Quick Extend / Revoke'}
@@ -5336,7 +5336,7 @@ export const AdminDashboard: React.FC<Props> = ({
                         type="button"
                         disabled={isUpdatingTier}
                         onClick={() => handleQuickExtendSubscription(btn.days)}
-                        className="px-3 py-1.5 rounded-md bg-[#1E222D] hover:bg-[#26A69A] text-[#E2E8F0] hover:text-white border border-[#2A2E39] font-mono font-bold text-xs transition-colors cursor-pointer disabled:opacity-50"
+                        className="px-3 py-1.5 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#26A69A] text-[#131722] dark:text-[#E2E8F0] hover:text-white border border-[#E0E3EB] dark:border-[#2A2E39] font-mono font-bold text-xs transition-colors cursor-pointer disabled:opacity-50"
                       >
                         {isAr ? btn.labelAr : btn.labelEn}
                       </button>
@@ -5345,7 +5345,7 @@ export const AdminDashboard: React.FC<Props> = ({
                       type="button"
                       disabled={isUpdatingTier}
                       onClick={handleRevokeDirectTier}
-                      className="px-3 py-1.5 rounded-md bg-[#EF5350]/15 hover:bg-[#EF5350] text-[#EF5350] hover:text-white border border-[#EF5350]/40 font-bold text-xs transition-colors cursor-pointer disabled:opacity-50 ms-auto"
+                      className="px-3 py-1.5 rounded-md bg-[#FDECEE] dark:bg-[#EF5350]/15 hover:bg-[#EF5350] text-[#D93848] dark:text-[#EF5350] hover:text-white border border-[#F5C2C7] dark:border-[#EF5350]/40 font-bold text-xs transition-colors cursor-pointer disabled:opacity-50 ms-auto"
                     >
                       {isAr ? 'إلغاء / إنهاء الآن (Free)' : 'Revoke / Expire Now'}
                     </button>
@@ -5353,7 +5353,7 @@ export const AdminDashboard: React.FC<Props> = ({
                 </div>
 
                 {/* Custom Tier & Exact Date Picker */}
-                <div className="pt-2 border-t border-[#2A2E39] space-y-2.5">
+                <div className="pt-2 border-t border-[#E0E3EB] dark:border-[#2A2E39] space-y-2.5">
                   <div className="grid grid-cols-3 gap-2">
                     {(['FREE', 'VIP', 'ELITE'] as const).map((planOpt) => {
                       const effTier = getEffectiveTier(inspectUser);
@@ -5374,7 +5374,7 @@ export const AdminDashboard: React.FC<Props> = ({
                               directTierTarget === planOpt.toLowerCase()) ||
                             (planOpt === 'FREE' && isCurrent)
                               ? 'bg-[#F0B90B] text-black border-[#F0B90B]'
-                              : 'bg-[#1E222D] text-[#E2E8F0] border-[#2A2E39]'
+                              : 'bg-[#F8F9FD] dark:bg-[#1E222D] text-[#131722] dark:text-[#E2E8F0] border-[#E0E3EB] dark:border-[#2A2E39]'
                           }`}
                         >
                           {planOpt}
@@ -5390,7 +5390,7 @@ export const AdminDashboard: React.FC<Props> = ({
                       className={`px-2.5 py-1.5 rounded text-[11px] font-semibold border cursor-pointer ${
                         directTierMode === 'days'
                           ? 'bg-[#26A69A] text-white border-[#26A69A]'
-                          : 'bg-[#1E222D] text-[#94A3B8] border-[#2A2E39]'
+                          : 'bg-[#F8F9FD] dark:bg-[#1E222D] text-[#4A5162] dark:text-[#94A3B8] border-[#E0E3EB] dark:border-[#2A2E39]'
                       }`}
                     >
                       {isAr ? 'بالأيام' : 'By Days'}
@@ -5401,7 +5401,7 @@ export const AdminDashboard: React.FC<Props> = ({
                       className={`px-2.5 py-1.5 rounded text-[11px] font-semibold border cursor-pointer ${
                         directTierMode === 'date'
                           ? 'bg-[#26A69A] text-white border-[#26A69A]'
-                          : 'bg-[#1E222D] text-[#94A3B8] border-[#2A2E39]'
+                          : 'bg-[#F8F9FD] dark:bg-[#1E222D] text-[#4A5162] dark:text-[#94A3B8] border-[#E0E3EB] dark:border-[#2A2E39]'
                       }`}
                     >
                       {isAr ? 'تاريخ محدد' : 'Exact Expiry Date'}
@@ -5416,14 +5416,14 @@ export const AdminDashboard: React.FC<Props> = ({
                         onChange={(e) =>
                           setDirectTierDays(Math.max(1, Number(e.target.value) || 1))
                         }
-                        className="w-24 px-2.5 py-1.5 bg-[#1E222D] border border-[#2A2E39] rounded text-xs text-white font-mono"
+                        className="w-24 px-2.5 py-1.5 bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] rounded text-xs text-[#131722] dark:text-white font-mono"
                       />
                     ) : (
                       <input
                         type="date"
                         value={directTierCustomDate}
                         onChange={(e) => setDirectTierCustomDate(e.target.value)}
-                        className="flex-1 px-3 py-1.5 bg-[#1E222D] border border-[#2A2E39] rounded text-xs text-white font-mono"
+                        className="flex-1 px-3 py-1.5 bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] rounded text-xs text-[#131722] dark:text-white font-mono"
                       />
                     )}
 
@@ -5442,17 +5442,17 @@ export const AdminDashboard: React.FC<Props> = ({
               </div>
 
               {/* INTERNAL STAFF NOTES (Private to Staff, Never Visible to User) */}
-              <div className="p-4 rounded-lg bg-[#0B0E11] border border-[#2A2E39] space-y-3">
+              <div className="p-4 rounded-lg bg-[#F0F3FA] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39] space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-[#F8FAFC] flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-[#F0B90B]" />
+                  <span className="text-xs font-bold text-[#131722] dark:text-[#F8FAFC] flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-[#9A6700] dark:text-[#F0B90B]" />
                     <span>
                       {isAr
                         ? 'ملاحظات الفريق الداخلية (خاصة بالإدارة فقط)'
                         : 'Internal Staff Notes (Staff-Only • Private)'}
                     </span>
                   </span>
-                  <span className="text-[10px] font-mono text-[#64748B]">
+                  <span className="text-[10px] font-mono text-[#787B86] dark:text-[#64748B]">
                     {(inspectUser.adminNotes || []).length} {isAr ? 'ملاحظة' : 'Notes'}
                   </span>
                 </div>
@@ -5467,7 +5467,7 @@ export const AdminDashboard: React.FC<Props> = ({
                         ? 'أضف ملاحظة خاصة حول الاشتراك، الدفع، أو المتابعة...'
                         : 'Add private staff note (payment reference, follow-up, support context)...'
                     }
-                    className="flex-1 px-3 py-2 bg-[#1E222D] border border-[#2A2E39] focus:border-[#26A69A] rounded-md text-xs text-white placeholder-[#64748B] focus:outline-hidden"
+                    className="flex-1 px-3 py-2 bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] focus:border-[#1E53E5] dark:focus:border-[#26A69A] rounded-md text-xs text-[#131722] dark:text-white placeholder-[#787B86] dark:placeholder-[#64748B] focus:outline-hidden"
                   />
                   <button
                     type="submit"
@@ -5483,20 +5483,20 @@ export const AdminDashboard: React.FC<Props> = ({
                     {(inspectUser.adminNotes || []).map((note) => (
                       <div
                         key={note.id}
-                        className="p-2.5 rounded-md bg-[#131722] border border-[#2A2E39] flex items-start justify-between gap-2"
+                        className="p-2.5 rounded-md bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] flex items-start justify-between gap-2"
                       >
                         <div className="space-y-1 min-w-0">
-                          <p className="text-xs text-[#E2E8F0] leading-relaxed break-words">
+                          <p className="text-xs text-[#131722] dark:text-[#E2E8F0] leading-relaxed break-words">
                             {note.text}
                           </p>
-                          <div className="text-[10px] font-mono text-[#64748B]">
+                          <div className="text-[10px] font-mono text-[#787B86] dark:text-[#64748B]">
                             {note.authorName} • {new Date(note.createdAt).toLocaleString()}
                           </div>
                         </div>
                         <button
                           type="button"
                           onClick={() => handleDeleteStaffNote(note.id)}
-                          className="p-1 rounded hover:bg-[#1E222D] text-[#64748B] hover:text-[#EF5350] cursor-pointer shrink-0"
+                          className="p-1 rounded hover:bg-[#EDF1F7] dark:hover:bg-[#1E222D] text-[#787B86] dark:text-[#64748B] hover:text-[#EF5350] cursor-pointer shrink-0"
                           title={isAr ? 'حذف الملاحظة' : 'Delete note'}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -5508,9 +5508,9 @@ export const AdminDashboard: React.FC<Props> = ({
               </div>
 
               {/* Individual Feature Grants */}
-              <div className="p-4 rounded-lg bg-[#0B0E11] border border-[#2A2E39] space-y-3">
-                <span className="text-xs font-bold text-[#F8FAFC] flex items-center gap-2">
-                  <Sliders className="w-4 h-4 text-[#26A69A]" />
+              <div className="p-4 rounded-lg bg-[#F0F3FA] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39] space-y-3">
+                <span className="text-xs font-bold text-[#131722] dark:text-[#F8FAFC] flex items-center gap-2">
+                  <Sliders className="w-4 h-4 text-[#089981] dark:text-[#26A69A]" />
                   <span>
                     {isAr
                       ? 'صلاحيات الميزات الفردية المؤقتة (Feature Grants)'
@@ -5528,20 +5528,20 @@ export const AdminDashboard: React.FC<Props> = ({
                     return (
                       <div
                         key={feat.key}
-                        className="p-2.5 rounded-md bg-[#131722] border border-[#2A2E39] flex flex-wrap items-center justify-between gap-2"
+                        className="p-2.5 rounded-md bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] flex flex-wrap items-center justify-between gap-2"
                       >
                         <div>
-                          <div className="text-xs font-semibold text-[#F8FAFC]">
+                          <div className="text-xs font-semibold text-[#131722] dark:text-[#F8FAFC]">
                             {isAr ? feat.labelAr : feat.labelEn}
                           </div>
                           <div className="text-[10px] font-mono">
                             {isGrantActive ? (
-                              <span className="text-[#26A69A]">
+                              <span className="text-[#089981] dark:text-[#26A69A]">
                                 {isAr ? 'مفعّلة حتى: ' : 'Active until: '}
                                 {formatExpiryShort(currentExpiry, isAr)}
                               </span>
                             ) : (
-                              <span className="text-[#64748B]">
+                              <span className="text-[#787B86] dark:text-[#64748B]">
                                 {isAr ? 'غير مفعّلة فردياً' : 'No individual grant'}
                               </span>
                             )}
@@ -5560,7 +5560,7 @@ export const AdminDashboard: React.FC<Props> = ({
                                 [feat.key]: Math.max(1, Number(e.target.value) || 1)
                               }))
                             }
-                            className="w-14 px-2 py-1 bg-[#1E222D] border border-[#2A2E39] rounded text-[11px] text-white font-mono"
+                            className="w-14 px-2 py-1 bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] rounded text-[11px] text-[#131722] dark:text-white font-mono"
                           />
                           <input
                             type="date"
@@ -5571,7 +5571,7 @@ export const AdminDashboard: React.FC<Props> = ({
                                 [feat.key]: e.target.value
                               }))
                             }
-                            className="px-2 py-1 bg-[#1E222D] border border-[#2A2E39] rounded text-[10px] text-white font-mono"
+                            className="px-2 py-1 bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] rounded text-[10px] text-[#131722] dark:text-white font-mono"
                           />
                           <button
                             type="button"
@@ -5586,7 +5586,7 @@ export const AdminDashboard: React.FC<Props> = ({
                               type="button"
                               disabled={isBusy}
                               onClick={() => handleRevokeIndividualFeature(feat.key)}
-                              className="px-2 py-1 rounded bg-[#EF5350]/15 text-[#EF5350] border border-[#EF5350]/30 font-bold text-[11px] cursor-pointer"
+                              className="px-2 py-1 rounded bg-[#FDECEE] dark:bg-[#EF5350]/15 text-[#D93848] dark:text-[#EF5350] border border-[#F5C2C7] dark:border-[#EF5350]/30 font-bold text-[11px] cursor-pointer"
                             >
                               {isAr ? 'سحب' : 'Revoke'}
                             </button>
@@ -5601,10 +5601,10 @@ export const AdminDashboard: React.FC<Props> = ({
               {/* Manual Payment Logger */}
               <form
                 onSubmit={handleLogManualPayment}
-                className="p-4 rounded-lg bg-[#0B0E11] border border-[#2A2E39] space-y-3"
+                className="p-4 rounded-lg bg-[#F0F3FA] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39] space-y-3"
               >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-[#26A69A] font-bold text-xs">
+                  <div className="flex items-center gap-2 text-[#089981] dark:text-[#26A69A] font-bold text-xs">
                     <DollarSign className="w-4 h-4" />
                     <span>
                       {isAr
@@ -5612,7 +5612,7 @@ export const AdminDashboard: React.FC<Props> = ({
                         : 'Log Manual Payment & Extend Subscription'}
                     </span>
                   </div>
-                  <span className="text-xs font-mono font-bold text-[#26A69A]">
+                  <span className="text-xs font-mono font-bold text-[#089981] dark:text-[#26A69A]">
                     {isAr ? 'إجمالي المدفوع:' : 'Lifetime Paid:'} $
                     {(inspectUser.totalPaid || 0).toLocaleString()}
                   </span>
@@ -5620,7 +5620,7 @@ export const AdminDashboard: React.FC<Props> = ({
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] text-[#94A3B8] font-semibold mb-1">
+                    <label className="block text-[10px] text-[#4A5162] dark:text-[#94A3B8] font-semibold mb-1">
                       {isAr ? 'المبلغ المستلم ($)' : 'Amount Paid ($)'}
                     </label>
                     <input
@@ -5628,19 +5628,19 @@ export const AdminDashboard: React.FC<Props> = ({
                       value={paymentAmountInput}
                       onChange={(e) => setPaymentAmountInput(e.target.value)}
                       placeholder="100"
-                      className="w-full px-3 py-1.5 bg-[#1E222D] border border-[#2A2E39] rounded-md text-xs text-white font-mono"
+                      className="w-full px-3 py-1.5 bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] rounded-md text-xs text-[#131722] dark:text-white font-mono"
                       required
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[10px] text-[#94A3B8] font-semibold mb-1">
+                    <label className="block text-[10px] text-[#4A5162] dark:text-[#94A3B8] font-semibold mb-1">
                       {isAr ? 'مدة التمديد' : 'Extension Duration'}
                     </label>
                     <select
                       value={paymentDurationInput}
                       onChange={(e) => setPaymentDurationInput(e.target.value as any)}
-                      className="w-full px-3 py-1.5 bg-[#1E222D] border border-[#2A2E39] rounded-md text-xs text-white font-mono cursor-pointer"
+                      className="w-full px-3 py-1.5 bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] rounded-md text-xs text-[#131722] dark:text-white font-mono cursor-pointer"
                     >
                       <option value="30">{isAr ? '+30 يوم' : '+30 Days'}</option>
                       <option value="90">{isAr ? '+90 يوم' : '+90 Days'}</option>
@@ -5665,7 +5665,7 @@ export const AdminDashboard: React.FC<Props> = ({
             </div>
 
             {/* Drawer Footer */}
-            <div className="px-5 py-3 bg-[#0B0E11] border-t border-[#2A2E39] flex items-center justify-between shrink-0">
+            <div className="px-5 py-3 bg-[#F0F3FA] dark:bg-[#0B0E11] border-t border-[#E0E3EB] dark:border-[#2A2E39] flex items-center justify-between shrink-0">
               {isFullAdmin && (
                 <button
                   type="button"
@@ -5675,7 +5675,7 @@ export const AdminDashboard: React.FC<Props> = ({
                     setActiveSection('team');
                     handleSelectUserForRbac(target);
                   }}
-                  className="px-3 py-1.5 rounded-md bg-[#1E222D] hover:bg-[#2A2E39] border border-[#2A2E39] text-[#26A69A] text-xs font-semibold cursor-pointer flex items-center gap-1.5"
+                  className="px-3 py-1.5 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] border border-[#E0E3EB] dark:border-[#2A2E39] text-[#089981] dark:text-[#26A69A] text-xs font-semibold cursor-pointer flex items-center gap-1.5"
                 >
                   <UserCog className="w-3.5 h-3.5" />
                   <span>
@@ -5685,7 +5685,7 @@ export const AdminDashboard: React.FC<Props> = ({
               )}
               <button
                 onClick={() => setInspectUser(null)}
-                className="px-4 py-1.5 rounded-md bg-[#1E222D] hover:bg-[#2A2E39] text-white text-xs font-semibold cursor-pointer ms-auto"
+                className="px-4 py-1.5 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] text-[#131722] dark:text-white text-xs font-semibold cursor-pointer ms-auto"
               >
                 {isAr ? 'إغلاق' : 'Close'}
               </button>

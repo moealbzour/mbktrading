@@ -145,13 +145,13 @@ export const NotificationPermissionPrompt: React.FC<Props> = ({ lang = 'ar' }) =
       className="fixed bottom-3 sm:bottom-5 start-3 end-3 sm:start-5 sm:end-auto sm:max-w-md z-[65] animate-fade-in"
       dir={isAr ? 'rtl' : 'ltr'}
     >
-      <div className="bg-[#1e222d]/98 backdrop-blur-xl border border-amber-500/50 rounded-2xl p-4 shadow-[0_14px_45px_rgba(0,0,0,0.8)] text-[#d1d4dc]">
+      <div className="bg-[#FFFFFF] dark:bg-[#1e222d]/98 dark:backdrop-blur-xl border border-[#EFE0B4] dark:border-amber-500/50 rounded-2xl p-4 shadow-[0_4px_16px_rgba(19,23,34,0.08)] dark:shadow-[0_14px_45px_rgba(0,0,0,0.8)] text-[#131722] dark:text-[#d1d4dc]">
         <div className="flex items-start gap-3">
           <div
             className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
               justGranted
-                ? 'bg-[#089981]/20 border-[#089981]/50 text-[#089981]'
-                : 'bg-amber-500/15 border-amber-500/40 text-amber-400'
+                ? 'bg-[#E6F5F2] dark:bg-[#089981]/20 border-[#B3E2D9] dark:border-[#089981]/50 text-[#089981]'
+                : 'bg-[#FDF6E3] dark:bg-amber-500/15 border-[#EFE0B4] dark:border-amber-500/40 text-[#9A6700] dark:text-amber-400'
             }`}
           >
             {justGranted ? (
@@ -163,7 +163,7 @@ export const NotificationPermissionPrompt: React.FC<Props> = ({ lang = 'ar' }) =
 
           <div className="flex-1 min-w-0 space-y-1.5">
             <div className="flex items-center justify-between gap-2">
-              <h4 className="text-xs sm:text-sm font-black text-white">
+              <h4 className="text-xs sm:text-sm font-black text-[#131722] dark:text-white">
                 {justGranted
                   ? isAr
                     ? 'تم تفعيل الإشعارات بنجاح!'
@@ -188,7 +188,7 @@ export const NotificationPermissionPrompt: React.FC<Props> = ({ lang = 'ar' }) =
                     soundManager.playClick();
                     setDismissedThisVisit(true);
                   }}
-                  className="p-1 rounded-lg text-[#787b86] hover:text-white hover:bg-[#2a2e39] transition-colors cursor-pointer shrink-0"
+                  className="p-1 rounded-lg text-[#787b86] hover:text-[#131722] dark:hover:text-white hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] transition-colors cursor-pointer shrink-0"
                   title={isAr ? 'تذكيري في الزيارة القادمة' : 'Remind me next visit'}
                   aria-label="Close"
                 >
@@ -197,7 +197,7 @@ export const NotificationPermissionPrompt: React.FC<Props> = ({ lang = 'ar' }) =
               )}
             </div>
 
-            <p className="text-[11px] text-[#9db2c6] leading-relaxed">
+            <p className="text-[11px] text-[#4A5162] dark:text-[#9db2c6] leading-relaxed">
               {justGranted
                 ? isAr
                   ? 'ستصلك تنبيهات الصفقات، الشات العام والرسائل الخاصة مع الصوت مباشرة.'
@@ -216,7 +216,7 @@ export const NotificationPermissionPrompt: React.FC<Props> = ({ lang = 'ar' }) =
             </p>
 
             {statusFeedback && (
-              <div className="p-2 rounded-xl bg-[#131722] border border-amber-500/30 text-[11px] text-amber-300 leading-relaxed">
+              <div className="p-2 rounded-xl bg-[#FFFFFF] dark:bg-[#131722] border border-[#EFE0B4] dark:border-amber-500/30 text-[11px] text-[#9A6700] dark:text-amber-300 leading-relaxed">
                 {statusFeedback}
               </div>
             )}
@@ -275,7 +275,7 @@ export const NotificationPermissionPrompt: React.FC<Props> = ({ lang = 'ar' }) =
                     soundManager.playClick();
                     setDismissedThisVisit(true);
                   }}
-                  className="px-2.5 py-1.5 rounded-xl bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-[#9db2c6] hover:text-white text-[11px] font-semibold cursor-pointer"
+                  className="px-2.5 py-1.5 rounded-xl bg-[#FFFFFF] dark:bg-[#131722] hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] border border-[#E0E3EB] dark:border-[#2a2e39] text-[#4A5162] dark:text-[#9db2c6] hover:text-[#131722] dark:hover:text-white text-[11px] font-semibold cursor-pointer"
                 >
                   {isAr ? 'تذكيري لاحقاً' : 'Later'}
                 </button>

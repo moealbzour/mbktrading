@@ -171,24 +171,24 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
     if (role === 'admin' || role === 'super_admin' || role === 'moderator' || role === 'analyst') {
       return {
         label: 'ADMIN',
-        className: 'bg-[#2962FF]/15 text-[#2962FF] border-[#2962FF]/40',
+        className: 'bg-[#EDF1F7] dark:bg-[#2962FF]/15 text-[#1E53E5] dark:text-[#2962FF] border-[#CBD2DF] dark:border-[#2962FF]/40',
       };
     }
     if (tier === 'elite' || role === 'elite') {
       return {
         label: 'ELITE',
-        className: 'bg-[#2962FF]/15 text-[#2962FF] border-[#2962FF]/40',
+        className: 'bg-[#EDF1F7] dark:bg-[#2962FF]/15 text-[#1E53E5] dark:text-[#2962FF] border-[#CBD2DF] dark:border-[#2962FF]/40',
       };
     }
     if (tier === 'vip' || tier === 'pro' || role === 'vip' || user.isVip) {
       return {
         label: 'VIP',
-        className: 'bg-[#089981]/15 text-[#089981] border-[#089981]/40',
+        className: 'bg-[#E6F5F2] dark:bg-[#089981]/15 text-[#089981] border-[#B3E2D9] dark:border-[#089981]/40',
       };
     }
     return {
       label: 'FREE',
-      className: 'bg-[#242834] text-[#787B86] border-[#2A2E39]',
+      className: 'bg-[#F8F9FD] dark:bg-[#242834] text-[#787B86] border-[#E0E3EB] dark:border-[#2A2E39]',
     };
   };
 
@@ -196,7 +196,7 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
   const userInitial = (user.name || user.email || 'M').trim().charAt(0).toUpperCase();
 
   return (
-    <header className="h-12 bg-[#1E222D] border-b border-[#2A2E39] px-2.5 md:px-4 flex items-center justify-between shrink-0 z-40 select-none">
+    <header className="h-12 bg-[#F8F9FD] dark:bg-[#1E222D] border-b border-[#E0E3EB] dark:border-[#2A2E39] px-2.5 md:px-4 flex items-center justify-between shrink-0 z-40 select-none">
       {/* Start (RTL Right): Compact MBK Logo + Active Symbol Selector Pill */}
       <div className="flex items-center gap-2 md:gap-3 min-w-0">
         <button
@@ -205,7 +205,7 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
           className="flex items-center gap-2 shrink-0 focus:outline-none cursor-pointer group"
           title="MBK Trading"
         >
-          <div className="w-7 h-7 rounded bg-[#131722] border border-[#2A2E39] flex items-center justify-center overflow-hidden shrink-0 group-hover:border-[#2962FF] transition-colors">
+          <div className="w-7 h-7 rounded bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] flex items-center justify-center overflow-hidden shrink-0 group-hover:border-[#2962FF] transition-colors">
             <img
               src="/mbk-logo.png?v=8"
               alt="MBK"
@@ -216,26 +216,26 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
             />
           </div>
           <div className="hidden sm:flex flex-col items-start leading-none">
-            <span className="text-xs font-extrabold tracking-tight text-[#D1D4DC]">MBK</span>
+            <span className="text-xs font-extrabold tracking-tight text-[#131722] dark:text-[#D1D4DC]">MBK</span>
             <span className="text-[9px] font-mono text-[#787B86] uppercase tracking-wider">TERMINAL</span>
           </div>
         </button>
 
-        <div className="h-5 w-[1px] bg-[#2A2E39] hidden sm:block" />
+        <div className="h-5 w-[1px] bg-[#EDF1F7] dark:bg-[#2A2E39] hidden sm:block" />
 
         {/* Clickable Active Symbol Selector Pill */}
         <div className="relative" ref={symbolRef}>
           <button
             type="button"
             onClick={() => setSymbolMenuOpen((prev) => !prev)}
-            className="h-8 px-2.5 rounded bg-[#131722] hover:bg-[#242834] border border-[#2A2E39] flex items-center gap-2 transition-colors cursor-pointer"
+            className="h-8 px-2.5 rounded bg-[#FFFFFF] dark:bg-[#131722] hover:bg-[#EDF1F7] dark:hover:bg-[#242834] border border-[#E0E3EB] dark:border-[#2A2E39] flex items-center gap-2 transition-colors cursor-pointer"
           >
-            <span className="text-xs font-bold text-[#D1D4DC] font-mono tracking-tight">
+            <span className="text-xs font-bold text-[#131722] dark:text-[#D1D4DC] font-mono tracking-tight">
               {activeMeta.symbol}
             </span>
             <span
               className={`text-xs font-mono tabular-nums font-semibold ${
-                isPositive ? 'text-[#089981]' : 'text-[#F23645]'
+                isPositive ? 'text-[#089981]' : 'text-[#D93848] dark:text-[#F23645]'
               }`}
             >
               {formatPrice(activeMeta.symbol, displayPrice)}
@@ -243,8 +243,8 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
             <span
               className={`hidden md:inline-flex items-center text-[10px] font-mono tabular-nums px-1 py-0.5 rounded ${
                 isPositive
-                  ? 'bg-[#089981]/15 text-[#089981]'
-                  : 'bg-[#F23645]/15 text-[#F23645]'
+                  ? 'bg-[#E6F5F2] dark:bg-[#089981]/15 text-[#089981]'
+                  : 'bg-[#FDECEE] dark:bg-[#F23645]/15 text-[#D93848] dark:text-[#F23645]'
               }`}
             >
               {isPositive ? '+' : ''}
@@ -254,8 +254,8 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
           </button>
 
           {symbolMenuOpen && (
-            <div className="absolute top-full mt-1.5 start-0 w-64 bg-[#1E222D] border border-[#2A2E39] rounded shadow-xl py-1 z-50">
-              <div className="px-3 py-1.5 border-b border-[#2A2E39] flex items-center justify-between">
+            <div className="absolute top-full mt-1.5 start-0 w-64 bg-[#FFFFFF] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] rounded shadow-[0_4px_12px_rgba(19,23,34,0.08)] dark:shadow-xl py-1 z-50">
+              <div className="px-3 py-1.5 border-b border-[#E0E3EB] dark:border-[#2A2E39] flex items-center justify-between">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[#787B86]">
                   {isAr ? 'اختر أصل التداول' : 'Select Instrument'}
                 </span>
@@ -277,28 +277,28 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
                     }}
                     className={`w-full px-3 py-2 flex items-center justify-between text-start transition-colors cursor-pointer ${
                       isSelected
-                        ? 'bg-[#242834] text-[#D1D4DC]'
-                        : 'hover:bg-[#242834]/60 text-[#D1D4DC]'
+                        ? 'bg-[#EDF1F7] dark:bg-[#242834] text-[#131722] dark:text-[#D1D4DC]'
+                        : 'hover:bg-[#F8F9FD] dark:hover:bg-[#242834]/60 text-[#131722] dark:text-[#D1D4DC]'
                     }`}
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       {up ? (
                         <TrendingUp className="w-3.5 h-3.5 text-[#089981] shrink-0" />
                       ) : (
-                        <TrendingDown className="w-3.5 h-3.5 text-[#F23645] shrink-0" />
+                        <TrendingDown className="w-3.5 h-3.5 text-[#D93848] dark:text-[#F23645] shrink-0" />
                       )}
                       <div className="truncate">
-                        <div className="text-xs font-bold font-mono text-[#D1D4DC]">{item.symbol}</div>
+                        <div className="text-xs font-bold font-mono text-[#131722] dark:text-[#D1D4DC]">{item.symbol}</div>
                         <div className="text-[10px] text-[#787B86] truncate">
                           {isAr ? item.labelAr : item.labelEn}
                         </div>
                       </div>
                     </div>
                     <div className="text-end font-mono tabular-nums">
-                      <div className="text-xs font-semibold text-[#D1D4DC]">
+                      <div className="text-xs font-semibold text-[#131722] dark:text-[#D1D4DC]">
                         {formatPrice(item.symbol, price)}
                       </div>
-                      <div className={`text-[10px] ${up ? 'text-[#089981]' : 'text-[#F23645]'}`}>
+                      <div className={`text-[10px] ${up ? 'text-[#089981]' : 'text-[#D93848] dark:text-[#F23645]'}`}>
                         {up ? '+' : ''}
                         {chg.toFixed(2)}%
                       </div>
@@ -323,7 +323,7 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
           className={`relative h-8 px-2.5 rounded border text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
             isHelperOpen
               ? 'bg-[#2962FF] text-white border-[#2962FF]'
-              : 'bg-[#131722] hover:bg-[#242834] text-[#D1D4DC] border-[#2A2E39]'
+              : 'bg-[#FFFFFF] dark:bg-[#131722] hover:bg-[#EDF1F7] dark:hover:bg-[#242834] text-[#131722] dark:text-[#D1D4DC] border-[#E0E3EB] dark:border-[#2A2E39]'
           }`}
           title={isAr ? 'لوحة المساعد الجانبية' : 'Toggle Helping Panel'}
         >
@@ -343,15 +343,15 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
             onClick={() => setAlertsMenuOpen((prev) => !prev)}
             className={`relative h-8 w-8 rounded border flex items-center justify-center transition-colors cursor-pointer ${
               alertsMenuOpen
-                ? 'bg-[#242834] text-[#D1D4DC] border-[#2962FF]'
-                : 'bg-[#131722] hover:bg-[#242834] text-[#D1D4DC] border-[#2A2E39]'
+                ? 'bg-[#F8F9FD] dark:bg-[#242834] text-[#131722] dark:text-[#D1D4DC] border-[#2962FF]'
+                : 'bg-[#FFFFFF] dark:bg-[#131722] hover:bg-[#EDF1F7] dark:hover:bg-[#242834] text-[#131722] dark:text-[#D1D4DC] border-[#E0E3EB] dark:border-[#2A2E39]'
             }`}
             title={isAr ? 'التنبيهات والعرض' : 'Alerts & Display'}
           >
             {isMuted ? (
-              <VolumeX className="w-4 h-4 text-[#F23645]" />
+              <VolumeX className="w-4 h-4 text-[#D93848] dark:text-[#F23645]" />
             ) : (
-              <Bell className="w-4 h-4 text-[#D1D4DC]" />
+              <Bell className="w-4 h-4 text-[#131722] dark:text-[#D1D4DC]" />
             )}
             {notificationsEnabled && notificationPermission === 'granted' && !isMuted && (
               <span className="absolute top-1.5 end-1.5 w-1.5 h-1.5 rounded-full bg-[#089981]" />
@@ -359,8 +359,8 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
           </button>
 
           {alertsMenuOpen && (
-            <div className="absolute top-full mt-1.5 end-0 w-64 bg-[#1E222D] border border-[#2A2E39] rounded shadow-xl py-1.5 z-50">
-              <div className="px-3 py-1.5 border-b border-[#2A2E39] text-[10px] font-bold uppercase tracking-wider text-[#787B86]">
+            <div className="absolute top-full mt-1.5 end-0 w-64 bg-[#FFFFFF] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] rounded shadow-[0_4px_12px_rgba(19,23,34,0.08)] dark:shadow-xl py-1.5 z-50">
+              <div className="px-3 py-1.5 border-b border-[#E0E3EB] dark:border-[#2A2E39] text-[10px] font-bold uppercase tracking-wider text-[#787B86]">
                 {isAr ? 'التنبيهات وشريط الأسعار' : 'Alerts & Display'}
               </div>
 
@@ -368,11 +368,11 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
               <button
                 type="button"
                 onClick={onToggleMute}
-                className="w-full px-3 py-2 flex items-center justify-between hover:bg-[#242834] text-xs text-[#D1D4DC] transition-colors cursor-pointer"
+                className="w-full px-3 py-2 flex items-center justify-between hover:bg-[#EDF1F7] dark:hover:bg-[#242834] text-xs text-[#131722] dark:text-[#D1D4DC] transition-colors cursor-pointer"
               >
                 <span className="flex items-center gap-2">
                   {isMuted ? (
-                    <VolumeX className="w-3.5 h-3.5 text-[#F23645]" />
+                    <VolumeX className="w-3.5 h-3.5 text-[#D93848] dark:text-[#F23645]" />
                   ) : (
                     <Volume2 className="w-3.5 h-3.5 text-[#089981]" />
                   )}
@@ -381,8 +381,8 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
                 <span
                   className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
                     !isMuted
-                      ? 'bg-[#089981]/15 text-[#089981]'
-                      : 'bg-[#F23645]/15 text-[#F23645]'
+                      ? 'bg-[#E6F5F2] dark:bg-[#089981]/15 text-[#089981]'
+                      : 'bg-[#FDECEE] dark:bg-[#F23645]/15 text-[#D93848] dark:text-[#F23645]'
                   }`}
                 >
                   {!isMuted ? (isAr ? 'مفعل' : 'ON') : isAr ? 'مكتوم' : 'MUTED'}
@@ -393,17 +393,17 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
               <button
                 type="button"
                 onClick={onToggleNotifications}
-                className="w-full px-3 py-2 flex items-center justify-between hover:bg-[#242834] text-xs text-[#D1D4DC] transition-colors cursor-pointer"
+                className="w-full px-3 py-2 flex items-center justify-between hover:bg-[#EDF1F7] dark:hover:bg-[#242834] text-xs text-[#131722] dark:text-[#D1D4DC] transition-colors cursor-pointer"
               >
                 <span className="flex items-center gap-2">
-                  <Bell className="w-3.5 h-3.5 text-[#2962FF]" />
+                  <Bell className="w-3.5 h-3.5 text-[#1E53E5] dark:text-[#2962FF]" />
                   <span>{isAr ? 'إشعارات المتصفح' : 'Browser Notifications'}</span>
                 </span>
                 <span
                   className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
                     notificationsEnabled && notificationPermission === 'granted'
-                      ? 'bg-[#089981]/15 text-[#089981]'
-                      : 'bg-[#242834] text-[#787B86]'
+                      ? 'bg-[#E6F5F2] dark:bg-[#089981]/15 text-[#089981]'
+                      : 'bg-[#F8F9FD] dark:bg-[#242834] text-[#787B86]'
                   }`}
                 >
                   {notificationsEnabled && notificationPermission === 'granted'
@@ -416,13 +416,13 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
                 </span>
               </button>
 
-              <div className="my-1 border-t border-[#2A2E39]" />
+              <div className="my-1 border-t border-[#E0E3EB] dark:border-[#2A2E39]" />
 
               {/* Price Ticker Strip Toggle */}
               <button
                 type="button"
                 onClick={onTogglePriceTicker}
-                className="w-full px-3 py-2 flex items-center justify-between hover:bg-[#242834] text-xs text-[#D1D4DC] transition-colors cursor-pointer"
+                className="w-full px-3 py-2 flex items-center justify-between hover:bg-[#EDF1F7] dark:hover:bg-[#242834] text-xs text-[#131722] dark:text-[#D1D4DC] transition-colors cursor-pointer"
               >
                 <span className="flex items-center gap-2">
                   {showPriceTicker ? (
@@ -439,7 +439,7 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
               <button
                 type="button"
                 onClick={onToggleNewsBanner}
-                className="w-full px-3 py-2 flex items-center justify-between hover:bg-[#242834] text-xs text-[#D1D4DC] transition-colors cursor-pointer"
+                className="w-full px-3 py-2 flex items-center justify-between hover:bg-[#EDF1F7] dark:hover:bg-[#242834] text-xs text-[#131722] dark:text-[#D1D4DC] transition-colors cursor-pointer"
               >
                 <span className="flex items-center gap-2">
                   {showNewsBanner ? (
@@ -460,9 +460,9 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
           <button
             type="button"
             onClick={() => setAccountMenuOpen((prev) => !prev)}
-            className="h-8 px-2 rounded bg-[#131722] hover:bg-[#242834] border border-[#2A2E39] flex items-center gap-1.5 transition-colors cursor-pointer"
+            className="h-8 px-2 rounded bg-[#FFFFFF] dark:bg-[#131722] hover:bg-[#EDF1F7] dark:hover:bg-[#242834] border border-[#E0E3EB] dark:border-[#2A2E39] flex items-center gap-1.5 transition-colors cursor-pointer"
           >
-            <div className="w-5 h-5 rounded bg-[#242834] border border-[#2A2E39] flex items-center justify-center text-[11px] font-bold text-[#D1D4DC]">
+            <div className="w-5 h-5 rounded bg-[#F8F9FD] dark:bg-[#242834] border border-[#E0E3EB] dark:border-[#2A2E39] flex items-center justify-center text-[11px] font-bold text-[#131722] dark:text-[#D1D4DC]">
               {userInitial}
             </div>
             <span
@@ -474,11 +474,11 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
           </button>
 
           {accountMenuOpen && (
-            <div className="absolute top-full mt-1.5 end-0 w-64 bg-[#1E222D] border border-[#2A2E39] rounded shadow-xl py-1.5 z-50">
+            <div className="absolute top-full mt-1.5 end-0 w-64 bg-[#FFFFFF] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] rounded shadow-[0_4px_12px_rgba(19,23,34,0.08)] dark:shadow-xl py-1.5 z-50">
               {/* User Identity Header */}
-              <div className="px-3 py-2 border-b border-[#2A2E39]">
+              <div className="px-3 py-2 border-b border-[#E0E3EB] dark:border-[#2A2E39]">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-bold text-[#D1D4DC] truncate">
+                  <span className="text-xs font-bold text-[#131722] dark:text-[#D1D4DC] truncate">
                     {user.name || user.email.split('@')[0]}
                   </span>
                   <span
@@ -499,7 +499,7 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
                   setAccountMenuOpen(false);
                   onOpenProfileModal();
                 }}
-                className="w-full px-3 py-2 flex items-center gap-2.5 hover:bg-[#242834] text-xs text-[#D1D4DC] transition-colors cursor-pointer"
+                className="w-full px-3 py-2 flex items-center gap-2.5 hover:bg-[#EDF1F7] dark:hover:bg-[#242834] text-xs text-[#131722] dark:text-[#D1D4DC] transition-colors cursor-pointer"
               >
                 <UserIcon className="w-3.5 h-3.5 text-[#787B86]" />
                 <span>{isAr ? 'الملف الشخصي والإعدادات' : 'Profile & Settings'}</span>
@@ -511,9 +511,9 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
                   setAccountMenuOpen(false);
                   onOpenPlansModal();
                 }}
-                className="w-full px-3 py-2 flex items-center gap-2.5 hover:bg-[#242834] text-xs text-[#D1D4DC] transition-colors cursor-pointer"
+                className="w-full px-3 py-2 flex items-center gap-2.5 hover:bg-[#EDF1F7] dark:hover:bg-[#242834] text-xs text-[#131722] dark:text-[#D1D4DC] transition-colors cursor-pointer"
               >
-                <Crown className="w-3.5 h-3.5 text-[#2962FF]" />
+                <Crown className="w-3.5 h-3.5 text-[#1E53E5] dark:text-[#2962FF]" />
                 <span>{isAr ? 'باقات الاشتراك (VIP / Elite)' : 'Subscription Plans'}</span>
               </button>
 
@@ -523,7 +523,7 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
                   setAccountMenuOpen(false);
                   onOpenPromoModal();
                 }}
-                className="w-full px-3 py-2 flex items-center gap-2.5 hover:bg-[#242834] text-xs text-[#D1D4DC] transition-colors cursor-pointer"
+                className="w-full px-3 py-2 flex items-center gap-2.5 hover:bg-[#EDF1F7] dark:hover:bg-[#242834] text-xs text-[#131722] dark:text-[#D1D4DC] transition-colors cursor-pointer"
               >
                 <Key className="w-3.5 h-3.5 text-[#089981]" />
                 <span>{isAr ? 'تفعيل مفتاح اشتراك' : 'Redeem Activation Key'}</span>
@@ -532,7 +532,7 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
               {/* Staff / Admin Strictly Gated Shortcuts */}
               {(isAdminOrStaff || canPublishQuickSignals) && (
                 <>
-                  <div className="my-1 border-t border-[#2A2E39]" />
+                  <div className="my-1 border-t border-[#E0E3EB] dark:border-[#2A2E39]" />
                   {canPublishQuickSignals && (
                     <button
                       type="button"
@@ -540,7 +540,7 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
                         setAccountMenuOpen(false);
                         onOpenQuickSignalDrawer();
                       }}
-                      className="w-full px-3 py-2 flex items-center gap-2.5 hover:bg-[#242834] text-xs text-[#089981] font-semibold transition-colors cursor-pointer"
+                      className="w-full px-3 py-2 flex items-center gap-2.5 hover:bg-[#EDF1F7] dark:hover:bg-[#242834] text-xs text-[#089981] font-semibold transition-colors cursor-pointer"
                     >
                       <Radio className="w-3.5 h-3.5" />
                       <span>{isAr ? 'نشر صفقة سريعة' : 'Publish Quick Signal'}</span>
@@ -553,7 +553,7 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
                         setAccountMenuOpen(false);
                         onNavigateAdmin();
                       }}
-                      className="w-full px-3 py-2 flex items-center gap-2.5 hover:bg-[#242834] text-xs text-[#2962FF] font-semibold transition-colors cursor-pointer"
+                      className="w-full px-3 py-2 flex items-center gap-2.5 hover:bg-[#EDF1F7] dark:hover:bg-[#242834] text-xs text-[#1E53E5] dark:text-[#2962FF] font-semibold transition-colors cursor-pointer"
                     >
                       <ShieldCheck className="w-3.5 h-3.5" />
                       <span>{isAr ? 'لوحة تحكم الإدارة' : 'Admin Dashboard'}</span>
@@ -562,19 +562,19 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
                 </>
               )}
 
-              <div className="my-1 border-t border-[#2A2E39]" />
+              <div className="my-1 border-t border-[#E0E3EB] dark:border-[#2A2E39]" />
 
               {/* Theme Selector (Dark / Light / Auto) */}
               <div className="px-3 py-1.5 flex items-center justify-between">
                 <span className="text-xs text-[#787B86]">{isAr ? 'المظهر' : 'Theme'}</span>
-                <div className="flex items-center bg-[#131722] border border-[#2A2E39] rounded p-0.5">
+                <div className="flex items-center bg-[#F8F9FD] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] rounded p-0.5">
                   <button
                     type="button"
                     onClick={() => setTheme('dark')}
                     className={`px-2 py-0.5 rounded text-[10px] flex items-center gap-1 cursor-pointer ${
                       theme === 'dark'
-                        ? 'bg-[#2962FF] text-white'
-                        : 'text-[#787B86] hover:text-[#D1D4DC]'
+                        ? 'bg-[#131722] dark:bg-[#2962FF] text-white'
+                        : 'text-[#787B86] hover:text-[#131722] dark:hover:text-[#D1D4DC]'
                     }`}
                     title={isAr ? 'داكن' : 'Dark'}
                   >
@@ -585,8 +585,8 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
                     onClick={() => setTheme('light')}
                     className={`px-2 py-0.5 rounded text-[10px] flex items-center gap-1 cursor-pointer ${
                       theme === 'light'
-                        ? 'bg-[#2962FF] text-white'
-                        : 'text-[#787B86] hover:text-[#D1D4DC]'
+                        ? 'bg-[#131722] dark:bg-[#2962FF] text-white'
+                        : 'text-[#787B86] hover:text-[#131722] dark:hover:text-[#D1D4DC]'
                     }`}
                     title={isAr ? 'فاتح' : 'Light'}
                   >
@@ -597,8 +597,8 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
                     onClick={() => setTheme('auto')}
                     className={`px-2 py-0.5 rounded text-[10px] flex items-center gap-1 cursor-pointer ${
                       theme === 'auto'
-                        ? 'bg-[#2962FF] text-white'
-                        : 'text-[#787B86] hover:text-[#D1D4DC]'
+                        ? 'bg-[#131722] dark:bg-[#2962FF] text-white'
+                        : 'text-[#787B86] hover:text-[#131722] dark:hover:text-[#D1D4DC]'
                     }`}
                     title={isAr ? 'تلقائي' : 'Auto'}
                   >
@@ -614,13 +614,13 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
                   onToggleLang();
                   setAccountMenuOpen(false);
                 }}
-                className="w-full px-3 py-2 flex items-center justify-between hover:bg-[#242834] text-xs text-[#D1D4DC] transition-colors cursor-pointer"
+                className="w-full px-3 py-2 flex items-center justify-between hover:bg-[#EDF1F7] dark:hover:bg-[#242834] text-xs text-[#131722] dark:text-[#D1D4DC] transition-colors cursor-pointer"
               >
                 <span className="flex items-center gap-2.5">
                   <Globe className="w-3.5 h-3.5 text-[#787B86]" />
                   <span>{isAr ? 'اللغة / Language' : 'Language / اللغة'}</span>
                 </span>
-                <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#242834] text-[#D1D4DC] border border-[#2A2E39]">
+                <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#F8F9FD] dark:bg-[#242834] text-[#131722] dark:text-[#D1D4DC] border border-[#E0E3EB] dark:border-[#2A2E39]">
                   {isAr ? 'EN' : 'عربي'}
                 </span>
               </button>
@@ -633,14 +633,14 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
                     setAccountMenuOpen(false);
                     onInstallPwa();
                   }}
-                  className="w-full px-3 py-2 flex items-center gap-2.5 hover:bg-[#242834] text-xs text-[#2962FF] font-semibold transition-colors cursor-pointer"
+                  className="w-full px-3 py-2 flex items-center gap-2.5 hover:bg-[#EDF1F7] dark:hover:bg-[#242834] text-xs text-[#1E53E5] dark:text-[#2962FF] font-semibold transition-colors cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span>{isAr ? 'تثبيت التطبيق على الجهاز' : 'Install App (PWA)'}</span>
                 </button>
               )}
 
-              <div className="my-1 border-t border-[#2A2E39]" />
+              <div className="my-1 border-t border-[#E0E3EB] dark:border-[#2A2E39]" />
 
               {/* Sign Out */}
               <button
@@ -649,7 +649,7 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
                   setAccountMenuOpen(false);
                   onLogout();
                 }}
-                className="w-full px-3 py-2 flex items-center gap-2.5 hover:bg-[#F23645]/10 text-xs text-[#F23645] transition-colors cursor-pointer"
+                className="w-full px-3 py-2 flex items-center gap-2.5 hover:bg-[#F23645]/10 text-xs text-[#D93848] dark:text-[#F23645] transition-colors cursor-pointer"
               >
                 <LogOut className="w-3.5 h-3.5" />
                 <span>{isAr ? 'تسجيل الخروج' : 'Sign Out'}</span>

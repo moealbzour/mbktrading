@@ -755,7 +755,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
         code: 'PAUSED',
         labelAr: 'متوقف مؤقتاً',
         labelEn: 'PAUSED',
-        badgeClass: 'bg-[#1E222D] text-[#94A3B8] border-[#2A2E39]'
+        badgeClass: 'bg-[#F8F9FD] dark:bg-[#1E222D] text-[#4A5162] dark:text-[#94A3B8] border-[#E0E3EB] dark:border-[#2A2E39]'
       };
     }
     const isEndExpired = Boolean(ann.endAtMs && ann.endAtMs <= nowMs);
@@ -767,7 +767,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
         code: 'EXPIRED',
         labelAr: 'منتهي الصلاحية',
         labelEn: 'EXPIRED',
-        badgeClass: 'bg-[#EF5350]/15 text-[#EF5350] border-[#EF5350]/40'
+        badgeClass: 'bg-[#FDECEE] dark:bg-[#EF5350]/15 text-[#D93848] dark:text-[#EF5350] border-[#F5C2C7] dark:border-[#EF5350]/40'
       };
     }
     if (ann.startAtMs && ann.startAtMs > nowMs) {
@@ -775,14 +775,14 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
         code: 'SCHEDULED',
         labelAr: 'مجدول قريباً',
         labelEn: 'SCHEDULED',
-        badgeClass: 'bg-[#F0B90B]/15 text-[#F0B90B] border-[#F0B90B]/40'
+        badgeClass: 'bg-[#FDF6E3] dark:bg-[#F0B90B]/15 text-[#9A6700] dark:text-[#F0B90B] border-[#EFE0B4] dark:border-[#F0B90B]/40'
       };
     }
     return {
       code: 'ACTIVE',
       labelAr: 'نشط الآن',
       labelEn: 'ACTIVE',
-      badgeClass: 'bg-[#26A69A]/15 text-[#26A69A] border-[#26A69A]/40'
+      badgeClass: 'bg-[#E6F5F2] dark:bg-[#26A69A]/15 text-[#089981] dark:text-[#26A69A] border-[#B3E2D9] dark:border-[#26A69A]/40'
     };
   };
 
@@ -805,11 +805,11 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
   }, [dmMessageText, isAr]);
 
   return (
-    <div className="space-y-5 text-[#E2E8F0]">
+    <div className="space-y-5 text-[#131722] dark:text-[#E2E8F0]">
       {/* ======================================================================= */}
       {/* TOP SUB-NAVIGATION BAR (POPUPS STUDIO / BULK DMS / SAVED TEMPLATES)     */}
       {/* ======================================================================= */}
-      <div className="bg-[#131722] border border-[#2A2E39] rounded-lg p-3 flex flex-wrap items-center justify-between gap-3">
+      <div className="bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] rounded-lg p-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-1.5">
           <button
             type="button"
@@ -820,12 +820,18 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
             className={`px-3.5 py-2 rounded-md text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer border ${
               activeSubTab === 'popups'
                 ? 'bg-[#26A69A] text-white border-[#26A69A]'
-                : 'bg-[#0B0E11] text-[#94A3B8] hover:text-white border-[#2A2E39]'
+                : 'bg-[#F0F3FA] dark:bg-[#0B0E11] text-[#4A5162] dark:text-[#94A3B8] hover:text-[#131722] dark:hover:text-white border-[#E0E3EB] dark:border-[#2A2E39]'
             }`}
           >
             <Megaphone className="w-3.5 h-3.5" />
             <span>{isAr ? 'استوديو النوافذ المنبثقة (Popups Studio)' : 'Pro Popups Studio'}</span>
-            <span className="px-1.5 py-0.2 rounded bg-black/25 text-[10px] font-mono tabular-nums">
+            <span
+              className={`px-1.5 py-0.2 rounded text-[10px] font-mono tabular-nums ${
+                activeSubTab === 'popups'
+                  ? 'bg-black/20 text-white'
+                  : 'bg-[#FFFFFF] dark:bg-black/25 text-[#131722] dark:text-[#94A3B8] border border-[#E0E3EB] dark:border-transparent'
+              }`}
+            >
               {announcements.filter((a) => getPopupLifecycleStatus(a).code === 'ACTIVE').length}
             </span>
           </button>
@@ -839,12 +845,18 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
             className={`px-3.5 py-2 rounded-md text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer border ${
               activeSubTab === 'bulk_dm'
                 ? 'bg-[#26A69A] text-white border-[#26A69A]'
-                : 'bg-[#0B0E11] text-[#94A3B8] hover:text-white border-[#2A2E39]'
+                : 'bg-[#F0F3FA] dark:bg-[#0B0E11] text-[#4A5162] dark:text-[#94A3B8] hover:text-[#131722] dark:hover:text-white border-[#E0E3EB] dark:border-[#2A2E39]'
             }`}
           >
             <Mail className="w-3.5 h-3.5" />
             <span>{isAr ? 'الرسائل الخاصة الجماعية (Branded Bulk DMs)' : 'Branded Bulk DMs'}</span>
-            <span className="px-1.5 py-0.2 rounded bg-black/25 text-[10px] font-mono tabular-nums">
+            <span
+              className={`px-1.5 py-0.2 rounded text-[10px] font-mono tabular-nums ${
+                activeSubTab === 'bulk_dm'
+                  ? 'bg-black/20 text-white'
+                  : 'bg-[#FFFFFF] dark:bg-black/25 text-[#131722] dark:text-[#94A3B8] border border-[#E0E3EB] dark:border-transparent'
+              }`}
+            >
               {matchingDmRecipients.length}
             </span>
           </button>
@@ -858,26 +870,32 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
             className={`px-3.5 py-2 rounded-md text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer border ${
               activeSubTab === 'templates'
                 ? 'bg-[#F0B90B] text-black border-[#F0B90B]'
-                : 'bg-[#0B0E11] text-[#94A3B8] hover:text-white border-[#2A2E39]'
+                : 'bg-[#F0F3FA] dark:bg-[#0B0E11] text-[#4A5162] dark:text-[#94A3B8] hover:text-[#131722] dark:hover:text-white border-[#E0E3EB] dark:border-[#2A2E39]'
             }`}
           >
             <Bookmark className="w-3.5 h-3.5" />
             <span>{isAr ? 'القوالب المخصصة المحفوظة' : 'Saved Templates'}</span>
-            <span className="px-1.5 py-0.2 rounded bg-black/20 text-[10px] font-mono tabular-nums">
+            <span
+              className={`px-1.5 py-0.2 rounded text-[10px] font-mono tabular-nums ${
+                activeSubTab === 'templates'
+                  ? 'bg-black/15 text-black'
+                  : 'bg-[#FFFFFF] dark:bg-black/20 text-[#131722] dark:text-[#94A3B8] border border-[#E0E3EB] dark:border-transparent'
+              }`}
+            >
               {savedTemplates.length}
             </span>
           </button>
         </div>
 
         {/* Official Brand Identity Badge */}
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#0B0E11] border border-[#2A2E39]">
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#F0F3FA] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39]">
           <img
             src="/mbk-logo.png"
             alt="MBK Trading"
-            className="w-5 h-5 rounded object-contain bg-[#131722] border border-[#2A2E39]"
+            className="w-5 h-5 rounded object-contain bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39]"
           />
-          <span className="text-[11px] font-bold text-white">MBK Trading</span>
-          <span className="px-1.5 py-0.2 rounded bg-[#26A69A]/15 text-[#26A69A] border border-[#26A69A]/30 text-[9px] font-mono font-bold inline-flex items-center gap-0.5">
+          <span className="text-[11px] font-bold text-[#131722] dark:text-white">MBK Trading</span>
+          <span className="px-1.5 py-0.2 rounded bg-[#E6F5F2] dark:bg-[#26A69A]/15 text-[#089981] dark:text-[#26A69A] border border-[#B3E2D9] dark:border-[#26A69A]/30 text-[9px] font-mono font-bold inline-flex items-center gap-0.5">
             <Check className="w-2.5 h-2.5" />
             <span>VERIFIED DESK</span>
           </span>
@@ -890,14 +908,14 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
       {activeSubTab === 'popups' && (
         <div className="space-y-5">
           {/* Saved Templates Quick Bar */}
-          <div className="bg-[#131722] border border-[#2A2E39] rounded-lg p-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] rounded-lg p-3 flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-[11px] font-bold text-[#94A3B8] flex items-center gap-1 me-1">
-                <Bookmark className="w-3.5 h-3.5 text-[#F0B90B]" />
+              <span className="text-[11px] font-bold text-[#4A5162] dark:text-[#94A3B8] flex items-center gap-1 me-1">
+                <Bookmark className="w-3.5 h-3.5 text-[#9A6700] dark:text-[#F0B90B]" />
                 <span>{isAr ? 'قوالب النوافذ المحفوظة:' : 'Saved Popup Templates:'}</span>
               </span>
               {popupTemplates.length === 0 ? (
-                <span className="text-[11px] text-[#64748B]">
+                <span className="text-[11px] text-[#787B86] dark:text-[#64748B]">
                   {isAr
                     ? 'لا توجد قوالب محفوظة بعد — صمم نافذتك واضغط حفظ كقالب.'
                     : 'No saved templates yet — configure below and click Save as Template.'}
@@ -906,19 +924,19 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                 popupTemplates.map((tpl) => (
                   <div
                     key={tpl.id}
-                    className="inline-flex items-center rounded-md bg-[#0B0E11] border border-[#2A2E39] overflow-hidden"
+                    className="inline-flex items-center rounded-md bg-[#F0F3FA] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39] overflow-hidden"
                   >
                     <button
                       type="button"
                       onClick={() => applySavedTemplate(tpl)}
-                      className="px-2.5 py-1 text-[11px] font-semibold text-[#E2E8F0] hover:text-white hover:bg-[#1E222D] transition-colors cursor-pointer"
+                      className="px-2.5 py-1 text-[11px] font-semibold text-[#131722] dark:text-[#E2E8F0] hover:text-[#131722] dark:hover:text-white hover:bg-[#EDF1F7] dark:hover:bg-[#1E222D] transition-colors cursor-pointer"
                     >
                       {tpl.name}
                     </button>
                     <button
                       type="button"
                       onClick={() => deleteAdminTemplate(tpl.id, tpl.name)}
-                      className="px-1.5 py-1 text-[#64748B] hover:text-[#EF5350] hover:bg-[#1E222D] border-s border-[#2A2E39] cursor-pointer"
+                      className="px-1.5 py-1 text-[#787B86] dark:text-[#64748B] hover:text-[#EF5350] hover:bg-[#EDF1F7] dark:hover:bg-[#1E222D] border-s border-[#E0E3EB] dark:border-[#2A2E39] cursor-pointer"
                       title={isAr ? 'حذف القالب' : 'Delete template'}
                     >
                       <X className="w-3 h-3" />
@@ -932,7 +950,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
               <button
                 type="button"
                 onClick={() => handleOpenSaveTemplateModal('popup')}
-                className="px-3 py-1.5 rounded-md bg-[#1E222D] hover:bg-[#2A2E39] border border-[#2A2E39] text-[#F0B90B] text-[11px] font-bold flex items-center gap-1.5 cursor-pointer"
+                className="px-3 py-1.5 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] border border-[#E0E3EB] dark:border-[#2A2E39] text-[#9A6700] dark:text-[#F0B90B] text-[11px] font-bold flex items-center gap-1.5 cursor-pointer"
               >
                 <BookmarkPlus className="w-3.5 h-3.5" />
                 <span>{isAr ? 'حفظ الإعداد الحالي كقالب' : 'Save Current Setup as Template'}</span>
@@ -942,8 +960,8 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
 
           {/* Editing Existing Popup Banner */}
           {editingPopupId && (
-            <div className="p-3 rounded-lg bg-[#F0B90B]/10 border border-[#F0B90B]/40 flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2 text-xs font-bold text-[#F0B90B]">
+            <div className="p-3 rounded-lg bg-[#FDF6E3] dark:bg-[#F0B90B]/10 border border-[#EFE0B4] dark:border-[#F0B90B]/40 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-xs font-bold text-[#9A6700] dark:text-[#F0B90B]">
                 <Edit3 className="w-4 h-4" />
                 <span>
                   {isAr
@@ -954,7 +972,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
               <button
                 type="button"
                 onClick={resetPopupForm}
-                className="px-3 py-1 rounded bg-[#131722] hover:bg-[#1E222D] border border-[#2A2E39] text-xs font-semibold text-white cursor-pointer"
+                className="px-3 py-1 rounded bg-[#FFFFFF] dark:bg-[#131722] hover:bg-[#EDF1F7] dark:hover:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] text-xs font-semibold text-[#131722] dark:text-white cursor-pointer"
               >
                 {isAr ? 'إلغاء التعديل وإنشاء نافذة جديدة' : 'Cancel Edit & New Popup'}
               </button>
@@ -966,20 +984,20 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
             {/* LEFT/START: BUILDER FORM */}
             <form
               onSubmit={handlePublishOrUpdatePopup}
-              className="xl:col-span-7 bg-[#131722] border border-[#2A2E39] rounded-lg p-4 sm:p-5 space-y-5"
+              className="xl:col-span-7 bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] rounded-lg p-4 sm:p-5 space-y-5"
             >
               {/* 1. Official Brand Identity & Content */}
-              <div className="space-y-3.5 pb-4 border-b border-[#2A2E39]">
+              <div className="space-y-3.5 pb-4 border-b border-[#E0E3EB] dark:border-[#2A2E39]">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-[#26A69A]" />
+                  <h4 className="text-xs font-bold text-[#131722] dark:text-white uppercase tracking-wider flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-[#089981] dark:text-[#26A69A]" />
                     <span>
                       {isAr
                         ? '1. الهوية الرسمية والمحتوى (Content & Official Branding)'
                         : '1. Official Brand Identity & Content'}
                     </span>
                   </h4>
-                  <label className="inline-flex items-center gap-2 text-xs font-semibold text-[#E2E8F0] cursor-pointer">
+                  <label className="inline-flex items-center gap-2 text-xs font-semibold text-[#131722] dark:text-[#E2E8F0] cursor-pointer">
                     <input
                       type="checkbox"
                       checked={showLogo}
@@ -992,7 +1010,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
 
                 <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
                   <div className="sm:col-span-7 space-y-1.5">
-                    <label className="block text-[11px] font-semibold text-[#94A3B8]">
+                    <label className="block text-[11px] font-semibold text-[#4A5162] dark:text-[#94A3B8]">
                       {isAr ? 'اسم الجهة المُرسلة (Sender Identity)' : 'Official Sender Display Name'}
                     </label>
                     <div className="flex flex-wrap gap-1 mb-1.5">
@@ -1007,7 +1025,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                           className={`px-2.5 py-1 rounded text-[11px] font-mono font-bold border cursor-pointer ${
                             senderName === chip
                               ? 'bg-[#26A69A] text-white border-[#26A69A]'
-                              : 'bg-[#0B0E11] text-[#94A3B8] hover:text-white border-[#2A2E39]'
+                              : 'bg-[#F0F3FA] dark:bg-[#0B0E11] text-[#4A5162] dark:text-[#94A3B8] hover:text-[#131722] dark:hover:text-white border-[#E0E3EB] dark:border-[#2A2E39]'
                           }`}
                         >
                           {chip}
@@ -1019,12 +1037,12 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                       value={senderName}
                       onChange={(e) => setSenderName(e.target.value)}
                       placeholder="MBK Trading"
-                      className="w-full px-3 py-2 rounded-md bg-[#1E222D] border border-[#2A2E39] focus:border-[#26A69A] text-xs font-bold text-white focus:outline-hidden"
+                      className="w-full px-3 py-2 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] focus:border-[#1E53E5] dark:focus:border-[#26A69A] text-xs font-bold text-[#131722] dark:text-white focus:outline-hidden"
                     />
                   </div>
 
                   <div className="sm:col-span-5 space-y-1.5">
-                    <label className="block text-[11px] font-semibold text-[#94A3B8]">
+                    <label className="block text-[11px] font-semibold text-[#4A5162] dark:text-[#94A3B8]">
                       {isAr ? 'شارة التصنيف العلوية (Badge / Tag)' : 'Top Badge / Tag Text'}
                     </label>
                     <select
@@ -1050,7 +1068,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                           setCtaColor('#26A69A');
                         }
                       }}
-                      className="w-full px-3 py-1.5 rounded-md bg-[#1E222D] border border-[#2A2E39] text-xs font-bold text-white focus:outline-hidden cursor-pointer mb-1.5"
+                      className="w-full px-3 py-1.5 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] text-xs font-bold text-[#131722] dark:text-white focus:outline-hidden cursor-pointer mb-1.5"
                     >
                       <option value="offer">{isAr ? 'عرض خاص / خصم (Offer)' : 'Special Offer'}</option>
                       <option value="event">{isAr ? 'تحذير خبر اقتصادي (Macro Event)' : 'Macro Event Alert'}</option>
@@ -1062,13 +1080,13 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                       value={badgeText}
                       onChange={(e) => setBadgeText(e.target.value)}
                       placeholder={isAr ? 'مثال: عرض VIP حصري' : 'e.g. VIP SPECIAL OFFER'}
-                      className="w-full px-3 py-2 rounded-md bg-[#1E222D] border border-[#2A2E39] focus:border-[#26A69A] text-xs text-white focus:outline-hidden"
+                      className="w-full px-3 py-2 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] focus:border-[#1E53E5] dark:focus:border-[#26A69A] text-xs text-[#131722] dark:text-white focus:outline-hidden"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#94A3B8] mb-1">
+                  <label className="block text-[11px] font-semibold text-[#4A5162] dark:text-[#94A3B8] mb-1">
                     {isAr ? 'عنوان النافذة المنبثقة (Headline)' : 'Popup Headline / Title'}
                   </label>
                   <input
@@ -1080,13 +1098,13 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                         ? 'مثال: عرض خاص لفترة محدودة على باقة VIP أو تنبيه بيانات التضخم CPI'
                         : 'e.g. Limited-Time VIP Upgrade Offer or US CPI Release Alert'
                     }
-                    className="w-full px-3.5 py-2 rounded-md bg-[#1E222D] border border-[#2A2E39] focus:border-[#26A69A] text-xs font-bold text-white focus:outline-hidden"
+                    className="w-full px-3.5 py-2 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] focus:border-[#1E53E5] dark:focus:border-[#26A69A] text-xs font-bold text-[#131722] dark:text-white focus:outline-hidden"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#94A3B8] mb-1">
+                  <label className="block text-[11px] font-semibold text-[#4A5162] dark:text-[#94A3B8] mb-1">
                     {isAr ? 'نص الرسالة والتفاصيل (Rich Body Text)' : 'Popup Body Content'}
                   </label>
                   <textarea
@@ -1098,14 +1116,14 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                         ? 'اكتب تفاصيل الإعلان أو العرض هنا...'
                         : 'Write the full announcement, offer details, or risk warning...'
                     }
-                    className="w-full px-3.5 py-2 rounded-md bg-[#1E222D] border border-[#2A2E39] focus:border-[#26A69A] text-xs text-white focus:outline-hidden"
+                    className="w-full px-3.5 py-2 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] focus:border-[#1E53E5] dark:focus:border-[#26A69A] text-xs text-[#131722] dark:text-white focus:outline-hidden"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#94A3B8] mb-1 flex items-center gap-1.5">
-                    <ImageIcon className="w-3.5 h-3.5 text-[#94A3B8]" />
+                  <label className="block text-[11px] font-semibold text-[#4A5162] dark:text-[#94A3B8] mb-1 flex items-center gap-1.5">
+                    <ImageIcon className="w-3.5 h-3.5 text-[#4A5162] dark:text-[#94A3B8]" />
                     <span>
                       {isAr
                         ? 'رابط صورة أو بانر علوي اختياري (Banner Image URL)'
@@ -1118,15 +1136,15 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                     onChange={(e) => setBannerImageUrl(e.target.value)}
                     placeholder="https://..."
                     dir="ltr"
-                    className="w-full px-3 py-2 rounded-md bg-[#1E222D] border border-[#2A2E39] focus:border-[#26A69A] text-xs font-mono text-white focus:outline-hidden"
+                    className="w-full px-3 py-2 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] focus:border-[#1E53E5] dark:focus:border-[#26A69A] text-xs font-mono text-[#131722] dark:text-white focus:outline-hidden"
                   />
                 </div>
               </div>
 
               {/* 2. Appearance & Colors */}
-              <div className="space-y-3.5 pb-4 border-b border-[#2A2E39]">
-                <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                  <Palette className="w-4 h-4 text-[#F0B90B]" />
+              <div className="space-y-3.5 pb-4 border-b border-[#E0E3EB] dark:border-[#2A2E39]">
+                <h4 className="text-xs font-bold text-[#131722] dark:text-white uppercase tracking-wider flex items-center gap-2">
+                  <Palette className="w-4 h-4 text-[#9A6700] dark:text-[#F0B90B]" />
                   <span>
                     {isAr
                       ? '2. المظهر والألوان (Appearance, Surface & Accent Colors)'
@@ -1137,7 +1155,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {/* Accent Color */}
                   <div>
-                    <label className="block text-[11px] font-semibold text-[#94A3B8] mb-1.5">
+                    <label className="block text-[11px] font-semibold text-[#4A5162] dark:text-[#94A3B8] mb-1.5">
                       {isAr ? 'اللون الرئيسي (Accent)' : 'Accent Color'}
                     </label>
                     <div className="flex flex-wrap items-center gap-1.5 mb-2">
@@ -1152,8 +1170,8 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                           }}
                           className={`px-2 py-1 rounded text-[10px] font-mono font-bold border flex items-center gap-1 cursor-pointer ${
                             accentColor.toUpperCase() === c.hex
-                              ? 'border-white bg-[#1E222D] text-white'
-                              : 'border-[#2A2E39] bg-[#0B0E11] text-[#94A3B8]'
+                              ? 'border-white bg-[#F8F9FD] dark:bg-[#1E222D] text-[#131722] dark:text-white'
+                              : 'border-[#E0E3EB] dark:border-[#2A2E39] bg-[#F0F3FA] dark:bg-[#0B0E11] text-[#4A5162] dark:text-[#94A3B8]'
                           }`}
                         >
                           <span
@@ -1169,21 +1187,21 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                         type="color"
                         value={accentColor}
                         onChange={(e) => setAccentColor(e.target.value)}
-                        className="w-8 h-8 rounded bg-[#1E222D] border border-[#2A2E39] cursor-pointer"
+                        className="w-8 h-8 rounded bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] cursor-pointer"
                       />
                       <input
                         type="text"
                         value={accentColor}
                         onChange={(e) => setAccentColor(e.target.value)}
                         dir="ltr"
-                        className="flex-1 px-2.5 py-1.5 rounded-md bg-[#1E222D] border border-[#2A2E39] text-xs font-mono text-white"
+                        className="flex-1 px-2.5 py-1.5 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] text-xs font-mono text-[#131722] dark:text-white"
                       />
                     </div>
                   </div>
 
                   {/* Surface Style */}
                   <div>
-                    <label className="block text-[11px] font-semibold text-[#94A3B8] mb-1.5">
+                    <label className="block text-[11px] font-semibold text-[#4A5162] dark:text-[#94A3B8] mb-1.5">
                       {isAr ? 'نمط الخلفية والحدود (Surface)' : 'Surface Style'}
                     </label>
                     <div className="space-y-1.5">
@@ -1215,13 +1233,13 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                           }}
                           className={`w-full px-3 py-1.5 rounded-md text-[11px] font-semibold text-start border flex items-center justify-between cursor-pointer ${
                             surfaceStyle === st.id
-                              ? 'bg-[#1E222D] text-white border-[#26A69A]'
-                              : 'bg-[#0B0E11] text-[#94A3B8] border-[#2A2E39]'
+                              ? 'bg-[#F8F9FD] dark:bg-[#1E222D] text-[#131722] dark:text-white border-[#26A69A]'
+                              : 'bg-[#F0F3FA] dark:bg-[#0B0E11] text-[#4A5162] dark:text-[#94A3B8] border-[#E0E3EB] dark:border-[#2A2E39]'
                           }`}
                         >
                           <span>{isAr ? st.ar : st.en}</span>
                           {surfaceStyle === st.id && (
-                            <Check className="w-3.5 h-3.5 text-[#26A69A]" />
+                            <Check className="w-3.5 h-3.5 text-[#089981] dark:text-[#26A69A]" />
                           )}
                         </button>
                       ))}
@@ -1230,7 +1248,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
 
                   {/* CTA Button Color */}
                   <div>
-                    <label className="block text-[11px] font-semibold text-[#94A3B8] mb-1.5">
+                    <label className="block text-[11px] font-semibold text-[#4A5162] dark:text-[#94A3B8] mb-1.5">
                       {isAr ? 'لون زر الإجراء (CTA Color)' : 'CTA Button Color'}
                     </label>
                     <div className="flex flex-wrap items-center gap-1.5 mb-2">
@@ -1244,8 +1262,8 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                           }}
                           className={`px-2 py-1 rounded text-[10px] font-mono font-bold border flex items-center gap-1 cursor-pointer ${
                             ctaColor.toUpperCase() === c.hex
-                              ? 'border-white bg-[#1E222D] text-white'
-                              : 'border-[#2A2E39] bg-[#0B0E11] text-[#94A3B8]'
+                              ? 'border-white bg-[#F8F9FD] dark:bg-[#1E222D] text-[#131722] dark:text-white'
+                              : 'border-[#E0E3EB] dark:border-[#2A2E39] bg-[#F0F3FA] dark:bg-[#0B0E11] text-[#4A5162] dark:text-[#94A3B8]'
                           }`}
                         >
                           <span
@@ -1261,14 +1279,14 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                         type="color"
                         value={ctaColor}
                         onChange={(e) => setCtaColor(e.target.value)}
-                        className="w-8 h-8 rounded bg-[#1E222D] border border-[#2A2E39] cursor-pointer"
+                        className="w-8 h-8 rounded bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] cursor-pointer"
                       />
                       <input
                         type="text"
                         value={ctaColor}
                         onChange={(e) => setCtaColor(e.target.value)}
                         dir="ltr"
-                        className="flex-1 px-2.5 py-1.5 rounded-md bg-[#1E222D] border border-[#2A2E39] text-xs font-mono text-white"
+                        className="flex-1 px-2.5 py-1.5 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] text-xs font-mono text-[#131722] dark:text-white"
                       />
                     </div>
                   </div>
@@ -1276,9 +1294,9 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
               </div>
 
               {/* 3. Placement, Trigger Location & Target Audience */}
-              <div className="space-y-3.5 pb-4 border-b border-[#2A2E39]">
-                <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                  <Layout className="w-4 h-4 text-[#26A69A]" />
+              <div className="space-y-3.5 pb-4 border-b border-[#E0E3EB] dark:border-[#2A2E39]">
+                <h4 className="text-xs font-bold text-[#131722] dark:text-white uppercase tracking-wider flex items-center gap-2">
+                  <Layout className="w-4 h-4 text-[#089981] dark:text-[#26A69A]" />
                   <span>
                     {isAr
                       ? '3. موضع الظهور، القسم المستهدف، والجمهور (Placement & Audience)'
@@ -1288,7 +1306,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
 
                 {/* Placement Selector */}
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#94A3B8] mb-1.5">
+                  <label className="block text-[11px] font-semibold text-[#4A5162] dark:text-[#94A3B8] mb-1.5">
                     {isAr ? 'موضع النافذة على الشاشة (Screen Placement)' : 'Screen Placement'}
                   </label>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -1325,8 +1343,8 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                         }}
                         className={`p-2.5 rounded-md text-xs font-bold border text-center cursor-pointer transition-colors ${
                           placement === pl.id
-                            ? 'bg-[#26A69A]/15 text-[#26A69A] border-[#26A69A]'
-                            : 'bg-[#0B0E11] text-[#94A3B8] hover:text-white border-[#2A2E39]'
+                            ? 'bg-[#E6F5F2] dark:bg-[#26A69A]/15 text-[#089981] dark:text-[#26A69A] border-[#26A69A]'
+                            : 'bg-[#F0F3FA] dark:bg-[#0B0E11] text-[#4A5162] dark:text-[#94A3B8] hover:text-[#131722] dark:hover:text-white border-[#E0E3EB] dark:border-[#2A2E39]'
                         }`}
                       >
                         {isAr ? pl.ar : pl.en}
@@ -1338,7 +1356,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                 {/* Trigger Location & Audience */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[11px] font-semibold text-[#94A3B8] mb-1.5">
+                    <label className="block text-[11px] font-semibold text-[#4A5162] dark:text-[#94A3B8] mb-1.5">
                       {isAr ? 'مكان الظهور داخل المنصة (Where to Show)' : 'Where to Show (Trigger Location)'}
                     </label>
                     <div className="grid grid-cols-2 gap-1.5">
@@ -1356,8 +1374,8 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                           onClick={() => handleSelectTriggerLocation(loc.id)}
                           className={`px-2.5 py-2 rounded-md text-[11px] font-bold border text-start cursor-pointer ${
                             triggerLocation === loc.id
-                              ? 'bg-[#1E222D] text-white border-[#26A69A]'
-                              : 'bg-[#0B0E11] text-[#94A3B8] border-[#2A2E39]'
+                              ? 'bg-[#F8F9FD] dark:bg-[#1E222D] text-[#131722] dark:text-white border-[#26A69A]'
+                              : 'bg-[#F0F3FA] dark:bg-[#0B0E11] text-[#4A5162] dark:text-[#94A3B8] border-[#E0E3EB] dark:border-[#2A2E39]'
                           }`}
                         >
                           {isAr ? loc.ar : loc.en}
@@ -1368,17 +1386,17 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
 
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
-                      <label className="block text-[11px] font-semibold text-[#94A3B8]">
+                      <label className="block text-[11px] font-semibold text-[#4A5162] dark:text-[#94A3B8]">
                         {isAr ? 'الجمهور المستهدف (Target Audience)' : 'Target Audience Segment'}
                       </label>
-                      <span className="text-[11px] font-mono tabular-nums text-[#26A69A] font-bold">
+                      <span className="text-[11px] font-mono tabular-nums text-[#089981] dark:text-[#26A69A] font-bold">
                         {matchingPopupAudienceCount} {isAr ? 'مستخدم مطابق' : 'matching users'}
                       </span>
                     </div>
                     <select
                       value={targetAudience}
                       onChange={(e) => setTargetAudience(e.target.value as TargetAudienceSegment)}
-                      className="w-full px-3 py-2.5 rounded-md bg-[#1E222D] border border-[#2A2E39] text-xs font-bold text-white focus:outline-hidden cursor-pointer"
+                      className="w-full px-3 py-2.5 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] text-xs font-bold text-[#131722] dark:text-white focus:outline-hidden cursor-pointer"
                     >
                       <option value="all">{isAr ? 'جميع المستخدمين (All Users)' : 'All Users'}</option>
                       <option value="free">
@@ -1398,7 +1416,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
 
                 {/* Fine-Grained Tab Multi-Select */}
                 <div>
-                  <label className="block text-[10px] font-semibold text-[#64748B] mb-1.5">
+                  <label className="block text-[10px] font-semibold text-[#787B86] dark:text-[#64748B] mb-1.5">
                     {isAr
                       ? 'تخصيص الأقسام الدقيقة (اختياري — يتم ضبطها تلقائياً مع الاختيار أعلاه):'
                       : 'Fine-grained tab triggers (auto-synced with trigger location above):'}
@@ -1413,8 +1431,8 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                           onClick={() => toggleTabSelection(tab.id)}
                           className={`px-2.5 py-1 rounded text-[11px] font-semibold border cursor-pointer transition-colors ${
                             isSelected
-                              ? 'bg-[#26A69A]/20 text-[#26A69A] border-[#26A69A]'
-                              : 'bg-[#0B0E11] text-[#64748B] hover:text-white border-[#2A2E39]'
+                              ? 'bg-[#E6F5F2] dark:bg-[#26A69A]/20 text-[#089981] dark:text-[#26A69A] border-[#26A69A]'
+                              : 'bg-[#F0F3FA] dark:bg-[#0B0E11] text-[#787B86] dark:text-[#64748B] hover:text-[#131722] dark:hover:text-white border-[#E0E3EB] dark:border-[#2A2E39]'
                           }`}
                         >
                           {isAr ? tab.labelAr : tab.labelEn}
@@ -1426,9 +1444,9 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
               </div>
 
               {/* 4. Scheduling, Live Offer Countdown Timer & Frequency */}
-              <div className="space-y-3.5 pb-4 border-b border-[#2A2E39]">
-                <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                  <Timer className="w-4 h-4 text-[#F0B90B]" />
+              <div className="space-y-3.5 pb-4 border-b border-[#E0E3EB] dark:border-[#2A2E39]">
+                <h4 className="text-xs font-bold text-[#131722] dark:text-white uppercase tracking-wider flex items-center gap-2">
+                  <Timer className="w-4 h-4 text-[#9A6700] dark:text-[#F0B90B]" />
                   <span>
                     {isAr
                       ? '4. الجدولة، مؤقت العد التنازلي المباشر، وتكرار الظهور'
@@ -1438,7 +1456,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-[11px] font-semibold text-[#94A3B8] mb-1">
+                    <label className="block text-[11px] font-semibold text-[#4A5162] dark:text-[#94A3B8] mb-1">
                       {isAr ? 'توقيت النشر' : 'Publish Schedule'}
                     </label>
                     <select
@@ -1446,7 +1464,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                       onChange={(e) =>
                         setScheduleMode(e.target.value as 'immediate' | 'scheduled')
                       }
-                      className="w-full px-3 py-2 rounded-md bg-[#1E222D] border border-[#2A2E39] text-xs font-bold text-white focus:outline-hidden cursor-pointer"
+                      className="w-full px-3 py-2 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] text-xs font-bold text-[#131722] dark:text-white focus:outline-hidden cursor-pointer"
                     >
                       <option value="immediate">
                         {isAr ? 'نشر فوري الآن (Immediately)' : 'Publish Immediately'}
@@ -1459,38 +1477,38 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
 
                   {scheduleMode === 'scheduled' && (
                     <div>
-                      <label className="block text-[11px] font-semibold text-[#94A3B8] mb-1">
+                      <label className="block text-[11px] font-semibold text-[#4A5162] dark:text-[#94A3B8] mb-1">
                         {isAr ? 'تاريخ ووقت البدء' : 'Start Date & Time'}
                       </label>
                       <input
                         type="datetime-local"
                         value={startAtLocal}
                         onChange={(e) => setStartAtLocal(e.target.value)}
-                        className="w-full px-2.5 py-1.5 rounded-md bg-[#1E222D] border border-[#2A2E39] text-xs font-mono text-white"
+                        className="w-full px-2.5 py-1.5 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] text-xs font-mono text-[#131722] dark:text-white"
                       />
                     </div>
                   )}
 
                   <div>
-                    <label className="block text-[11px] font-semibold text-[#94A3B8] mb-1">
+                    <label className="block text-[11px] font-semibold text-[#4A5162] dark:text-[#94A3B8] mb-1">
                       {isAr ? 'تاريخ الانتهاء التلقائي (اختياري)' : 'Auto-Expire Date & Time (Optional)'}
                     </label>
                     <input
                       type="datetime-local"
                       value={endAtLocal}
                       onChange={(e) => setEndAtLocal(e.target.value)}
-                      className="w-full px-2.5 py-1.5 rounded-md bg-[#1E222D] border border-[#2A2E39] text-xs font-mono text-white"
+                      className="w-full px-2.5 py-1.5 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] text-xs font-mono text-[#131722] dark:text-white"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-semibold text-[#94A3B8] mb-1">
+                    <label className="block text-[11px] font-semibold text-[#4A5162] dark:text-[#94A3B8] mb-1">
                       {isAr ? 'تكرار الظهور للمستخدم (Frequency)' : 'Display Frequency'}
                     </label>
                     <select
                       value={frequency}
                       onChange={(e) => setFrequency(e.target.value as PopupDisplayFrequency)}
-                      className="w-full px-3 py-2 rounded-md bg-[#1E222D] border border-[#2A2E39] text-xs font-bold text-white focus:outline-hidden cursor-pointer"
+                      className="w-full px-3 py-2 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] text-xs font-bold text-[#131722] dark:text-white focus:outline-hidden cursor-pointer"
                     >
                       <option value="once_per_user">
                         {isAr ? 'مرة واحدة لكل مستخدم (دائم)' : 'Once per user (persistent)'}
@@ -1506,16 +1524,16 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                 </div>
 
                 {/* Live Offer Countdown Timer Box */}
-                <div className="p-3 rounded-md bg-[#0B0E11] border border-[#2A2E39] space-y-3">
+                <div className="p-3 rounded-md bg-[#F0F3FA] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39] space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <label className="inline-flex items-center gap-2 text-xs font-bold text-white cursor-pointer">
+                    <label className="inline-flex items-center gap-2 text-xs font-bold text-[#131722] dark:text-white cursor-pointer">
                       <input
                         type="checkbox"
                         checked={countdownEnabled}
                         onChange={(e) => setCountdownEnabled(e.target.checked)}
                         className="accent-[#F0B90B] w-4 h-4 cursor-pointer"
                       />
-                      <Clock className="w-3.5 h-3.5 text-[#F0B90B]" />
+                      <Clock className="w-3.5 h-3.5 text-[#9A6700] dark:text-[#F0B90B]" />
                       <span>
                         {isAr
                           ? 'تفعيل مؤقت العد التنازلي المباشر للعرض (DD : HH : MM : SS)'
@@ -1535,7 +1553,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                           key={q.h}
                           type="button"
                           onClick={() => handleSetQuickCountdownHours(q.h)}
-                          className="px-2 py-0.5 rounded bg-[#1E222D] hover:bg-[#2A2E39] border border-[#2A2E39] text-[10px] font-mono font-bold text-[#F0B90B] cursor-pointer"
+                          className="px-2 py-0.5 rounded bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] border border-[#E0E3EB] dark:border-[#2A2E39] text-[10px] font-mono font-bold text-[#9A6700] dark:text-[#F0B90B] cursor-pointer"
                         >
                           {q.label}
                         </button>
@@ -1546,7 +1564,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                   {countdownEnabled && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                       <div>
-                        <label className="block text-[10px] font-semibold text-[#94A3B8] mb-1">
+                        <label className="block text-[10px] font-semibold text-[#4A5162] dark:text-[#94A3B8] mb-1">
                           {isAr ? 'عنوان العد التنازلي' : 'Countdown Label'}
                         </label>
                         <input
@@ -1554,11 +1572,11 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                           value={countdownLabel}
                           onChange={(e) => setCountdownLabel(e.target.value)}
                           placeholder={isAr ? 'ينتهي العرض خلال' : 'Offer ends in'}
-                          className="w-full px-3 py-1.5 rounded-md bg-[#1E222D] border border-[#2A2E39] text-xs text-white"
+                          className="w-full px-3 py-1.5 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] text-xs text-[#131722] dark:text-white"
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-semibold text-[#94A3B8] mb-1">
+                        <label className="block text-[10px] font-semibold text-[#4A5162] dark:text-[#94A3B8] mb-1">
                           {isAr
                             ? 'تاريخ ووقت انتهاء العداد (تختفي النافذة تلقائياً عند الصفر)'
                             : 'Countdown Target End Date & Time (auto-hides at 00:00)'}
@@ -1567,7 +1585,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                           type="datetime-local"
                           value={countdownEndLocal}
                           onChange={(e) => setCountdownEndLocal(e.target.value)}
-                          className="w-full px-3 py-1.5 rounded-md bg-[#1E222D] border border-[#2A2E39] text-xs font-mono text-white"
+                          className="w-full px-3 py-1.5 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] text-xs font-mono text-[#131722] dark:text-white"
                         />
                       </div>
                     </div>
@@ -1577,8 +1595,8 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
 
               {/* 5. CTA Action & Web Push Trigger */}
               <div className="space-y-3.5">
-                <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                  <MousePointerClick className="w-4 h-4 text-[#26A69A]" />
+                <h4 className="text-xs font-bold text-[#131722] dark:text-white uppercase tracking-wider flex items-center gap-2">
+                  <MousePointerClick className="w-4 h-4 text-[#089981] dark:text-[#26A69A]" />
                   <span>
                     {isAr
                       ? '5. زر الإجراء التفاعلي وإشعار الهاتف (CTA Action & Web Push)'
@@ -1588,13 +1606,13 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[11px] font-semibold text-[#94A3B8] mb-1">
+                    <label className="block text-[11px] font-semibold text-[#4A5162] dark:text-[#94A3B8] mb-1">
                       {isAr ? 'نوع إجراء الزر (CTA Action Type)' : 'CTA Action Type'}
                     </label>
                     <select
                       value={ctaType}
                       onChange={(e) => setCtaType(e.target.value as AnnouncementCtaType)}
-                      className="w-full px-3 py-2 rounded-md bg-[#1E222D] border border-[#2A2E39] text-xs font-bold text-white focus:outline-hidden cursor-pointer"
+                      className="w-full px-3 py-2 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] text-xs font-bold text-[#131722] dark:text-white focus:outline-hidden cursor-pointer"
                     >
                       <option value="plans">
                         {isAr ? 'فتح نافذة الباقات والترقية (Plans Modal)' : 'Open Upgrade / Plans Modal'}
@@ -1622,7 +1640,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
 
                   {ctaType !== 'none' && (
                     <div>
-                      <label className="block text-[11px] font-semibold text-[#94A3B8] mb-1">
+                      <label className="block text-[11px] font-semibold text-[#4A5162] dark:text-[#94A3B8] mb-1">
                         {isAr ? 'نص الزر (CTA Label)' : 'CTA Button Label'}
                       </label>
                       <input
@@ -1630,7 +1648,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                         value={ctaLabel}
                         onChange={(e) => setCtaLabel(e.target.value)}
                         placeholder={isAr ? 'مثال: اشترك الآن / تواصل مع الدعم' : 'e.g. Upgrade Now'}
-                        className="w-full px-3 py-2 rounded-md bg-[#1E222D] border border-[#2A2E39] text-xs font-bold text-white focus:outline-hidden"
+                        className="w-full px-3 py-2 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] text-xs font-bold text-[#131722] dark:text-white focus:outline-hidden"
                       />
                     </div>
                   )}
@@ -1638,13 +1656,13 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
 
                 {ctaType === 'navigate_tab' && (
                   <div>
-                    <label className="block text-[11px] font-semibold text-[#94A3B8] mb-1">
+                    <label className="block text-[11px] font-semibold text-[#4A5162] dark:text-[#94A3B8] mb-1">
                       {isAr ? 'اختر القسم الذي سينتقل إليه المستخدم:' : 'Target App Tab:'}
                     </label>
                     <select
                       value={ctaTargetTab}
                       onChange={(e) => setCtaTargetTab(e.target.value)}
-                      className="w-full px-3 py-2 rounded-md bg-[#1E222D] border border-[#2A2E39] text-xs font-bold text-white cursor-pointer"
+                      className="w-full px-3 py-2 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] text-xs font-bold text-[#131722] dark:text-white cursor-pointer"
                     >
                       {NAVIGABLE_TARGET_TABS.map((t) => (
                         <option key={t.id} value={t.id}>
@@ -1657,7 +1675,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
 
                 {ctaType === 'url' && (
                   <div>
-                    <label className="block text-[11px] font-semibold text-[#94A3B8] mb-1">
+                    <label className="block text-[11px] font-semibold text-[#4A5162] dark:text-[#94A3B8] mb-1">
                       {isAr
                         ? 'الرابط الخارجي (https://... أو رابط واتساب / تيليجرام):'
                         : 'External URL (https://... or WhatsApp / Telegram link):'}
@@ -1668,21 +1686,21 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                       onChange={(e) => setCtaUrl(e.target.value)}
                       placeholder="https://t.me/..."
                       dir="ltr"
-                      className="w-full px-3 py-2 rounded-md bg-[#1E222D] border border-[#2A2E39] text-xs font-mono text-white"
+                      className="w-full px-3 py-2 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] text-xs font-mono text-[#131722] dark:text-white"
                     />
                   </div>
                 )}
 
                 {/* Web Push Checkbox */}
-                <div className="p-3 rounded-md bg-[#0B0E11] border border-[#2A2E39] flex items-center justify-between">
-                  <label className="inline-flex items-center gap-2 text-xs font-semibold text-[#E2E8F0] cursor-pointer">
+                <div className="p-3 rounded-md bg-[#F0F3FA] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39] flex items-center justify-between">
+                  <label className="inline-flex items-center gap-2 text-xs font-semibold text-[#131722] dark:text-[#E2E8F0] cursor-pointer">
                     <input
                       type="checkbox"
                       checked={sendPopupWebPush}
                       onChange={(e) => setSendPopupWebPush(e.target.checked)}
                       className="accent-[#26A69A] w-4 h-4 cursor-pointer"
                     />
-                    <BellRing className="w-3.5 h-3.5 text-[#26A69A]" />
+                    <BellRing className="w-3.5 h-3.5 text-[#089981] dark:text-[#26A69A]" />
                     <span>
                       {isAr
                         ? 'إرسال إشعار خلفية للهواتف (Web Push Notification) بالتزامن مع النشر الفوري'
@@ -1721,9 +1739,9 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                   <button
                     type="button"
                     onClick={() => handleOpenSaveTemplateModal('popup')}
-                    className="py-2.5 px-4 rounded-md bg-[#1E222D] hover:bg-[#2A2E39] border border-[#2A2E39] text-[#E2E8F0] font-bold text-xs cursor-pointer flex items-center gap-1.5"
+                    className="py-2.5 px-4 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] border border-[#E0E3EB] dark:border-[#2A2E39] text-[#131722] dark:text-[#E2E8F0] font-bold text-xs cursor-pointer flex items-center gap-1.5"
                   >
-                    <Save className="w-3.5 h-3.5 text-[#F0B90B]" />
+                    <Save className="w-3.5 h-3.5 text-[#9A6700] dark:text-[#F0B90B]" />
                     <span>{isAr ? 'حفظ كقالب' : 'Save Template'}</span>
                   </button>
                 </div>
@@ -1732,23 +1750,23 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
 
             {/* RIGHT/END: INTERACTIVE LIVE PREVIEW PANEL */}
             <div className="xl:col-span-5 xl:sticky xl:top-4 space-y-4">
-              <div className="bg-[#131722] border border-[#2A2E39] rounded-lg p-4 space-y-3">
-                <div className="flex items-center justify-between border-b border-[#2A2E39] pb-2.5">
+              <div className="bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] rounded-lg p-4 space-y-3">
+                <div className="flex items-center justify-between border-b border-[#E0E3EB] dark:border-[#2A2E39] pb-2.5">
                   <div className="flex items-center gap-2">
-                    <Eye className="w-4 h-4 text-[#26A69A]" />
-                    <span className="text-xs font-bold text-white uppercase tracking-wider">
+                    <Eye className="w-4 h-4 text-[#089981] dark:text-[#26A69A]" />
+                    <span className="text-xs font-bold text-[#131722] dark:text-white uppercase tracking-wider">
                       {isAr ? 'معاينة حية ومباشرة (Live Studio Preview)' : 'Interactive Live Preview'}
                     </span>
                   </div>
-                  <span className="px-2 py-0.5 rounded bg-[#0B0E11] border border-[#2A2E39] text-[10px] font-mono text-[#94A3B8]">
+                  <span className="px-2 py-0.5 rounded bg-[#F0F3FA] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39] text-[10px] font-mono text-[#4A5162] dark:text-[#94A3B8]">
                     {placement.replace(/_/g, ' ').toUpperCase()}
                   </span>
                 </div>
 
                 {/* Simulated Screen Viewport */}
-                <div className="relative min-h-[380px] rounded-lg bg-[#0B0E11] border border-[#2A2E39] p-4 flex flex-col justify-between overflow-hidden">
+                <div className="relative min-h-[380px] rounded-lg bg-[#F0F3FA] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39] p-4 flex flex-col justify-between overflow-hidden">
                   {/* Subtle Terminal Grid Header Mock */}
-                  <div className="flex items-center justify-between text-[10px] font-mono text-[#64748B] border-b border-[#2A2E39]/60 pb-2">
+                  <div className="flex items-center justify-between text-[10px] font-mono text-[#787B86] dark:text-[#64748B] border-b border-[#E0E3EB] dark:border-[#2A2E39]/60 pb-2">
                     <span>MBK TERMINAL • XAUUSD / US100</span>
                     <span>AUDIENCE: {targetAudience.toUpperCase()}</span>
                   </div>
@@ -1767,16 +1785,18 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                   >
                     {/* RENDERED POPUP CARD PREVIEW */}
                     <div
-                      className={`w-full transition-all rounded-lg overflow-hidden shadow-2xl ${
+                      className={`w-full transition-all rounded-lg overflow-hidden shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl ${
                         surfaceStyle === 'high_contrast'
-                          ? 'bg-[#0B0E11]'
-                          : 'bg-[#131722]'
+                          ? 'bg-[#FFFFFF] dark:bg-[#0B0E11]'
+                          : 'bg-[#FFFFFF] dark:bg-[#131722]'
                       }`}
                       style={{
                         borderWidth: surfaceStyle === 'alert_border' ? '2px' : '1px',
                         borderStyle: 'solid',
                         borderColor:
-                          surfaceStyle === 'alert_border' ? accentColor : '#2A2E39'
+                          surfaceStyle === 'alert_border'
+                            ? accentColor
+                            : 'var(--mbk-border)'
                       }}
                     >
                       {/* Top Accent Bar */}
@@ -1787,7 +1807,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
 
                       {/* Optional Banner Image */}
                       {bannerImageUrl.trim() && (
-                        <div className="w-full h-32 bg-[#0B0E11] border-b border-[#2A2E39] overflow-hidden">
+                        <div className="w-full h-32 bg-[#F0F3FA] dark:bg-[#0B0E11] border-b border-[#E0E3EB] dark:border-[#2A2E39] overflow-hidden">
                           <img
                             src={bannerImageUrl}
                             alt="Banner"
@@ -1807,12 +1827,12 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                               <img
                                 src="/mbk-logo.png"
                                 alt="MBK Trading"
-                                className="w-7 h-7 rounded-md object-contain bg-[#0B0E11] border border-[#2A2E39] p-0.5 shrink-0"
+                                className="w-7 h-7 rounded-md object-contain bg-[#F0F3FA] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39] p-0.5 shrink-0"
                               />
                             )}
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5">
-                                <span className="text-xs font-bold text-white truncate">
+                                <span className="text-xs font-bold text-[#131722] dark:text-white truncate">
                                   {normalizeBrandSenderName(senderName)}
                                 </span>
                                 <span
@@ -1838,20 +1858,20 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                             </div>
                           </div>
 
-                          <span className="p-1 rounded bg-[#1E222D] text-[#64748B]">
+                          <span className="p-1 rounded bg-[#F8F9FD] dark:bg-[#1E222D] text-[#787B86] dark:text-[#64748B]">
                             <X className="w-3.5 h-3.5" />
                           </span>
                         </div>
 
                         {/* Title & Body */}
                         <div className="space-y-1.5">
-                          <h5 className="text-sm font-bold text-white leading-snug">
+                          <h5 className="text-sm font-bold text-[#131722] dark:text-white leading-snug">
                             {popupTitle.trim() ||
                               (isAr
                                 ? 'عنوان النافذة المنبثقة يظهر هنا...'
                                 : 'Popup Headline Appears Here...')}
                           </h5>
-                          <p className="text-xs text-[#94A3B8] leading-relaxed whitespace-pre-wrap break-words">
+                          <p className="text-xs text-[#4A5162] dark:text-[#94A3B8] leading-relaxed whitespace-pre-wrap break-words">
                             {popupMessage.trim() ||
                               (isAr
                                 ? 'تفاصيل الإعلان أو العرض الخاص أو تحذير الأخبار الاقتصادية ستظهر هنا بوضوح للمتداولين.'
@@ -1861,8 +1881,8 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
 
                         {/* Real-Time Ticking Countdown Timer in Preview */}
                         {countdownEnabled && (
-                          <div className="p-2.5 rounded-md bg-[#0B0E11] border border-[#2A2E39] flex flex-wrap items-center justify-between gap-2">
-                            <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#E2E8F0]">
+                          <div className="p-2.5 rounded-md bg-[#F0F3FA] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39] flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#131722] dark:text-[#E2E8F0]">
                               <Clock className="w-3.5 h-3.5" style={{ color: accentColor }} />
                               <span>
                                 {countdownLabel || (isAr ? 'ينتهي العرض خلال' : 'Offer ends in')}
@@ -1870,7 +1890,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                             </div>
 
                             {previewCountdown.expired ? (
-                              <span className="px-2 py-0.5 rounded bg-[#EF5350]/20 text-[#EF5350] text-[10px] font-mono font-bold">
+                              <span className="px-2 py-0.5 rounded bg-[#FDECEE] dark:bg-[#EF5350]/20 text-[#D93848] dark:text-[#EF5350] text-[10px] font-mono font-bold">
                                 {isAr ? 'انتهى الوقت (00:00:00)' : 'EXPIRED (00:00:00)'}
                               </span>
                             ) : (
@@ -1885,13 +1905,13 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                                   { val: previewCountdown.ss, unit: 'S' }
                                 ].map((part, idx) => (
                                   <React.Fragment key={part.unit}>
-                                    {idx > 0 && <span className="text-[#64748B]">:</span>}
+                                    {idx > 0 && <span className="text-[#787B86] dark:text-[#64748B]">:</span>}
                                     <span
-                                      className="px-1.5 py-0.5 rounded bg-[#131722] border border-[#2A2E39] text-white"
+                                      className="px-1.5 py-0.5 rounded bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] text-[#131722] dark:text-white"
                                       style={{ borderColor: `${accentColor}55` }}
                                     >
                                       {part.val}
-                                      <span className="text-[9px] text-[#94A3B8] ms-0.5">
+                                      <span className="text-[9px] text-[#4A5162] dark:text-[#94A3B8] ms-0.5">
                                         {part.unit}
                                       </span>
                                     </span>
@@ -1919,7 +1939,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                               </span>
                             </span>
                           )}
-                          <span className="px-3 py-1.5 rounded-md bg-[#1E222D] border border-[#2A2E39] text-[#94A3B8] text-[11px] font-semibold">
+                          <span className="px-3 py-1.5 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] text-[#4A5162] dark:text-[#94A3B8] text-[11px] font-semibold">
                             {isAr ? 'إغلاق' : 'Dismiss'}
                           </span>
                         </div>
@@ -1928,7 +1948,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                   </div>
 
                   {/* Preview Footer Metadata */}
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-mono text-[#64748B] border-t border-[#2A2E39]/60 pt-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-mono text-[#787B86] dark:text-[#64748B] border-t border-[#E0E3EB] dark:border-[#2A2E39]/60 pt-2">
                     <span>FREQ: {frequency.toUpperCase()}</span>
                     <span>
                       PUSH: {sendPopupWebPush ? 'ENABLED' : 'OFF'}
@@ -1942,18 +1962,18 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
           {/* =================================================================== */}
           {/* ACTIVE & SCHEDULED POPUPS MANAGER TABLE (LIVE KILL SWITCH & METRICS) */}
           {/* =================================================================== */}
-          <div className="bg-[#131722] border border-[#2A2E39] rounded-lg p-4 sm:p-5 space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#2A2E39] pb-3">
+          <div className="bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] rounded-lg p-4 sm:p-5 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E0E3EB] dark:border-[#2A2E39] pb-3">
               <div>
-                <h4 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
-                  <Megaphone className="w-4 h-4 text-[#26A69A]" />
+                <h4 className="text-xs sm:text-sm font-bold text-[#131722] dark:text-white flex items-center gap-2">
+                  <Megaphone className="w-4 h-4 text-[#089981] dark:text-[#26A69A]" />
                   <span>
                     {isAr
                       ? `إدارة النوافذ المنبثقة النشطة والمجدولة (${announcements.length})`
                       : `Active & Scheduled Popups Manager (${announcements.length})`}
                   </span>
                 </h4>
-                <p className="text-[11px] text-[#64748B]">
+                <p className="text-[11px] text-[#787B86] dark:text-[#64748B]">
                   {isAr
                     ? 'تحكم فوري: إيقاف مؤقت، استئناف، تعديل، نسخ، أو حذف نهائي من شاشات المستخدمين'
                     : 'Live Kill Switch: Pause, resume, edit, duplicate, or delete popups in real time'}
@@ -1962,15 +1982,15 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
             </div>
 
             {announcements.length === 0 ? (
-              <div className="py-8 text-center text-xs text-[#64748B]">
+              <div className="py-8 text-center text-xs text-[#787B86] dark:text-[#64748B]">
                 {isAr
                   ? 'لا توجد نوافذ منبثقة منشورة حالياً.'
                   : 'No popups published yet.'}
               </div>
             ) : (
-              <div className="overflow-x-auto border border-[#2A2E39] rounded-md bg-[#0B0E11]">
+              <div className="overflow-x-auto border border-[#E0E3EB] dark:border-[#2A2E39] rounded-md bg-[#F0F3FA] dark:bg-[#0B0E11]">
                 <table className="w-full text-start text-xs border-collapse">
-                  <thead className="bg-[#131722] border-b border-[#2A2E39] text-[#64748B] font-mono text-[10px] uppercase">
+                  <thead className="bg-[#FFFFFF] dark:bg-[#131722] border-b border-[#E0E3EB] dark:border-[#2A2E39] text-[#787B86] dark:text-[#64748B] font-mono text-[10px] uppercase">
                     <tr>
                       <th className="py-2.5 px-3 text-start">{isAr ? 'الحالة' : 'Status'}</th>
                       <th className="py-2.5 px-3 text-start">{isAr ? 'النافذة والمُرسل' : 'Popup & Sender'}</th>
@@ -1980,7 +2000,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                       <th className="py-2.5 px-3 text-end">{isAr ? 'إجراءات فورية' : 'Actions'}</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#2A2E39]">
+                  <tbody className="divide-y divide-[#E0E3EB] dark:divide-[#2A2E39]">
                     {announcements.map((ann) => {
                       const status = getPopupLifecycleStatus(ann);
                       const cd =
@@ -1989,7 +2009,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                           : null;
 
                       return (
-                        <tr key={ann.id} className="hover:bg-[#1E222D]/60">
+                        <tr key={ann.id} className="hover:bg-[#EDF1F7] dark:hover:bg-[#1E222D]/60">
                           {/* Status */}
                           <td className="py-2.5 px-3 whitespace-nowrap">
                             <span
@@ -2007,10 +2027,10 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                                 style={{ backgroundColor: ann.accentColor || '#26A69A' }}
                               />
                               <div className="min-w-0">
-                                <div className="text-xs font-bold text-white truncate">
+                                <div className="text-xs font-bold text-[#131722] dark:text-white truncate">
                                   {ann.title}
                                 </div>
-                                <div className="text-[10px] text-[#94A3B8] truncate">
+                                <div className="text-[10px] text-[#4A5162] dark:text-[#94A3B8] truncate">
                                   {normalizeBrandSenderName(ann.senderName)} •{' '}
                                   {ann.message.slice(0, 60)}
                                 </div>
@@ -2020,10 +2040,10 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
 
                           {/* Placement & Audience */}
                           <td className="py-2.5 px-3 whitespace-nowrap font-mono text-[10px]">
-                            <div className="text-[#E2E8F0] font-bold uppercase">
+                            <div className="text-[#131722] dark:text-[#E2E8F0] font-bold uppercase">
                               {(ann.placement || 'center_modal').replace(/_/g, ' ')}
                             </div>
-                            <div className="text-[#94A3B8]">
+                            <div className="text-[#4A5162] dark:text-[#94A3B8]">
                               AUD: {ann.targetAudience.toUpperCase()} • TABS:{' '}
                               {ann.targetTabs.slice(0, 3).join(', ')}
                             </div>
@@ -2033,19 +2053,19 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                           <td className="py-2.5 px-3 whitespace-nowrap font-mono tabular-nums text-[11px]">
                             {cd ? (
                               cd.expired ? (
-                                <span className="text-[#EF5350] font-bold">00:00:00 (EXPIRED)</span>
+                                <span className="text-[#D93848] dark:text-[#EF5350] font-bold">00:00:00 (EXPIRED)</span>
                               ) : (
-                                <span className="text-[#F0B90B] font-bold">
+                                <span className="text-[#9A6700] dark:text-[#F0B90B] font-bold">
                                   {cd.dd}d : {cd.hh}h : {cd.mm}m : {cd.ss}s
                                 </span>
                               )
                             ) : ann.endAtMs ? (
-                              <span className="text-[#94A3B8]">
+                              <span className="text-[#4A5162] dark:text-[#94A3B8]">
                                 {isAr ? 'ينتهي: ' : 'Ends: '}
                                 {new Date(ann.endAtMs).toLocaleString()}
                               </span>
                             ) : (
-                              <span className="text-[#64748B]">
+                              <span className="text-[#787B86] dark:text-[#64748B]">
                                 {isAr ? 'مستمر' : 'Continuous'}
                               </span>
                             )}
@@ -2054,11 +2074,11 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                           {/* Views & Clicks */}
                           <td className="py-2.5 px-3 whitespace-nowrap font-mono tabular-nums text-[11px]">
                             <div className="flex items-center gap-3">
-                              <span className="text-[#E2E8F0]" title="Views">
-                                <Eye className="w-3 h-3 inline me-1 text-[#94A3B8]" />
+                              <span className="text-[#131722] dark:text-[#E2E8F0]" title="Views">
+                                <Eye className="w-3 h-3 inline me-1 text-[#4A5162] dark:text-[#94A3B8]" />
                                 {ann.views || 0}
                               </span>
-                              <span className="text-[#26A69A]" title="CTA Clicks">
+                              <span className="text-[#089981] dark:text-[#26A69A]" title="CTA Clicks">
                                 <MousePointerClick className="w-3 h-3 inline me-1" />
                                 {ann.clicks || 0}
                               </span>
@@ -2073,17 +2093,17 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                                 onClick={() =>
                                   toggleAnnouncementActive(ann.id, !ann.isActive, ann.title)
                                 }
-                                className="px-2.5 py-1 rounded bg-[#1E222D] hover:bg-[#2A2E39] border border-[#2A2E39] text-white text-[11px] font-semibold inline-flex items-center gap-1 cursor-pointer"
+                                className="px-2.5 py-1 rounded bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] border border-[#E0E3EB] dark:border-[#2A2E39] text-[#131722] dark:text-white text-[11px] font-semibold inline-flex items-center gap-1 cursor-pointer"
                                 title={ann.isActive ? 'Pause' : 'Resume'}
                               >
                                 {ann.isActive ? (
                                   <>
-                                    <Pause className="w-3 h-3 text-[#F0B90B]" />
+                                    <Pause className="w-3 h-3 text-[#9A6700] dark:text-[#F0B90B]" />
                                     <span>{isAr ? 'إيقاف' : 'Pause'}</span>
                                   </>
                                 ) : (
                                   <>
-                                    <Play className="w-3 h-3 text-[#26A69A]" />
+                                    <Play className="w-3 h-3 text-[#089981] dark:text-[#26A69A]" />
                                     <span>{isAr ? 'تفعيل' : 'Resume'}</span>
                                   </>
                                 )}
@@ -2092,7 +2112,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                               <button
                                 type="button"
                                 onClick={() => loadPopupIntoStudio(ann, false)}
-                                className="p-1.5 rounded bg-[#1E222D] hover:bg-[#2A2E39] border border-[#2A2E39] text-[#E2E8F0] hover:text-white cursor-pointer"
+                                className="p-1.5 rounded bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] border border-[#E0E3EB] dark:border-[#2A2E39] text-[#131722] dark:text-[#E2E8F0] hover:text-[#131722] dark:hover:text-white cursor-pointer"
                                 title={isAr ? 'تعديل في الاستوديو' : 'Edit in Studio'}
                               >
                                 <Edit3 className="w-3.5 h-3.5" />
@@ -2101,7 +2121,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                               <button
                                 type="button"
                                 onClick={() => loadPopupIntoStudio(ann, true)}
-                                className="p-1.5 rounded bg-[#1E222D] hover:bg-[#2A2E39] border border-[#2A2E39] text-[#94A3B8] hover:text-white cursor-pointer"
+                                className="p-1.5 rounded bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] border border-[#E0E3EB] dark:border-[#2A2E39] text-[#4A5162] dark:text-[#94A3B8] hover:text-[#131722] dark:hover:text-white cursor-pointer"
                                 title={isAr ? 'نسخ (Duplicate)' : 'Duplicate'}
                               >
                                 <Copy className="w-3.5 h-3.5" />
@@ -2110,7 +2130,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                               <button
                                 type="button"
                                 onClick={() => deleteAnnouncement(ann.id, ann.title)}
-                                className="p-1.5 rounded bg-[#EF5350]/15 hover:bg-[#EF5350] border border-[#EF5350]/30 text-[#EF5350] hover:text-white cursor-pointer"
+                                className="p-1.5 rounded bg-[#FDECEE] dark:bg-[#EF5350]/15 hover:bg-[#EF5350] border border-[#F5C2C7] dark:border-[#EF5350]/30 text-[#D93848] dark:text-[#EF5350] hover:text-white cursor-pointer"
                                 title={isAr ? 'حذف نهائي' : 'Delete immediately'}
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -2134,14 +2154,14 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
       {activeSubTab === 'bulk_dm' && (
         <div className="space-y-5">
           {/* Saved DM Templates Quick Bar */}
-          <div className="bg-[#131722] border border-[#2A2E39] rounded-lg p-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] rounded-lg p-3 flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-[11px] font-bold text-[#94A3B8] flex items-center gap-1 me-1">
-                <Bookmark className="w-3.5 h-3.5 text-[#F0B90B]" />
+              <span className="text-[11px] font-bold text-[#4A5162] dark:text-[#94A3B8] flex items-center gap-1 me-1">
+                <Bookmark className="w-3.5 h-3.5 text-[#9A6700] dark:text-[#F0B90B]" />
                 <span>{isAr ? 'قوالب الرسائل المحفوظة:' : 'Saved Bulk DM Templates:'}</span>
               </span>
               {dmTemplates.length === 0 ? (
-                <span className="text-[11px] text-[#64748B]">
+                <span className="text-[11px] text-[#787B86] dark:text-[#64748B]">
                   {isAr
                     ? 'لا توجد قوالب رسائل محفوظة — اكتب رسالتك واضغط حفظ كقالب.'
                     : 'No saved DM templates yet — compose below and click Save as Template.'}
@@ -2150,19 +2170,19 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                 dmTemplates.map((tpl) => (
                   <div
                     key={tpl.id}
-                    className="inline-flex items-center rounded-md bg-[#0B0E11] border border-[#2A2E39] overflow-hidden"
+                    className="inline-flex items-center rounded-md bg-[#F0F3FA] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39] overflow-hidden"
                   >
                     <button
                       type="button"
                       onClick={() => applySavedTemplate(tpl)}
-                      className="px-2.5 py-1 text-[11px] font-semibold text-[#E2E8F0] hover:text-white hover:bg-[#1E222D] transition-colors cursor-pointer"
+                      className="px-2.5 py-1 text-[11px] font-semibold text-[#131722] dark:text-[#E2E8F0] hover:text-[#131722] dark:hover:text-white hover:bg-[#EDF1F7] dark:hover:bg-[#1E222D] transition-colors cursor-pointer"
                     >
                       {tpl.name}
                     </button>
                     <button
                       type="button"
                       onClick={() => deleteAdminTemplate(tpl.id, tpl.name)}
-                      className="px-1.5 py-1 text-[#64748B] hover:text-[#EF5350] hover:bg-[#1E222D] border-s border-[#2A2E39] cursor-pointer"
+                      className="px-1.5 py-1 text-[#787B86] dark:text-[#64748B] hover:text-[#EF5350] hover:bg-[#EDF1F7] dark:hover:bg-[#1E222D] border-s border-[#E0E3EB] dark:border-[#2A2E39] cursor-pointer"
                       title={isAr ? 'حذف القالب' : 'Delete template'}
                     >
                       <X className="w-3 h-3" />
@@ -2175,7 +2195,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
             <button
               type="button"
               onClick={() => handleOpenSaveTemplateModal('dm')}
-              className="px-3 py-1.5 rounded-md bg-[#1E222D] hover:bg-[#2A2E39] border border-[#2A2E39] text-[#F0B90B] text-[11px] font-bold flex items-center gap-1.5 cursor-pointer"
+              className="px-3 py-1.5 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] border border-[#E0E3EB] dark:border-[#2A2E39] text-[#9A6700] dark:text-[#F0B90B] text-[11px] font-bold flex items-center gap-1.5 cursor-pointer"
             >
               <BookmarkPlus className="w-3.5 h-3.5" />
               <span>{isAr ? 'حفظ الرسالة الحالية كقالب' : 'Save Current DM as Template'}</span>
@@ -2186,20 +2206,20 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
             {/* LEFT/START: BULK DM COMPOSER */}
             <form
               onSubmit={handleSendBulkDm}
-              className="xl:col-span-7 bg-[#131722] border border-[#2A2E39] rounded-lg p-4 sm:p-5 space-y-5"
+              className="xl:col-span-7 bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] rounded-lg p-4 sm:p-5 space-y-5"
             >
               {/* Official Brand Identity Controls */}
-              <div className="space-y-3.5 pb-4 border-b border-[#2A2E39]">
+              <div className="space-y-3.5 pb-4 border-b border-[#E0E3EB] dark:border-[#2A2E39]">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-[#26A69A]" />
+                  <h4 className="text-xs font-bold text-[#131722] dark:text-white uppercase tracking-wider flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-[#089981] dark:text-[#26A69A]" />
                     <span>
                       {isAr
                         ? '1. الهوية الرسمية للمُرسل (Official Brand Sender Identity)'
                         : '1. Official Brand Sender Identity'}
                     </span>
                   </h4>
-                  <label className="inline-flex items-center gap-2 text-xs font-semibold text-[#E2E8F0] cursor-pointer">
+                  <label className="inline-flex items-center gap-2 text-xs font-semibold text-[#131722] dark:text-[#E2E8F0] cursor-pointer">
                     <input
                       type="checkbox"
                       checked={dmShowLogo}
@@ -2212,7 +2232,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
 
                 <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
                   <div className="sm:col-span-7 space-y-1.5">
-                    <label className="block text-[11px] font-semibold text-[#94A3B8]">
+                    <label className="block text-[11px] font-semibold text-[#4A5162] dark:text-[#94A3B8]">
                       {isAr ? 'اسم مكتب الإرسال الرسمي' : 'Official Desk Display Name'}
                     </label>
                     <div className="flex flex-wrap gap-1 mb-1">
@@ -2227,7 +2247,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                           className={`px-2.5 py-1 rounded text-[11px] font-mono font-bold border cursor-pointer ${
                             dmSenderName === chip
                               ? 'bg-[#26A69A] text-white border-[#26A69A]'
-                              : 'bg-[#0B0E11] text-[#94A3B8] hover:text-white border-[#2A2E39]'
+                              : 'bg-[#F0F3FA] dark:bg-[#0B0E11] text-[#4A5162] dark:text-[#94A3B8] hover:text-[#131722] dark:hover:text-white border-[#E0E3EB] dark:border-[#2A2E39]'
                           }`}
                         >
                           {chip}
@@ -2239,12 +2259,12 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                       value={dmSenderName}
                       onChange={(e) => setDmSenderName(e.target.value)}
                       placeholder="MBK Trading"
-                      className="w-full px-3 py-2 rounded-md bg-[#1E222D] border border-[#2A2E39] focus:border-[#26A69A] text-xs font-bold text-white focus:outline-hidden"
+                      className="w-full px-3 py-2 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] focus:border-[#1E53E5] dark:focus:border-[#26A69A] text-xs font-bold text-[#131722] dark:text-white focus:outline-hidden"
                     />
                   </div>
 
                   <div className="sm:col-span-5">
-                    <label className="block text-[11px] font-semibold text-[#94A3B8] mb-1">
+                    <label className="block text-[11px] font-semibold text-[#4A5162] dark:text-[#94A3B8] mb-1">
                       {isAr ? 'رابط صورة مرفقة (اختياري)' : 'Optional Banner Image URL'}
                     </label>
                     <input
@@ -2253,24 +2273,24 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                       onChange={(e) => setDmBannerImageUrl(e.target.value)}
                       placeholder="https://..."
                       dir="ltr"
-                      className="w-full px-3 py-2 rounded-md bg-[#1E222D] border border-[#2A2E39] text-xs font-mono text-white focus:outline-hidden"
+                      className="w-full px-3 py-2 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] text-xs font-mono text-[#131722] dark:text-white focus:outline-hidden"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Audience Segment Selector */}
-              <div className="space-y-3 pb-4 border-b border-[#2A2E39]">
+              <div className="space-y-3 pb-4 border-b border-[#E0E3EB] dark:border-[#2A2E39]">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                    <Users className="w-4 h-4 text-[#26A69A]" />
+                  <h4 className="text-xs font-bold text-[#131722] dark:text-white uppercase tracking-wider flex items-center gap-2">
+                    <Users className="w-4 h-4 text-[#089981] dark:text-[#26A69A]" />
                     <span>
                       {isAr
                         ? '2. شريحة المستلمين المستهدفة (Target Recipient Segment)'
                         : '2. Target Recipient Segment'}
                     </span>
                   </h4>
-                  <span className="px-2.5 py-0.5 rounded bg-[#26A69A]/15 border border-[#26A69A]/40 text-[#26A69A] text-xs font-mono tabular-nums font-bold">
+                  <span className="px-2.5 py-0.5 rounded bg-[#E6F5F2] dark:bg-[#26A69A]/15 border border-[#B3E2D9] dark:border-[#26A69A]/40 text-[#089981] dark:text-[#26A69A] text-xs font-mono tabular-nums font-bold">
                     {matchingDmRecipients.length} {isAr ? 'مستلم مطابق' : 'Matched Users'}
                   </span>
                 </div>
@@ -2299,13 +2319,13 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                       }}
                       className={`p-2.5 rounded-md text-xs font-bold text-start border flex items-center justify-between cursor-pointer transition-colors ${
                         dmSegment === seg.id
-                          ? 'bg-[#26A69A]/15 text-white border-[#26A69A]'
-                          : 'bg-[#0B0E11] text-[#94A3B8] hover:text-white border-[#2A2E39]'
+                          ? 'bg-[#E6F5F2] dark:bg-[#26A69A]/15 text-[#131722] dark:text-white border-[#26A69A]'
+                          : 'bg-[#F0F3FA] dark:bg-[#0B0E11] text-[#4A5162] dark:text-[#94A3B8] hover:text-[#131722] dark:hover:text-white border-[#E0E3EB] dark:border-[#2A2E39]'
                       }`}
                     >
                       <span>{isAr ? seg.ar : seg.en}</span>
                       {dmSegment === seg.id && (
-                        <CheckCircle2 className="w-3.5 h-3.5 text-[#26A69A] shrink-0" />
+                        <CheckCircle2 className="w-3.5 h-3.5 text-[#089981] dark:text-[#26A69A] shrink-0" />
                       )}
                     </button>
                   ))}
@@ -2315,8 +2335,8 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
               {/* Title & Message Composer */}
               <div className="space-y-3.5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                    <MessageSquare className="w-4 h-4 text-[#F0B90B]" />
+                  <h4 className="text-xs font-bold text-[#131722] dark:text-white uppercase tracking-wider flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4 text-[#9A6700] dark:text-[#F0B90B]" />
                     <span>
                       {isAr
                         ? '3. عنوان ونص الرسالة الخاصة (Title & Personalized Message)'
@@ -2325,20 +2345,20 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                   </h4>
 
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] text-[#94A3B8]">
+                    <span className="text-[10px] text-[#4A5162] dark:text-[#94A3B8]">
                       {isAr ? 'إدراج متغير ذكي:' : 'Insert variable:'}
                     </span>
                     <button
                       type="button"
                       onClick={() => insertDmVariable('{name}')}
-                      className="px-2 py-0.5 rounded bg-[#1E222D] hover:bg-[#2A2E39] border border-[#2A2E39] text-[11px] font-mono font-bold text-[#26A69A] cursor-pointer"
+                      className="px-2 py-0.5 rounded bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] border border-[#E0E3EB] dark:border-[#2A2E39] text-[11px] font-mono font-bold text-[#089981] dark:text-[#26A69A] cursor-pointer"
                     >
                       + {'{name}'}
                     </button>
                     <button
                       type="button"
                       onClick={() => insertDmVariable('{days}')}
-                      className="px-2 py-0.5 rounded bg-[#1E222D] hover:bg-[#2A2E39] border border-[#2A2E39] text-[11px] font-mono font-bold text-[#F0B90B] cursor-pointer"
+                      className="px-2 py-0.5 rounded bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] border border-[#E0E3EB] dark:border-[#2A2E39] text-[11px] font-mono font-bold text-[#9A6700] dark:text-[#F0B90B] cursor-pointer"
                     >
                       + {'{days}'}
                     </button>
@@ -2346,7 +2366,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#94A3B8] mb-1">
+                  <label className="block text-[11px] font-semibold text-[#4A5162] dark:text-[#94A3B8] mb-1">
                     {isAr ? 'عنوان الرسالة (Headline — اختياري)' : 'Message Title / Subject (Optional)'}
                   </label>
                   <input
@@ -2358,12 +2378,12 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                         ? 'مثال: تذكير بتجديد اشتراكك في MBK Trading أو عرض VIP خاص لك'
                         : 'e.g. Official VIP Renewal Reminder or Exclusive Offer for {name}'
                     }
-                    className="w-full px-3.5 py-2 rounded-md bg-[#1E222D] border border-[#2A2E39] focus:border-[#26A69A] text-xs font-bold text-white focus:outline-hidden"
+                    className="w-full px-3.5 py-2 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] focus:border-[#1E53E5] dark:focus:border-[#26A69A] text-xs font-bold text-[#131722] dark:text-white focus:outline-hidden"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#94A3B8] mb-1">
+                  <label className="block text-[11px] font-semibold text-[#4A5162] dark:text-[#94A3B8] mb-1">
                     {isAr ? 'محتوى الرسالة الخاصة' : 'Direct Message Content'}
                   </label>
                   <textarea
@@ -2375,21 +2395,21 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                         ? 'مرحباً {name}، نود إعلامك بأن اشتراكك يتبقى عليه {days} أيام...'
                         : 'Hello {name}, your subscription has {days} days remaining...'
                     }
-                    className="w-full px-3.5 py-2.5 rounded-md bg-[#1E222D] border border-[#2A2E39] focus:border-[#26A69A] text-xs text-white focus:outline-hidden"
+                    className="w-full px-3.5 py-2.5 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] focus:border-[#1E53E5] dark:focus:border-[#26A69A] text-xs text-[#131722] dark:text-white focus:outline-hidden"
                     required
                   />
                 </div>
 
                 {/* Web Push Toggle */}
-                <div className="p-3 rounded-md bg-[#0B0E11] border border-[#2A2E39] flex items-center justify-between">
-                  <label className="inline-flex items-center gap-2 text-xs font-semibold text-[#E2E8F0] cursor-pointer">
+                <div className="p-3 rounded-md bg-[#F0F3FA] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39] flex items-center justify-between">
+                  <label className="inline-flex items-center gap-2 text-xs font-semibold text-[#131722] dark:text-[#E2E8F0] cursor-pointer">
                     <input
                       type="checkbox"
                       checked={dmSendWebPush}
                       onChange={(e) => setDmSendWebPush(e.target.checked)}
                       className="accent-[#26A69A] w-4 h-4 cursor-pointer"
                     />
-                    <BellRing className="w-3.5 h-3.5 text-[#26A69A]" />
+                    <BellRing className="w-3.5 h-3.5 text-[#089981] dark:text-[#26A69A]" />
                     <span>
                       {isAr
                         ? 'إرسال إشعار هاتف فوري (Background Web Push) لكل مستلم'
@@ -2419,9 +2439,9 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                   <button
                     type="button"
                     onClick={() => handleOpenSaveTemplateModal('dm')}
-                    className="py-2.5 px-4 rounded-md bg-[#1E222D] hover:bg-[#2A2E39] border border-[#2A2E39] text-[#E2E8F0] font-bold text-xs cursor-pointer flex items-center gap-1.5"
+                    className="py-2.5 px-4 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] border border-[#E0E3EB] dark:border-[#2A2E39] text-[#131722] dark:text-[#E2E8F0] font-bold text-xs cursor-pointer flex items-center gap-1.5"
                   >
-                    <Save className="w-3.5 h-3.5 text-[#F0B90B]" />
+                    <Save className="w-3.5 h-3.5 text-[#9A6700] dark:text-[#F0B90B]" />
                     <span>{isAr ? 'حفظ كقالب' : 'Save Template'}</span>
                   </button>
                 </div>
@@ -2430,27 +2450,27 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
 
             {/* RIGHT/END: LIVE USER INBOX DM PREVIEW */}
             <div className="xl:col-span-5 xl:sticky xl:top-4 space-y-4">
-              <div className="bg-[#131722] border border-[#2A2E39] rounded-lg p-4 space-y-3">
-                <div className="flex items-center justify-between border-b border-[#2A2E39] pb-2.5">
+              <div className="bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] rounded-lg p-4 space-y-3">
+                <div className="flex items-center justify-between border-b border-[#E0E3EB] dark:border-[#2A2E39] pb-2.5">
                   <div className="flex items-center gap-2">
-                    <Eye className="w-4 h-4 text-[#26A69A]" />
-                    <span className="text-xs font-bold text-white uppercase tracking-wider">
+                    <Eye className="w-4 h-4 text-[#089981] dark:text-[#26A69A]" />
+                    <span className="text-xs font-bold text-[#131722] dark:text-white uppercase tracking-wider">
                       {isAr
                         ? 'معاينة ظهور الرسالة في صندوق وارد المتداول (Inbox Preview)'
                         : 'Live User Inbox Thread Preview'}
                     </span>
                   </div>
-                  <span className="px-2 py-0.5 rounded bg-[#0B0E11] border border-[#2A2E39] text-[10px] font-mono text-[#26A69A]">
+                  <span className="px-2 py-0.5 rounded bg-[#F0F3FA] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39] text-[10px] font-mono text-[#089981] dark:text-[#26A69A]">
                     VERIFIED DM
                   </span>
                 </div>
 
                 {/* Simulated User Inbox Conversation Header + Bubble */}
-                <div className="rounded-lg bg-[#0B0E11] border border-[#2A2E39] overflow-hidden">
+                <div className="rounded-lg bg-[#F0F3FA] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39] overflow-hidden">
                   {/* Simulated Thread Header */}
-                  <div className="px-3.5 py-2.5 bg-[#1E222D] border-b border-[#2A2E39] flex items-center justify-between">
+                  <div className="px-3.5 py-2.5 bg-[#F8F9FD] dark:bg-[#1E222D] border-b border-[#E0E3EB] dark:border-[#2A2E39] flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
-                      <div className="relative w-9 h-9 rounded-full bg-[#131722] border border-[#2A2E39] flex items-center justify-center overflow-hidden shrink-0">
+                      <div className="relative w-9 h-9 rounded-full bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] flex items-center justify-center overflow-hidden shrink-0">
                         {dmShowLogo ? (
                           <img
                             src="/mbk-logo.png"
@@ -2458,21 +2478,21 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                             className="w-full h-full object-contain p-1"
                           />
                         ) : (
-                          <span className="text-xs font-bold text-white">M</span>
+                          <span className="text-xs font-bold text-[#131722] dark:text-white">M</span>
                         )}
                         <span className="absolute bottom-0 end-0 w-2.5 h-2.5 rounded-full bg-[#26A69A] ring-2 ring-[#1E222D]" />
                       </div>
                       <div>
                         <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-bold text-white">
+                          <span className="text-xs font-bold text-[#131722] dark:text-white">
                             {normalizeBrandSenderName(dmSenderName)}
                           </span>
-                          <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-bold bg-[#26A69A]/20 text-[#26A69A] border border-[#26A69A]/40 inline-flex items-center gap-0.5">
+                          <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-bold bg-[#E6F5F2] dark:bg-[#26A69A]/20 text-[#089981] dark:text-[#26A69A] border border-[#B3E2D9] dark:border-[#26A69A]/40 inline-flex items-center gap-0.5">
                             <Check className="w-2.5 h-2.5" />
                             <span>OFFICIAL</span>
                           </span>
                         </div>
-                        <span className="text-[10px] text-[#94A3B8] block">
+                        <span className="text-[10px] text-[#4A5162] dark:text-[#94A3B8] block">
                           {isAr ? 'مكتب الإدارة الرسمي • متصل الآن' : 'Official Desk • Online'}
                         </span>
                       </div>
@@ -2481,26 +2501,26 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
 
                   {/* Simulated Message Bubble */}
                   <div className="p-4 space-y-3">
-                    <div className="max-w-[92%] rounded-xl rounded-es-sm bg-[#131722] border border-[#2A2E39] p-3.5 space-y-2">
+                    <div className="max-w-[92%] rounded-xl rounded-es-sm bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] p-3.5 space-y-2">
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] font-mono font-bold text-[#26A69A]">
+                          <span className="text-[10px] font-mono font-bold text-[#089981] dark:text-[#26A69A]">
                             {normalizeBrandSenderName(dmSenderName)}
                           </span>
-                          <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-bold bg-[#26A69A]/15 text-[#26A69A] border border-[#26A69A]/30">
+                          <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-bold bg-[#E6F5F2] dark:bg-[#26A69A]/15 text-[#089981] dark:text-[#26A69A] border border-[#B3E2D9] dark:border-[#26A69A]/30">
                             VERIFIED
                           </span>
                         </div>
-                        <span className="text-[10px] font-mono text-[#64748B]">NOW</span>
+                        <span className="text-[10px] font-mono text-[#787B86] dark:text-[#64748B]">NOW</span>
                       </div>
 
                       {previewResolvedDmTitle && (
-                        <div className="text-xs font-bold text-white pb-1 border-b border-[#2A2E39]">
+                        <div className="text-xs font-bold text-[#131722] dark:text-white pb-1 border-b border-[#E0E3EB] dark:border-[#2A2E39]">
                           📌 {previewResolvedDmTitle}
                         </div>
                       )}
 
-                      <p className="text-xs text-[#E2E8F0] leading-relaxed whitespace-pre-wrap break-words">
+                      <p className="text-xs text-[#131722] dark:text-[#E2E8F0] leading-relaxed whitespace-pre-wrap break-words">
                         {previewResolvedDmBody}
                       </p>
 
@@ -2509,7 +2529,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                           <img
                             src={dmBannerImageUrl}
                             alt="Attachment"
-                            className="w-full max-h-36 object-cover rounded border border-[#2A2E39]"
+                            className="w-full max-h-36 object-cover rounded border border-[#E0E3EB] dark:border-[#2A2E39]"
                             onError={(e) => {
                               (e.currentTarget as HTMLImageElement).style.display = 'none';
                             }}
@@ -2521,15 +2541,15 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                 </div>
 
                 {/* Sample Matched Recipients Preview */}
-                <div className="p-3 rounded-md bg-[#0B0E11] border border-[#2A2E39] space-y-2">
-                  <div className="flex items-center justify-between text-[11px] font-semibold text-[#94A3B8]">
+                <div className="p-3 rounded-md bg-[#F0F3FA] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39] space-y-2">
+                  <div className="flex items-center justify-between text-[11px] font-semibold text-[#4A5162] dark:text-[#94A3B8]">
                     <span>{isAr ? 'عينة من المستلمين المطابقين:' : 'Sample Matching Recipients:'}</span>
-                    <span className="font-mono tabular-nums text-[#26A69A]">
+                    <span className="font-mono tabular-nums text-[#089981] dark:text-[#26A69A]">
                       {matchingDmRecipients.length}
                     </span>
                   </div>
                   {matchingDmRecipients.length === 0 ? (
-                    <div className="text-[11px] text-[#64748B]">
+                    <div className="text-[11px] text-[#787B86] dark:text-[#64748B]">
                       {isAr ? 'لا يوجد مستخدمون في هذه الفئة.' : 'No users in this segment.'}
                     </div>
                   ) : (
@@ -2537,7 +2557,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                       {matchingDmRecipients.slice(0, 18).map((r) => (
                         <span
                           key={r.uid}
-                          className="px-2 py-0.5 rounded bg-[#131722] border border-[#2A2E39] text-[10px] font-mono text-[#E2E8F0]"
+                          className="px-2 py-0.5 rounded bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] text-[10px] font-mono text-[#131722] dark:text-[#E2E8F0]"
                         >
                           {r.name}
                           {r.remainingDays !== null && r.remainingDays !== undefined
@@ -2546,7 +2566,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                         </span>
                       ))}
                       {matchingDmRecipients.length > 18 && (
-                        <span className="px-2 py-0.5 rounded bg-[#1E222D] text-[10px] font-mono text-[#94A3B8]">
+                        <span className="px-2 py-0.5 rounded bg-[#F8F9FD] dark:bg-[#1E222D] text-[10px] font-mono text-[#4A5162] dark:text-[#94A3B8]">
                           +{matchingDmRecipients.length - 18} more
                         </span>
                       )}
@@ -2563,18 +2583,18 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
       {/* TAB 3: SAVED TEMPLATES MANAGER (admin_templates CRUD)                   */}
       {/* ======================================================================= */}
       {activeSubTab === 'templates' && (
-        <div className="bg-[#131722] border border-[#2A2E39] rounded-lg p-4 sm:p-5 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#2A2E39] pb-3">
+        <div className="bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] rounded-lg p-4 sm:p-5 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E0E3EB] dark:border-[#2A2E39] pb-3">
             <div>
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Bookmark className="w-4 h-4 text-[#F0B90B]" />
+              <h3 className="text-sm font-bold text-[#131722] dark:text-white flex items-center gap-2">
+                <Bookmark className="w-4 h-4 text-[#9A6700] dark:text-[#F0B90B]" />
                 <span>
                   {isAr
                     ? `مكتبة القوالب المخصصة المحفوظة (${savedTemplates.length})`
                     : `Custom Saved Templates Library (${savedTemplates.length})`}
                 </span>
               </h3>
-              <p className="text-xs text-[#64748B]">
+              <p className="text-xs text-[#787B86] dark:text-[#64748B]">
                 {isAr
                   ? 'احفظ قوالب النوافذ المنبثقة والرسائل الخاصة المفضلة لديك في قاعدة البيانات وحمّلها أو عدّلها بضغطة واحدة'
                   : 'Manage your custom Firestore-persisted Popup and Bulk DM templates'}
@@ -2599,7 +2619,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                   setActiveSubTab('bulk_dm');
                   handleOpenSaveTemplateModal('dm');
                 }}
-                className="px-3 py-1.5 rounded-md bg-[#1E222D] hover:bg-[#2A2E39] border border-[#2A2E39] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                className="px-3 py-1.5 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] border border-[#E0E3EB] dark:border-[#2A2E39] text-[#131722] dark:text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>{isAr ? 'حفظ قالب رسالة خاصة' : 'New Bulk DM Template'}</span>
@@ -2608,7 +2628,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
           </div>
 
           {savedTemplates.length === 0 ? (
-            <div className="py-10 text-center text-xs text-[#64748B]">
+            <div className="py-10 text-center text-xs text-[#787B86] dark:text-[#64748B]">
               {isAr
                 ? 'لا توجد قوالب محفوظة حالياً.'
                 : 'No saved templates yet.'}
@@ -2621,33 +2641,33 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                 return (
                   <div
                     key={tpl.id}
-                    className="p-3.5 rounded-lg bg-[#0B0E11] border border-[#2A2E39] flex flex-col justify-between gap-3"
+                    className="p-3.5 rounded-lg bg-[#F0F3FA] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39] flex flex-col justify-between gap-3"
                   >
                     <div className="space-y-2">
                       <div className="flex items-center justify-between gap-2">
                         <span
                           className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase border ${
                             isPopup
-                              ? 'bg-[#26A69A]/15 text-[#26A69A] border-[#26A69A]/40'
-                              : 'bg-[#F0B90B]/15 text-[#F0B90B] border-[#F0B90B]/40'
+                              ? 'bg-[#E6F5F2] dark:bg-[#26A69A]/15 text-[#089981] dark:text-[#26A69A] border-[#B3E2D9] dark:border-[#26A69A]/40'
+                              : 'bg-[#FDF6E3] dark:bg-[#F0B90B]/15 text-[#9A6700] dark:text-[#F0B90B] border-[#EFE0B4] dark:border-[#F0B90B]/40'
                           }`}
                         >
                           {isPopup ? 'POPUP TEMPLATE' : 'BULK DM TEMPLATE'}
                         </span>
-                        <span className="text-[10px] font-mono text-[#64748B]">
+                        <span className="text-[10px] font-mono text-[#787B86] dark:text-[#64748B]">
                           {normalizeBrandSenderName(p.senderName)}
                         </span>
                       </div>
 
-                      <h4 className="text-xs font-bold text-white">{tpl.name}</h4>
-                      <p className="text-[11px] text-[#94A3B8] line-clamp-2">
+                      <h4 className="text-xs font-bold text-[#131722] dark:text-white">{tpl.name}</h4>
+                      <p className="text-[11px] text-[#4A5162] dark:text-[#94A3B8] line-clamp-2">
                         {isPopup
                           ? `${p.title || ''} — ${p.message || ''}`
                           : `${p.dmTitle ? `[${p.dmTitle}] ` : ''}${p.dmMessageText || ''}`}
                       </p>
                     </div>
 
-                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-[#2A2E39]">
+                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-[#E0E3EB] dark:border-[#2A2E39]">
                       <button
                         type="button"
                         onClick={() => applySavedTemplate(tpl)}
@@ -2661,7 +2681,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                           applySavedTemplate(tpl);
                           handleOpenSaveTemplateModal(tpl.templateType, tpl);
                         }}
-                        className="p-1.5 rounded bg-[#1E222D] hover:bg-[#2A2E39] border border-[#2A2E39] text-[#E2E8F0] cursor-pointer"
+                        className="p-1.5 rounded bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] border border-[#E0E3EB] dark:border-[#2A2E39] text-[#131722] dark:text-[#E2E8F0] cursor-pointer"
                         title={isAr ? 'إعادة تسمية / تحديث القالب' : 'Rename / Overwrite Template'}
                       >
                         <Edit3 className="w-3.5 h-3.5" />
@@ -2669,7 +2689,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                       <button
                         type="button"
                         onClick={() => deleteAdminTemplate(tpl.id, tpl.name)}
-                        className="p-1.5 rounded bg-[#EF5350]/15 hover:bg-[#EF5350] border border-[#EF5350]/30 text-[#EF5350] hover:text-white cursor-pointer"
+                        className="p-1.5 rounded bg-[#FDECEE] dark:bg-[#EF5350]/15 hover:bg-[#EF5350] border border-[#F5C2C7] dark:border-[#EF5350]/30 text-[#D93848] dark:text-[#EF5350] hover:text-white cursor-pointer"
                         title={isAr ? 'حذف القالب' : 'Delete Template'}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -2687,15 +2707,15 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
       {/* MODAL: SAVE / UPDATE CUSTOM TEMPLATE                                    */}
       {/* ======================================================================= */}
       {savingTemplateModalType && (
-        <div className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-[#131722]/45 dark:bg-black/75 flex items-center justify-center p-4">
           <form
             onSubmit={handleConfirmSaveTemplate}
-            className="bg-[#131722] border border-[#2A2E39] rounded-lg max-w-md w-full p-5 space-y-4 shadow-2xl"
+            className="bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] rounded-lg max-w-md w-full p-5 space-y-4 shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl"
           >
-            <div className="flex items-center justify-between border-b border-[#2A2E39] pb-3">
+            <div className="flex items-center justify-between border-b border-[#E0E3EB] dark:border-[#2A2E39] pb-3">
               <div className="flex items-center gap-2">
-                <BookmarkPlus className="w-4 h-4 text-[#F0B90B]" />
-                <h4 className="text-sm font-bold text-white">
+                <BookmarkPlus className="w-4 h-4 text-[#9A6700] dark:text-[#F0B90B]" />
+                <h4 className="text-sm font-bold text-[#131722] dark:text-white">
                   {editingTemplateId
                     ? isAr
                       ? 'تحديث القالب المحفوظ'
@@ -2708,14 +2728,14 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
               <button
                 type="button"
                 onClick={() => setSavingTemplateModalType(null)}
-                className="p-1 rounded hover:bg-[#1E222D] text-[#94A3B8] hover:text-white cursor-pointer"
+                className="p-1 rounded hover:bg-[#EDF1F7] dark:hover:bg-[#1E222D] text-[#4A5162] dark:text-[#94A3B8] hover:text-[#131722] dark:hover:text-white cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#94A3B8] mb-1.5">
+              <label className="block text-xs font-semibold text-[#4A5162] dark:text-[#94A3B8] mb-1.5">
                 {isAr ? 'اسم القالب المخصص:' : 'Template Name:'}
               </label>
               <input
@@ -2725,7 +2745,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
                 placeholder={
                   isAr ? 'مثال: عرض نهاية الأسبوع VIP' : 'e.g. Weekend VIP Flash Offer'
                 }
-                className="w-full px-3.5 py-2 rounded-md bg-[#1E222D] border border-[#2A2E39] focus:border-[#26A69A] text-xs font-bold text-white focus:outline-hidden"
+                className="w-full px-3.5 py-2 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] focus:border-[#1E53E5] dark:focus:border-[#26A69A] text-xs font-bold text-[#131722] dark:text-white focus:outline-hidden"
                 required
                 autoFocus
               />
@@ -2735,7 +2755,7 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
               <button
                 type="button"
                 onClick={() => setSavingTemplateModalType(null)}
-                className="px-4 py-2 rounded-md bg-[#1E222D] hover:bg-[#2A2E39] text-xs font-semibold text-[#E2E8F0] cursor-pointer"
+                className="px-4 py-2 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] text-xs font-semibold text-[#131722] dark:text-[#E2E8F0] cursor-pointer"
               >
                 {isAr ? 'إلغاء' : 'Cancel'}
               </button>

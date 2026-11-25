@@ -54,19 +54,19 @@ export const PublicTiersShowcase: React.FC<PublicTiersShowcaseProps> = ({
     <div dir={isAr ? 'rtl' : 'ltr'} className="space-y-5">
       {/* Editorial Intro Header */}
       <div className="space-y-2">
-        <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-[#8a93a6]">
+        <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-[#4A5162] dark:text-[#8a93a6]">
           <span className="text-[#089981] font-bold">MBK Trading</span>
           <span aria-hidden="true">·</span>
           <span>{isAr ? 'بوت MBK • توصيات • شات عام • أخبار' : 'MBK Bot • Signals • General Chat • News'}</span>
         </div>
 
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-white leading-tight [text-wrap:balance]">
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-[#131722] dark:text-white leading-tight [text-wrap:balance]">
           {isAr
             ? 'اختر الباقة المناسبة وابدأ التداول بثقة'
             : 'Choose Your Membership Tier & Start Trading'}
         </h1>
 
-        <p className="text-xs sm:text-sm text-[#8a93a6] leading-relaxed max-w-2xl">
+        <p className="text-xs sm:text-sm text-[#4A5162] dark:text-[#8a93a6] leading-relaxed max-w-2xl">
           {isAr
             ? 'اطّلع على جميع مزايا الباقات الثلاث بوضوح قبل إنشاء حسابك أو تسجيل الدخول. يمكنك البدء مجاناً فوراً أو الترقية إلى VIP و Elite.'
             : 'Compare all three plans clearly while creating your account. Start immediately on the Free plan or subscribe to VIP or Elite.'}
@@ -76,24 +76,24 @@ export const PublicTiersShowcase: React.FC<PublicTiersShowcaseProps> = ({
       {/* 3-Tier Cards Grid (Always Fully Visible Directly on Front Page) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
         {/* 1. FREE TIER ($0) */}
-        <article className="rounded-2xl p-4 sm:p-5 bg-[#1e222d] border border-[#2a2e39] flex flex-col justify-between">
+        <article className="rounded-2xl p-4 sm:p-5 bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#E0E3EB] dark:border-[#2a2e39] shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-none flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between gap-2 mb-2 text-[11px] font-semibold text-[#8a93a6]">
+            <div className="flex items-center justify-between gap-2 mb-2 text-[11px] font-semibold text-[#4A5162] dark:text-[#8a93a6]">
               <span>{isAr ? 'الباقة الأساسية' : 'Starter Plan'}</span>
               <span className="font-mono tabular-nums text-[#089981]">$0</span>
             </div>
 
-            <h2 className="text-base font-extrabold text-white">
+            <h2 className="text-base font-extrabold text-[#131722] dark:text-white">
               {isAr ? 'Free — الباقة المجانية' : 'Free Tier'}
             </h2>
-            <div className="mt-2 mb-4 pb-3 border-b border-[#2a2e39] flex items-baseline gap-1 font-mono tabular-nums">
-              <span className="text-2xl font-black text-white">$0</span>
+            <div className="mt-2 mb-4 pb-3 border-b border-[#E0E3EB] dark:border-[#2a2e39] flex items-baseline gap-1 font-mono tabular-nums">
+              <span className="text-2xl font-black text-[#131722] dark:text-white">$0</span>
               <span className="text-[11px] text-[#787b86]">
                 {isAr ? '/ مجاناً دائماً' : '/ forever'}
               </span>
             </div>
 
-            <ul className="space-y-2 text-xs text-[#d1d4dc] mb-5">
+            <ul className="space-y-2 text-xs text-[#131722] dark:text-[#d1d4dc] mb-5">
               {freeFeatures.map((feat, idx) => (
                 <li key={idx} className="flex items-start gap-2">
                   <Check className="w-3.5 h-3.5 text-[#089981] shrink-0 mt-0.5" />
@@ -109,14 +109,14 @@ export const PublicTiersShowcase: React.FC<PublicTiersShowcaseProps> = ({
               soundManager.playClick();
               onFocusAuth?.();
             }}
-            className="w-full py-2.5 px-4 rounded-xl bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-white font-bold text-xs transition-colors cursor-pointer whitespace-nowrap"
+            className="w-full py-2.5 px-4 rounded-xl bg-[#FFFFFF] dark:bg-[#131722] hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] border border-[#E0E3EB] dark:border-[#2a2e39] text-[#131722] dark:text-white font-bold text-xs transition-colors cursor-pointer whitespace-nowrap"
           >
             {isAr ? 'ابدأ مجاناً ($0)' : 'Start Free ($0)'}
           </button>
         </article>
 
         {/* 2. VIP TIER ($100/mo) */}
-        <article className="rounded-2xl p-4 sm:p-5 bg-[#1e222d] border-2 border-[#089981] flex flex-col justify-between">
+        <article className="rounded-2xl p-4 sm:p-5 bg-[#FFFFFF] dark:bg-[#1e222d] border-2 border-[#089981] shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-none flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between gap-2 mb-2 text-[11px] font-bold text-[#089981]">
               <span className="flex items-center gap-1">
@@ -126,15 +126,15 @@ export const PublicTiersShowcase: React.FC<PublicTiersShowcaseProps> = ({
               <span className="font-mono tabular-nums">$100/mo</span>
             </div>
 
-            <h2 className="text-base font-extrabold text-white">
+            <h2 className="text-base font-extrabold text-[#131722] dark:text-white">
               {isAr ? 'VIP — الباقة الاحترافية' : 'VIP Tier'}
             </h2>
-            <div className="mt-2 mb-4 pb-3 border-b border-[#2a2e39] flex items-baseline gap-1 font-mono tabular-nums">
-              <span className="text-2xl font-black text-white">$100</span>
-              <span className="text-[11px] text-[#8a93a6]">{isAr ? '/ شهرياً' : '/ month'}</span>
+            <div className="mt-2 mb-4 pb-3 border-b border-[#E0E3EB] dark:border-[#2a2e39] flex items-baseline gap-1 font-mono tabular-nums">
+              <span className="text-2xl font-black text-[#131722] dark:text-white">$100</span>
+              <span className="text-[11px] text-[#4A5162] dark:text-[#8a93a6]">{isAr ? '/ شهرياً' : '/ month'}</span>
             </div>
 
-            <ul className="space-y-2 text-xs text-[#d1d4dc] mb-5">
+            <ul className="space-y-2 text-xs text-[#131722] dark:text-[#d1d4dc] mb-5">
               {vipFeatures.map((feat, idx) => (
                 <li key={idx} className="flex items-start gap-2">
                   <Check className="w-3.5 h-3.5 text-[#089981] shrink-0 mt-0.5" />
@@ -158,9 +158,9 @@ export const PublicTiersShowcase: React.FC<PublicTiersShowcaseProps> = ({
         </article>
 
         {/* 3. ELITE TIER ($500/mo) */}
-        <article className="rounded-2xl p-4 sm:p-5 bg-[#1e222d] border border-amber-500/50 flex flex-col justify-between">
+        <article className="rounded-2xl p-4 sm:p-5 bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#EFE0B4] dark:border-amber-500/50 shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-none flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between gap-2 mb-2 text-[11px] font-bold text-amber-400">
+            <div className="flex items-center justify-between gap-2 mb-2 text-[11px] font-bold text-[#9A6700] dark:text-amber-400">
               <span className="flex items-center gap-1">
                 <Gem className="w-3.5 h-3.5 shrink-0" />
                 <span>{isAr ? 'النخبة المؤسسية' : 'Institutional'}</span>
@@ -168,30 +168,30 @@ export const PublicTiersShowcase: React.FC<PublicTiersShowcaseProps> = ({
               <span className="font-mono tabular-nums">$500/mo</span>
             </div>
 
-            <h2 className="text-base font-extrabold text-white">
+            <h2 className="text-base font-extrabold text-[#131722] dark:text-white">
               {isAr ? 'Elite — باقة النخبة' : 'Elite Tier'}
             </h2>
-            <div className="mt-2 mb-4 pb-3 border-b border-[#2a2e39] flex items-baseline gap-1 font-mono tabular-nums">
-              <span className="text-2xl font-black text-amber-400">$500</span>
-              <span className="text-[11px] text-[#8a93a6]">{isAr ? '/ شهرياً' : '/ month'}</span>
+            <div className="mt-2 mb-4 pb-3 border-b border-[#E0E3EB] dark:border-[#2a2e39] flex items-baseline gap-1 font-mono tabular-nums">
+              <span className="text-2xl font-black text-[#9A6700] dark:text-amber-400">$500</span>
+              <span className="text-[11px] text-[#4A5162] dark:text-[#8a93a6]">{isAr ? '/ شهرياً' : '/ month'}</span>
             </div>
 
             <div className="space-y-2 text-xs mb-5">
-              <div className="flex items-start gap-2 text-[#d1d4dc]">
+              <div className="flex items-start gap-2 text-[#131722] dark:text-[#d1d4dc]">
                 <Check className="w-3.5 h-3.5 text-[#089981] shrink-0 mt-0.5" />
                 <span className="font-bold leading-snug">
                   {isAr ? 'جميع مزايا باقة VIP ($100)' : 'Everything in VIP ($100)'}
                 </span>
               </div>
 
-              <div className="pt-2 border-t border-[#2a2e39]/80 divide-y divide-[#2a2e39]/60">
+              <div className="pt-2 border-t border-[#E0E3EB] dark:border-[#2a2e39]/80 divide-y divide-[#E0E3EB] dark:divide-[#2a2e39]/60">
                 {ELITE_UNRELEASED_FEATURES.map((mod) => (
                   <div key={mod.key} className="py-2 first:pt-1 last:pb-0">
-                    <div className="text-[11px] font-bold text-white flex items-center gap-1.5">
-                      <Lock className="w-3 h-3 text-amber-400 shrink-0" />
+                    <div className="text-[11px] font-bold text-[#131722] dark:text-white flex items-center gap-1.5">
+                      <Lock className="w-3 h-3 text-[#9A6700] dark:text-amber-400 shrink-0" />
                       <span>🔒 {isAr ? mod.titleAr : mod.titleEn}</span>
                     </div>
-                    <div className="text-[10px] text-amber-300 mt-0.5 leading-snug">
+                    <div className="text-[10px] text-[#9A6700] dark:text-amber-300 mt-0.5 leading-snug">
                       {ELITE_LOCK_BADGE_TEXT}
                     </div>
                   </div>

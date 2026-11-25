@@ -108,17 +108,17 @@ export const RiskCalculatorModal: React.FC<Props> = ({
   return (
     <div
       dir={isAr ? 'rtl' : 'ltr'}
-      className="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto select-none"
+      className="fixed inset-0 bg-[#FFFFFF]/90 dark:bg-[#131722]/50 dark:bg-black/85 dark:backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto select-none"
     >
-      <div className="bg-[#1e222d] border border-[#2a2e39] rounded-2xl max-w-lg w-full p-4 sm:p-6 shadow-2xl relative text-[#d1d4dc] my-auto max-h-[92dvh] overflow-y-auto">
+      <div className="bg-[#F8F9FD] dark:bg-[#1e222d] border border-[#E0E3EB] dark:border-[#2a2e39] rounded-2xl max-w-lg w-full p-4 sm:p-6 shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl relative text-[#131722] dark:text-[#d1d4dc] my-auto max-h-[92dvh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-[#2a2e39]">
+        <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-[#E0E3EB] dark:border-[#2a2e39]">
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/40 flex items-center justify-center text-blue-400 shadow-sm">
+            <div className="w-10 h-10 rounded-xl bg-[#EDF1F7] dark:bg-blue-500/15 border border-blue-500/40 flex items-center justify-center text-[#1E53E5] dark:text-blue-400 shadow-sm">
               <Calculator className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+              <h3 className="text-base sm:text-lg font-bold text-[#131722] dark:text-white flex items-center gap-2">
                 <span>{isAr ? 'حاسبة اللوت وإدارة المخاطر' : 'Position Size & Risk Calculator'}</span>
               </h3>
               <p className="text-xs text-[#787b86]">
@@ -131,7 +131,7 @@ export const RiskCalculatorModal: React.FC<Props> = ({
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-[#787b86] hover:text-white transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg bg-[#FFFFFF] dark:bg-[#131722] hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] border border-[#E0E3EB] dark:border-[#2a2e39] text-[#787b86] hover:text-[#131722] dark:hover:text-white transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -155,8 +155,8 @@ export const RiskCalculatorModal: React.FC<Props> = ({
                   }}
                   className={`py-2 rounded-xl border transition-all cursor-pointer ${
                     symbol === sym
-                      ? 'bg-white text-[#131722] border-white shadow-sm font-bold'
-                      : 'bg-[#131722] border-[#2a2e39] text-[#787b86] hover:text-white'
+                      ? 'bg-[#131722] dark:bg-white text-white dark:text-[#131722] border-white shadow-sm font-bold'
+                      : 'bg-[#FFFFFF] dark:bg-[#131722] border-[#E0E3EB] dark:border-[#2a2e39] text-[#787b86] hover:text-[#131722] dark:hover:text-white'
                   }`}
                 >
                   {sym}
@@ -171,7 +171,7 @@ export const RiskCalculatorModal: React.FC<Props> = ({
               <span className="font-semibold text-[#787b86]">
                 {isAr ? 'رأس مال الحساب ($)' : 'Account Balance ($)'}
               </span>
-              <span className="font-mono text-white font-bold">${safeBalance.toLocaleString()}</span>
+              <span className="font-mono text-[#131722] dark:text-white font-bold">${safeBalance.toLocaleString()}</span>
             </div>
             <input
               type="number"
@@ -182,7 +182,7 @@ export const RiskCalculatorModal: React.FC<Props> = ({
                 const parsed = Number(e.target.value);
                 setBalance(Number.isFinite(parsed) && parsed > 0 ? Math.max(100, parsed) : 100);
               }}
-              className="w-full bg-[#131722] border border-[#2a2e39] rounded-xl px-3 py-2 text-sm font-mono text-white focus:outline-none focus:border-[#089981]"
+              className="w-full bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] rounded-xl px-3 py-2 text-sm font-mono text-[#131722] dark:text-white focus:outline-none focus:border-[#1E53E5] dark:focus:border-[#089981]"
             />
             {/* Quick Balance Presets */}
             <div className="flex items-center gap-1.5 mt-1.5 font-mono text-[11px]">
@@ -193,8 +193,8 @@ export const RiskCalculatorModal: React.FC<Props> = ({
                   onClick={() => setBalance(b)}
                   className={`px-2 py-0.5 rounded border transition-colors cursor-pointer ${
                     balance === b
-                      ? 'bg-[#089981]/20 border-[#089981] text-[#089981] font-bold'
-                      : 'bg-[#131722] border-[#2a2e39] text-[#787b86] hover:text-white'
+                      ? 'bg-[#E6F5F2] dark:bg-[#089981]/20 border-[#089981] text-[#089981] font-bold'
+                      : 'bg-[#FFFFFF] dark:bg-[#131722] border-[#E0E3EB] dark:border-[#2a2e39] text-[#787b86] hover:text-[#131722] dark:hover:text-white'
                   }`}
                 >
                   ${b >= 1000 ? `${b / 1000}k` : b}
@@ -209,7 +209,7 @@ export const RiskCalculatorModal: React.FC<Props> = ({
               <span className="font-semibold text-[#787b86]">
                 {isAr ? 'نسبة المخاطرة لكل صفقة (%)' : 'Risk Percentage per Trade (%)'}
               </span>
-              <span className="font-mono text-amber-400 font-bold">{safeRiskPercent}%</span>
+              <span className="font-mono text-[#9A6700] dark:text-amber-400 font-bold">{safeRiskPercent}%</span>
             </div>
             <div className="flex items-center gap-2">
               <input
@@ -224,7 +224,7 @@ export const RiskCalculatorModal: React.FC<Props> = ({
                 }}
                 className="flex-1 accent-[#089981] cursor-pointer"
               />
-              <span className="font-mono text-xs font-bold text-white bg-[#131722] px-2.5 py-1 rounded-lg border border-[#2a2e39]">
+              <span className="font-mono text-xs font-bold text-[#131722] dark:text-white bg-[#FFFFFF] dark:bg-[#131722] px-2.5 py-1 rounded-lg border border-[#E0E3EB] dark:border-[#2a2e39]">
                 {safeRiskPercent}%
               </span>
             </div>
@@ -237,8 +237,8 @@ export const RiskCalculatorModal: React.FC<Props> = ({
                   onClick={() => setRiskPercent(r)}
                   className={`px-2.5 py-0.5 rounded border transition-colors cursor-pointer ${
                     riskPercent === r
-                      ? 'bg-amber-500/20 border-amber-500 text-amber-400 font-bold'
-                      : 'bg-[#131722] border-[#2a2e39] text-[#787b86] hover:text-white'
+                      ? 'bg-[#FDF6E3] dark:bg-amber-500/20 border-amber-500 text-[#9A6700] dark:text-amber-400 font-bold'
+                      : 'bg-[#FFFFFF] dark:bg-[#131722] border-[#E0E3EB] dark:border-[#2a2e39] text-[#787b86] hover:text-[#131722] dark:hover:text-white'
                   }`}
                 >
                   {r}%
@@ -253,7 +253,7 @@ export const RiskCalculatorModal: React.FC<Props> = ({
               <span className="font-semibold text-[#787b86]">
                 {isAr ? `مسافة وقف الخسارة (${currentSpec.unit})` : `Stop Loss Distance (${currentSpec.unit})`}
               </span>
-              <span className="font-mono text-white font-bold">{safeSlPips} {currentSpec.unit}</span>
+              <span className="font-mono text-[#131722] dark:text-white font-bold">{safeSlPips} {currentSpec.unit}</span>
             </div>
             <input
               type="number"
@@ -264,41 +264,41 @@ export const RiskCalculatorModal: React.FC<Props> = ({
                 const parsed = Number(e.target.value);
                 setSlPips(Number.isFinite(parsed) && parsed > 0 ? Math.max(1, parsed) : 1);
               }}
-              className="w-full bg-[#131722] border border-[#2a2e39] rounded-xl px-3 py-2 text-sm font-mono text-white focus:outline-none focus:border-[#089981]"
+              className="w-full bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] rounded-xl px-3 py-2 text-sm font-mono text-[#131722] dark:text-white focus:outline-none focus:border-[#1E53E5] dark:focus:border-[#089981]"
             />
           </div>
 
           {/* RESULT BOX */}
-          <div className="p-4 rounded-xl bg-gradient-to-br from-[#131722] to-[#1e222d] border border-[#089981]/50 shadow-xl space-y-3">
-            <div className="flex items-center justify-between border-b border-[#2a2e39] pb-2.5">
+          <div className="p-4 rounded-xl bg-[#F8F9FD] dark:bg-gradient-to-br dark:from-[#131722] dark:to-[#1e222d] border border-[#B3E2D9] dark:border-[#089981]/50 shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-xl space-y-3">
+            <div className="flex items-center justify-between border-b border-[#E0E3EB] dark:border-[#2a2e39] pb-2.5">
               <div>
                 <span className="text-xs text-[#787b86] block">
                   {isAr ? 'حجم العقد المقترح الآمن (Recommended Lot Size)' : 'Recommended Safe Lot Size'}
                 </span>
                 <span className="text-2xl sm:text-3xl font-mono font-black text-[#089981]">
-                  {calculatedLot} <span className="text-sm font-sans font-normal text-white">Lots</span>
+                  {calculatedLot} <span className="text-sm font-sans font-normal text-[#131722] dark:text-white">Lots</span>
                 </span>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-[#089981]/15 border border-[#089981]/30 flex items-center justify-center text-[#089981]">
+              <div className="w-12 h-12 rounded-xl bg-[#E6F5F2] dark:bg-[#089981]/15 border border-[#B3E2D9] dark:border-[#089981]/30 flex items-center justify-center text-[#089981]">
                 <ShieldCheck className="w-6 h-6" />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="p-2 rounded-lg bg-[#131722]/80 border border-[#2a2e39]">
+              <div className="p-2 rounded-lg bg-[#FFFFFF]/95 dark:bg-[#131722]/80 border border-[#E0E3EB] dark:border-[#2a2e39]">
                 <span className="text-[#787b86] block text-[11px]">
                   {isAr ? 'المخاطرة المالية القصوى' : 'Max Dollar Risk'}
                 </span>
-                <span className="font-mono font-bold text-amber-400 text-sm">
+                <span className="font-mono font-bold text-[#9A6700] dark:text-amber-400 text-sm">
                   -${dollarRisk.toFixed(2)}
                 </span>
               </div>
 
-              <div className="p-2 rounded-lg bg-[#131722]/80 border border-[#2a2e39]">
+              <div className="p-2 rounded-lg bg-[#FFFFFF]/95 dark:bg-[#131722]/80 border border-[#E0E3EB] dark:border-[#2a2e39]">
                 <span className="text-[#787b86] block text-[11px]">
                   {isAr ? 'قيمة النقطة بهذا اللوت' : 'Pip Value per Point'}
                 </span>
-                <span className="font-mono font-bold text-white text-sm">
+                <span className="font-mono font-bold text-[#131722] dark:text-white text-sm">
                   ${pipValueAtCalculatedLot.toFixed(2)} / {currentSpec.shortUnit}
                 </span>
               </div>
@@ -307,7 +307,7 @@ export const RiskCalculatorModal: React.FC<Props> = ({
         </div>
 
         {/* Footer info */}
-        <div className="pt-2 text-[11px] text-[#787b86] flex items-center gap-1.5 border-t border-[#2a2e39]/60">
+        <div className="pt-2 text-[11px] text-[#787b86] flex items-center gap-1.5 border-t border-[#E0E3EB] dark:border-[#2a2e39]/60">
           <Info className="w-3.5 h-3.5 text-[#089981] shrink-0" />
           <span>
             {isAr

@@ -120,7 +120,7 @@ export const PWAInstallPrompt: React.FC<Props> = ({ lang = 'ar' }) => {
       {/* Floating Bottom / Top Mobile PWA Install Banner */}
       {isOpen && (
       <div
-        className="fixed bottom-20 md:bottom-4 left-3 right-3 md:left-auto md:right-4 md:max-w-md z-40 bg-[#1e222d]/95 backdrop-blur-md border border-[#089981]/50 rounded-xl p-3 shadow-[0_10px_30px_rgba(0,0,0,0.7)] animate-fade-in text-[#d1d4dc]"
+        className="fixed bottom-20 md:bottom-4 left-3 right-3 md:left-auto md:right-4 md:max-w-md z-40 bg-[#FFFFFF] dark:bg-[#1e222d]/95 dark:backdrop-blur-md border border-[#B3E2D9] dark:border-[#089981]/50 rounded-xl p-3 shadow-[0_4px_16px_rgba(19,23,34,0.08)] dark:shadow-[0_10px_30px_rgba(0,0,0,0.7)] animate-fade-in text-[#131722] dark:text-[#d1d4dc]"
         dir={isAr ? 'rtl' : 'ltr'}
       >
         <div className="flex items-center gap-3">
@@ -128,13 +128,13 @@ export const PWAInstallPrompt: React.FC<Props> = ({ lang = 'ar' }) => {
           <img
             src="/mbk-logo.png"
             alt="MBK Trading"
-            className="w-11 h-11 rounded-lg object-cover border border-[#089981]/40 shrink-0 shadow-sm"
+            className="w-11 h-11 rounded-lg object-cover border border-[#B3E2D9] dark:border-[#089981]/40 shrink-0 shadow-sm"
           />
 
           {/* Text Content */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
-              <span className="text-xs font-bold text-white truncate">
+              <span className="text-xs font-bold text-[#131722] dark:text-white truncate">
                 MBK Trading
               </span>
             </div>
@@ -167,7 +167,7 @@ export const PWAInstallPrompt: React.FC<Props> = ({ lang = 'ar' }) => {
 
             <button
               onClick={handleDismiss}
-              className="p-1.5 text-[#787b86] hover:text-white rounded-md hover:bg-[#2a2e39] transition-colors cursor-pointer"
+              className="p-1.5 text-[#787b86] hover:text-[#131722] dark:hover:text-white rounded-md hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] transition-colors cursor-pointer"
               aria-label="Close"
             >
               <X className="w-4 h-4" />
@@ -180,13 +180,13 @@ export const PWAInstallPrompt: React.FC<Props> = ({ lang = 'ar' }) => {
       {/* iOS Safari / Android Chrome Install Guide Modal */}
       {showIOSModal && (
         <div
-          className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in"
+          className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center p-4 bg-[#131722]/45 dark:bg-black/80 dark:backdrop-blur-sm animate-fade-in"
           dir={isAr ? 'rtl' : 'ltr'}
         >
-          <div className="relative w-full max-w-sm bg-[#1e222d] border border-[#2a2e39] rounded-2xl p-5 shadow-2xl text-[#d1d4dc] pb-safe">
+          <div className="relative w-full max-w-sm bg-[#F8F9FD] dark:bg-[#1e222d] border border-[#E0E3EB] dark:border-[#2a2e39] rounded-2xl p-5 shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl text-[#131722] dark:text-[#d1d4dc] pb-safe">
             <button
               onClick={() => setShowIOSModal(false)}
-              className="absolute top-4 left-4 rtl:left-auto rtl:right-4 p-1.5 text-[#787b86] hover:text-white rounded-lg hover:bg-[#2a2e39] cursor-pointer"
+              className="absolute top-4 left-4 rtl:left-auto rtl:right-4 p-1.5 text-[#787b86] hover:text-[#131722] dark:hover:text-white rounded-lg hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -195,9 +195,9 @@ export const PWAInstallPrompt: React.FC<Props> = ({ lang = 'ar' }) => {
               <img
                 src="/mbk-logo.png"
                 alt="MBK Trading"
-                className="w-16 h-16 rounded-xl object-cover border border-[#363a45] mx-auto mb-2 shadow-md"
+                className="w-16 h-16 rounded-xl object-cover border border-[#CBD2DF] dark:border-[#363a45] mx-auto mb-2 shadow-md"
               />
-              <h3 className="text-sm font-bold text-white">
+              <h3 className="text-sm font-bold text-[#131722] dark:text-white">
                 {isIOS
                   ? isAr
                     ? 'تثبيت التطبيق على آيفون / آيباد'
@@ -215,12 +215,12 @@ export const PWAInstallPrompt: React.FC<Props> = ({ lang = 'ar' }) => {
 
             {isIOS ? (
               <div className="space-y-3 mb-5">
-                <div className="flex items-center gap-3 p-3 bg-[#131722] rounded-xl border border-[#2a2e39]">
-                  <div className="w-8 h-8 rounded-lg bg-[#2a2e39] flex items-center justify-center text-blue-400 shrink-0">
+                <div className="flex items-center gap-3 p-3 bg-[#FFFFFF] dark:bg-[#131722] rounded-xl border border-[#E0E3EB] dark:border-[#2a2e39]">
+                  <div className="w-8 h-8 rounded-lg bg-[#EDF1F7] dark:bg-[#2a2e39] flex items-center justify-center text-[#1E53E5] dark:text-blue-400 shrink-0">
                     <Share className="w-4 h-4" />
                   </div>
                   <div className="text-xs">
-                    <span className="font-bold text-white block">
+                    <span className="font-bold text-[#131722] dark:text-white block">
                       {isAr ? '1. اضغط على زر المشاركة' : '1. Tap the Share button'}
                     </span>
                     <span className="text-[#787b86]">
@@ -229,12 +229,12 @@ export const PWAInstallPrompt: React.FC<Props> = ({ lang = 'ar' }) => {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 p-3 bg-[#131722] rounded-xl border border-[#2a2e39]">
-                  <div className="w-8 h-8 rounded-lg bg-[#2a2e39] flex items-center justify-center text-[#089981] shrink-0">
+                <div className="flex items-center gap-3 p-3 bg-[#FFFFFF] dark:bg-[#131722] rounded-xl border border-[#E0E3EB] dark:border-[#2a2e39]">
+                  <div className="w-8 h-8 rounded-lg bg-[#EDF1F7] dark:bg-[#2a2e39] flex items-center justify-center text-[#089981] shrink-0">
                     <PlusSquare className="w-4 h-4" />
                   </div>
                   <div className="text-xs">
-                    <span className="font-bold text-white block">
+                    <span className="font-bold text-[#131722] dark:text-white block">
                       {isAr ? '2. اختر "إضافة إلى الصفحة الرئيسية"' : '2. Select "Add to Home Screen"'}
                     </span>
                     <span className="text-[#787b86]">
@@ -245,12 +245,12 @@ export const PWAInstallPrompt: React.FC<Props> = ({ lang = 'ar' }) => {
               </div>
             ) : (
               <div className="space-y-3 mb-5">
-                <div className="flex items-center gap-3 p-3 bg-[#131722] rounded-xl border border-[#2a2e39]">
-                  <div className="w-8 h-8 rounded-lg bg-[#2a2e39] flex items-center justify-center text-[#089981] shrink-0">
+                <div className="flex items-center gap-3 p-3 bg-[#FFFFFF] dark:bg-[#131722] rounded-xl border border-[#E0E3EB] dark:border-[#2a2e39]">
+                  <div className="w-8 h-8 rounded-lg bg-[#EDF1F7] dark:bg-[#2a2e39] flex items-center justify-center text-[#089981] shrink-0">
                     <Download className="w-4 h-4" />
                   </div>
                   <div className="text-xs">
-                    <span className="font-bold text-white block">
+                    <span className="font-bold text-[#131722] dark:text-white block">
                       {isAr ? '1. افتح قائمة المتصفح (⋮)' : '1. Open Browser Menu (⋮)'}
                     </span>
                     <span className="text-[#787b86]">
@@ -261,12 +261,12 @@ export const PWAInstallPrompt: React.FC<Props> = ({ lang = 'ar' }) => {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 p-3 bg-[#131722] rounded-xl border border-[#2a2e39]">
-                  <div className="w-8 h-8 rounded-lg bg-[#2a2e39] flex items-center justify-center text-blue-400 shrink-0">
+                <div className="flex items-center gap-3 p-3 bg-[#FFFFFF] dark:bg-[#131722] rounded-xl border border-[#E0E3EB] dark:border-[#2a2e39]">
+                  <div className="w-8 h-8 rounded-lg bg-[#EDF1F7] dark:bg-[#2a2e39] flex items-center justify-center text-[#1E53E5] dark:text-blue-400 shrink-0">
                     <PlusSquare className="w-4 h-4" />
                   </div>
                   <div className="text-xs">
-                    <span className="font-bold text-white block">
+                    <span className="font-bold text-[#131722] dark:text-white block">
                       {isAr ? '2. اختر "تثبيت التطبيق" أو "إضافة للشاشة الرئيسية"' : '2. Tap "Install App" or "Add to Home Screen"'}
                     </span>
                     <span className="text-[#787b86]">
@@ -281,7 +281,7 @@ export const PWAInstallPrompt: React.FC<Props> = ({ lang = 'ar' }) => {
 
             <button
               onClick={() => setShowIOSModal(false)}
-              className="w-full py-2.5 rounded-xl bg-white text-[#131722] font-bold text-xs hover:bg-[#d1d4dc] transition-all cursor-pointer"
+              className="w-full py-2.5 rounded-xl bg-[#FFFFFF] dark:bg-[#131722] dark:bg-white text-[#131722] dark:text-white dark:text-[#131722] font-bold text-xs hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] dark:hover:bg-[#d1d4dc] transition-all cursor-pointer"
             >
               {isAr ? 'فهمت ذلك، تم' : 'Got it, thanks!'}
             </button>

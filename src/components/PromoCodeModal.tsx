@@ -98,23 +98,23 @@ export const PromoCodeModal: React.FC<Props> = ({
   return (
     <div
       dir={isAr ? 'rtl' : 'ltr'}
-      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
+      className="fixed inset-0 bg-[#131722]/45 dark:bg-black/80 dark:backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
     >
-      <div className="bg-[#1e222d] border border-[#363a45] rounded-xl max-w-md w-full p-4 sm:p-6 shadow-2xl relative text-[#d1d4dc] my-auto max-h-[92dvh] overflow-y-auto">
+      <div className="bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#E0E3EB] dark:border-[#363a45] rounded-xl max-w-md w-full p-4 sm:p-6 shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl relative text-[#131722] dark:text-[#d1d4dc] my-auto max-h-[92dvh] overflow-y-auto">
         <button
           onClick={onClose}
           disabled={isSubmitting}
-          className="absolute top-4 end-4 p-1 rounded-md bg-[#2a2e39] text-[#787b86] hover:text-white cursor-pointer transition-colors"
+          className="absolute top-4 end-4 p-1 rounded-md bg-[#EDF1F7] dark:bg-[#2a2e39] text-[#787b86] hover:text-[#131722] dark:hover:text-white cursor-pointer transition-colors"
         >
           ✕
         </button>
 
         {/* Modal Header */}
         <div className="text-center mb-5">
-          <div className="w-12 h-12 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center mx-auto mb-3 border border-amber-500/30">
+          <div className="w-12 h-12 rounded-lg bg-[#FDF6E3] dark:bg-amber-500/10 text-[#9A6700] dark:text-amber-400 flex items-center justify-center mx-auto mb-3 border border-[#EFE0B4] dark:border-amber-500/30">
             <KeyRound className="w-6 h-6" />
           </div>
-          <h3 className="text-lg font-bold text-white">
+          <h3 className="text-lg font-bold text-[#131722] dark:text-white">
             {isAr ? 'تفعيل باقة أو رمز تجريبي' : 'Redeem Activation / Trial Key'}
           </h3>
           <p className="text-xs text-[#787b86] mt-1.5 leading-relaxed">
@@ -126,7 +126,7 @@ export const PromoCodeModal: React.FC<Props> = ({
 
         {success ? (
           <div className="py-6 text-center space-y-3">
-            <div className="w-14 h-14 rounded-full bg-[#089981]/20 border border-[#089981] text-[#089981] flex items-center justify-center mx-auto">
+            <div className="w-14 h-14 rounded-full bg-[#E6F5F2] dark:bg-[#089981]/20 border border-[#089981] text-[#089981] flex items-center justify-center mx-auto">
               <CheckCircle2 className="w-8 h-8" />
             </div>
             <h4 className="text-sm font-bold text-[#089981]">
@@ -143,7 +143,7 @@ export const PromoCodeModal: React.FC<Props> = ({
                 : 'VIP Activation Key Redeemed!'}
             </h4>
             {redeemedResult?.grantTier === 'custom' && redeemedResult.grantFeatures.length > 0 && (
-              <div className="text-xs text-[#d1d4dc] bg-[#131722] p-2.5 rounded-lg border border-[#2a2e39] space-y-1">
+              <div className="text-xs text-[#131722] dark:text-[#d1d4dc] bg-[#FFFFFF] dark:bg-[#131722] p-2.5 rounded-lg border border-[#E0E3EB] dark:border-[#2a2e39] space-y-1">
                 {redeemedResult.grantFeatures.map((feat) => (
                   <div key={feat} className="font-semibold text-[#089981]">
                     ✓ {getFeatureLabel(feat, isAr)}
@@ -152,7 +152,7 @@ export const PromoCodeModal: React.FC<Props> = ({
               </div>
             )}
             {expiryInfo && (
-              <p className="text-xs text-amber-400 font-mono font-bold bg-amber-500/10 p-2 rounded-lg border border-amber-500/30">
+              <p className="text-xs text-[#9A6700] dark:text-amber-400 font-mono font-bold bg-[#FDF6E3] dark:bg-amber-500/10 p-2 rounded-lg border border-[#EFE0B4] dark:border-amber-500/30">
                 {isAr ? `الصلاحية: ${expiryInfo}` : `Valid until: ${expiryInfo}`}
               </p>
             )}
@@ -161,7 +161,7 @@ export const PromoCodeModal: React.FC<Props> = ({
           <form onSubmit={handleSubmit} className="space-y-4 text-xs">
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-[#d1d4dc] font-semibold">
+                <label className="text-[#131722] dark:text-[#d1d4dc] font-semibold">
                   {isAr ? 'مفتاح التفعيل (Activation Key):' : 'Activation Key:'}
                 </label>
                 <span className="text-[10px] text-[#787b86] font-mono">
@@ -179,11 +179,11 @@ export const PromoCodeModal: React.FC<Props> = ({
                   setErrorMsg(null);
                 }}
                 disabled={isSubmitting}
-                className="w-full bg-[#131722] border border-[#363a45] focus:border-amber-400 rounded-lg px-4 py-3 text-white placeholder-[#787b86] font-mono text-center uppercase tracking-widest text-base font-bold focus:outline-none"
+                className="w-full bg-[#FFFFFF] dark:bg-[#131722] border border-[#CBD2DF] dark:border-[#363a45] focus:border-amber-400 rounded-lg px-4 py-3 text-[#131722] dark:text-white placeholder-[#787B86] dark:placeholder-[#787b86] font-mono text-center uppercase tracking-widest text-base font-bold focus:outline-none"
               />
 
               {errorMsg && (
-                <div className="flex items-center gap-1.5 text-xs text-[#f23645] mt-2 bg-[#f23645]/10 p-2.5 rounded-lg border border-[#f23645]/30">
+                <div className="flex items-center gap-1.5 text-xs text-[#D93848] dark:text-[#f23645] mt-2 bg-[#FDECEE] dark:bg-[#f23645]/10 p-2.5 rounded-lg border border-[#F5C2C7] dark:border-[#f23645]/30">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>{errorMsg}</span>
                 </div>
@@ -193,7 +193,7 @@ export const PromoCodeModal: React.FC<Props> = ({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-3 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-black font-bold text-sm hover:brightness-110 transition-all cursor-pointer shadow flex items-center justify-center gap-2"
+              className="w-full py-3 rounded-lg bg-[#131722] hover:bg-[#2A2E39] text-white dark:bg-gradient-to-r dark:from-amber-500 dark:to-amber-600 dark:text-black font-bold text-sm dark:hover:brightness-110 transition-all cursor-pointer shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow flex items-center justify-center gap-2"
             >
               {isSubmitting ? (
                 <span>{isAr ? 'جارِ التحقق من المفتاح...' : 'Verifying Key...'}</span>

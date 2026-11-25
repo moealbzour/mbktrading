@@ -66,8 +66,8 @@ export const TradingViewLiteChart: React.FC<Props> = ({
       chartType: 'area',
       headerFontSize: 'small',
       backgroundColor: chartBgHex,
-      gridLineColor: isLight ? 'rgba(203, 213, 225, 0.5)' : 'rgba(42, 46, 57, 0.4)',
-      widgetFontColor: isLight ? '#0f172a' : '#d1d4dc',
+      gridLineColor: isLight ? 'rgba(224, 227, 235, 0.8)' : 'rgba(42, 46, 57, 0.4)',
+      widgetFontColor: isLight ? '#131722' : '#d1d4dc',
       lineWidth: 2,
       lineType: 0,
       dateRanges: [
@@ -77,11 +77,11 @@ export const TradingViewLiteChart: React.FC<Props> = ({
         '60m|1W'
       ],
       upColor: '#089981',
-      downColor: '#f23645',
+      downColor: isLight ? '#D93848' : '#f23645',
       borderUpColor: '#089981',
-      borderDownColor: '#f23645',
+      borderDownColor: isLight ? '#D93848' : '#f23645',
       wickUpColor: '#089981',
-      wickDownColor: '#f23645'
+      wickDownColor: isLight ? '#D93848' : '#f23645'
     };
 
     script.innerHTML = JSON.stringify(widgetConfig);

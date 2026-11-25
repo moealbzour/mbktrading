@@ -80,25 +80,25 @@ export const EmailVerificationGuard: React.FC<Props> = ({
   return (
     <div
       dir={isAr ? 'rtl' : 'ltr'}
-      className="min-h-screen h-[100dvh] w-full bg-[#131722] text-[#d1d4dc] flex flex-col justify-between font-sans relative overflow-hidden select-none antialiased p-4 sm:p-6"
+      className="min-h-screen h-[100dvh] w-full bg-[#FFFFFF] dark:bg-[#131722] text-[#131722] dark:text-[#d1d4dc] flex flex-col justify-between font-sans relative overflow-hidden select-none antialiased p-4 sm:p-6"
     >
       {/* Background Architectural Patterns */}
-      <div className="absolute inset-0 bg-[radial-gradient(#1e222d_1px,transparent_1px)] [background-size:24px_24px] opacity-30 pointer-events-none" />
-      <div className="absolute -top-40 start-1/3 w-[500px] h-[500px] bg-[#089981]/15 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute -bottom-40 end-1/3 w-[500px] h-[500px] bg-red-600/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(#CBD2DF_1px,transparent_1px)] dark:bg-[radial-gradient(#1e222d_1px,transparent_1px)] [background-size:24px_24px] opacity-30 pointer-events-none" />
+      <div className="absolute -top-40 start-1/3 w-[500px] h-[500px] bg-[#E6F5F2] dark:bg-[#089981]/15 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute -bottom-40 end-1/3 w-[500px] h-[500px] bg-[#FDECEE] dark:bg-red-600/10 rounded-full blur-[120px] pointer-events-none" />
 
       {/* Top Header */}
       <header className="w-full max-w-5xl mx-auto flex items-center justify-between py-2 relative z-20 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#1e222d] border border-[#2a2e39] text-white font-mono font-black text-lg flex items-center justify-center shadow-lg">
+          <div className="w-10 h-10 rounded-xl bg-[#F8F9FD] dark:bg-[#1e222d] border border-[#E0E3EB] dark:border-[#2a2e39] text-[#131722] dark:text-white font-mono font-black text-lg flex items-center justify-center shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-lg">
             MBK
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-base font-extrabold text-white tracking-wider">
+              <span className="text-base font-extrabold text-[#131722] dark:text-white tracking-wider">
                 MBK TRADING DESK
               </span>
-              <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-amber-500/20 text-amber-400 border border-amber-500/40">
+              <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-[#FDF6E3] dark:bg-amber-500/20 text-[#9A6700] dark:text-amber-400 border border-[#EFE0B4] dark:border-amber-500/40">
                 SECURITY GUARD
               </span>
             </div>
@@ -110,7 +110,7 @@ export const EmailVerificationGuard: React.FC<Props> = ({
 
         <button
           onClick={onLogout}
-          className="px-3.5 py-2 rounded-xl bg-[#1e222d] hover:bg-[#2a2e39] border border-[#2a2e39] text-xs font-bold text-red-400 hover:text-red-300 transition-all flex items-center gap-2 cursor-pointer shadow-sm"
+          className="px-3.5 py-2 rounded-xl bg-[#F8F9FD] dark:bg-[#1e222d] hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] border border-[#E0E3EB] dark:border-[#2a2e39] text-xs font-bold text-[#D93848] dark:text-red-400 hover:text-[#D93848] dark:hover:text-red-300 transition-all flex items-center gap-2 cursor-pointer shadow-sm"
         >
           <LogOut className="w-3.5 h-3.5" />
           <span>{isAr ? 'تسجيل الخروج' : 'Sign Out'}</span>
@@ -119,25 +119,25 @@ export const EmailVerificationGuard: React.FC<Props> = ({
 
       {/* Main Guard Card */}
       <main className="w-full max-w-lg mx-auto my-auto py-8 relative z-20">
-        <div className="bg-[#1e222d] border border-[#2a2e39] rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden backdrop-blur-xl text-center space-y-6">
-          <div className="absolute top-0 start-0 w-full h-1.5 bg-gradient-to-r from-amber-500 via-[#089981] to-cyan-500" />
+        <div className="bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#E0E3EB] dark:border-[#2a2e39] rounded-3xl p-6 sm:p-8 shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl relative overflow-hidden dark:backdrop-blur-xl text-center space-y-6">
+          <div className="absolute top-0 start-0 w-full h-1 bg-[#131722] dark:bg-gradient-to-r dark:from-amber-500 dark:via-[#089981] dark:to-cyan-500" />
 
           {/* Animated Security Mail Icon */}
-          <div className="w-20 h-20 rounded-3xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center mx-auto shadow-xl shadow-amber-500/10">
+          <div className="w-20 h-20 rounded-3xl bg-[#FDF6E3] dark:bg-amber-500/15 border border-[#EFE0B4] dark:border-amber-500/30 text-[#9A6700] dark:text-amber-400 flex items-center justify-center mx-auto shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-xl shadow-none dark:shadow-amber-500/10">
             <MailCheck className="w-10 h-10 animate-pulse" />
           </div>
 
           <div>
-            <h1 className="text-2xl font-black text-white">
+            <h1 className="text-2xl font-black text-[#131722] dark:text-white">
               {isAr ? 'تأكيد البريد الإلكتروني مطلوب' : 'Email Verification Required'}
             </h1>
-            <p className="text-xs text-[#787b86] mt-2 max-w-md mx-auto leading-relaxed">
+            <p className="text-xs text-[#4A5162] dark:text-[#787b86] mt-2 max-w-md mx-auto leading-relaxed">
               {isAr
                 ? 'لحماية حسابك ومنع البريد المزعج، يجب تأكيد ملكية البريد الإلكتروني قبل الوصول إلى شارت ومؤشرات التداول.'
                 : 'To protect your account and ensure trading environment security, please verify your email before accessing the desk.'}
             </p>
 
-            <div className="mt-3 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#131722] border border-[#2a2e39] font-mono text-xs font-bold text-[#089981]">
+            <div className="mt-3 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#F8F9FD] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] font-mono text-xs font-bold text-[#089981]">
               <Mail className="w-3.5 h-3.5 text-[#089981]" />
               <span>{user.email}</span>
             </div>
@@ -145,44 +145,44 @@ export const EmailVerificationGuard: React.FC<Props> = ({
 
           {/* Feedback Notices */}
           {resendSent && (
-            <div className="p-3 rounded-xl bg-[#089981]/15 border border-[#089981]/40 text-[#089981] text-xs font-bold flex items-center justify-center gap-2 animate-in fade-in">
+            <div className="p-3 rounded-xl bg-[#E6F5F2] dark:bg-[#089981]/15 border border-[#B3E2D9] dark:border-[#089981]/40 text-[#089981] text-xs font-bold flex items-center justify-center gap-2 animate-in fade-in">
               <CheckCircle2 className="w-4 h-4 shrink-0" />
               <span>{isAr ? 'تم إعادة إرسال رابط التأكيد بنجاح! افحص صندوق الرسائل' : 'Verification link sent successfully! Check your inbox.'}</span>
             </div>
           )}
 
           {checkNotice && (
-            <div className="p-3 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-400 text-xs font-bold flex items-center justify-center gap-2 animate-in fade-in">
+            <div className="p-3 rounded-xl bg-[#FDF6E3] dark:bg-amber-500/15 border border-[#EFE0B4] dark:border-amber-500/40 text-[#9A6700] dark:text-amber-400 text-xs font-bold flex items-center justify-center gap-2 animate-in fade-in">
               <ShieldAlert className="w-4 h-4 shrink-0" />
               <span>{checkNotice}</span>
             </div>
           )}
 
           {/* Step Instructions */}
-          <div className="p-4 rounded-2xl bg-[#131722] border border-[#2a2e39] text-start space-y-2.5 text-xs">
+          <div className="p-4 rounded-2xl bg-[#F8F9FD] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] text-start space-y-2.5 text-xs">
             <div className="flex items-start gap-2.5">
-              <div className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 font-mono font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
+              <div className="w-5 h-5 rounded-full bg-[#FDF6E3] dark:bg-amber-500/20 text-[#9A6700] dark:text-amber-400 font-mono font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
                 1
               </div>
-              <span className="text-[#d1d4dc]">
+              <span className="text-[#131722] dark:text-[#d1d4dc]">
                 {isAr ? 'افتح صندوق البريد الإلكتروني الخاص بك وافحص الرسائل الواردة.' : 'Open your email inbox and look for the verification email.'}
               </span>
             </div>
 
             <div className="flex items-start gap-2.5">
-              <div className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 font-mono font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
+              <div className="w-5 h-5 rounded-full bg-[#FDF6E3] dark:bg-amber-500/20 text-[#9A6700] dark:text-amber-400 font-mono font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
                 2
               </div>
-              <span className="text-[#d1d4dc]">
+              <span className="text-[#131722] dark:text-[#d1d4dc]">
                 {isAr ? 'انقر على رابط التأكيد لتفعيل حسابك مع MBK Trading.' : 'Click the verification link in the email to activate your profile.'}
               </span>
             </div>
 
             <div className="flex items-start gap-2.5">
-              <div className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 font-mono font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
+              <div className="w-5 h-5 rounded-full bg-[#FDF6E3] dark:bg-amber-500/20 text-[#9A6700] dark:text-amber-400 font-mono font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
                 3
               </div>
-              <span className="text-[#d1d4dc]">
+              <span className="text-[#131722] dark:text-[#d1d4dc]">
                 {isAr ? 'اضغط على زر "تحقق وإعادة تحديث الحساب" أدناه.' : 'Click "Verify & Refresh Status" below to enter the platform.'}
               </span>
             </div>
@@ -193,10 +193,10 @@ export const EmailVerificationGuard: React.FC<Props> = ({
             <button
               onClick={handleCheckReload}
               disabled={checking}
-              className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#089981] to-[#067a67] hover:from-[#09a98e] hover:to-[#088a75] text-white font-bold text-xs shadow-lg shadow-[#089981]/25 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full py-3.5 px-4 rounded-xl bg-[#131722] hover:bg-[#2A2E39] dark:bg-gradient-to-r dark:from-[#089981] dark:to-[#067a67] dark:hover:from-[#09a98e] dark:hover:to-[#088a75] text-white font-bold text-xs shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-lg shadow-none dark:shadow-[#089981]/25 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {checking ? (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-[#CBD2DF] dark:border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <>
                   <RefreshCw className="w-4 h-4" />
@@ -208,10 +208,10 @@ export const EmailVerificationGuard: React.FC<Props> = ({
             <button
               onClick={handleResend}
               disabled={resending}
-              className="w-full py-3 px-4 rounded-xl bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-amber-400 hover:text-amber-300 text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full py-3 px-4 rounded-xl bg-[#FFFFFF] dark:bg-[#131722] hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] border border-[#E0E3EB] dark:border-[#2a2e39] text-[#9A6700] dark:text-amber-400 hover:text-[#9A6700] dark:hover:text-amber-300 text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {resending ? (
-                <div className="w-4 h-4 border-2 border-amber-400/30 border-t-amber-400 rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-[#EFE0B4] dark:border-amber-400/30 border-t-amber-400 rounded-full animate-spin" />
               ) : (
                 <>
                   <MailCheck className="w-4 h-4" />

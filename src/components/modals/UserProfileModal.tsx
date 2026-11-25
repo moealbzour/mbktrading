@@ -568,15 +568,15 @@ export const UserProfileModal: React.FC<Props> = ({
     : 'Standard Free Tier';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm select-none">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[#131722]/45 dark:bg-black/80 dark:backdrop-blur-sm select-none">
       <div
-        className="bg-[#10141c] border border-[#1e2633] rounded-[4px] w-full max-w-2xl overflow-hidden shadow-2xl relative flex flex-col max-h-[92vh]"
+        className="bg-[#FFFFFF] dark:bg-[#10141c] border border-[#E0E3EB] dark:border-[#1e2633] rounded-[4px] w-full max-w-2xl overflow-hidden shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl relative flex flex-col max-h-[92vh]"
         dir={isAr ? 'rtl' : 'ltr'}
       >
         {/* 1. INSTITUTIONAL ACCOUNT HEADER */}
-        <div className="p-4 bg-[#0a0d12] border-b border-[#1e2633] flex items-center justify-between gap-3 shrink-0">
+        <div className="p-4 bg-[#F0F3FA] dark:bg-[#0a0d12] border-b border-[#E0E3EB] dark:border-[#1e2633] flex items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-11 h-11 rounded-[3px] bg-[#161c26] border border-[#2a3446] flex items-center justify-center text-white font-mono font-bold text-base shrink-0 overflow-hidden">
+            <div className="w-11 h-11 rounded-[3px] bg-[#F8F9FD] dark:bg-[#161c26] border border-[#CBD2DF] dark:border-[#2a3446] flex items-center justify-center text-[#131722] dark:text-white font-mono font-bold text-base shrink-0 overflow-hidden">
               {user.avatar ? (
                 <img
                   src={user.avatar}
@@ -591,19 +591,19 @@ export const UserProfileModal: React.FC<Props> = ({
 
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-sm sm:text-base font-bold text-white truncate">
+                <h2 className="text-sm sm:text-base font-bold text-[#131722] dark:text-white truncate">
                   {displayNameText}
                 </h2>
-                <span className="text-xs text-[#5e6878]" aria-hidden="true">·</span>
+                <span className="text-xs text-[#787B86] dark:text-[#5e6878]" aria-hidden="true">·</span>
                 <span
                   className={`text-[11px] font-mono font-semibold ${
                     isAdmin
-                      ? 'text-[#e11d48]'
+                      ? 'text-[#D93848] dark:text-[#e11d48]'
                       : isEliteMember || isVIP
-                      ? 'text-[#10b981]'
+                      ? 'text-[#089981] dark:text-[#10b981]'
                       : isAnalyser
-                      ? 'text-sky-400'
-                      : 'text-[#8b95a5]'
+                      ? 'text-[#1E53E5] dark:text-sky-400'
+                      : 'text-[#4A5162] dark:text-[#8b95a5]'
                   }`}
                 >
                   {isAdmin
@@ -618,19 +618,19 @@ export const UserProfileModal: React.FC<Props> = ({
                 </span>
               </div>
 
-              <div className="flex items-center gap-2 text-[11px] text-[#8b95a5] font-mono mt-0.5 flex-wrap">
+              <div className="flex items-center gap-2 text-[11px] text-[#4A5162] dark:text-[#8b95a5] font-mono mt-0.5 flex-wrap">
                 <span className="truncate max-w-[180px] sm:max-w-[260px]">{displayEmail}</span>
-                <span className="text-[#5e6878]" aria-hidden="true">·</span>
+                <span className="text-[#787B86] dark:text-[#5e6878]" aria-hidden="true">·</span>
                 <button
                   type="button"
                   onClick={handleCopyId}
-                  className="hover:text-white flex items-center gap-1 transition-colors cursor-pointer"
+                  className="hover:text-[#131722] dark:hover:text-white flex items-center gap-1 transition-colors cursor-pointer"
                   title={isAr ? 'نسخ معرف الحساب' : 'Copy Account ID'}
                 >
                   {copiedUid ? (
                     <>
-                      <Check className="w-3 h-3 text-[#10b981]" />
-                      <span className="text-[#10b981]">{isAr ? 'تم النسخ' : 'Copied'}</span>
+                      <Check className="w-3 h-3 text-[#089981] dark:text-[#10b981]" />
+                      <span className="text-[#089981] dark:text-[#10b981]">{isAr ? 'تم النسخ' : 'Copied'}</span>
                     </>
                   ) : (
                     <>
@@ -649,7 +649,7 @@ export const UserProfileModal: React.FC<Props> = ({
               soundManager.playClick();
               onClose();
             }}
-            className="p-1.5 rounded-[3px] bg-[#161c26] hover:bg-[#1c2430] border border-[#2a3446] text-[#8b95a5] hover:text-white transition-colors cursor-pointer shrink-0"
+            className="p-1.5 rounded-[3px] bg-[#F8F9FD] dark:bg-[#161c26] hover:bg-[#EDF1F7] dark:hover:bg-[#1c2430] border border-[#CBD2DF] dark:border-[#2a3446] text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white transition-colors cursor-pointer shrink-0"
             title={isAr ? 'إغلاق' : 'Close'}
           >
             <X className="w-4 h-4" />
@@ -657,7 +657,7 @@ export const UserProfileModal: React.FC<Props> = ({
         </div>
 
         {/* 2. PRIMARY 4-TAB SEGMENTED BAR */}
-        <div className="px-4 py-2 bg-[#10141c] border-b border-[#1e2633] grid grid-cols-2 sm:grid-cols-4 gap-1.5 shrink-0">
+        <div className="px-4 py-2 bg-[#FFFFFF] dark:bg-[#10141c] border-b border-[#E0E3EB] dark:border-[#1e2633] grid grid-cols-2 sm:grid-cols-4 gap-1.5 shrink-0">
           <button
             type="button"
             onClick={() => {
@@ -666,8 +666,8 @@ export const UserProfileModal: React.FC<Props> = ({
             }}
             className={`py-2 px-3 rounded-[3px] text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
               activeTab === 'overview'
-                ? 'bg-[#161c26] text-white border border-[#2a3446]'
-                : 'bg-[#0a0d12] text-[#8b95a5] hover:text-white border border-[#1e2633]'
+                ? 'bg-[#F8F9FD] dark:bg-[#161c26] text-[#131722] dark:text-white border border-[#CBD2DF] dark:border-[#2a3446]'
+                : 'bg-[#F0F3FA] dark:bg-[#0a0d12] text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white border border-[#E0E3EB] dark:border-[#1e2633]'
             }`}
           >
             <User className="w-3.5 h-3.5 shrink-0" />
@@ -682,8 +682,8 @@ export const UserProfileModal: React.FC<Props> = ({
             }}
             className={`py-2 px-3 rounded-[3px] text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
               activeTab === 'settings'
-                ? 'bg-[#161c26] text-white border border-[#2a3446]'
-                : 'bg-[#0a0d12] text-[#8b95a5] hover:text-white border border-[#1e2633]'
+                ? 'bg-[#F8F9FD] dark:bg-[#161c26] text-[#131722] dark:text-white border border-[#CBD2DF] dark:border-[#2a3446]'
+                : 'bg-[#F0F3FA] dark:bg-[#0a0d12] text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white border border-[#E0E3EB] dark:border-[#1e2633]'
             }`}
           >
             <Sliders className="w-3.5 h-3.5 shrink-0" />
@@ -698,8 +698,8 @@ export const UserProfileModal: React.FC<Props> = ({
             }}
             className={`py-2 px-3 rounded-[3px] text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
               activeTab === 'edit'
-                ? 'bg-[#161c26] text-white border border-[#2a3446]'
-                : 'bg-[#0a0d12] text-[#8b95a5] hover:text-white border border-[#1e2633]'
+                ? 'bg-[#F8F9FD] dark:bg-[#161c26] text-[#131722] dark:text-white border border-[#CBD2DF] dark:border-[#2a3446]'
+                : 'bg-[#F0F3FA] dark:bg-[#0a0d12] text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white border border-[#E0E3EB] dark:border-[#1e2633]'
             }`}
           >
             <Edit3 className="w-3.5 h-3.5 shrink-0" />
@@ -714,8 +714,8 @@ export const UserProfileModal: React.FC<Props> = ({
             }}
             className={`py-2 px-3 rounded-[3px] text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
               activeTab === 'password'
-                ? 'bg-[#161c26] text-white border border-[#2a3446]'
-                : 'bg-[#0a0d12] text-[#8b95a5] hover:text-white border border-[#1e2633]'
+                ? 'bg-[#F8F9FD] dark:bg-[#161c26] text-[#131722] dark:text-white border border-[#CBD2DF] dark:border-[#2a3446]'
+                : 'bg-[#F0F3FA] dark:bg-[#0a0d12] text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white border border-[#E0E3EB] dark:border-[#1e2633]'
             }`}
           >
             <KeyRound className="w-3.5 h-3.5 shrink-0" />
@@ -732,10 +732,10 @@ export const UserProfileModal: React.FC<Props> = ({
             <div className="space-y-5">
               {/* Staff / Admin Control Bar */}
               {(isStaff || canPublishQuickSignals) && (
-                <div className="p-3.5 rounded-[3px] bg-[#0a0d12] border border-[#2a3446] flex flex-wrap items-center justify-between gap-3">
+                <div className="p-3.5 rounded-[3px] bg-[#F0F3FA] dark:bg-[#0a0d12] border border-[#CBD2DF] dark:border-[#2a3446] flex flex-wrap items-center justify-between gap-3">
                   <div className="space-y-0.5">
-                    <div className="flex items-center gap-2 text-xs font-bold text-white">
-                      <Shield className="w-3.5 h-3.5 text-[#10b981]" />
+                    <div className="flex items-center gap-2 text-xs font-bold text-[#131722] dark:text-white">
+                      <Shield className="w-3.5 h-3.5 text-[#089981] dark:text-[#10b981]" />
                       <span>
                         {isAdmin
                           ? isAr
@@ -746,7 +746,7 @@ export const UserProfileModal: React.FC<Props> = ({
                           : `Staff Operations (${rawRole.toUpperCase()})`}
                       </span>
                     </div>
-                    <p className="text-[11px] text-[#8b95a5]">
+                    <p className="text-[11px] text-[#4A5162] dark:text-[#8b95a5]">
                       {isAr
                         ? 'إدارة الأعضاء، مفاتيح التفعيل، ونشر الصفقات المباشرة.'
                         : 'Manage accounts, activation keys, and live trade signals.'}
@@ -777,7 +777,7 @@ export const UserProfileModal: React.FC<Props> = ({
                           onClose();
                           onNavigateAdmin();
                         }}
-                        className="px-3 py-1.5 rounded-[3px] bg-[#161c26] hover:bg-[#1c2430] border border-[#2a3446] text-white text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
+                        className="px-3 py-1.5 rounded-[3px] bg-[#F8F9FD] dark:bg-[#161c26] hover:bg-[#EDF1F7] dark:hover:bg-[#1c2430] border border-[#CBD2DF] dark:border-[#2a3446] text-[#131722] dark:text-white text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
                       >
                         <Sliders className="w-3.5 h-3.5" />
                         <span>{isAr ? 'لوحة الإدارة' : 'Admin Hub'}</span>
@@ -790,22 +790,22 @@ export const UserProfileModal: React.FC<Props> = ({
               {/* Subscription & Membership Ledger */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold text-white">
+                  <h3 className="text-xs font-bold text-[#131722] dark:text-white">
                     {isAr ? 'تفاصيل الاشتراك والصلاحيات' : 'Membership & Entitlements'}
                   </h3>
-                  <span className="text-[11px] font-mono text-[#8b95a5] tabular-nums">
+                  <span className="text-[11px] font-mono text-[#4A5162] dark:text-[#8b95a5] tabular-nums">
                     {tierTitle}
                   </span>
                 </div>
 
-                <div className="rounded-[3px] bg-[#0a0d12] border border-[#1e2633] divide-y divide-[#1e2633] text-xs">
+                <div className="rounded-[3px] bg-[#F0F3FA] dark:bg-[#0a0d12] border border-[#E0E3EB] dark:border-[#1e2633] divide-y divide-[#E0E3EB] dark:divide-[#1e2633] text-xs">
                   <div className="px-3.5 py-2.5 flex items-center justify-between gap-2">
-                    <span className="text-[#8b95a5]">{isAr ? 'الباقة الحالية' : 'Current Tier'}</span>
-                    <span className="font-mono font-semibold text-white">{tierTitle}</span>
+                    <span className="text-[#4A5162] dark:text-[#8b95a5]">{isAr ? 'الباقة الحالية' : 'Current Tier'}</span>
+                    <span className="font-mono font-semibold text-[#131722] dark:text-white">{tierTitle}</span>
                   </div>
 
                   <div className="px-3.5 py-2.5 flex items-center justify-between gap-2">
-                    <span className="text-[#8b95a5]">{isAr ? 'صلاحية الاشتراك' : 'Subscription Expiry'}</span>
+                    <span className="text-[#4A5162] dark:text-[#8b95a5]">{isAr ? 'صلاحية الاشتراك' : 'Subscription Expiry'}</span>
                     <SubscriptionCountdown
                       status={isVIP ? 'active' : user.subscriptionStatus || 'none'}
                       endDate={effectiveEndDate}
@@ -816,24 +816,24 @@ export const UserProfileModal: React.FC<Props> = ({
 
                   {user.promoCode && (
                     <div className="px-3.5 py-2.5 flex items-center justify-between gap-2">
-                      <span className="text-[#8b95a5]">{isAr ? 'مفتاح التفعيل المرتبط' : 'Activation Key'}</span>
-                      <span className="font-mono font-semibold text-[#10b981] tabular-nums">{user.promoCode}</span>
+                      <span className="text-[#4A5162] dark:text-[#8b95a5]">{isAr ? 'مفتاح التفعيل المرتبط' : 'Activation Key'}</span>
+                      <span className="font-mono font-semibold text-[#089981] dark:text-[#10b981] tabular-nums">{user.promoCode}</span>
                     </div>
                   )}
 
                   {activeTrials.length > 0 && (
                     <div className="px-3.5 py-2.5 space-y-1.5">
-                      <span className="text-[11px] text-[#8b95a5] block">
+                      <span className="text-[11px] text-[#4A5162] dark:text-[#8b95a5] block">
                         {isAr ? 'الوحدات المفعلة لحسابك' : 'Active Granted Features'}
                       </span>
                       <div className="space-y-1">
                         {activeTrials.map((trial) => (
                           <div
                             key={trial.key}
-                            className="flex items-center justify-between text-[11px] py-1 px-2.5 rounded-[2px] bg-[#10141c] border border-[#1e2633]"
+                            className="flex items-center justify-between text-[11px] py-1 px-2.5 rounded-[2px] bg-[#FFFFFF] dark:bg-[#10141c] border border-[#E0E3EB] dark:border-[#1e2633]"
                           >
-                            <span className="text-white font-medium">{getFeatureLabel(trial.key, isAr)}</span>
-                            <span className="text-[#10b981] font-mono tabular-nums">
+                            <span className="text-[#131722] dark:text-white font-medium">{getFeatureLabel(trial.key, isAr)}</span>
+                            <span className="text-[#089981] dark:text-[#10b981] font-mono tabular-nums">
                               {formatExpiryShort(trial.expiryDate, isAr)}
                             </span>
                           </div>
@@ -842,8 +842,8 @@ export const UserProfileModal: React.FC<Props> = ({
                     </div>
                   )}
 
-                  <div className="p-3 bg-[#10141c] flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-[11px] text-[#8b95a5]">
+                  <div className="p-3 bg-[#FFFFFF] dark:bg-[#10141c] flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-[11px] text-[#4A5162] dark:text-[#8b95a5]">
                       {isFree
                         ? isAr
                           ? 'قم بترقية حسابك أو تفعيل مفتاح VIP لفتح الصفقات والمساعد الذكي.'
@@ -861,9 +861,9 @@ export const UserProfileModal: React.FC<Props> = ({
                             onClose();
                             onOpenPlansModal();
                           }}
-                          className="px-3 py-1.5 rounded-[3px] bg-[#161c26] hover:bg-[#1c2430] border border-[#2a3446] text-white font-semibold text-xs cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
+                          className="px-3 py-1.5 rounded-[3px] bg-[#F8F9FD] dark:bg-[#161c26] hover:bg-[#EDF1F7] dark:hover:bg-[#1c2430] border border-[#CBD2DF] dark:border-[#2a3446] text-[#131722] dark:text-white font-semibold text-xs cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
                         >
-                          <Crown className="w-3.5 h-3.5 text-[#10b981]" />
+                          <Crown className="w-3.5 h-3.5 text-[#089981] dark:text-[#10b981]" />
                           <span>{isAr ? 'خطط الاشتراك' : 'View Plans'}</span>
                         </button>
                       )}
@@ -887,7 +887,7 @@ export const UserProfileModal: React.FC<Props> = ({
               {/* Trader Profile Details Table */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold text-white">
+                  <h3 className="text-xs font-bold text-[#131722] dark:text-white">
                     {isAr ? 'بيانات المتداول المسجلة' : 'Registered Trader Profile'}
                   </h3>
                   <button
@@ -896,35 +896,35 @@ export const UserProfileModal: React.FC<Props> = ({
                       soundManager.playClick();
                       setActiveTab('edit');
                     }}
-                    className="text-[11px] font-semibold text-[#10b981] hover:underline flex items-center gap-1 cursor-pointer"
+                    className="text-[11px] font-semibold text-[#089981] dark:text-[#10b981] hover:underline flex items-center gap-1 cursor-pointer"
                   >
                     <Edit3 className="w-3 h-3" />
                     <span>{isAr ? 'تعديل البيانات' : 'Edit Details'}</span>
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-[#1e2633] border border-[#1e2633] rounded-[3px] overflow-hidden text-xs">
-                  <div className="bg-[#0a0d12] px-3.5 py-2.5 flex items-center justify-between gap-2">
-                    <span className="text-[#8b95a5]">{isAr ? 'الهاتف' : 'Phone'}</span>
-                    <span className="font-mono text-white tabular-nums truncate">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-[#F8F9FD] dark:bg-[#1e2633] border border-[#E0E3EB] dark:border-[#1e2633] rounded-[3px] overflow-hidden text-xs">
+                  <div className="bg-[#F0F3FA] dark:bg-[#0a0d12] px-3.5 py-2.5 flex items-center justify-between gap-2">
+                    <span className="text-[#4A5162] dark:text-[#8b95a5]">{isAr ? 'الهاتف' : 'Phone'}</span>
+                    <span className="font-mono text-[#131722] dark:text-white tabular-nums truncate">
                       {mergedProfile.phone || (isAr ? 'غير محدد' : 'Not set')}
                     </span>
                   </div>
-                  <div className="bg-[#0a0d12] px-3.5 py-2.5 flex items-center justify-between gap-2">
-                    <span className="text-[#8b95a5]">{isAr ? 'الدولة' : 'Country'}</span>
-                    <span className="text-white truncate">
+                  <div className="bg-[#F0F3FA] dark:bg-[#0a0d12] px-3.5 py-2.5 flex items-center justify-between gap-2">
+                    <span className="text-[#4A5162] dark:text-[#8b95a5]">{isAr ? 'الدولة' : 'Country'}</span>
+                    <span className="text-[#131722] dark:text-white truncate">
                       {mergedProfile.country || (isAr ? 'غير محدد' : 'Not set')}
                     </span>
                   </div>
-                  <div className="bg-[#0a0d12] px-3.5 py-2.5 flex items-center justify-between gap-2">
-                    <span className="text-[#8b95a5]">{isAr ? 'مستوى الخبرة' : 'Experience'}</span>
-                    <span className="text-white font-medium">
+                  <div className="bg-[#F0F3FA] dark:bg-[#0a0d12] px-3.5 py-2.5 flex items-center justify-between gap-2">
+                    <span className="text-[#4A5162] dark:text-[#8b95a5]">{isAr ? 'مستوى الخبرة' : 'Experience'}</span>
+                    <span className="text-[#131722] dark:text-white font-medium">
                       {mergedProfile.experienceLevel || 'Intermediate'}
                     </span>
                   </div>
-                  <div className="bg-[#0a0d12] px-3.5 py-2.5 flex items-center justify-between gap-2">
-                    <span className="text-[#8b95a5]">Telegram</span>
-                    <span className="font-mono text-white truncate">
+                  <div className="bg-[#F0F3FA] dark:bg-[#0a0d12] px-3.5 py-2.5 flex items-center justify-between gap-2">
+                    <span className="text-[#4A5162] dark:text-[#8b95a5]">Telegram</span>
+                    <span className="font-mono text-[#131722] dark:text-white truncate">
                       {mergedProfile.telegramUsername || (isAr ? 'غير محدد' : 'Not set')}
                     </span>
                   </div>
@@ -933,7 +933,7 @@ export const UserProfileModal: React.FC<Props> = ({
 
               {/* Trader Desk Tools & Support */}
               <div className="space-y-2">
-                <h3 className="text-xs font-bold text-white">
+                <h3 className="text-xs font-bold text-[#131722] dark:text-white">
                   {isAr ? 'أدوات المكتب والدعم الفني' : 'Trader Desk Tools & Support'}
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
@@ -945,12 +945,12 @@ export const UserProfileModal: React.FC<Props> = ({
                         onClose();
                         onOpenCalculatorModal();
                       }}
-                      className="p-3 rounded-[3px] bg-[#0a0d12] hover:bg-[#161c26] border border-[#1e2633] hover:border-[#2a3446] flex items-center gap-2.5 text-white transition-colors cursor-pointer text-start"
+                      className="p-3 rounded-[3px] bg-[#F0F3FA] dark:bg-[#0a0d12] hover:bg-[#EDF1F7] dark:hover:bg-[#161c26] border border-[#E0E3EB] dark:border-[#1e2633] hover:border-[#CBD2DF] dark:hover:border-[#2a3446] flex items-center gap-2.5 text-[#131722] dark:text-white transition-colors cursor-pointer text-start"
                     >
-                      <Calculator className="w-4 h-4 text-[#10b981] shrink-0" />
+                      <Calculator className="w-4 h-4 text-[#089981] dark:text-[#10b981] shrink-0" />
                       <div className="min-w-0">
                         <div className="font-semibold truncate">{isAr ? 'حاسبة المخاطر' : 'Risk Calculator'}</div>
-                        <div className="text-[10px] text-[#8b95a5] truncate">{isAr ? 'حساب اللوت والوقف' : 'Position & Lot Size'}</div>
+                        <div className="text-[10px] text-[#4A5162] dark:text-[#8b95a5] truncate">{isAr ? 'حساب اللوت والوقف' : 'Position & Lot Size'}</div>
                       </div>
                     </button>
                   )}
@@ -963,12 +963,12 @@ export const UserProfileModal: React.FC<Props> = ({
                         onClose();
                         onOpenSessionsModal();
                       }}
-                      className="p-3 rounded-[3px] bg-[#0a0d12] hover:bg-[#161c26] border border-[#1e2633] hover:border-[#2a3446] flex items-center gap-2.5 text-white transition-colors cursor-pointer text-start"
+                      className="p-3 rounded-[3px] bg-[#F0F3FA] dark:bg-[#0a0d12] hover:bg-[#EDF1F7] dark:hover:bg-[#161c26] border border-[#E0E3EB] dark:border-[#1e2633] hover:border-[#CBD2DF] dark:hover:border-[#2a3446] flex items-center gap-2.5 text-[#131722] dark:text-white transition-colors cursor-pointer text-start"
                     >
-                      <Clock className="w-4 h-4 text-[#10b981] shrink-0" />
+                      <Clock className="w-4 h-4 text-[#089981] dark:text-[#10b981] shrink-0" />
                       <div className="min-w-0">
                         <div className="font-semibold truncate">{isAr ? 'جلسات السوق' : 'Market Sessions'}</div>
-                        <div className="text-[10px] text-[#8b95a5] truncate">{isAr ? 'توقيت البورصات' : 'Global Desk Hours'}</div>
+                        <div className="text-[10px] text-[#4A5162] dark:text-[#8b95a5] truncate">{isAr ? 'توقيت البورصات' : 'Global Desk Hours'}</div>
                       </div>
                     </button>
                   )}
@@ -981,12 +981,12 @@ export const UserProfileModal: React.FC<Props> = ({
                         onClose();
                         onOpenSupportModal();
                       }}
-                      className="p-3 rounded-[3px] bg-[#0a0d12] hover:bg-[#161c26] border border-[#1e2633] hover:border-[#2a3446] flex items-center gap-2.5 text-white transition-colors cursor-pointer text-start"
+                      className="p-3 rounded-[3px] bg-[#F0F3FA] dark:bg-[#0a0d12] hover:bg-[#EDF1F7] dark:hover:bg-[#161c26] border border-[#E0E3EB] dark:border-[#1e2633] hover:border-[#CBD2DF] dark:hover:border-[#2a3446] flex items-center gap-2.5 text-[#131722] dark:text-white transition-colors cursor-pointer text-start"
                     >
-                      <Headphones className="w-4 h-4 text-[#10b981] shrink-0" />
+                      <Headphones className="w-4 h-4 text-[#089981] dark:text-[#10b981] shrink-0" />
                       <div className="min-w-0">
                         <div className="font-semibold truncate">{isAr ? 'الدعم الفني 24/7' : '24/7 Support Desk'}</div>
-                        <div className="text-[10px] text-[#8b95a5] truncate">{isAr ? 'تواصل مع الإدارة' : 'Direct Concierge'}</div>
+                        <div className="text-[10px] text-[#4A5162] dark:text-[#8b95a5] truncate">{isAr ? 'تواصل مع الإدارة' : 'Direct Concierge'}</div>
                       </div>
                     </button>
                   )}
@@ -1002,31 +1002,31 @@ export const UserProfileModal: React.FC<Props> = ({
             <div className="space-y-5">
               {/* Group 1: Appearance & Language */}
               <div className="space-y-2">
-                <h3 className="text-xs font-bold text-white">
+                <h3 className="text-xs font-bold text-[#131722] dark:text-white">
                   {isAr ? 'المظهر واللغة' : 'Appearance & Localization'}
                 </h3>
-                <div className="rounded-[3px] bg-[#0a0d12] border border-[#1e2633] divide-y divide-[#1e2633] text-xs">
+                <div className="rounded-[3px] bg-[#F0F3FA] dark:bg-[#0a0d12] border border-[#E0E3EB] dark:border-[#1e2633] divide-y divide-[#E0E3EB] dark:divide-[#1e2633] text-xs">
                   {/* Theme Mode */}
                   <div className="p-3.5 flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <div className="font-semibold text-white">
+                      <div className="font-semibold text-[#131722] dark:text-white">
                         {isAr ? 'سمة المنصة (Theme Mode)' : 'Terminal Theme Mode'}
                       </div>
-                      <div className="text-[11px] text-[#8b95a5]">
+                      <div className="text-[11px] text-[#4A5162] dark:text-[#8b95a5]">
                         {isAr
                           ? 'اختر المظهر الليلي أو النهاري أو المطابقة التلقائية لنظام جهازك'
                           : 'Switch between Obsidian Dark, Swiss Daylight, or System Auto'}
                       </div>
                     </div>
 
-                    <div className="flex items-center bg-[#10141c] p-0.5 rounded-[3px] border border-[#1e2633]">
+                    <div className="flex items-center bg-[#FFFFFF] dark:bg-[#10141c] p-0.5 rounded-[3px] border border-[#E0E3EB] dark:border-[#1e2633]">
                       <button
                         type="button"
                         onClick={() => setThemeMode('auto')}
                         className={`px-2.5 py-1.5 rounded-[2px] text-[11px] font-semibold flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
                           themeMode === 'auto'
-                            ? 'bg-[#161c26] text-white border border-[#2a3446]'
-                            : 'text-[#8b95a5] hover:text-white'
+                            ? 'bg-[#F8F9FD] dark:bg-[#161c26] text-[#131722] dark:text-white border border-[#CBD2DF] dark:border-[#2a3446]'
+                            : 'text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white'
                         }`}
                       >
                         <Monitor className="w-3.5 h-3.5" />
@@ -1037,8 +1037,8 @@ export const UserProfileModal: React.FC<Props> = ({
                         onClick={() => setThemeMode('dark')}
                         className={`px-2.5 py-1.5 rounded-[2px] text-[11px] font-semibold flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
                           themeMode === 'dark'
-                            ? 'bg-[#161c26] text-white border border-[#2a3446]'
-                            : 'text-[#8b95a5] hover:text-white'
+                            ? 'bg-[#F8F9FD] dark:bg-[#161c26] text-[#131722] dark:text-white border border-[#CBD2DF] dark:border-[#2a3446]'
+                            : 'text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white'
                         }`}
                       >
                         <Moon className="w-3.5 h-3.5" />
@@ -1049,8 +1049,8 @@ export const UserProfileModal: React.FC<Props> = ({
                         onClick={() => setThemeMode('light')}
                         className={`px-2.5 py-1.5 rounded-[2px] text-[11px] font-semibold flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
                           themeMode === 'light'
-                            ? 'bg-[#161c26] text-white border border-[#2a3446]'
-                            : 'text-[#8b95a5] hover:text-white'
+                            ? 'bg-[#F8F9FD] dark:bg-[#161c26] text-[#131722] dark:text-white border border-[#CBD2DF] dark:border-[#2a3446]'
+                            : 'text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white'
                         }`}
                       >
                         <Sun className="w-3.5 h-3.5" />
@@ -1063,17 +1063,17 @@ export const UserProfileModal: React.FC<Props> = ({
                   {onToggleLang && (
                     <div className="p-3.5 flex flex-wrap items-center justify-between gap-3">
                       <div>
-                        <div className="font-semibold text-white">
+                        <div className="font-semibold text-[#131722] dark:text-white">
                           {isAr ? 'لغة واجهة المنصة' : 'Interface Language'}
                         </div>
-                        <div className="text-[11px] text-[#8b95a5]">
+                        <div className="text-[11px] text-[#4A5162] dark:text-[#8b95a5]">
                           {isAr
                             ? 'التبديل الفوري بين العربية (RTL) والإنجليزية (LTR)'
                             : 'Switch between Arabic (RTL) and English (LTR)'}
                         </div>
                       </div>
 
-                      <div className="flex items-center bg-[#10141c] p-0.5 rounded-[3px] border border-[#1e2633]">
+                      <div className="flex items-center bg-[#FFFFFF] dark:bg-[#10141c] p-0.5 rounded-[3px] border border-[#E0E3EB] dark:border-[#1e2633]">
                         <button
                           type="button"
                           onClick={() => {
@@ -1084,8 +1084,8 @@ export const UserProfileModal: React.FC<Props> = ({
                           }}
                           className={`px-3 py-1.5 rounded-[2px] text-[11px] font-semibold transition-colors cursor-pointer ${
                             isAr
-                              ? 'bg-[#161c26] text-white border border-[#2a3446]'
-                              : 'text-[#8b95a5] hover:text-white'
+                              ? 'bg-[#F8F9FD] dark:bg-[#161c26] text-[#131722] dark:text-white border border-[#CBD2DF] dark:border-[#2a3446]'
+                              : 'text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white'
                           }`}
                         >
                           العربية
@@ -1100,8 +1100,8 @@ export const UserProfileModal: React.FC<Props> = ({
                           }}
                           className={`px-3 py-1.5 rounded-[2px] text-[11px] font-semibold transition-colors cursor-pointer ${
                             !isAr
-                              ? 'bg-[#161c26] text-white border border-[#2a3446]'
-                              : 'text-[#8b95a5] hover:text-white'
+                              ? 'bg-[#F8F9FD] dark:bg-[#161c26] text-[#131722] dark:text-white border border-[#CBD2DF] dark:border-[#2a3446]'
+                              : 'text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white'
                           }`}
                         >
                           English
@@ -1114,25 +1114,25 @@ export const UserProfileModal: React.FC<Props> = ({
 
               {/* Group 2: Workspace Layout & Panels */}
               <div className="space-y-2">
-                <h3 className="text-xs font-bold text-white">
+                <h3 className="text-xs font-bold text-[#131722] dark:text-white">
                   {isAr ? 'تخصيص مساحة العمل واللوحات' : 'Workspace Layout & Panels'}
                 </h3>
-                <div className="rounded-[3px] bg-[#0a0d12] border border-[#1e2633] divide-y divide-[#1e2633] text-xs">
+                <div className="rounded-[3px] bg-[#F0F3FA] dark:bg-[#0a0d12] border border-[#E0E3EB] dark:border-[#1e2633] divide-y divide-[#E0E3EB] dark:divide-[#1e2633] text-xs">
                   {/* Companion Panel Dock Position */}
                   {onSetChatPosition && (
                     <div className="p-3.5 flex flex-wrap items-center justify-between gap-3">
                       <div>
-                        <div className="font-semibold text-white">
+                        <div className="font-semibold text-[#131722] dark:text-white">
                           {isAr ? 'موضع اللوحة المساعدة (الإشارات والماسنجر)' : 'Companion Panel Dock Position'}
                         </div>
-                        <div className="text-[11px] text-[#8b95a5]">
+                        <div className="text-[11px] text-[#4A5162] dark:text-[#8b95a5]">
                           {isAr
                             ? 'تثبيت لوحة الإشارات والشات على اليسار أو الأسفل أو اليمين'
                             : 'Dock the companion signals & messenger panel Left, Bottom, or Right'}
                         </div>
                       </div>
 
-                      <div className="flex items-center bg-[#10141c] p-0.5 rounded-[3px] border border-[#1e2633]">
+                      <div className="flex items-center bg-[#FFFFFF] dark:bg-[#10141c] p-0.5 rounded-[3px] border border-[#E0E3EB] dark:border-[#1e2633]">
                         {(
                           [
                             { id: 'left' as const, labelAr: 'يسار', labelEn: 'Left', icon: PanelLeft },
@@ -1149,8 +1149,8 @@ export const UserProfileModal: React.FC<Props> = ({
                               onClick={() => onSetChatPosition(pos.id)}
                               className={`px-2.5 py-1.5 rounded-[2px] text-[11px] font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
                                 active
-                                  ? 'bg-[#161c26] text-white border border-[#2a3446]'
-                                  : 'text-[#8b95a5] hover:text-white'
+                                  ? 'bg-[#F8F9FD] dark:bg-[#161c26] text-[#131722] dark:text-white border border-[#CBD2DF] dark:border-[#2a3446]'
+                                  : 'text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white'
                               }`}
                             >
                               <Icon className="w-3.5 h-3.5" />
@@ -1166,12 +1166,12 @@ export const UserProfileModal: React.FC<Props> = ({
                   {onTogglePriceTicker && (
                     <div className="p-3.5 flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2.5">
-                        <Activity className="w-4 h-4 text-[#8b95a5]" />
+                        <Activity className="w-4 h-4 text-[#4A5162] dark:text-[#8b95a5]" />
                         <div>
-                          <div className="font-semibold text-white">
+                          <div className="font-semibold text-[#131722] dark:text-white">
                             {isAr ? 'شريط الأسعار المباشر (Price Ticker)' : 'Live Market Price Ticker'}
                           </div>
-                          <div className="text-[11px] text-[#8b95a5]">
+                          <div className="text-[11px] text-[#4A5162] dark:text-[#8b95a5]">
                             {isAr ? 'إظهار أو إخفاء شريط أسعار المؤشرات والذهب أعلى الشارت' : 'Show or hide the live market price strip'}
                           </div>
                         </div>
@@ -1182,8 +1182,8 @@ export const UserProfileModal: React.FC<Props> = ({
                         onClick={onTogglePriceTicker}
                         className={`px-3 py-1.5 rounded-[3px] text-[11px] font-semibold border transition-colors cursor-pointer whitespace-nowrap ${
                           showPriceTicker
-                            ? 'bg-[#10b981]/15 border-[#10b981]/40 text-[#10b981]'
-                            : 'bg-[#10141c] border-[#1e2633] text-[#8b95a5] hover:text-white'
+                            ? 'bg-[#E6F5F2] dark:bg-[#10b981]/15 border-[#B3E2D9] dark:border-[#10b981]/40 text-[#089981] dark:text-[#10b981]'
+                            : 'bg-[#FFFFFF] dark:bg-[#10141c] border-[#E0E3EB] dark:border-[#1e2633] text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white'
                         }`}
                       >
                         {showPriceTicker ? (isAr ? 'ظاهر' : 'Visible') : (isAr ? 'مخفي' : 'Hidden')}
@@ -1195,12 +1195,12 @@ export const UserProfileModal: React.FC<Props> = ({
                   {onToggleNewsBanner && (
                     <div className="p-3.5 flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2.5">
-                        <Newspaper className="w-4 h-4 text-[#8b95a5]" />
+                        <Newspaper className="w-4 h-4 text-[#4A5162] dark:text-[#8b95a5]" />
                         <div>
-                          <div className="font-semibold text-white">
+                          <div className="font-semibold text-[#131722] dark:text-white">
                             {isAr ? 'شريط الأخبار العاجلة (News Wire)' : 'Breaking Financial News Banner'}
                           </div>
-                          <div className="text-[11px] text-[#8b95a5]">
+                          <div className="text-[11px] text-[#4A5162] dark:text-[#8b95a5]">
                             {isAr ? 'إظهار أو إخفاء شريط الأخبار الاقتصادية المباشر' : 'Show or hide the live RSS financial news ticker'}
                           </div>
                         </div>
@@ -1211,8 +1211,8 @@ export const UserProfileModal: React.FC<Props> = ({
                         onClick={onToggleNewsBanner}
                         className={`px-3 py-1.5 rounded-[3px] text-[11px] font-semibold border transition-colors cursor-pointer whitespace-nowrap ${
                           showNewsBanner
-                            ? 'bg-[#10b981]/15 border-[#10b981]/40 text-[#10b981]'
-                            : 'bg-[#10141c] border-[#1e2633] text-[#8b95a5] hover:text-white'
+                            ? 'bg-[#E6F5F2] dark:bg-[#10b981]/15 border-[#B3E2D9] dark:border-[#10b981]/40 text-[#089981] dark:text-[#10b981]'
+                            : 'bg-[#FFFFFF] dark:bg-[#10141c] border-[#E0E3EB] dark:border-[#1e2633] text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white'
                         }`}
                       >
                         {showNewsBanner ? (isAr ? 'ظاهر' : 'Visible') : (isAr ? 'مخفي' : 'Hidden')}
@@ -1224,12 +1224,12 @@ export const UserProfileModal: React.FC<Props> = ({
                   {onToggleAnalysisMode && (
                     <div className="p-3.5 flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2.5">
-                        <Maximize2 className="w-4 h-4 text-[#8b95a5]" />
+                        <Maximize2 className="w-4 h-4 text-[#4A5162] dark:text-[#8b95a5]" />
                         <div>
-                          <div className="font-semibold text-white">
+                          <div className="font-semibold text-[#131722] dark:text-white">
                             {isAr ? 'وضع الشارت الكامل (Full-Screen Chart)' : 'Full-Screen Chart Analysis Mode'}
                           </div>
-                          <div className="text-[11px] text-[#8b95a5]">
+                          <div className="text-[11px] text-[#4A5162] dark:text-[#8b95a5]">
                             {isAr ? 'توسيع الشارت على كامل الشاشة للتحليل الفني المتقدم' : 'Expand live chart across the entire workspace'}
                           </div>
                         </div>
@@ -1244,7 +1244,7 @@ export const UserProfileModal: React.FC<Props> = ({
                         className={`px-3 py-1.5 rounded-[3px] text-[11px] font-semibold border transition-colors cursor-pointer whitespace-nowrap ${
                           isAnalysisMode
                             ? 'bg-[#10b981] border-[#10b981] text-white'
-                            : 'bg-[#10141c] border-[#1e2633] text-[#8b95a5] hover:text-white'
+                            : 'bg-[#FFFFFF] dark:bg-[#10141c] border-[#E0E3EB] dark:border-[#1e2633] text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white'
                         }`}
                       >
                         {isAnalysisMode ? (isAr ? 'مفعل (إيقاف)' : 'Active (Exit)') : (isAr ? 'تفعيل الشارت الكامل' : 'Enable Full Chart')}
@@ -1256,24 +1256,24 @@ export const UserProfileModal: React.FC<Props> = ({
 
               {/* Group 3: Audio, Notifications & App Installation */}
               <div className="space-y-2">
-                <h3 className="text-xs font-bold text-white">
+                <h3 className="text-xs font-bold text-[#131722] dark:text-white">
                   {isAr ? 'الصوت والإشعارات والتطبيق' : 'Audio, Notifications & App'}
                 </h3>
-                <div className="rounded-[3px] bg-[#0a0d12] border border-[#1e2633] divide-y divide-[#1e2633] text-xs">
+                <div className="rounded-[3px] bg-[#F0F3FA] dark:bg-[#0a0d12] border border-[#E0E3EB] dark:border-[#1e2633] divide-y divide-[#E0E3EB] dark:divide-[#1e2633] text-xs">
                   {/* Sound Alerts */}
                   {onToggleMute && (
                     <div className="p-3.5 flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2.5">
                         {isMuted ? (
-                          <VolumeX className="w-4 h-4 text-[#e11d48]" />
+                          <VolumeX className="w-4 h-4 text-[#D93848] dark:text-[#e11d48]" />
                         ) : (
-                          <Volume2 className="w-4 h-4 text-[#10b981]" />
+                          <Volume2 className="w-4 h-4 text-[#089981] dark:text-[#10b981]" />
                         )}
                         <div>
-                          <div className="font-semibold text-white">
+                          <div className="font-semibold text-[#131722] dark:text-white">
                             {isAr ? 'التنبيهات والمؤثرات الصوتية' : 'Audio Chimes & Sound Alerts'}
                           </div>
-                          <div className="text-[11px] text-[#8b95a5]">
+                          <div className="text-[11px] text-[#4A5162] dark:text-[#8b95a5]">
                             {isAr ? 'صوت التنبيه عند وصول صفقة جديدة أو رسالة' : 'Play audio alert when new signals or messages arrive'}
                           </div>
                         </div>
@@ -1287,8 +1287,8 @@ export const UserProfileModal: React.FC<Props> = ({
                         }}
                         className={`px-3 py-1.5 rounded-[3px] text-[11px] font-semibold border transition-colors cursor-pointer whitespace-nowrap ${
                           !isMuted
-                            ? 'bg-[#10b981]/15 border-[#10b981]/40 text-[#10b981]'
-                            : 'bg-[#e11d48]/15 border-[#e11d48]/40 text-[#e11d48]'
+                            ? 'bg-[#E6F5F2] dark:bg-[#10b981]/15 border-[#B3E2D9] dark:border-[#10b981]/40 text-[#089981] dark:text-[#10b981]'
+                            : 'bg-[#FDECEE] dark:bg-[#e11d48]/15 border-[#F5C2C7] dark:border-[#e11d48]/40 text-[#D93848] dark:text-[#e11d48]'
                         }`}
                       >
                         {isMuted ? (isAr ? 'مكتوم (Muted)' : 'Muted') : (isAr ? 'مفعل (Active)' : 'Active')}
@@ -1300,15 +1300,15 @@ export const UserProfileModal: React.FC<Props> = ({
                   <div className="p-3.5 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5">
                       {effectiveNotifPerm === 'granted' && effectiveNotifEnabled ? (
-                        <Bell className="w-4 h-4 text-[#10b981]" />
+                        <Bell className="w-4 h-4 text-[#089981] dark:text-[#10b981]" />
                       ) : (
-                        <BellOff className="w-4 h-4 text-[#8b95a5]" />
+                        <BellOff className="w-4 h-4 text-[#4A5162] dark:text-[#8b95a5]" />
                       )}
                       <div>
-                        <div className="font-semibold text-white">
+                        <div className="font-semibold text-[#131722] dark:text-white">
                           {isAr ? 'إشعارات المتصفح والهاتف الفورية' : 'Push & Browser Notifications'}
                         </div>
-                        <div className="text-[11px] text-[#8b95a5]">
+                        <div className="text-[11px] text-[#4A5162] dark:text-[#8b95a5]">
                           {isAr
                             ? 'إشعارات منبثقة للصفقات الجديدة والرسائل الخاصة والشات'
                             : 'Receive OS/browser popup alerts for live signals and DMs'}
@@ -1321,8 +1321,8 @@ export const UserProfileModal: React.FC<Props> = ({
                       onClick={handleNotificationToggleClick}
                       className={`px-3 py-1.5 rounded-[3px] text-[11px] font-semibold border transition-colors cursor-pointer whitespace-nowrap ${
                         effectiveNotifPerm === 'granted' && effectiveNotifEnabled
-                          ? 'bg-[#10b981]/15 border-[#10b981]/40 text-[#10b981]'
-                          : 'bg-[#10141c] border-[#1e2633] text-[#8b95a5] hover:text-white'
+                          ? 'bg-[#E6F5F2] dark:bg-[#10b981]/15 border-[#B3E2D9] dark:border-[#10b981]/40 text-[#089981] dark:text-[#10b981]'
+                          : 'bg-[#FFFFFF] dark:bg-[#10141c] border-[#E0E3EB] dark:border-[#1e2633] text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white'
                       }`}
                     >
                       {effectiveNotifPerm === 'granted' && effectiveNotifEnabled
@@ -1342,12 +1342,12 @@ export const UserProfileModal: React.FC<Props> = ({
                   {/* Install App Shortcut */}
                   <div className="p-3.5 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5">
-                      <Download className="w-4 h-4 text-[#8b95a5]" />
+                      <Download className="w-4 h-4 text-[#4A5162] dark:text-[#8b95a5]" />
                       <div>
-                        <div className="font-semibold text-white">
+                        <div className="font-semibold text-[#131722] dark:text-white">
                           {isAr ? 'تثبيت تطبيق المنصة (Web App)' : 'Install Desktop / Mobile App'}
                         </div>
-                        <div className="text-[11px] text-[#8b95a5]">
+                        <div className="text-[11px] text-[#4A5162] dark:text-[#8b95a5]">
                           {isAr
                             ? 'إضافة اختصار MBK Trading مباشرة على الشاشة الرئيسية'
                             : 'Add MBK Trading to your Home Screen or Desktop'}
@@ -1362,7 +1362,7 @@ export const UserProfileModal: React.FC<Props> = ({
                         onClose();
                         window.dispatchEvent(new CustomEvent('mbk-open-pwa-install'));
                       }}
-                      className="px-3 py-1.5 rounded-[3px] bg-[#161c26] hover:bg-[#1c2430] border border-[#2a3446] text-white text-[11px] font-semibold transition-colors cursor-pointer whitespace-nowrap"
+                      className="px-3 py-1.5 rounded-[3px] bg-[#F8F9FD] dark:bg-[#161c26] hover:bg-[#EDF1F7] dark:hover:bg-[#1c2430] border border-[#CBD2DF] dark:border-[#2a3446] text-[#131722] dark:text-white text-[11px] font-semibold transition-colors cursor-pointer whitespace-nowrap"
                     >
                       {isAr ? 'تثبيت التطبيق' : 'Install App'}
                     </button>
@@ -1370,7 +1370,7 @@ export const UserProfileModal: React.FC<Props> = ({
                 </div>
 
                 {notifHint && (
-                  <p className="text-[11px] text-amber-400 px-1 font-medium">{notifHint}</p>
+                  <p className="text-[11px] text-[#9A6700] dark:text-amber-400 px-1 font-medium">{notifHint}</p>
                 )}
               </div>
             </div>
@@ -1382,14 +1382,14 @@ export const UserProfileModal: React.FC<Props> = ({
           {activeTab === 'edit' && (
             <form onSubmit={handleSaveProfile} className="space-y-4 select-text">
               {profileError && (
-                <div className="p-3 rounded-[3px] bg-[#e11d48]/10 border border-[#e11d48]/40 text-[#e11d48] text-xs flex items-start gap-2">
+                <div className="p-3 rounded-[3px] bg-[#FDECEE] dark:bg-[#e11d48]/10 border border-[#F5C2C7] dark:border-[#e11d48]/40 text-[#D93848] dark:text-[#e11d48] text-xs flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                   <span>{profileError}</span>
                 </div>
               )}
 
               {profileSuccess && (
-                <div className="p-3 rounded-[3px] bg-[#10b981]/15 border border-[#10b981]/40 text-[#10b981] text-xs flex items-start gap-2 font-semibold">
+                <div className="p-3 rounded-[3px] bg-[#E6F5F2] dark:bg-[#10b981]/15 border border-[#B3E2D9] dark:border-[#10b981]/40 text-[#089981] dark:text-[#10b981] text-xs flex items-start gap-2 font-semibold">
                   <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
                   <span>{profileSuccess}</span>
                 </div>
@@ -1399,23 +1399,23 @@ export const UserProfileModal: React.FC<Props> = ({
                 {/* Immutable Email Field */}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-semibold text-[#f1f5f9]">
+                    <label className="text-xs font-semibold text-[#131722] dark:text-[#f1f5f9]">
                       {isAr ? 'البريد الإلكتروني' : 'Email Address'}
                     </label>
-                    <span className="text-[10px] text-[#8b95a5] flex items-center gap-1">
+                    <span className="text-[10px] text-[#4A5162] dark:text-[#8b95a5] flex items-center gap-1">
                       <Lock className="w-3 h-3" />
                       {isAr ? 'ثابت' : 'Locked'}
                     </span>
                   </div>
                   <div className="relative">
-                    <Mail className="w-3.5 h-3.5 text-[#5e6878] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
+                    <Mail className="w-3.5 h-3.5 text-[#787B86] dark:text-[#5e6878] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
                     <input
                       type="email"
                       value={displayEmail}
                       readOnly
                       disabled
                       dir="ltr"
-                      className="w-full ps-9 pe-3 py-2 rounded-[3px] bg-[#0a0d12]/60 border border-[#1e2633] text-[#8b95a5] text-xs font-mono cursor-not-allowed"
+                      className="w-full ps-9 pe-3 py-2 rounded-[3px] bg-[#F8F9FD] dark:bg-[#0a0d12]/60 border border-[#E0E3EB] dark:border-[#1e2633] text-[#4A5162] dark:text-[#8b95a5] text-xs font-mono cursor-not-allowed"
                     />
                   </div>
                 </div>
@@ -1423,15 +1423,15 @@ export const UserProfileModal: React.FC<Props> = ({
                 {/* Display Name with 7-Day Cooldown */}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between gap-2">
-                    <label className="text-xs font-semibold text-[#f1f5f9]">
+                    <label className="text-xs font-semibold text-[#131722] dark:text-[#f1f5f9]">
                       {isAr ? 'اسم المتداول' : 'Trader Display Name'}
                     </label>
                     {nameAvailability.canChange ? (
-                      <span className="text-[10px] text-[#10b981] font-mono">
+                      <span className="text-[10px] text-[#089981] dark:text-[#10b981] font-mono">
                         {isAr ? 'متاح (1x / 7d)' : 'Editable (1x/7d)'}
                       </span>
                     ) : (
-                      <span className="text-[10px] text-amber-400 font-mono flex items-center gap-1">
+                      <span className="text-[10px] text-[#9A6700] dark:text-amber-400 font-mono flex items-center gap-1">
                         <Clock className="w-3 h-3" />
                         {isAr ? `${nameAvailability.remainingDays} يوم` : `${nameAvailability.remainingDays}d left`}
                       </span>
@@ -1439,7 +1439,7 @@ export const UserProfileModal: React.FC<Props> = ({
                   </div>
 
                   <div className="relative">
-                    <User className="w-3.5 h-3.5 text-[#5e6878] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
+                    <User className="w-3.5 h-3.5 text-[#787B86] dark:text-[#5e6878] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
                     <input
                       type="text"
                       value={editName}
@@ -1449,8 +1449,8 @@ export const UserProfileModal: React.FC<Props> = ({
                       placeholder={isAr ? 'أدخل اسمك' : 'Enter your name'}
                       className={`w-full ps-9 pe-3 py-2 rounded-[3px] border text-xs outline-none transition-colors ${
                         nameAvailability.canChange
-                          ? 'bg-[#0a0d12] border-[#1e2633] focus:border-[#10b981] text-white'
-                          : 'bg-[#0a0d12]/60 border-[#1e2633] text-[#8b95a5] cursor-not-allowed'
+                          ? 'bg-[#F0F3FA] dark:bg-[#0a0d12] border-[#E0E3EB] dark:border-[#1e2633] focus:border-[#1E53E5] dark:focus:border-[#10b981] text-[#131722] dark:text-white'
+                          : 'bg-[#F8F9FD] dark:bg-[#0a0d12]/60 border-[#E0E3EB] dark:border-[#1e2633] text-[#4A5162] dark:text-[#8b95a5] cursor-not-allowed'
                       }`}
                     />
                   </div>
@@ -1458,7 +1458,7 @@ export const UserProfileModal: React.FC<Props> = ({
               </div>
 
               {!nameAvailability.canChange && (
-                <p className="text-[11px] text-amber-400/90 leading-relaxed">
+                <p className="text-[11px] text-[#9A6700] dark:text-amber-400/90 leading-relaxed">
                   {isAr
                     ? `يمكن تغيير الاسم مرة واحدة كل 7 أيام (متاح مجدداً في ${nextNameUnlockFormatted}).`
                     : `Display name can be updated once every 7 days (next available: ${nextNameUnlockFormatted}).`}
@@ -1468,11 +1468,11 @@ export const UserProfileModal: React.FC<Props> = ({
               {/* Phone & Country */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-[#f1f5f9]">
+                  <label className="text-xs font-semibold text-[#131722] dark:text-[#f1f5f9]">
                     {isAr ? 'رقم الهاتف / واتساب' : 'Phone / WhatsApp'}
                   </label>
                   <div className="relative">
-                    <Phone className="w-3.5 h-3.5 text-[#5e6878] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
+                    <Phone className="w-3.5 h-3.5 text-[#787B86] dark:text-[#5e6878] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
                     <input
                       type="tel"
                       value={editPhone}
@@ -1480,21 +1480,21 @@ export const UserProfileModal: React.FC<Props> = ({
                       maxLength={40}
                       dir="ltr"
                       placeholder="+971 50 000 0000"
-                      className="w-full ps-9 pe-3 py-2 rounded-[3px] bg-[#0a0d12] border border-[#1e2633] focus:border-[#10b981] text-white text-xs font-mono outline-none transition-colors"
+                      className="w-full ps-9 pe-3 py-2 rounded-[3px] bg-[#F0F3FA] dark:bg-[#0a0d12] border border-[#E0E3EB] dark:border-[#1e2633] focus:border-[#1E53E5] dark:focus:border-[#10b981] text-[#131722] dark:text-white text-xs font-mono outline-none transition-colors"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-[#f1f5f9]">
+                  <label className="text-xs font-semibold text-[#131722] dark:text-[#f1f5f9]">
                     {isAr ? 'الدولة' : 'Country'}
                   </label>
                   <div className="relative">
-                    <Globe className="w-3.5 h-3.5 text-[#5e6878] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
+                    <Globe className="w-3.5 h-3.5 text-[#787B86] dark:text-[#5e6878] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
                     <select
                       value={editCountry}
                       onChange={(e) => setEditCountry(e.target.value)}
-                      className="w-full ps-9 pe-3 py-2 rounded-[3px] bg-[#0a0d12] border border-[#1e2633] focus:border-[#10b981] text-white text-xs outline-none transition-colors"
+                      className="w-full ps-9 pe-3 py-2 rounded-[3px] bg-[#F0F3FA] dark:bg-[#0a0d12] border border-[#E0E3EB] dark:border-[#1e2633] focus:border-[#1E53E5] dark:focus:border-[#10b981] text-[#131722] dark:text-white text-xs outline-none transition-colors"
                     >
                       {editCountry && !COUNTRIES_LIST.includes(editCountry) && (
                         <option value={editCountry}>{editCountry}</option>
@@ -1512,31 +1512,31 @@ export const UserProfileModal: React.FC<Props> = ({
               {/* Date of Birth & Experience Level */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-[#f1f5f9]">
+                  <label className="text-xs font-semibold text-[#131722] dark:text-[#f1f5f9]">
                     {isAr ? 'تاريخ الميلاد' : 'Date of Birth'}
                   </label>
                   <div className="relative">
-                    <Calendar className="w-3.5 h-3.5 text-[#5e6878] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
+                    <Calendar className="w-3.5 h-3.5 text-[#787B86] dark:text-[#5e6878] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
                     <input
                       type="date"
                       value={editDob}
                       onChange={(e) => setEditDob(e.target.value)}
                       dir="ltr"
-                      className="w-full ps-9 pe-3 py-2 rounded-[3px] bg-[#0a0d12] border border-[#1e2633] focus:border-[#10b981] text-white text-xs outline-none transition-colors"
+                      className="w-full ps-9 pe-3 py-2 rounded-[3px] bg-[#F0F3FA] dark:bg-[#0a0d12] border border-[#E0E3EB] dark:border-[#1e2633] focus:border-[#1E53E5] dark:focus:border-[#10b981] text-[#131722] dark:text-white text-xs outline-none transition-colors"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-[#f1f5f9]">
+                  <label className="text-xs font-semibold text-[#131722] dark:text-[#f1f5f9]">
                     {isAr ? 'مستوى الخبرة' : 'Trading Experience'}
                   </label>
                   <div className="relative">
-                    <Award className="w-3.5 h-3.5 text-[#5e6878] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
+                    <Award className="w-3.5 h-3.5 text-[#787B86] dark:text-[#5e6878] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
                     <select
                       value={editExperience}
                       onChange={(e) => setEditExperience(e.target.value)}
-                      className="w-full ps-9 pe-3 py-2 rounded-[3px] bg-[#0a0d12] border border-[#1e2633] focus:border-[#10b981] text-white text-xs outline-none transition-colors"
+                      className="w-full ps-9 pe-3 py-2 rounded-[3px] bg-[#F0F3FA] dark:bg-[#0a0d12] border border-[#E0E3EB] dark:border-[#1e2633] focus:border-[#1E53E5] dark:focus:border-[#10b981] text-[#131722] dark:text-white text-xs outline-none transition-colors"
                     >
                       <option value="Beginner">{isAr ? 'مبتدئ (Beginner)' : 'Beginner'}</option>
                       <option value="Intermediate">{isAr ? 'متوسط (Intermediate)' : 'Intermediate'}</option>
@@ -1550,11 +1550,11 @@ export const UserProfileModal: React.FC<Props> = ({
               {/* Telegram Username & Favorite Pairs */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-[#f1f5f9]">
+                  <label className="text-xs font-semibold text-[#131722] dark:text-[#f1f5f9]">
                     {isAr ? 'معرف تيليجرام' : 'Telegram Username'}
                   </label>
                   <div className="relative">
-                    <Send className="w-3.5 h-3.5 text-[#5e6878] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
+                    <Send className="w-3.5 h-3.5 text-[#787B86] dark:text-[#5e6878] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
                     <input
                       type="text"
                       value={editTelegram}
@@ -1562,17 +1562,17 @@ export const UserProfileModal: React.FC<Props> = ({
                       maxLength={80}
                       dir="ltr"
                       placeholder="@username"
-                      className="w-full ps-9 pe-3 py-2 rounded-[3px] bg-[#0a0d12] border border-[#1e2633] focus:border-[#10b981] text-white text-xs font-mono outline-none transition-colors"
+                      className="w-full ps-9 pe-3 py-2 rounded-[3px] bg-[#F0F3FA] dark:bg-[#0a0d12] border border-[#E0E3EB] dark:border-[#1e2633] focus:border-[#1E53E5] dark:focus:border-[#10b981] text-[#131722] dark:text-white text-xs font-mono outline-none transition-colors"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-[#f1f5f9]">
+                  <label className="text-xs font-semibold text-[#131722] dark:text-[#f1f5f9]">
                     {isAr ? 'الأزواج المفضلة' : 'Favorite Pairs / Markets'}
                   </label>
                   <div className="relative">
-                    <TrendingUp className="w-3.5 h-3.5 text-[#5e6878] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
+                    <TrendingUp className="w-3.5 h-3.5 text-[#787B86] dark:text-[#5e6878] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
                     <input
                       type="text"
                       value={editPairs}
@@ -1580,7 +1580,7 @@ export const UserProfileModal: React.FC<Props> = ({
                       maxLength={200}
                       dir="ltr"
                       placeholder="US100, XAUUSD, BTCUSD"
-                      className="w-full ps-9 pe-3 py-2 rounded-[3px] bg-[#0a0d12] border border-[#1e2633] focus:border-[#10b981] text-white text-xs font-mono outline-none transition-colors"
+                      className="w-full ps-9 pe-3 py-2 rounded-[3px] bg-[#F0F3FA] dark:bg-[#0a0d12] border border-[#E0E3EB] dark:border-[#1e2633] focus:border-[#1E53E5] dark:focus:border-[#10b981] text-[#131722] dark:text-white text-xs font-mono outline-none transition-colors"
                     />
                   </div>
                 </div>
@@ -1588,7 +1588,7 @@ export const UserProfileModal: React.FC<Props> = ({
 
               {/* Asset Classes */}
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-[#f1f5f9] block">
+                <label className="text-xs font-semibold text-[#131722] dark:text-[#f1f5f9] block">
                   {isAr ? 'فئات الأصول المفضلة' : 'Preferred Asset Classes'}
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -1601,12 +1601,12 @@ export const UserProfileModal: React.FC<Props> = ({
                         onClick={() => handleToggleAsset(asset.id)}
                         className={`px-3 py-2 rounded-[3px] border text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
                           checked
-                            ? 'bg-[#10b981]/15 border-[#10b981] text-white'
-                            : 'bg-[#0a0d12] border-[#1e2633] text-[#8b95a5] hover:text-white'
+                            ? 'bg-[#E6F5F2] dark:bg-[#10b981]/15 border-[#10b981] text-[#131722] dark:text-white'
+                            : 'bg-[#F0F3FA] dark:bg-[#0a0d12] border-[#E0E3EB] dark:border-[#1e2633] text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white'
                         }`}
                       >
                         <span>{isAr ? asset.labelAr : asset.labelEn}</span>
-                        {checked && <Check className="w-3.5 h-3.5 text-[#10b981] shrink-0" />}
+                        {checked && <Check className="w-3.5 h-3.5 text-[#089981] dark:text-[#10b981] shrink-0" />}
                       </button>
                     );
                   })}
@@ -1636,14 +1636,14 @@ export const UserProfileModal: React.FC<Props> = ({
           {activeTab === 'password' && (
             <div className="space-y-4 select-text">
               {passwordError && (
-                <div className="p-3 rounded-[3px] bg-[#e11d48]/10 border border-[#e11d48]/40 text-[#e11d48] text-xs flex items-start gap-2">
+                <div className="p-3 rounded-[3px] bg-[#FDECEE] dark:bg-[#e11d48]/10 border border-[#F5C2C7] dark:border-[#e11d48]/40 text-[#D93848] dark:text-[#e11d48] text-xs flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                   <span>{passwordError}</span>
                 </div>
               )}
 
               {passwordSuccess && (
-                <div className="p-3 rounded-[3px] bg-[#10b981]/15 border border-[#10b981]/40 text-[#10b981] text-xs flex items-start gap-2 font-semibold">
+                <div className="p-3 rounded-[3px] bg-[#E6F5F2] dark:bg-[#10b981]/15 border border-[#B3E2D9] dark:border-[#10b981]/40 text-[#089981] dark:text-[#10b981] text-xs flex items-start gap-2 font-semibold">
                   <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
                   <span>{passwordSuccess}</span>
                 </div>
@@ -1651,7 +1651,7 @@ export const UserProfileModal: React.FC<Props> = ({
 
               {hasPasswordProvider ? (
                 <form onSubmit={handleSavePassword} className="space-y-3.5">
-                  <div className="p-3 rounded-[3px] bg-[#0a0d12] border border-[#1e2633] text-[11px] text-[#8b95a5] leading-relaxed">
+                  <div className="p-3 rounded-[3px] bg-[#F0F3FA] dark:bg-[#0a0d12] border border-[#E0E3EB] dark:border-[#1e2633] text-[11px] text-[#4A5162] dark:text-[#8b95a5] leading-relaxed">
                     {isAr
                       ? 'أدخل كلمة المرور الحالية ثم اختر كلمة مرور جديدة مكونة من 6 أحرف أو أرقام على الأقل.'
                       : 'Verify your current password before setting a new password (minimum 6 characters).'}
@@ -1659,11 +1659,11 @@ export const UserProfileModal: React.FC<Props> = ({
 
                   {/* Current Password */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-[#f1f5f9]">
+                    <label className="text-xs font-semibold text-[#131722] dark:text-[#f1f5f9]">
                       {isAr ? 'كلمة المرور الحالية' : 'Current Password'}
                     </label>
                     <div className="relative">
-                      <Lock className="w-3.5 h-3.5 text-[#5e6878] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
+                      <Lock className="w-3.5 h-3.5 text-[#787B86] dark:text-[#5e6878] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
                       <input
                         type={showCurrentPassword ? 'text' : 'password'}
                         value={currentPassword}
@@ -1671,12 +1671,12 @@ export const UserProfileModal: React.FC<Props> = ({
                         autoComplete="current-password"
                         dir="ltr"
                         placeholder="••••••••"
-                        className="w-full ps-9 pe-10 py-2 rounded-[3px] bg-[#0a0d12] border border-[#1e2633] focus:border-[#10b981] text-white text-xs outline-none transition-colors"
+                        className="w-full ps-9 pe-10 py-2 rounded-[3px] bg-[#F0F3FA] dark:bg-[#0a0d12] border border-[#E0E3EB] dark:border-[#1e2633] focus:border-[#1E53E5] dark:focus:border-[#10b981] text-[#131722] dark:text-white text-xs outline-none transition-colors"
                       />
                       <button
                         type="button"
                         onClick={() => setShowCurrentPassword((v) => !v)}
-                        className="absolute top-1/2 -translate-y-1/2 end-3 text-[#8b95a5] hover:text-white cursor-pointer"
+                        className="absolute top-1/2 -translate-y-1/2 end-3 text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white cursor-pointer"
                       >
                         {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
@@ -1685,11 +1685,11 @@ export const UserProfileModal: React.FC<Props> = ({
 
                   {/* New Password */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-[#f1f5f9]">
+                    <label className="text-xs font-semibold text-[#131722] dark:text-[#f1f5f9]">
                       {isAr ? 'كلمة المرور الجديدة' : 'New Password'}
                     </label>
                     <div className="relative">
-                      <KeyRound className="w-3.5 h-3.5 text-[#5e6878] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
+                      <KeyRound className="w-3.5 h-3.5 text-[#787B86] dark:text-[#5e6878] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
                       <input
                         type={showNewPassword ? 'text' : 'password'}
                         value={newPassword}
@@ -1697,12 +1697,12 @@ export const UserProfileModal: React.FC<Props> = ({
                         autoComplete="new-password"
                         dir="ltr"
                         placeholder="••••••••"
-                        className="w-full ps-9 pe-10 py-2 rounded-[3px] bg-[#0a0d12] border border-[#1e2633] focus:border-[#10b981] text-white text-xs outline-none transition-colors"
+                        className="w-full ps-9 pe-10 py-2 rounded-[3px] bg-[#F0F3FA] dark:bg-[#0a0d12] border border-[#E0E3EB] dark:border-[#1e2633] focus:border-[#1E53E5] dark:focus:border-[#10b981] text-[#131722] dark:text-white text-xs outline-none transition-colors"
                       />
                       <button
                         type="button"
                         onClick={() => setShowNewPassword((v) => !v)}
-                        className="absolute top-1/2 -translate-y-1/2 end-3 text-[#8b95a5] hover:text-white cursor-pointer"
+                        className="absolute top-1/2 -translate-y-1/2 end-3 text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white cursor-pointer"
                       >
                         {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
@@ -1711,11 +1711,11 @@ export const UserProfileModal: React.FC<Props> = ({
 
                   {/* Confirm New Password */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-[#f1f5f9]">
+                    <label className="text-xs font-semibold text-[#131722] dark:text-[#f1f5f9]">
                       {isAr ? 'تأكيد كلمة المرور الجديدة' : 'Confirm New Password'}
                     </label>
                     <div className="relative">
-                      <KeyRound className="w-3.5 h-3.5 text-[#5e6878] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
+                      <KeyRound className="w-3.5 h-3.5 text-[#787B86] dark:text-[#5e6878] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
                       <input
                         type={showNewPassword ? 'text' : 'password'}
                         value={confirmNewPassword}
@@ -1723,7 +1723,7 @@ export const UserProfileModal: React.FC<Props> = ({
                         autoComplete="new-password"
                         dir="ltr"
                         placeholder="••••••••"
-                        className="w-full ps-9 pe-3 py-2 rounded-[3px] bg-[#0a0d12] border border-[#1e2633] focus:border-[#10b981] text-white text-xs outline-none transition-colors"
+                        className="w-full ps-9 pe-3 py-2 rounded-[3px] bg-[#F0F3FA] dark:bg-[#0a0d12] border border-[#E0E3EB] dark:border-[#1e2633] focus:border-[#1E53E5] dark:focus:border-[#10b981] text-[#131722] dark:text-white text-xs outline-none transition-colors"
                       />
                     </div>
                   </div>
@@ -1745,13 +1745,13 @@ export const UserProfileModal: React.FC<Props> = ({
                     </span>
                   </button>
 
-                  <div className="pt-2 border-t border-[#1e2633] flex items-center justify-between text-[11px] text-[#8b95a5]">
+                  <div className="pt-2 border-t border-[#E0E3EB] dark:border-[#1e2633] flex items-center justify-between text-[11px] text-[#4A5162] dark:text-[#8b95a5]">
                     <span>{isAr ? 'نسيت كلمة المرور الحالية؟' : 'Forgot your current password?'}</span>
                     <button
                       type="button"
                       disabled={sendingResetLink}
                       onClick={handleSendPasswordResetLink}
-                      className="text-[#10b981] hover:underline font-semibold cursor-pointer disabled:opacity-50"
+                      className="text-[#089981] dark:text-[#10b981] hover:underline font-semibold cursor-pointer disabled:opacity-50"
                     >
                       {sendingResetLink
                         ? isAr
@@ -1764,12 +1764,12 @@ export const UserProfileModal: React.FC<Props> = ({
                   </div>
                 </form>
               ) : (
-                <div className="p-4 rounded-[3px] bg-[#0a0d12] border border-[#1e2633] space-y-3">
-                  <div className="flex items-center gap-2 text-xs font-bold text-white">
-                    <Shield className="w-4 h-4 text-[#10b981]" />
+                <div className="p-4 rounded-[3px] bg-[#F0F3FA] dark:bg-[#0a0d12] border border-[#E0E3EB] dark:border-[#1e2633] space-y-3">
+                  <div className="flex items-center gap-2 text-xs font-bold text-[#131722] dark:text-white">
+                    <Shield className="w-4 h-4 text-[#089981] dark:text-[#10b981]" />
                     <span>{isAr ? 'حساب مرتبط عبر Google' : 'Google-Linked Account'}</span>
                   </div>
-                  <p className="text-xs text-[#8b95a5] leading-relaxed">
+                  <p className="text-xs text-[#4A5162] dark:text-[#8b95a5] leading-relaxed">
                     {isAr
                       ? `أنت مسجل الدخول حالياً عبر Google (${displayEmail}). يمكنك إرسال رابط آمن إلى بريدك الإلكتروني لإضافة كلمة مرور خاصة بالدخول المباشر.`
                       : `You currently sign in using Google (${displayEmail}). Send a secure link to your email to configure a direct password.`}
@@ -1798,14 +1798,14 @@ export const UserProfileModal: React.FC<Props> = ({
         </div>
 
         {/* 4. INSTITUTIONAL FOOTER */}
-        <div className="px-4 py-3 bg-[#0a0d12] border-t border-[#1e2633] flex items-center justify-between shrink-0">
+        <div className="px-4 py-3 bg-[#F0F3FA] dark:bg-[#0a0d12] border-t border-[#E0E3EB] dark:border-[#1e2633] flex items-center justify-between shrink-0">
           <button
             type="button"
             onClick={() => {
               soundManager.playClick();
               onLogout();
             }}
-            className="px-3 py-1.5 rounded-[3px] bg-[#e11d48]/12 hover:bg-[#e11d48]/20 text-[#e11d48] border border-[#e11d48]/30 text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
+            className="px-3 py-1.5 rounded-[3px] bg-[#FDECEE] dark:bg-[#e11d48]/12 hover:bg-[#e11d48]/20 text-[#D93848] dark:text-[#e11d48] border border-[#F5C2C7] dark:border-[#e11d48]/30 text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
           >
             <LogOut className="w-3.5 h-3.5" />
             <span>{isAr ? 'تسجيل الخروج' : 'Sign Out'}</span>
@@ -1817,7 +1817,7 @@ export const UserProfileModal: React.FC<Props> = ({
               soundManager.playClick();
               onClose();
             }}
-            className="px-4 py-1.5 rounded-[3px] bg-[#161c26] hover:bg-[#1c2430] border border-[#2a3446] text-white text-xs font-semibold transition-colors cursor-pointer"
+            className="px-4 py-1.5 rounded-[3px] bg-[#F8F9FD] dark:bg-[#161c26] hover:bg-[#EDF1F7] dark:hover:bg-[#1c2430] border border-[#CBD2DF] dark:border-[#2a3446] text-[#131722] dark:text-white text-xs font-semibold transition-colors cursor-pointer"
           >
             {isAr ? 'إغلاق' : 'Close'}
           </button>

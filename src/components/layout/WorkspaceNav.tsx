@@ -210,12 +210,12 @@ export const WorkspaceDesktopRail: React.FC<WorkspaceNavProps> = ({
 
   return (
     <aside
-      className={`hidden md:flex flex-col shrink-0 bg-[#1E222D] border-e border-[#2A2E39] select-none transition-all duration-150 z-30 ${
+      className={`hidden md:flex flex-col shrink-0 bg-[#F8F9FD] dark:bg-[#1E222D] border-e border-[#E0E3EB] dark:border-[#2A2E39] select-none transition-all duration-150 z-30 ${
         isRailExpanded ? 'w-56' : 'w-16'
       }`}
     >
       {/* Top Collapse/Expand Header */}
-      <div className="h-10 px-2 border-b border-[#2A2E39] flex items-center justify-between shrink-0">
+      <div className="h-10 px-2 border-b border-[#E0E3EB] dark:border-[#2A2E39] flex items-center justify-between shrink-0">
         {isRailExpanded && (
           <span className="px-2 text-[10px] font-bold uppercase tracking-wider text-[#787B86] truncate">
             {isAr ? 'أقسام المنصة' : 'Workspace'}
@@ -224,7 +224,7 @@ export const WorkspaceDesktopRail: React.FC<WorkspaceNavProps> = ({
         <button
           type="button"
           onClick={onToggleRailExpanded}
-          className={`h-7 rounded hover:bg-[#242834] text-[#787B86] hover:text-[#D1D4DC] flex items-center justify-center transition-colors cursor-pointer ${
+          className={`h-7 rounded hover:bg-[#EDF1F7] dark:hover:bg-[#242834] text-[#787B86] hover:text-[#131722] dark:hover:text-[#D1D4DC] flex items-center justify-center transition-colors cursor-pointer ${
             isRailExpanded ? 'px-2 ms-auto' : 'w-full'
           }`}
           title={isRailExpanded ? (isAr ? 'طي القائمة' : 'Collapse sidebar') : isAr ? 'توسيع القائمة' : 'Expand sidebar'}
@@ -253,7 +253,7 @@ export const WorkspaceDesktopRail: React.FC<WorkspaceNavProps> = ({
               } ${
                 item.isActive
                   ? 'bg-[#2962FF] text-white font-bold'
-                  : 'text-[#787B86] hover:bg-[#242834] hover:text-[#D1D4DC]'
+                  : 'text-[#787B86] hover:bg-[#EDF1F7] dark:hover:bg-[#242834] hover:text-[#131722] dark:hover:text-[#D1D4DC]'
               }`}
             >
               <div className={`flex items-center ${isRailExpanded ? 'gap-2.5 min-w-0' : 'flex-col gap-1'}`}>
@@ -284,7 +284,7 @@ export const WorkspaceDesktopRail: React.FC<WorkspaceNavProps> = ({
       </div>
 
       {/* Quick Utility Actions Footer (Risk Calculator, Sessions, Support, Staff Quick Signal) */}
-      <div className="p-1.5 border-t border-[#2A2E39] space-y-0.5 shrink-0">
+      <div className="p-1.5 border-t border-[#E0E3EB] dark:border-[#2A2E39] space-y-0.5 shrink-0">
         {isRailExpanded && (
           <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-[#787B86]">
             {isAr ? 'أدوات سريعة' : 'Quick Tools'}
@@ -295,7 +295,7 @@ export const WorkspaceDesktopRail: React.FC<WorkspaceNavProps> = ({
           <button
             type="button"
             onClick={onOpenQuickSignalDrawer}
-            className={`w-full rounded text-[#089981] hover:bg-[#242834] transition-colors cursor-pointer flex ${
+            className={`w-full rounded text-[#089981] hover:bg-[#EDF1F7] dark:hover:bg-[#242834] transition-colors cursor-pointer flex ${
               isRailExpanded
                 ? 'h-8 px-2.5 items-center gap-2.5 text-xs font-semibold'
                 : 'py-1.5 flex-col items-center justify-center gap-0.5 text-[9px] font-semibold'
@@ -309,7 +309,7 @@ export const WorkspaceDesktopRail: React.FC<WorkspaceNavProps> = ({
         <button
           type="button"
           onClick={onOpenCalculatorModal}
-          className={`w-full rounded text-[#787B86] hover:bg-[#242834] hover:text-[#D1D4DC] transition-colors cursor-pointer flex ${
+          className={`w-full rounded text-[#787B86] hover:bg-[#EDF1F7] dark:hover:bg-[#242834] hover:text-[#131722] dark:hover:text-[#D1D4DC] transition-colors cursor-pointer flex ${
             isRailExpanded
               ? 'h-8 px-2.5 items-center gap-2.5 text-xs'
               : 'py-1.5 flex-col items-center justify-center gap-0.5 text-[9px]'
@@ -324,7 +324,7 @@ export const WorkspaceDesktopRail: React.FC<WorkspaceNavProps> = ({
         <button
           type="button"
           onClick={onOpenSessionsModal}
-          className={`w-full rounded text-[#787B86] hover:bg-[#242834] hover:text-[#D1D4DC] transition-colors cursor-pointer flex ${
+          className={`w-full rounded text-[#787B86] hover:bg-[#EDF1F7] dark:hover:bg-[#242834] hover:text-[#131722] dark:hover:text-[#D1D4DC] transition-colors cursor-pointer flex ${
             isRailExpanded
               ? 'h-8 px-2.5 items-center gap-2.5 text-xs'
               : 'py-1.5 flex-col items-center justify-center gap-0.5 text-[9px]'
@@ -339,7 +339,7 @@ export const WorkspaceDesktopRail: React.FC<WorkspaceNavProps> = ({
         <button
           type="button"
           onClick={onOpenSupportModal}
-          className={`w-full rounded text-[#787B86] hover:bg-[#242834] hover:text-[#D1D4DC] transition-colors cursor-pointer flex ${
+          className={`w-full rounded text-[#787B86] hover:bg-[#EDF1F7] dark:hover:bg-[#242834] hover:text-[#131722] dark:hover:text-[#D1D4DC] transition-colors cursor-pointer flex ${
             isRailExpanded
               ? 'h-8 px-2.5 items-center gap-2.5 text-xs'
               : 'py-1.5 flex-col items-center justify-center gap-0.5 text-[9px]'
@@ -373,7 +373,7 @@ export const WorkspaceMobileMarketsBar: React.FC<{
   ];
 
   return (
-    <div className="md:hidden h-10 bg-[#1E222D] border-b border-[#2A2E39] px-2 flex items-center gap-1 shrink-0">
+    <div className="md:hidden h-10 bg-[#F8F9FD] dark:bg-[#1E222D] border-b border-[#E0E3EB] dark:border-[#2A2E39] px-2 flex items-center gap-1 shrink-0">
       {tabs.map((tab) => {
         const isActive = activeSubTab === tab.id;
         return (
@@ -384,7 +384,7 @@ export const WorkspaceMobileMarketsBar: React.FC<{
             className={`flex-1 h-7 rounded text-xs font-bold transition-colors cursor-pointer ${
               isActive
                 ? 'bg-[#2962FF] text-white'
-                : 'bg-[#131722] text-[#787B86] hover:text-[#D1D4DC] border border-[#2A2E39]'
+                : 'bg-[#FFFFFF] dark:bg-[#131722] text-[#787B86] hover:text-[#131722] dark:hover:text-[#D1D4DC] border border-[#E0E3EB] dark:border-[#2A2E39]'
             }`}
           >
             {isAr ? tab.labelAr : tab.labelEn}
@@ -505,11 +505,11 @@ export const WorkspaceMobileToolsHub: React.FC<{
   }
 
   return (
-    <div className="flex-1 overflow-y-auto bg-[#131722] p-3 pb-20">
+    <div className="flex-1 overflow-y-auto bg-[#FFFFFF] dark:bg-[#131722] p-3 pb-20">
       <div className="max-w-xl mx-auto">
-        <div className="mb-3 pb-2 border-b border-[#2A2E39] flex items-center justify-between">
+        <div className="mb-3 pb-2 border-b border-[#E0E3EB] dark:border-[#2A2E39] flex items-center justify-between">
           <div>
-            <h2 className="text-sm font-extrabold text-[#D1D4DC]">
+            <h2 className="text-sm font-extrabold text-[#131722] dark:text-[#D1D4DC]">
               {isAr ? 'مركز أدوات المتداول' : 'Trader Tools Hub'}
             </h2>
             <p className="text-[11px] text-[#787B86]">
@@ -518,7 +518,7 @@ export const WorkspaceMobileToolsHub: React.FC<{
                 : 'Calculators, simulator, academy & AI assistant in one place'}
             </p>
           </div>
-          <Wrench className="w-4 h-4 text-[#2962FF]" />
+          <Wrench className="w-4 h-4 text-[#1E53E5] dark:text-[#2962FF]" />
         </div>
 
         <div className="grid grid-cols-2 gap-2.5">
@@ -529,13 +529,13 @@ export const WorkspaceMobileToolsHub: React.FC<{
                 key={card.id}
                 type="button"
                 onClick={card.onClick}
-                className="p-3 rounded bg-[#1E222D] hover:bg-[#242834] border border-[#2A2E39] text-start flex flex-col justify-between gap-2 transition-colors cursor-pointer"
+                className="p-3 rounded bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#242834] border border-[#E0E3EB] dark:border-[#2A2E39] text-start flex flex-col justify-between gap-2 transition-colors cursor-pointer"
               >
-                <div className="w-8 h-8 rounded bg-[#131722] border border-[#2A2E39] flex items-center justify-center">
+                <div className="w-8 h-8 rounded bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] flex items-center justify-center">
                   <Icon className={`w-4 h-4 ${card.accent}`} />
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-[#D1D4DC] leading-snug">
+                  <div className="text-xs font-bold text-[#131722] dark:text-[#D1D4DC] leading-snug">
                     {isAr ? card.titleAr : card.titleEn}
                   </div>
                   <div className="text-[10px] text-[#787B86] mt-0.5 line-clamp-2 leading-relaxed">
@@ -635,7 +635,7 @@ export const WorkspaceMobileBottomBar: React.FC<{
   ];
 
   return (
-    <nav className="md:hidden fixed bottom-0 inset-x-0 h-14 pb-safe bg-[#1E222D] border-t border-[#2A2E39] flex items-center justify-around z-40 select-none">
+    <nav className="md:hidden fixed bottom-0 inset-x-0 h-14 pb-safe bg-[#F8F9FD] dark:bg-[#1E222D] border-t border-[#E0E3EB] dark:border-[#2A2E39] flex items-center justify-around z-40 select-none">
       {tabs.map((tab) => {
         const Icon = tab.icon;
         return (
@@ -644,7 +644,7 @@ export const WorkspaceMobileBottomBar: React.FC<{
             type="button"
             onClick={tab.onClick}
             className={`relative flex-1 h-full flex flex-col items-center justify-center gap-0.5 transition-colors cursor-pointer ${
-              tab.isActive ? 'text-[#2962FF]' : 'text-[#787B86] hover:text-[#D1D4DC]'
+              tab.isActive ? 'text-[#1E53E5] dark:text-[#2962FF]' : 'text-[#787B86] hover:text-[#131722] dark:hover:text-[#D1D4DC]'
             }`}
           >
             {tab.isActive && (

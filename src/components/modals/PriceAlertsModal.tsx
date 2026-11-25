@@ -356,25 +356,25 @@ export const PriceAlertsModal: React.FC<PriceAlertsModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 bg-[#131722]/45 dark:bg-black/80 dark:backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150"
       onClick={onClose}
     >
       <div
-        className="bg-[#131722] border border-[#2a2e39] rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden shadow-2xl"
+        className="bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl"
         onClick={(e) => e.stopPropagation()}
         dir={isAr ? 'rtl' : 'ltr'}
       >
         {/* Modal Header */}
-        <div className="px-4 py-3 bg-[#171b26] border-b border-[#2a2e39] flex items-center justify-between gap-2 shrink-0">
+        <div className="px-4 py-3 bg-[#FFFFFF] dark:bg-[#171b26] border-b border-[#E0E3EB] dark:border-[#2a2e39] flex items-center justify-between gap-2 shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#089981]/20 border border-[#089981]/40 text-[#089981] flex items-center justify-center">
+            <div className="w-8 h-8 rounded-xl bg-[#E6F5F2] dark:bg-[#089981]/20 border border-[#B3E2D9] dark:border-[#089981]/40 text-[#089981] flex items-center justify-center">
               <BellRing className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-xs sm:text-sm font-extrabold text-white flex items-center gap-2">
+              <h3 className="text-xs sm:text-sm font-extrabold text-[#131722] dark:text-white flex items-center gap-2">
                 <span>{isAr ? 'منبه الأسعار الذكي (Price Alerts)' : 'Smart Price Alerts'}</span>
                 {activeAlerts.length > 0 && (
-                  <span className="px-2 py-0.5 rounded-full bg-[#089981]/20 text-[#089981] border border-[#089981]/40 text-[10px] font-mono">
+                  <span className="px-2 py-0.5 rounded-full bg-[#E6F5F2] dark:bg-[#089981]/20 text-[#089981] border border-[#B3E2D9] dark:border-[#089981]/40 text-[10px] font-mono">
                     {activeAlerts.length} {isAr ? 'نشط' : 'Active'}
                   </span>
                 )}
@@ -390,7 +390,7 @@ export const PriceAlertsModal: React.FC<PriceAlertsModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-[#787b86] hover:text-white hover:bg-[#2a2e39] cursor-pointer transition-colors"
+            className="p-1.5 rounded-lg text-[#787b86] hover:text-[#131722] dark:hover:text-white hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] cursor-pointer transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -398,9 +398,9 @@ export const PriceAlertsModal: React.FC<PriceAlertsModalProps> = ({
 
         {/* Browser Push Notification Permission Banner */}
         {notificationPermission !== 'granted' && (
-          <div className="px-4 py-2.5 bg-amber-500/15 border-b border-amber-500/30 flex items-center justify-between gap-2 shrink-0">
-            <div className="flex items-center gap-2 text-amber-300 text-[11px] font-bold">
-              <Bell className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+          <div className="px-4 py-2.5 bg-[#FDF6E3] dark:bg-amber-500/15 border-b border-[#EFE0B4] dark:border-amber-500/30 flex items-center justify-between gap-2 shrink-0">
+            <div className="flex items-center gap-2 text-[#9A6700] dark:text-amber-300 text-[11px] font-bold">
+              <Bell className="w-3.5 h-3.5 shrink-0 text-[#9A6700] dark:text-amber-400" />
               <span>
                 {isAr
                   ? 'فعّل إشعارات المتصفح لتصلك تنبيهات الأسعار على شاشة الهاتف مباشرة'
@@ -425,16 +425,16 @@ export const PriceAlertsModal: React.FC<PriceAlertsModalProps> = ({
           {/* 1. Create New Price Alert Form */}
           <form
             onSubmit={handleCreateAlert}
-            className="p-3.5 rounded-xl bg-[#1e222d] border border-[#2a2e39] space-y-3"
+            className="p-3.5 rounded-xl bg-[#F8F9FD] dark:bg-[#1e222d] border border-[#E0E3EB] dark:border-[#2a2e39] space-y-3"
           >
             {/* Symbol Quick Picker */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-[11px] font-bold text-[#9db2c6]">
+                <label className="text-[11px] font-bold text-[#4A5162] dark:text-[#9db2c6]">
                   {isAr ? 'اختر الزوج / الأصل:' : 'Select Symbol:'}
                 </label>
                 {currentPrice > 0 && (
-                  <span className="text-[11px] font-mono font-bold text-[#089981] bg-[#089981]/10 px-2 py-0.5 rounded border border-[#089981]/30">
+                  <span className="text-[11px] font-mono font-bold text-[#089981] bg-[#E6F5F2] dark:bg-[#089981]/10 px-2 py-0.5 rounded border border-[#B3E2D9] dark:border-[#089981]/30">
                     {isAr ? 'السعر المباشر:' : 'Live:'} {currentPrice.toFixed(digits)}
                   </span>
                 )}
@@ -451,14 +451,14 @@ export const PriceAlertsModal: React.FC<PriceAlertsModalProps> = ({
                       className={`py-1.5 px-2 rounded-lg border text-center transition-all cursor-pointer ${
                         isSelected
                           ? 'bg-[#089981] text-white border-[#089981] shadow-md'
-                          : 'bg-[#131722] text-[#9db2c6] hover:text-white border-[#2a2e39]'
+                          : 'bg-[#FFFFFF] dark:bg-[#131722] text-[#4A5162] dark:text-[#9db2c6] hover:text-[#131722] dark:hover:text-white border-[#E0E3EB] dark:border-[#2a2e39]'
                       }`}
                     >
                       <span className="text-[10px] font-mono font-bold block">{sym}</span>
                       {t && t.price > 0 && (
                         <span
                           className={`text-[9px] font-mono block truncate ${
-                            isSelected ? 'text-white/90' : 'text-[#787b86]'
+                            isSelected ? 'text-[#131722]/90 dark:text-white/90' : 'text-[#787b86]'
                           }`}
                         >
                           {t.price.toFixed(t.digits)}
@@ -473,7 +473,7 @@ export const PriceAlertsModal: React.FC<PriceAlertsModalProps> = ({
             {/* Condition & Target Price */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <div>
-                <label className="text-[11px] font-bold text-[#9db2c6] block mb-1">
+                <label className="text-[11px] font-bold text-[#4A5162] dark:text-[#9db2c6] block mb-1">
                   {isAr ? 'شرط التنبيه:' : 'Trigger Condition:'}
                 </label>
                 <div className="grid grid-cols-2 gap-1.5">
@@ -485,8 +485,8 @@ export const PriceAlertsModal: React.FC<PriceAlertsModalProps> = ({
                     }}
                     className={`py-2 px-2 rounded-lg border text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-all ${
                       condition === 'ABOVE'
-                        ? 'bg-[#089981]/20 text-[#089981] border-[#089981]'
-                        : 'bg-[#131722] text-[#787b86] border-[#2a2e39]'
+                        ? 'bg-[#E6F5F2] dark:bg-[#089981]/20 text-[#089981] border-[#089981]'
+                        : 'bg-[#FFFFFF] dark:bg-[#131722] text-[#787b86] border-[#E0E3EB] dark:border-[#2a2e39]'
                     }`}
                   >
                     <TrendingUp className="w-3.5 h-3.5" />
@@ -501,8 +501,8 @@ export const PriceAlertsModal: React.FC<PriceAlertsModalProps> = ({
                     }}
                     className={`py-2 px-2 rounded-lg border text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-all ${
                       condition === 'BELOW'
-                        ? 'bg-[#f23645]/20 text-[#f23645] border-[#f23645]'
-                        : 'bg-[#131722] text-[#787b86] border-[#2a2e39]'
+                        ? 'bg-[#FDECEE] dark:bg-[#f23645]/20 text-[#D93848] dark:text-[#f23645] border-[#f23645]'
+                        : 'bg-[#FFFFFF] dark:bg-[#131722] text-[#787b86] border-[#E0E3EB] dark:border-[#2a2e39]'
                     }`}
                   >
                     <TrendingDown className="w-3.5 h-3.5" />
@@ -512,7 +512,7 @@ export const PriceAlertsModal: React.FC<PriceAlertsModalProps> = ({
               </div>
 
               <div>
-                <label className="text-[11px] font-bold text-[#9db2c6] block mb-1">
+                <label className="text-[11px] font-bold text-[#4A5162] dark:text-[#9db2c6] block mb-1">
                   {isAr ? `السعر المستهدف (${symbol}):` : `Target Price (${symbol}):`}
                 </label>
                 <input
@@ -529,7 +529,7 @@ export const PriceAlertsModal: React.FC<PriceAlertsModalProps> = ({
                     setFormError(null);
                   }}
                   placeholder={currentPrice > 0 ? currentPrice.toFixed(digits) : '3620.00'}
-                  className="w-full bg-[#131722] border border-[#2a2e39] focus:border-[#089981] rounded-lg px-3 py-2 text-xs font-mono font-bold text-white focus:outline-none"
+                  className="w-full bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] focus:border-[#1E53E5] dark:focus:border-[#089981] rounded-lg px-3 py-2 text-xs font-mono font-bold text-[#131722] dark:text-white focus:outline-none"
                 />
               </div>
             </div>
@@ -552,7 +552,7 @@ export const PriceAlertsModal: React.FC<PriceAlertsModalProps> = ({
                         key={preset.label}
                         type="button"
                         onClick={() => applyQuickOffset(preset.val, preset.pts)}
-                        className="px-2 py-0.5 rounded bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-[10px] font-mono text-[#d1d4dc] cursor-pointer"
+                        className="px-2 py-0.5 rounded bg-[#FFFFFF] dark:bg-[#131722] hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] border border-[#E0E3EB] dark:border-[#2a2e39] text-[10px] font-mono text-[#131722] dark:text-[#d1d4dc] cursor-pointer"
                       >
                         {preset.label}
                       </button>
@@ -570,7 +570,7 @@ export const PriceAlertsModal: React.FC<PriceAlertsModalProps> = ({
                         key={preset.label}
                         type="button"
                         onClick={() => applyQuickOffset(preset.val, false)}
-                        className="px-2 py-0.5 rounded bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-[10px] font-mono text-[#d1d4dc] cursor-pointer"
+                        className="px-2 py-0.5 rounded bg-[#FFFFFF] dark:bg-[#131722] hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] border border-[#E0E3EB] dark:border-[#2a2e39] text-[10px] font-mono text-[#131722] dark:text-[#d1d4dc] cursor-pointer"
                       >
                         {preset.label}
                       </button>
@@ -592,17 +592,17 @@ export const PriceAlertsModal: React.FC<PriceAlertsModalProps> = ({
                     ? 'ملاحظة اختيارية (مثال: منطقة دخول شراء الذهب أو جني أرباح)...'
                     : 'Optional note (e.g., Gold breakout zone or take profit)...'
                 }
-                className="w-full bg-[#131722] border border-[#2a2e39] focus:border-[#089981] rounded-lg px-3 py-1.5 text-xs text-white placeholder-[#787b86] focus:outline-none"
+                className="w-full bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] focus:border-[#1E53E5] dark:focus:border-[#089981] rounded-lg px-3 py-1.5 text-xs text-[#131722] dark:text-white placeholder-[#787B86] dark:placeholder-[#787b86] focus:outline-none"
               />
             </div>
 
             {formError && (
-              <p className="text-[11px] font-bold text-[#f23645]">{formError}</p>
+              <p className="text-[11px] font-bold text-[#D93848] dark:text-[#f23645]">{formError}</p>
             )}
 
             <button
               type="submit"
-              className="w-full py-2.5 rounded-xl bg-[#089981] hover:bg-[#07846f] text-white text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-lg cursor-pointer transition-colors"
+              className="w-full py-2.5 rounded-xl bg-[#089981] hover:bg-[#07846f] text-white text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-lg cursor-pointer transition-colors"
             >
               <Plus className="w-4 h-4" />
               <span>
@@ -616,7 +616,7 @@ export const PriceAlertsModal: React.FC<PriceAlertsModalProps> = ({
           {/* 2. Active Price Alerts List */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <h4 className="text-xs font-extrabold text-white flex items-center gap-1.5">
+              <h4 className="text-xs font-extrabold text-[#131722] dark:text-white flex items-center gap-1.5">
                 <Target className="w-3.5 h-3.5 text-[#089981]" />
                 <span>
                   {isAr
@@ -627,7 +627,7 @@ export const PriceAlertsModal: React.FC<PriceAlertsModalProps> = ({
             </div>
 
             {activeAlerts.length === 0 ? (
-              <div className="p-4 rounded-xl bg-[#1e222d]/60 border border-[#2a2e39] text-center text-xs text-[#787b86]">
+              <div className="p-4 rounded-xl bg-[#F8F9FD] dark:bg-[#1e222d]/60 border border-[#E0E3EB] dark:border-[#2a2e39] text-center text-xs text-[#787b86]">
                 {isAr
                   ? 'لا توجد تنبيهات أسعار نشطة حالياً. حدد السعر المستهدف أعلاه واضغط إضافة.'
                   : 'No active price alerts. Set a target price above to start monitoring.'}
@@ -639,18 +639,18 @@ export const PriceAlertsModal: React.FC<PriceAlertsModalProps> = ({
                   return (
                     <div
                       key={alert.id}
-                      className="p-2.5 rounded-xl bg-[#1e222d] border border-[#2a2e39] flex items-center justify-between gap-2"
+                      className="p-2.5 rounded-xl bg-[#F8F9FD] dark:bg-[#1e222d] border border-[#E0E3EB] dark:border-[#2a2e39] flex items-center justify-between gap-2"
                     >
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="font-mono font-black text-white text-xs">
+                          <span className="font-mono font-black text-[#131722] dark:text-white text-xs">
                             {alert.symbol}
                           </span>
                           <span
                             className={`px-1.5 py-0.2 rounded text-[10px] font-mono font-bold flex items-center gap-1 ${
                               alert.condition === 'ABOVE'
-                                ? 'bg-[#089981]/20 text-[#089981] border border-[#089981]/40'
-                                : 'bg-[#f23645]/20 text-[#f23645] border border-[#f23645]/40'
+                                ? 'bg-[#E6F5F2] dark:bg-[#089981]/20 text-[#089981] border border-[#B3E2D9] dark:border-[#089981]/40'
+                                : 'bg-[#FDECEE] dark:bg-[#f23645]/20 text-[#D93848] dark:text-[#f23645] border border-[#F5C2C7] dark:border-[#f23645]/40'
                             }`}
                           >
                             {alert.condition === 'ABOVE' ? (
@@ -669,7 +669,7 @@ export const PriceAlertsModal: React.FC<PriceAlertsModalProps> = ({
                           )}
                         </div>
                         {alert.note && (
-                          <p className="text-[11px] text-[#9db2c6] truncate mt-0.5">{alert.note}</p>
+                          <p className="text-[11px] text-[#4A5162] dark:text-[#9db2c6] truncate mt-0.5">{alert.note}</p>
                         )}
                       </div>
 
@@ -679,7 +679,7 @@ export const PriceAlertsModal: React.FC<PriceAlertsModalProps> = ({
                           soundManager.playClick();
                           onRemoveAlert(alert.id);
                         }}
-                        className="p-1.5 rounded-lg bg-[#131722] hover:bg-[#f23645]/20 text-[#787b86] hover:text-[#f23645] cursor-pointer transition-colors shrink-0"
+                        className="p-1.5 rounded-lg bg-[#FFFFFF] dark:bg-[#131722] hover:bg-[#f23645]/20 text-[#787b86] hover:text-[#f23645] cursor-pointer transition-colors shrink-0"
                         title={isAr ? 'حذف التنبيه' : 'Delete alert'}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -693,9 +693,9 @@ export const PriceAlertsModal: React.FC<PriceAlertsModalProps> = ({
 
           {/* 3. Triggered Alerts History */}
           {triggeredAlerts.length > 0 && (
-            <div className="space-y-2 pt-2 border-t border-[#2a2e39]">
+            <div className="space-y-2 pt-2 border-t border-[#E0E3EB] dark:border-[#2a2e39]">
               <div className="flex items-center justify-between">
-                <h4 className="text-xs font-extrabold text-amber-400 flex items-center gap-1.5">
+                <h4 className="text-xs font-extrabold text-[#9A6700] dark:text-amber-400 flex items-center gap-1.5">
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   <span>
                     {isAr
@@ -709,7 +709,7 @@ export const PriceAlertsModal: React.FC<PriceAlertsModalProps> = ({
                     soundManager.playClick();
                     onClearTriggered();
                   }}
-                  className="text-[10px] text-[#787b86] hover:text-white cursor-pointer"
+                  className="text-[10px] text-[#787b86] hover:text-[#131722] dark:hover:text-white cursor-pointer"
                 >
                   {isAr ? 'مسح السجل' : 'Clear History'}
                 </button>
@@ -719,14 +719,14 @@ export const PriceAlertsModal: React.FC<PriceAlertsModalProps> = ({
                 {triggeredAlerts.map((alert) => (
                   <div
                     key={alert.id}
-                    className="p-2.5 rounded-xl bg-[#131722] border border-amber-500/30 flex items-center justify-between gap-2"
+                    className="p-2.5 rounded-xl bg-[#FFFFFF] dark:bg-[#131722] border border-[#EFE0B4] dark:border-amber-500/30 flex items-center justify-between gap-2"
                   >
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-mono font-bold text-white text-xs">
+                        <span className="font-mono font-bold text-[#131722] dark:text-white text-xs">
                           {alert.symbol}
                         </span>
-                        <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 text-[10px] font-mono font-bold">
+                        <span className="px-1.5 py-0.2 rounded bg-[#FDF6E3] dark:bg-amber-500/20 text-[#9A6700] dark:text-amber-300 text-[10px] font-mono font-bold">
                           {isAr ? 'وصل للهدف:' : 'Hit:'} {alert.targetPrice}
                         </span>
                         {alert.triggeredPrice && (
@@ -747,7 +747,7 @@ export const PriceAlertsModal: React.FC<PriceAlertsModalProps> = ({
                           soundManager.playClick();
                           onReactivateAlert(alert.id);
                         }}
-                        className="p-1.5 rounded-lg bg-[#1e222d] hover:bg-[#089981]/20 text-[#9db2c6] hover:text-[#089981] cursor-pointer"
+                        className="p-1.5 rounded-lg bg-[#F8F9FD] dark:bg-[#1e222d] hover:bg-[#089981]/20 text-[#4A5162] dark:text-[#9db2c6] hover:text-[#089981] cursor-pointer"
                         title={isAr ? 'إعادة تفعيل التنبيه' : 'Reactivate alert'}
                       >
                         <RotateCcw className="w-3.5 h-3.5" />
@@ -758,7 +758,7 @@ export const PriceAlertsModal: React.FC<PriceAlertsModalProps> = ({
                           soundManager.playClick();
                           onRemoveAlert(alert.id);
                         }}
-                        className="p-1.5 rounded-lg bg-[#1e222d] hover:bg-[#f23645]/20 text-[#787b86] hover:text-[#f23645] cursor-pointer"
+                        className="p-1.5 rounded-lg bg-[#F8F9FD] dark:bg-[#1e222d] hover:bg-[#f23645]/20 text-[#787b86] hover:text-[#f23645] cursor-pointer"
                         title={isAr ? 'حذف' : 'Delete'}
                       >
                         <Trash2 className="w-3.5 h-3.5" />

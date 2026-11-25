@@ -24,6 +24,7 @@ import {
   subscribeToActiveAnnouncements,
   subscribeToUpcomingMacroEvents
 } from '../../services/macroEventsAndAnnouncementsService';
+import { useTheme } from '../../context/ThemeContext';
 
 interface Props {
   user: UserProfile;
@@ -96,6 +97,8 @@ export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
   onOpenSupportChat
 }) => {
   const isAr = lang === 'ar';
+  const { resolvedTheme } = useTheme();
+  const isLight = resolvedTheme === 'light';
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
   const [announcements, setAnnouncements] = useState<AdminAnnouncement[]>([]);
   const [upcomingMacroEvents, setUpcomingMacroEvents] = useState<MacroEconomicEvent[]>([]);
@@ -303,7 +306,9 @@ export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
   };
 
   const renderAdminPopupCard = (ann: AdminAnnouncement) => {
-    const accent = ann.accentColor || '#26A69A';
+    const accent = ann.accentColor || (isLight ? '#089981' : '#26A69A');
+    const isLightGoldAccent = isLight && (accent.toUpperCase() === '#F0B90B' || accent.toUpperCase() === '#F59E0B');
+    const readableAccentText = isLightGoldAccent ? '#9A6700' : accent;
     const ctaBg = ann.ctaColor || accent;
     const surface = ann.surfaceStyle || 'dark_terminal';
     const sender = normalizeBrandSenderName(ann.senderName);
@@ -315,13 +320,20 @@ export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
 
     return (
       <div
-        className={`w-full rounded-xl overflow-hidden shadow-[0_20px_55px_rgba(0,0,0,0.85)] text-[#E2E8F0] transition-all ${
-          surface === 'high_contrast' ? 'bg-[#0B0E11]' : 'bg-[#131722]'
+        className={`w-full rounded-xl overflow-hidden shadow-[0_4px_16px_rgba(19,23,34,0.08)] dark:shadow-[0_20px_55px_rgba(0,0,0,0.85)] text-[#131722] dark:text-[#E2E8F0] transition-all ${
+          surface === 'high_contrast'
+            ? 'bg-[#FFFFFF] dark:bg-[#0B0E11]'
+            : 'bg-[#FFFFFF] dark:bg-[#131722]'
         }`}
         style={{
           borderWidth: surface === 'alert_border' ? '2px' : '1px',
           borderStyle: 'solid',
-          borderColor: surface === 'alert_border' ? accent : '#2A2E39'
+          borderColor:
+            surface === 'alert_border'
+              ? accent
+              : isLight
+              ? '#E0E3EB'
+              : '#2A2E39'
         }}
       >
         {/* Top Accent Strip */}
@@ -329,7 +341,7 @@ export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
 
         {/* Optional Banner Image */}
         {ann.bannerImageUrl && ann.bannerImageUrl.trim() && (
-          <div className="w-full max-h-40 bg-[#0B0E11] border-b border-[#2A2E39] overflow-hidden">
+          <div className="w-full max-h-40 bg-[#F8F9FD] dark:bg-[#0B0E11] border-b border-[#E0E3EB] dark:border-[#2A2E39] overflow-hidden">
             <img
               src={ann.bannerImageUrl}
               alt={ann.title}
@@ -349,20 +361,20 @@ export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
                 <img
                   src="/mbk-logo.png"
                   alt={sender}
-                  className="w-8 h-8 rounded-md object-contain bg-[#0B0E11] border border-[#2A2E39] p-0.5 shrink-0"
+                  className="w-8 h-8 rounded-md object-contain bg-[#F8F9FD] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39] p-0.5 shrink-0"
                 />
               )}
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-xs sm:text-sm font-bold text-white truncate">
+                  <span className="text-xs sm:text-sm font-bold text-[#131722] dark:text-white truncate">
                     {sender}
                   </span>
                   <span
                     className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold inline-flex items-center gap-0.5 shrink-0"
                     style={{
-                      backgroundColor: `${accent}22`,
-                      color: accent,
-                      border: `1px solid ${accent}55`
+                      backgroundColor: isLightGoldAccent ? '#FDF6E3' : `${accent}18`,
+                      color: readableAccentText,
+                      border: `1px solid ${isLightGoldAccent ? '#EFE0B4' : `${accent}55`}`
                     }}
                   >
                     <Check className="w-2.5 h-2.5" />
@@ -372,7 +384,7 @@ export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
                 {(ann.badgeText || ann.type) && (
                   <span
                     className="inline-block text-[10px] font-mono font-bold uppercase tracking-wider mt-0.5"
-                    style={{ color: accent }}
+                    style={{ color: readableAccentText }}
                   >
                     {ann.badgeText ||
                       (ann.type === 'offer'
@@ -394,7 +406,7 @@ export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
             <button
               type="button"
               onClick={() => handleDismiss(ann, ann.targetTabs.includes('on_open'))}
-              className="p-1.5 rounded-md bg-[#1E222D] hover:bg-[#2A2E39] text-[#94A3B8] hover:text-white transition-colors cursor-pointer shrink-0"
+              className="p-1.5 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] text-[#4A5162] dark:text-[#94A3B8] hover:text-[#131722] dark:hover:text-white transition-colors cursor-pointer shrink-0"
               title={isAr ? 'إغلاق' : 'Close'}
             >
               <X className="w-4 h-4" />
@@ -403,19 +415,19 @@ export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
 
           {/* Headline & Rich Message */}
           <div className="space-y-1.5">
-            <h4 className="text-sm sm:text-base font-extrabold text-white leading-snug">
+            <h4 className="text-sm sm:text-base font-extrabold text-[#131722] dark:text-white leading-snug">
               {ann.title}
             </h4>
-            <p className="text-xs text-[#CBD5E1] leading-relaxed whitespace-pre-wrap break-words">
+            <p className="text-xs text-[#4A5162] dark:text-[#CBD5E1] leading-relaxed whitespace-pre-wrap break-words">
               {ann.message}
             </p>
           </div>
 
           {/* Live Ticking Offer Countdown Timer */}
           {countdown && !countdown.expired && (
-            <div className="p-2.5 rounded-md bg-[#0B0E11] border border-[#2A2E39] flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-[#E2E8F0]">
-                <Clock className="w-3.5 h-3.5" style={{ color: accent }} />
+            <div className="p-2.5 rounded-md bg-[#F8F9FD] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39] flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-[#131722] dark:text-[#E2E8F0]">
+                <Clock className="w-3.5 h-3.5" style={{ color: readableAccentText }} />
                 <span>
                   {ann.countdownLabel || (isAr ? 'ينتهي العرض خلال' : 'Offer ends in')}
                 </span>
@@ -432,13 +444,13 @@ export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
                   { val: countdown.ss, unit: 'S' }
                 ].map((part, idx) => (
                   <React.Fragment key={part.unit}>
-                    {idx > 0 && <span className="text-[#64748B]">:</span>}
+                    {idx > 0 && <span className="text-[#787B86] dark:text-[#64748B]">:</span>}
                     <span
-                      className="px-1.5 py-0.5 rounded bg-[#131722] border text-white"
-                      style={{ borderColor: `${accent}55` }}
+                      className="px-1.5 py-0.5 rounded bg-[#FFFFFF] dark:bg-[#131722] border text-[#131722] dark:text-white"
+                      style={{ borderColor: isLightGoldAccent ? '#EFE0B4' : `${accent}55` }}
                     >
                       {part.val}
-                      <span className="text-[9px] text-[#94A3B8] ms-0.5">{part.unit}</span>
+                      <span className="text-[9px] text-[#4A5162] dark:text-[#94A3B8] ms-0.5">{part.unit}</span>
                     </span>
                   </React.Fragment>
                 ))}
@@ -507,7 +519,7 @@ export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
             <button
               type="button"
               onClick={() => handleDismiss(ann, ann.targetTabs.includes('on_open'))}
-              className="px-3.5 py-2 rounded-md bg-[#1E222D] hover:bg-[#2A2E39] border border-[#2A2E39] text-[#94A3B8] hover:text-white text-xs font-semibold cursor-pointer"
+              className="px-3.5 py-2 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] border border-[#E0E3EB] dark:border-[#2A2E39] text-[#4A5162] dark:text-[#94A3B8] hover:text-[#131722] dark:hover:text-white text-xs font-semibold cursor-pointer"
             >
               {isAr ? 'إغلاق' : 'Dismiss'}
             </button>
@@ -524,9 +536,9 @@ export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
       {/* 1. ONE-HOUR UPCOMING HIGH-IMPACT ECONOMIC EVENT POPUP (CPI / FED / NFP) */}
       {showMacroWarning && upcomingWithinOneHourEvent && (
         <div className="fixed bottom-3 sm:bottom-5 end-3 start-3 sm:start-auto sm:end-5 sm:max-w-md z-[68] animate-fade-in">
-          <div className="bg-[#131722] border-2 border-[#EF5350] rounded-xl p-4 shadow-[0_14px_45px_rgba(239,83,80,0.35)] text-[#E2E8F0]">
+          <div className="bg-[#FFFFFF] dark:bg-[#131722] border-2 border-[#EF5350] rounded-xl p-4 shadow-[0_4px_16px_rgba(19,23,34,0.08)] dark:shadow-[0_14px_45px_rgba(239,83,80,0.35)] text-[#131722] dark:text-[#E2E8F0]">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-lg bg-[#EF5350]/20 border border-[#EF5350]/50 text-[#EF5350] flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-lg bg-[#FDECEE] dark:bg-[#EF5350]/20 border border-[#F5C2C7] dark:border-[#EF5350]/50 text-[#D93848] dark:text-[#EF5350] flex items-center justify-center shrink-0">
                 <Flame className="w-5 h-5 animate-pulse" />
               </div>
 
@@ -551,13 +563,13 @@ export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
                             )}m LEFT`}
                       </span>
                     </span>
-                    <span className="px-2 py-0.5 rounded bg-[#0B0E11] text-[#E2E8F0] border border-[#2A2E39] text-[10px] font-mono tabular-nums font-bold">
+                    <span className="px-2 py-0.5 rounded bg-[#F0F3FA] dark:bg-[#0B0E11] text-[#131722] dark:text-[#E2E8F0] border border-[#E0E3EB] dark:border-[#2A2E39] text-[10px] font-mono tabular-nums font-bold">
                       {new Date(upcomingWithinOneHourEvent.releaseTimeMs).toLocaleTimeString(
                         isAr ? 'ar-AE' : 'en-US',
                         { hour: '2-digit', minute: '2-digit' }
                       )}
                     </span>
-                    <span className="px-2 py-0.5 rounded bg-[#F0B90B]/20 text-[#F0B90B] border border-[#F0B90B]/40 text-[10px] font-mono font-bold">
+                    <span className="px-2 py-0.5 rounded bg-[#FDF6E3] dark:bg-[#F0B90B]/20 text-[#9A6700] dark:text-[#F0B90B] border border-[#EFE0B4] dark:border-[#F0B90B]/40 text-[10px] font-mono font-bold">
                       {upcomingWithinOneHourEvent.code} • {upcomingWithinOneHourEvent.currency}
                     </span>
                   </div>
@@ -565,24 +577,24 @@ export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
                   <button
                     type="button"
                     onClick={() => handleDismiss(upcomingWithinOneHourEvent.id)}
-                    className="p-1 rounded-md text-[#94A3B8] hover:text-white hover:bg-[#1E222D] transition-colors cursor-pointer shrink-0"
+                    className="p-1 rounded-md text-[#4A5162] dark:text-[#94A3B8] hover:text-[#131722] dark:hover:text-white hover:bg-[#EDF1F7] dark:hover:bg-[#1E222D] transition-colors cursor-pointer shrink-0"
                     title={isAr ? 'إغلاق التحذير' : 'Dismiss warning'}
                   >
                     <X className="w-4 h-4" />
                   </button>
                 </div>
 
-                <h4 className="text-xs sm:text-sm font-black text-white leading-snug">
+                <h4 className="text-xs sm:text-sm font-black text-[#131722] dark:text-white leading-snug">
                   {isAr ? upcomingWithinOneHourEvent.titleAr : upcomingWithinOneHourEvent.titleEn}
                 </h4>
 
-                <div className="p-2.5 rounded-lg bg-[#0B0E11] border border-[#2A2E39] space-y-1">
-                  <div className="text-[10px] font-bold text-[#26A69A]">
+                <div className="p-2.5 rounded-lg bg-[#F0F3FA] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39] space-y-1">
+                  <div className="text-[10px] font-bold text-[#089981] dark:text-[#26A69A]">
                     {isAr
                       ? '⚡ التأثير المتوقع على الذهب (XAUUSD) والناسداك (US100):'
                       : '⚡ XAUUSD & US100 Trading Impact:'}
                   </div>
-                  <p className="text-[11px] text-[#E2E8F0] leading-relaxed">
+                  <p className="text-[11px] text-[#131722] dark:text-[#E2E8F0] leading-relaxed">
                     {isAr
                       ? upcomingWithinOneHourEvent.goldNasdaqImpactAr ||
                         upcomingWithinOneHourEvent.descriptionAr
@@ -592,15 +604,15 @@ export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 font-mono tabular-nums text-[10px]">
-                  <div className="px-2.5 py-1.5 rounded-lg bg-[#0B0E11] border border-[#2A2E39] flex items-center justify-between">
-                    <span className="text-[#94A3B8]">{isAr ? 'المتوقع:' : 'Forecast:'}</span>
-                    <span className="text-[#F0B90B] font-bold">
+                  <div className="px-2.5 py-1.5 rounded-lg bg-[#F0F3FA] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39] flex items-center justify-between">
+                    <span className="text-[#4A5162] dark:text-[#94A3B8]">{isAr ? 'المتوقع:' : 'Forecast:'}</span>
+                    <span className="text-[#9A6700] dark:text-[#F0B90B] font-bold">
                       {upcomingWithinOneHourEvent.forecast || '—'}
                     </span>
                   </div>
-                  <div className="px-2.5 py-1.5 rounded-lg bg-[#0B0E11] border border-[#2A2E39] flex items-center justify-between">
-                    <span className="text-[#94A3B8]">{isAr ? 'السابق:' : 'Previous:'}</span>
-                    <span className="text-white font-bold">
+                  <div className="px-2.5 py-1.5 rounded-lg bg-[#F0F3FA] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39] flex items-center justify-between">
+                    <span className="text-[#4A5162] dark:text-[#94A3B8]">{isAr ? 'السابق:' : 'Previous:'}</span>
+                    <span className="text-[#131722] dark:text-white font-bold">
                       {upcomingWithinOneHourEvent.previous || '—'}
                     </span>
                   </div>
@@ -624,7 +636,7 @@ export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
                   <button
                     type="button"
                     onClick={() => handleDismiss(upcomingWithinOneHourEvent.id)}
-                    className="px-3 py-1.5 rounded-md bg-[#1E222D] hover:bg-[#2A2E39] border border-[#2A2E39] text-[#94A3B8] hover:text-white text-[11px] font-bold cursor-pointer"
+                    className="px-3 py-1.5 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] border border-[#E0E3EB] dark:border-[#2A2E39] text-[#4A5162] dark:text-[#94A3B8] hover:text-[#131722] dark:hover:text-white text-[11px] font-bold cursor-pointer"
                   >
                     {isAr ? 'تم الاطلاع — تأمين الصفقات' : 'Got It'}
                   </button>
@@ -639,7 +651,7 @@ export const MacroEventAndAnnouncementPopup: React.FC<Props> = ({
       {showAdminAnnouncement && matchingAnnouncement && (
         <>
           {activePlacement === 'center_modal' ? (
-            <div className="fixed inset-0 z-[72] bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+            <div className="fixed inset-0 z-[72] bg-[#131722]/45 dark:bg-black/75 dark:backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
               <div className="w-full max-w-lg">
                 {renderAdminPopupCard(matchingAnnouncement)}
               </div>

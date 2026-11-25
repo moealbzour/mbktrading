@@ -86,14 +86,14 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({
   return (
     <div dir={isAr ? 'rtl' : 'ltr'} className="space-y-6">
       {/* Header */}
-      <div className="rounded-2xl border border-[#2a2e39] p-5 sm:p-6 bg-[#1e222d] text-center max-w-3xl mx-auto space-y-2">
+      <div className="rounded-2xl border border-[#E0E3EB] dark:border-[#2a2e39] p-5 sm:p-6 bg-[#F8F9FD] dark:bg-[#1e222d] text-center max-w-3xl mx-auto space-y-2">
         <div className="text-xs font-bold text-[#089981]">
           MBK Trading
         </div>
-        <h2 className="text-xl sm:text-2xl font-extrabold text-white">
+        <h2 className="text-xl sm:text-2xl font-extrabold text-[#131722] dark:text-white">
           {isAr ? 'اختر خطة التداول المناسبة لك' : 'Choose Your Trading Plan'}
         </h2>
-        <p className="text-xs sm:text-sm text-[#8a93a6] leading-relaxed">
+        <p className="text-xs sm:text-sm text-[#4A5162] dark:text-[#8a93a6] leading-relaxed">
           {isAr
             ? 'ابدأ مجاناً بالأدوات الأساسية، أو قم بالترقية إلى VIP و Elite، أو فعّل رمزاً ترويجياً أو تجربة مجانية لميزة محددة.'
             : 'Start free with core desk tools, upgrade to VIP or Elite, or redeem an activation / trial key.'}
@@ -103,10 +103,10 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({
       {/* 3-Tier Cards Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-stretch">
         {/* 1. FREE TIER ($0) */}
-        <div className="rounded-2xl p-5 sm:p-6 border border-[#2a2e39] bg-[#1e222d] flex flex-col justify-between">
+        <div className="rounded-2xl p-5 sm:p-6 border border-[#E0E3EB] dark:border-[#2a2e39] bg-[#F8F9FD] dark:bg-[#1e222d] flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between gap-2 mb-3">
-              <span className="text-xs font-bold text-[#8a93a6]">
+              <span className="text-xs font-bold text-[#4A5162] dark:text-[#8a93a6]">
                 {isAr ? 'للبداية والتدريب' : 'Essential Access'}
               </span>
               {effectiveTier === 'free' && (
@@ -116,7 +116,7 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({
               )}
             </div>
 
-            <h3 className="text-lg font-extrabold text-white mb-1">
+            <h3 className="text-lg font-extrabold text-[#131722] dark:text-white mb-1">
               {isAr ? 'الباقة المجانية (Free Tier)' : 'Free Tier'}
             </h3>
             <p className="text-xs text-[#787b86] mb-4">
@@ -125,14 +125,14 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({
                 : 'Core market tools, Academy, and limited signals'}
             </p>
 
-            <div className="mb-5 pb-4 border-b border-[#2a2e39] flex items-baseline gap-1.5 font-mono tabular-nums">
-              <span className="text-3xl font-black text-white">$0</span>
+            <div className="mb-5 pb-4 border-b border-[#E0E3EB] dark:border-[#2a2e39] flex items-baseline gap-1.5 font-mono tabular-nums">
+              <span className="text-3xl font-black text-[#131722] dark:text-white">$0</span>
               <span className="text-xs text-[#787b86]">
                 {isAr ? '/ مجاناً دائماً' : '/ forever free'}
               </span>
             </div>
 
-            <ul className="space-y-2.5 text-xs text-[#d1d4dc] mb-6">
+            <ul className="space-y-2.5 text-xs text-[#131722] dark:text-[#d1d4dc] mb-6">
               {freeFeatures.map((feat, idx) => (
                 <li key={idx} className="flex items-start gap-2">
                   <Check className="w-4 h-4 text-[#089981] shrink-0 mt-0.5" />
@@ -145,7 +145,7 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({
           <button
             type="button"
             disabled
-            className="w-full py-3 px-4 rounded-xl bg-[#131722] border border-[#2a2e39] text-[#8a93a6] font-bold text-xs cursor-default whitespace-nowrap"
+            className="w-full py-3 px-4 rounded-xl bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] text-[#4A5162] dark:text-[#8a93a6] font-bold text-xs cursor-default whitespace-nowrap"
           >
             {effectiveTier === 'free'
               ? isAr
@@ -158,7 +158,7 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({
         </div>
 
         {/* 2. VIP TIER ($100/mo) */}
-        <div className="rounded-2xl p-5 sm:p-6 border-2 border-[#089981] bg-[#1e222d] flex flex-col justify-between shadow-xl">
+        <div className="rounded-2xl p-5 sm:p-6 border-2 border-[#089981] bg-[#F8F9FD] dark:bg-[#1e222d] flex flex-col justify-between shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-xl">
           <div>
             <div className="flex items-center justify-between gap-2 mb-3">
               <span className="text-xs font-bold text-[#089981] flex items-center gap-1.5">
@@ -166,27 +166,27 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({
                 <span>{isAr ? 'الباقة الاحترافية' : 'Most Popular'}</span>
               </span>
               {effectiveTier === 'vip' && (
-                <span className="text-[11px] font-bold text-amber-400 whitespace-nowrap">
+                <span className="text-[11px] font-bold text-[#9A6700] dark:text-amber-400 whitespace-nowrap">
                   {isAr ? 'مفعل حالياً' : 'Active'}
                 </span>
               )}
             </div>
 
-            <h3 className="text-lg font-extrabold text-white mb-1">
+            <h3 className="text-lg font-extrabold text-[#131722] dark:text-white mb-1">
               {isAr ? 'باقة VIP المباشرة (VIP Tier)' : 'VIP Tier'}
             </h3>
-            <p className="text-xs text-[#8a93a6] mb-4">
+            <p className="text-xs text-[#4A5162] dark:text-[#8a93a6] mb-4">
               {isAr
                 ? 'بوت MBK + توصيات VIP + ذكاء MBK'
                 : 'MBK Bot + VIP Signals + MBK AI'}
             </p>
 
-            <div className="mb-5 pb-4 border-b border-[#2a2e39] flex items-baseline gap-1.5 font-mono tabular-nums">
-              <span className="text-3xl font-black text-white">${displayVipUsd}</span>
-              <span className="text-xs text-[#8a93a6]">{isAr ? '/ شهرياً' : '/ month'}</span>
+            <div className="mb-5 pb-4 border-b border-[#E0E3EB] dark:border-[#2a2e39] flex items-baseline gap-1.5 font-mono tabular-nums">
+              <span className="text-3xl font-black text-[#131722] dark:text-white">${displayVipUsd}</span>
+              <span className="text-xs text-[#4A5162] dark:text-[#8a93a6]">{isAr ? '/ شهرياً' : '/ month'}</span>
             </div>
 
-            <ul className="space-y-2.5 text-xs text-[#d1d4dc] mb-6">
+            <ul className="space-y-2.5 text-xs text-[#131722] dark:text-[#d1d4dc] mb-6">
               {vipFeatures.map((feat, idx) => (
                 <li key={idx} className="flex items-start gap-2">
                   <Check className="w-4 h-4 text-[#089981] shrink-0 mt-0.5" />
@@ -227,64 +227,64 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({
                 soundManager.playClick();
                 onOpenPromoModal();
               }}
-              className="w-full py-2 px-3 rounded-xl bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-[#d1d4dc] text-[11px] font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
+              className="w-full py-2 px-3 rounded-xl bg-[#FFFFFF] dark:bg-[#131722] hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] border border-[#E0E3EB] dark:border-[#2a2e39] text-[#131722] dark:text-[#d1d4dc] text-[11px] font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
             >
-              <Ticket className="w-3.5 h-3.5 text-amber-400" />
+              <Ticket className="w-3.5 h-3.5 text-[#9A6700] dark:text-amber-400" />
               <span>{isAr ? 'لديك مفتاح تفعيل أو رمز تجريبي؟' : 'Redeem Activation / Trial Key'}</span>
             </button>
           </div>
         </div>
 
         {/* 3. ELITE TIER ($500/mo) */}
-        <div className="rounded-2xl p-5 sm:p-6 border border-amber-500/50 bg-[#1e222d] flex flex-col justify-between">
+        <div className="rounded-2xl p-5 sm:p-6 border border-[#EFE0B4] dark:border-amber-500/50 bg-[#F8F9FD] dark:bg-[#1e222d] flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between gap-2 mb-3">
-              <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+              <span className="text-xs font-bold text-[#9A6700] dark:text-amber-400 flex items-center gap-1.5">
                 <Gem className="w-4 h-4" />
                 <span>{isAr ? 'النخبة المؤسسية' : 'Institutional Elite'}</span>
               </span>
               {effectiveTier === 'elite' && (
-                <span className="text-[11px] font-bold text-amber-400 whitespace-nowrap">
+                <span className="text-[11px] font-bold text-[#9A6700] dark:text-amber-400 whitespace-nowrap">
                   {isAr ? 'مفعل حالياً' : 'Active'}
                 </span>
               )}
             </div>
 
-            <h3 className="text-lg font-extrabold text-white mb-1">
+            <h3 className="text-lg font-extrabold text-[#131722] dark:text-white mb-1">
               {isAr ? 'باقة Elite المتكاملة (Elite Tier)' : 'Elite Tier'}
             </h3>
-            <p className="text-xs text-[#8a93a6] mb-4">
+            <p className="text-xs text-[#4A5162] dark:text-[#8a93a6] mb-4">
               {isAr
                 ? 'جميع مزايا VIP + الأدوات المؤسسية المتقدمة القادمة'
                 : 'All VIP features + exclusive unreleased Elite modules'}
             </p>
 
-            <div className="mb-5 pb-4 border-b border-[#2a2e39] flex items-baseline gap-1.5 font-mono tabular-nums">
-              <span className="text-3xl font-black text-amber-400">${displayEliteUsd}</span>
-              <span className="text-xs text-[#8a93a6]">{isAr ? '/ شهرياً' : '/ month'}</span>
+            <div className="mb-5 pb-4 border-b border-[#E0E3EB] dark:border-[#2a2e39] flex items-baseline gap-1.5 font-mono tabular-nums">
+              <span className="text-3xl font-black text-[#9A6700] dark:text-amber-400">${displayEliteUsd}</span>
+              <span className="text-xs text-[#4A5162] dark:text-[#8a93a6]">{isAr ? '/ شهرياً' : '/ month'}</span>
             </div>
 
             <div className="space-y-2.5 text-xs mb-6">
-              <div className="flex items-start gap-2 text-[#d1d4dc]">
+              <div className="flex items-start gap-2 text-[#131722] dark:text-[#d1d4dc]">
                 <Check className="w-4 h-4 text-[#089981] shrink-0 mt-0.5" />
                 <span className="font-bold">
                   {isAr ? `كل ما هو مشمول في باقة VIP ($${displayVipUsd})` : 'Everything included in VIP Tier'}
                 </span>
               </div>
 
-              <div className="pt-2 border-t border-[#2a2e39]/70 space-y-2">
+              <div className="pt-2 border-t border-[#E0E3EB] dark:border-[#2a2e39]/70 space-y-2">
                 {ELITE_UNRELEASED_FEATURES.map((mod) => (
                   <div
                     key={mod.key}
-                    className="p-2.5 rounded-xl bg-[#131722] border border-[#2a2e39] flex flex-col gap-1"
+                    className="p-2.5 rounded-xl bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] flex flex-col gap-1"
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-bold text-white flex items-center gap-1.5 text-[11px]">
-                        <Lock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      <span className="font-bold text-[#131722] dark:text-white flex items-center gap-1.5 text-[11px]">
+                        <Lock className="w-3.5 h-3.5 text-[#9A6700] dark:text-amber-400 shrink-0" />
                         <span>🔒 {isAr ? mod.titleAr : mod.titleEn}</span>
                       </span>
                     </div>
-                    <span className="text-[10px] font-bold text-amber-300">
+                    <span className="text-[10px] font-bold text-[#9A6700] dark:text-amber-300">
                       {ELITE_LOCK_BADGE_TEXT}
                     </span>
                   </div>

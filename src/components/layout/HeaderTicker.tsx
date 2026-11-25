@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { MarketSymbol, MarketTicker } from '../../types/trading';
+import { useTheme } from '../../context/ThemeContext';
 
 interface HeaderTickerProps {
   tickers?: MarketTicker[];
@@ -14,6 +15,8 @@ export const HeaderTicker: React.FC<HeaderTickerProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const isAr = lang === 'ar';
+  const { resolvedTheme } = useTheme();
+  const isLight = resolvedTheme === 'light';
 
   useEffect(() => {
     const container = containerRef.current;
@@ -59,7 +62,7 @@ export const HeaderTicker: React.FC<HeaderTickerProps> = ({
       showSymbolLogo: true,
       isTransparent: true,
       displayMode: 'regular',
-      colorTheme: 'dark',
+      colorTheme: isLight ? 'light' : 'dark',
       locale: isAr ? 'ar' : 'en'
     });
 
@@ -78,14 +81,15 @@ export const HeaderTicker: React.FC<HeaderTickerProps> = ({
         container.innerHTML = '';
       }
     };
-  }, [isAr]);
+  }, [isAr, isLight]);
 
   return (
     <div
-      className={`w-full h-[42px] max-h-[42px] overflow-hidden flex flex-col justify-center bg-[#0b0e14] border-b border-[#1e2633] relative select-none z-30 ${className}`}
+      className={`w-full h-[42px] max-h-[42px] overflow-hidden flex flex-col justify-center bg-[#FFFFFF] dark:bg-[#0b0e14] border-b border-[#E0E3EB] dark:border-[#1e2633] relative select-none z-30 ${className}`}
     >
       <div
         ref={containerRef}
+        style={{ colorScheme: 'light' }}
         className="w-full h-full pointer-events-none select-none [&_.tradingview-widget-container]:h-full [&_.tradingview-widget-container]:pointer-events-none [&_iframe]:bg-transparent [&_iframe]:pointer-events-none"
       />
       {/* Transparent shield preventing any iframe click navigation to TradingView */}

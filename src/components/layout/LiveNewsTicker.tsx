@@ -23,6 +23,7 @@ import {
   subscribeToUpcomingMacroEvents,
   translateFinancialHeadlineToArabic
 } from '../../services/macroEventsAndAnnouncementsService';
+import { useTheme } from '../../context/ThemeContext';
 
 interface Props {
   lang?: 'ar' | 'en';
@@ -35,6 +36,8 @@ const TradingViewEconomicEventsWidget: React.FC<{
   lang?: 'ar' | 'en';
 }> = ({ lang = 'ar' }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const { resolvedTheme } = useTheme();
+  const isLight = resolvedTheme === 'light';
 
   useEffect(() => {
     const container = containerRef.current;
@@ -51,7 +54,7 @@ const TradingViewEconomicEventsWidget: React.FC<{
     script.type = 'text/javascript';
     script.async = true;
     script.innerHTML = JSON.stringify({
-      colorTheme: 'dark',
+      colorTheme: isLight ? 'light' : 'dark',
       isTransparent: true,
       width: '100%',
       height: '100%',
@@ -74,12 +77,12 @@ const TradingViewEconomicEventsWidget: React.FC<{
         container.innerHTML = '';
       }
     };
-  }, [lang]);
+  }, [lang, isLight]);
 
   return (
     <div
       ref={containerRef}
-      className="w-full h-full min-h-[500px] rounded-xl overflow-hidden bg-[#131722] border border-[#2a2e39] relative shadow-lg"
+      className="w-full h-full min-h-[500px] rounded-xl overflow-hidden bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] relative shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-lg"
     />
   );
 };
@@ -239,10 +242,10 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
     if (impact === 'HIGH') {
       return (
         <span
-          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#f23645]/20 text-[#f23645] border border-[#f23645]/40 shrink-0 shadow-sm shadow-[#f23645]/10"
+          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#FDECEE] dark:bg-[#f23645]/20 text-[#D93848] dark:text-[#f23645] border border-[#F5C2C7] dark:border-[#f23645]/40 shrink-0 shadow-sm shadow-none dark:shadow-[#f23645]/10"
           title={isAr ? 'تأثير قوي ومحرك للأسواق (High Impact)' : 'High Market Impact'}
         >
-          <Flame className="w-3 h-3 text-[#f23645] animate-pulse" />
+          <Flame className="w-3 h-3 text-[#D93848] dark:text-[#f23645] animate-pulse" />
           <span className="flex items-center gap-0.5 font-mono text-[9px]">
             <span className="w-1 h-2.5 rounded-xs bg-[#f23645]" />
             <span className="w-1 h-2.5 rounded-xs bg-[#f23645]" />
@@ -256,14 +259,14 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
     if (impact === 'MEDIUM') {
       return (
         <span
-          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#ff9800]/20 text-[#ff9800] border border-[#ff9800]/40 shrink-0"
+          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#FDF6E3] dark:bg-[#ff9800]/20 text-[#9A6700] dark:text-[#ff9800] border border-[#EFE0B4] dark:border-[#ff9800]/40 shrink-0"
           title={isAr ? 'تأثير متوسط على السيولة (Medium Impact)' : 'Medium Market Impact'}
         >
-          <Zap className="w-2.5 h-2.5 text-[#ff9800]" />
+          <Zap className="w-2.5 h-2.5 text-[#9A6700] dark:text-[#ff9800]" />
           <span className="flex items-center gap-0.5 font-mono text-[9px]">
             <span className="w-1 h-2.5 rounded-xs bg-[#ff9800]" />
             <span className="w-1 h-2.5 rounded-xs bg-[#ff9800]" />
-            <span className="w-1 h-2.5 rounded-xs bg-[#2a2e39]" />
+            <span className="w-1 h-2.5 rounded-xs bg-[#EDF1F7] dark:bg-[#2a2e39]" />
           </span>
           <span className="font-semibold">{isAr ? labelAr || 'تأثير متوسط' : labelEn || 'Med'}</span>
         </span>
@@ -272,13 +275,13 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
 
     return (
       <span
-        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#089981]/15 text-[#089981] border border-[#089981]/30 shrink-0"
+        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#E6F5F2] dark:bg-[#089981]/15 text-[#089981] border border-[#B3E2D9] dark:border-[#089981]/30 shrink-0"
         title={isAr ? 'تأثير منخفض (Low Impact)' : 'Low Market Impact'}
       >
         <span className="flex items-center gap-0.5 font-mono text-[9px]">
           <span className="w-1 h-2.5 rounded-xs bg-[#089981]" />
-          <span className="w-1 h-2.5 rounded-xs bg-[#2a2e39]" />
-          <span className="w-1 h-2.5 rounded-xs bg-[#2a2e39]" />
+          <span className="w-1 h-2.5 rounded-xs bg-[#EDF1F7] dark:bg-[#2a2e39]" />
+          <span className="w-1 h-2.5 rounded-xs bg-[#EDF1F7] dark:bg-[#2a2e39]" />
         </span>
         <span className="font-semibold">{isAr ? labelAr || 'تأثير منخفض' : labelEn || 'Low'}</span>
       </span>
@@ -293,11 +296,11 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
   const displayMarqueeItems = news.length > 0 ? [...news, ...news] : [];
 
   return (
-    <div className="w-full bg-[#0d1017] border-b border-[#2a2e39] text-xs font-sans transition-all z-20 select-none">
+    <div className="w-full bg-[#F0F3FA] dark:bg-[#0d1017] border-b border-[#E0E3EB] dark:border-[#2a2e39] text-xs font-sans transition-all z-20 select-none">
       {/* 1. RUNNING LIVE MOVING ARABIC NEWS TICKER STRIP */}
-      <div className="px-2 sm:px-3 py-1.5 flex items-center justify-between gap-2 overflow-hidden bg-gradient-to-r from-[#0d1017] via-[#111520] to-[#0d1017]">
+      <div className="px-2 sm:px-3 py-1.5 flex items-center justify-between gap-2 overflow-hidden bg-[#FFFFFF] dark:bg-gradient-to-r dark:from-[#0d1017] dark:via-[#111520] dark:to-[#0d1017]">
         {/* Start Side: Only MBK NEWS Button with Small Live Red Circle & LIVE Label */}
-        <div className="flex items-center gap-1.5 shrink-0 z-10 bg-[#0d1017]/95 pr-2 border-l border-[#2a2e39]/60">
+        <div className="flex items-center gap-1.5 shrink-0 z-10 bg-[#FFFFFF]/95 dark:bg-[#0d1017]/95 pr-2 border-l border-[#E0E3EB] dark:border-[#2a2e39]/60">
           <button
             type="button"
             onClick={() => {
@@ -305,16 +308,16 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
               setIsExpanded(!isExpanded);
             }}
             title={isAr ? 'عرض كل أخبار MBK' : 'Toggle MBK News Hub'}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#1e222d] hover:bg-[#262b38] border border-[#2a2e39] font-mono text-[11px] font-bold shadow-sm transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#F8F9FD] dark:bg-[#1e222d] hover:bg-[#EDF1F7] dark:hover:bg-[#262b38] border border-[#E0E3EB] dark:border-[#2a2e39] font-mono text-[11px] font-bold shadow-sm transition-colors cursor-pointer"
           >
             <span className="relative flex h-2 w-2 shrink-0">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#f23645] opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-[#f23645]" />
             </span>
-            <span className="text-[10px] font-extrabold text-[#f23645] tracking-wider uppercase">
+            <span className="text-[10px] font-extrabold text-[#D93848] dark:text-[#f23645] tracking-wider uppercase">
               LIVE
             </span>
-            <span className="font-extrabold text-white text-[11px] tracking-tight whitespace-nowrap">
+            <span className="font-extrabold text-[#131722] dark:text-white text-[11px] tracking-tight whitespace-nowrap">
               MBK NEWS
             </span>
           </button>
@@ -322,9 +325,9 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
 
         {/* 2. CONTINUOUS RUNNING & MOVING MARQUEE TRACK */}
         <div className="flex-1 min-w-0 overflow-hidden relative mx-1 group py-0.5">
-          {/* Subtle fade edges for ultra-premium look */}
-          <div className="absolute left-0 top-0 bottom-0 w-4 bg-gradient-to-r from-[#0d1017] to-transparent z-1 pointer-events-none" />
-          <div className="absolute right-0 top-0 bottom-0 w-4 bg-gradient-to-l from-[#0d1017] to-transparent z-1 pointer-events-none" />
+          {/* Subtle fade edges */}
+          <div className="absolute left-0 top-0 bottom-0 w-4 bg-gradient-to-r from-[#FFFFFF] dark:from-[#0d1017] to-transparent z-1 pointer-events-none" />
+          <div className="absolute right-0 top-0 bottom-0 w-4 bg-gradient-to-l from-[#FFFFFF] dark:from-[#0d1017] to-transparent z-1 pointer-events-none" />
 
           {news.length === 0 ? (
             <div className="flex items-center gap-2 text-[#787b86] text-[11px] font-mono px-2">
@@ -340,14 +343,14 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
               {displayMarqueeItems.map((item, idx) => (
                 <div
                   key={`${item.id}-${idx}`}
-                  className="flex items-center gap-2 shrink-0 py-0.5 px-2 rounded hover:bg-[#1e222d] transition-colors border border-transparent hover:border-[#2a2e39]"
+                  className="flex items-center gap-2 shrink-0 py-0.5 px-2 rounded hover:bg-[#EDF1F7] dark:hover:bg-[#1e222d] transition-colors border border-transparent hover:border-[#CBD2DF] dark:hover:border-[#2a2e39]"
                   title={item.title}
                 >
                   {/* IMPACT SIZE BADGE (REQUIRED) */}
                   {renderImpactBadge(item.impact, item.impactLabelAr, item.impactLabelEn)}
 
                   {/* Category Tag */}
-                  <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-[#1e222d] text-[#2962ff] border border-[#2a2e39] shrink-0">
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-[#F8F9FD] dark:bg-[#1e222d] text-[#1E53E5] dark:text-[#2962ff] border border-[#E0E3EB] dark:border-[#2a2e39] shrink-0">
                     {item.category}
                   </span>
 
@@ -355,7 +358,7 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
                   {item.sentiment === 'BULLISH' ? (
                     <TrendingUp className="w-3.5 h-3.5 text-[#089981] shrink-0" />
                   ) : item.sentiment === 'BEARISH' ? (
-                    <TrendingDown className="w-3.5 h-3.5 text-[#f23645] shrink-0" />
+                    <TrendingDown className="w-3.5 h-3.5 text-[#D93848] dark:text-[#f23645] shrink-0" />
                   ) : (
                     <span className="w-1.5 h-1.5 rounded-full bg-[#787b86] shrink-0" />
                   )}
@@ -365,14 +368,14 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
                     href={item.link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[#d1d4dc] hover:text-[#2962ff] font-medium text-xs transition-colors hover:underline max-w-[280px] sm:max-w-[420px] md:max-w-[520px] truncate"
+                    className="text-[#131722] dark:text-[#d1d4dc] hover:text-[#2962ff] font-medium text-xs transition-colors hover:underline max-w-[280px] sm:max-w-[420px] md:max-w-[520px] truncate"
                   >
                     {isAr ? item.titleAr || item.title : item.title}
                   </a>
 
                   {/* Source & Time */}
                   <span className="text-[10px] text-[#787b86] font-mono shrink-0 flex items-center gap-1">
-                    <span className="hidden sm:inline font-semibold text-[#a3a6af]">({item.source})</span>
+                    <span className="hidden sm:inline font-semibold text-[#4A5162] dark:text-[#a3a6af]">({item.source})</span>
                     <span>• {isAr ? item.timeAgoAr || item.timeAgo : item.timeAgo}</span>
                   </span>
 
@@ -385,7 +388,7 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
         </div>
 
         {/* 3. Actions: Only Refresh & Hide Buttons */}
-        <div className="flex items-center gap-1 shrink-0 z-10 bg-[#0d1017]/95 pl-1.5 border-r border-[#2a2e39]/60">
+        <div className="flex items-center gap-1 shrink-0 z-10 bg-[#FFFFFF]/95 dark:bg-[#0d1017]/95 pl-1.5 border-r border-[#E0E3EB] dark:border-[#2a2e39]/60">
           <button
             type="button"
             onClick={() => {
@@ -394,7 +397,7 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
             }}
             disabled={loading}
             title={isAr ? 'تحديث الأخبار الآن' : 'Refresh live news'}
-            className="p-1 rounded bg-[#10141c] hover:bg-[#1e222d] border border-[#1e2633] text-[#8b95a5] hover:text-white transition-colors cursor-pointer flex items-center justify-center"
+            className="p-1 rounded bg-[#FFFFFF] dark:bg-[#10141c] hover:bg-[#EDF1F7] dark:hover:bg-[#1e222d] border border-[#E0E3EB] dark:border-[#1e2633] text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white transition-colors cursor-pointer flex items-center justify-center"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-[#089981]' : ''}`} />
           </button>
@@ -404,7 +407,7 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
               type="button"
               onClick={onHide}
               title={isAr ? 'إخفاء شريط الأخبار' : 'Hide news banner'}
-              className="p-1 rounded bg-[#10141c] hover:bg-[#1e222d] border border-[#1e2633] text-[#8b95a5] hover:text-white transition-colors cursor-pointer flex items-center justify-center"
+              className="p-1 rounded bg-[#FFFFFF] dark:bg-[#10141c] hover:bg-[#EDF1F7] dark:hover:bg-[#1e222d] border border-[#E0E3EB] dark:border-[#1e2633] text-[#4A5162] dark:text-[#8b95a5] hover:text-[#131722] dark:hover:text-white transition-colors cursor-pointer flex items-center justify-center"
             >
               <ChevronUp className="w-3.5 h-3.5" />
             </button>
@@ -414,23 +417,23 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
 
       {/* 4. EXPANDED REAL ARABIC RSS HEADLINES & TRADINGVIEW ECONOMIC CALENDAR SPLIT VIEW */}
       {(isExpanded || isFullPage) && (
-        <div className="border-t border-[#2a2e39] bg-[#131722] p-3 sm:p-5 animate-fade-in shadow-2xl rounded-b-2xl">
+        <div className="border-t border-[#E0E3EB] dark:border-[#2a2e39] bg-[#FFFFFF] dark:bg-[#131722] p-3 sm:p-5 animate-fade-in shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl rounded-b-2xl">
           {/* Header & Filter Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-4 border-b border-[#2a2e39] text-xs">
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-4 border-b border-[#E0E3EB] dark:border-[#2a2e39] text-xs">
             <div className="flex items-center gap-2">
-              <span className="font-bold text-white text-sm flex items-center gap-1.5">
+              <span className="font-bold text-[#131722] dark:text-white text-sm flex items-center gap-1.5">
                 <Newspaper className="w-4.5 h-4.5 text-[#089981]" />
                 {isAr ? 'مركز الأخبار والأحداث الاقتصادية اللحظية' : 'Financial News & Macro Events Hub'}
               </span>
-              <span className="text-[11px] text-[#787b86] font-mono border-s border-[#2a2e39] ps-2">
+              <span className="text-[11px] text-[#787b86] font-mono border-s border-[#E0E3EB] dark:border-[#2a2e39] ps-2">
                 {lastRefreshed && `${isAr ? 'آخر تحديث:' : 'Updated:'} ${lastRefreshed}`}
               </span>
             </div>
 
             {/* Impact Filter Buttons */}
-            <div className="flex items-center gap-1 bg-[#1e222d] p-1 rounded-lg border border-[#2a2e39] text-xs">
+            <div className="flex items-center gap-1 bg-[#F8F9FD] dark:bg-[#1e222d] p-1 rounded-lg border border-[#E0E3EB] dark:border-[#2a2e39] text-xs">
               <span className="px-1.5 text-[#787b86] font-semibold flex items-center gap-1">
-                <Filter className="w-3 h-3 text-[#2962ff]" />
+                <Filter className="w-3 h-3 text-[#1E53E5] dark:text-[#2962ff]" />
                 <span>{isAr ? 'تأثير الخبر:' : 'Filter Impact:'}</span>
               </span>
 
@@ -440,7 +443,7 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
                   setFilterImpact('ALL');
                 }}
                 className={`px-2.5 py-1 rounded cursor-pointer font-bold transition-colors ${
-                  filterImpact === 'ALL' ? 'bg-[#2962ff] text-white' : 'text-[#787b86] hover:text-white'
+                  filterImpact === 'ALL' ? 'bg-[#2962ff] text-white' : 'text-[#787b86] hover:text-[#131722] dark:hover:text-white'
                 }`}
               >
                 {isAr ? 'الكل' : 'All'}
@@ -454,7 +457,7 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
                 className={`px-2.5 py-1 rounded cursor-pointer font-bold transition-colors flex items-center gap-1 ${
                   filterImpact === 'HIGH'
                     ? 'bg-[#f23645] text-white'
-                    : 'text-[#f23645] hover:bg-[#f23645]/10'
+                    : 'text-[#D93848] dark:text-[#f23645] hover:bg-[#f23645]/10'
                 }`}
               >
                 <Flame className="w-3 h-3" />
@@ -469,7 +472,7 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
                 className={`px-2.5 py-1 rounded cursor-pointer font-bold transition-colors flex items-center gap-1 ${
                   filterImpact === 'MEDIUM'
                     ? 'bg-[#ff9800] text-black'
-                    : 'text-[#ff9800] hover:bg-[#ff9800]/10'
+                    : 'text-[#9A6700] dark:text-[#ff9800] hover:bg-[#ff9800]/10'
                 }`}
               >
                 <Zap className="w-3 h-3" />
@@ -481,14 +484,14 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
           {/* MAIN SPLIT CONTAINER: NEWS FEED (LEFT 2 COLUMNS) | TRADINGVIEW ECONOMIC EVENTS CALENDAR (RIGHT 1 COLUMN) */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {/* COLUMN 1: INDEPENDENTLY SCROLLABLE LIVE NEWS FEED */}
-            <div className="lg:col-span-2 bg-[#1e222d] border border-[#2a2e39] rounded-2xl p-3 sm:p-4 flex flex-col shadow-xl">
-              <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-[#2a2e39]">
+            <div className="lg:col-span-2 bg-[#F8F9FD] dark:bg-[#1e222d] border border-[#E0E3EB] dark:border-[#2a2e39] rounded-2xl p-3 sm:p-4 flex flex-col shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-xl">
+              <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-[#E0E3EB] dark:border-[#2a2e39]">
                 <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-lg bg-[#2962ff]/15 border border-[#2962ff]/30 text-[#2962ff]">
+                  <div className="p-1.5 rounded-lg bg-[#EDF1F7] dark:bg-[#2962ff]/15 border border-[#CBD2DF] dark:border-[#2962ff]/30 text-[#1E53E5] dark:text-[#2962ff]">
                     <Newspaper className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-xs font-bold text-white">
+                    <h3 className="text-xs font-bold text-[#131722] dark:text-white">
                       {isAr ? 'بث العناوين والتحليلات الاقتصادية' : 'Live Headlines & Market Analysis'}
                     </h3>
                     <p className="text-[10px] text-[#787b86]">
@@ -497,7 +500,7 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
                   </div>
                 </div>
 
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#089981]/20 text-[#089981] border border-[#089981]/30">
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#E6F5F2] dark:bg-[#089981]/20 text-[#089981] border border-[#B3E2D9] dark:border-[#089981]/30">
                   {drawerItems.length} {isAr ? 'مقالات' : 'Items'}
                 </span>
               </div>
@@ -512,17 +515,17 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
                   drawerItems.map((item) => (
                     <div
                       key={item.id}
-                      className="flex items-start justify-between gap-3 p-3 rounded-xl bg-[#131722] hover:bg-[#131722]/80 border border-[#2a2e39] hover:border-[#089981]/50 transition-all shadow-sm group"
+                      className="flex items-start justify-between gap-3 p-3 rounded-xl bg-[#FFFFFF] dark:bg-[#131722] hover:bg-[#EDF1F7] dark:hover:bg-[#131722]/80 border border-[#E0E3EB] dark:border-[#2a2e39] hover:border-[#089981]/50 transition-all shadow-sm group"
                     >
                       <div className="space-y-1.5 min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           {renderImpactBadge(item.impact, item.impactLabelAr, item.impactLabelEn)}
 
-                          <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-[#1e222d] text-[#2962ff] border border-[#2a2e39]">
+                          <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-[#F8F9FD] dark:bg-[#1e222d] text-[#1E53E5] dark:text-[#2962ff] border border-[#E0E3EB] dark:border-[#2a2e39]">
                             {item.source}
                           </span>
 
-                          <span className="px-1.5 py-0.2 rounded text-[10px] font-mono text-[#089981] bg-[#089981]/10 border border-[#089981]/20">
+                          <span className="px-1.5 py-0.2 rounded text-[10px] font-mono text-[#089981] bg-[#E6F5F2] dark:bg-[#089981]/10 border border-[#B3E2D9] dark:border-[#089981]/20">
                             {item.category}
                           </span>
 
@@ -535,7 +538,7 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
                           href={item.link}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-xs sm:text-sm font-bold text-white group-hover:text-[#2962ff] transition-colors line-clamp-2 leading-snug block"
+                          className="text-xs sm:text-sm font-bold text-[#131722] dark:text-white group-hover:text-[#2962ff] transition-colors line-clamp-2 leading-snug block"
                         >
                           {isAr ? item.titleAr || item.title : item.title}
                         </a>
@@ -545,7 +548,7 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
                         href={item.link}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="p-2 text-[#787b86] hover:text-white rounded-lg hover:bg-[#2a2e39] shrink-0 border border-transparent hover:border-[#363a45] transition-colors"
+                        className="p-2 text-[#787b86] hover:text-[#131722] dark:hover:text-white rounded-lg hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] shrink-0 border border-transparent hover:border-[#CBD2DF] dark:hover:border-[#363a45] transition-colors"
                         title={isAr ? 'قراءة الخبر من المصدر' : 'Read original article'}
                       >
                         <ExternalLink className="w-4 h-4" />
@@ -557,14 +560,14 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
             </div>
 
             {/* COLUMN 2: UPCOMING MAJOR EVENTS IN ARABIC/ENGLISH + TRADINGVIEW CALENDAR WIDGET */}
-            <div className="lg:col-span-1 bg-[#1e222d] border border-[#2a2e39] rounded-2xl p-3 sm:p-4 flex flex-col gap-3 shadow-xl">
-              <div className="flex items-center justify-between pb-2.5 border-b border-[#2a2e39]">
+            <div className="lg:col-span-1 bg-[#F8F9FD] dark:bg-[#1e222d] border border-[#E0E3EB] dark:border-[#2a2e39] rounded-2xl p-3 sm:p-4 flex flex-col gap-3 shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-xl">
+              <div className="flex items-center justify-between pb-2.5 border-b border-[#E0E3EB] dark:border-[#2a2e39]">
                 <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-lg bg-[#f23645]/15 border border-[#f23645]/30 text-[#f23645]">
+                  <div className="p-1.5 rounded-lg bg-[#FDECEE] dark:bg-[#f23645]/15 border border-[#F5C2C7] dark:border-[#f23645]/30 text-[#D93848] dark:text-[#f23645]">
                     <Flame className="w-4 h-4 animate-pulse" />
                   </div>
                   <div>
-                    <h3 className="text-xs font-bold text-white">
+                    <h3 className="text-xs font-bold text-[#131722] dark:text-white">
                       {isAr ? 'الأحداث الاقتصادية عالية التأثير' : 'High-Impact Economic Events'}
                     </h3>
                     <p className="text-[10px] text-[#787b86]">
@@ -573,7 +576,7 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
                   </div>
                 </div>
 
-                <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-[#f23645]/20 text-[#f23645] border border-[#f23645]/30 flex items-center gap-1 animate-pulse">
+                <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-[#FDECEE] dark:bg-[#f23645]/20 text-[#D93848] dark:text-[#f23645] border border-[#F5C2C7] dark:border-[#f23645]/30 flex items-center gap-1 animate-pulse">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#f23645]" />
                   <span>{isAr ? 'تنبيه قبل ساعة' : '1H WARNING'}</span>
                 </span>
@@ -582,7 +585,7 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
               {/* Native Arabic/English Upcoming Major Events List */}
               <div className="space-y-2">
                 {upcomingMacroEvents.length === 0 ? (
-                  <div className="p-3 rounded-xl bg-[#131722] border border-[#2a2e39] text-center text-[11px] text-[#787b86]">
+                  <div className="p-3 rounded-xl bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] text-center text-[11px] text-[#787b86]">
                     {isAr
                       ? 'لا توجد بيانات اقتصادية عالية التأثير قادمة حالياً'
                       : 'No high-impact macro releases scheduled right now'}
@@ -591,14 +594,14 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
                   upcomingMacroEvents.slice(0, 3).map((ev) => (
                     <div
                       key={ev.id}
-                      className="p-2.5 rounded-xl bg-[#131722] border border-[#2a2e39] flex items-center justify-between gap-2"
+                      className="p-2.5 rounded-xl bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] flex items-center justify-between gap-2"
                     >
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <span className="px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-400 text-[9px] font-mono font-bold">
+                          <span className="px-1.5 py-0.2 rounded bg-[#FDECEE] dark:bg-rose-500/20 text-[#D93848] dark:text-rose-400 text-[9px] font-mono font-bold">
                             {ev.currency}
                           </span>
-                          <span className="text-[11px] font-bold text-white truncate">
+                          <span className="text-[11px] font-bold text-[#131722] dark:text-white truncate">
                             {isAr ? ev.titleAr : ev.titleEn}
                           </span>
                         </div>
@@ -606,7 +609,7 @@ export const LiveNewsTicker: React.FC<Props> = ({ lang = 'ar', isFullPage = fals
                           {isAr ? `المتوقع: ${ev.forecast} | السابق: ${ev.previous}` : `Forecast: ${ev.forecast} | Prev: ${ev.previous}`}
                         </span>
                       </div>
-                      <span className="px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-mono font-bold shrink-0">
+                      <span className="px-2 py-0.5 rounded bg-[#FDF6E3] dark:bg-amber-500/15 text-[#9A6700] dark:text-amber-300 border border-[#EFE0B4] dark:border-amber-500/30 text-[10px] font-mono font-bold shrink-0">
                         {new Date(ev.releaseTimeMs).toLocaleTimeString(isAr ? 'ar-SA' : 'en-US', {
                           hour: '2-digit',
                           minute: '2-digit'

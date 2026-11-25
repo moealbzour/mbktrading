@@ -557,19 +557,19 @@ export const AdminAnalyticsOverview: React.FC<Props> = ({
   return (
     <div className="space-y-4">
       {/* TOP BAR: HEADER + TIMEFRAME SWITCHER (7D / 30D / 90D) + MANUAL QUOTA-SAFE REFRESH */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#2A2E39] pb-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E0E3EB] dark:border-[#2A2E39] pb-3">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-sm sm:text-base font-bold text-[#F8FAFC]">
+            <h2 className="text-sm sm:text-base font-bold text-[#131722] dark:text-[#F8FAFC]">
               {isAr
                 ? 'مركز الإحصائيات، الإيرادات، ونشاط المنصة'
                 : 'Institutional Website, Revenue & Activity Analytics'}
             </h2>
-            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-[#1E222D] text-[#26A69A] border border-[#2A2E39]">
+            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-[#F8F9FD] dark:bg-[#1E222D] text-[#089981] dark:text-[#26A69A] border border-[#E0E3EB] dark:border-[#2A2E39]">
               QUOTA-SAFE
             </span>
           </div>
-          <p className="text-xs text-[#64748B]">
+          <p className="text-xs text-[#787B86] dark:text-[#64748B]">
             {isAr
               ? 'قراءة فورية مخزنة مؤقتاً للجلسة بدون مستمعات خلفية مستمرة (Zero onSnapshot Listeners)'
               : 'Session-cached one-time aggregation with zero background snapshot listeners'}
@@ -578,7 +578,7 @@ export const AdminAnalyticsOverview: React.FC<Props> = ({
 
         <div className="flex flex-wrap items-center gap-2">
           {/* Timeframe Switcher: 7D | 30D | 90D */}
-          <div className="inline-flex items-center rounded-md bg-[#131722] p-0.5 border border-[#2A2E39]">
+          <div className="inline-flex items-center rounded-md bg-[#FFFFFF] dark:bg-[#131722] p-0.5 border border-[#E0E3EB] dark:border-[#2A2E39]">
             {(['7D', '30D', '90D'] as AnalyticsTimeframe[]).map((tf) => {
               const active = timeframe === tf;
               return (
@@ -591,8 +591,8 @@ export const AdminAnalyticsOverview: React.FC<Props> = ({
                   }}
                   className={`px-3 py-1 rounded text-xs font-mono font-bold transition-colors cursor-pointer ${
                     active
-                      ? 'bg-[#26A69A] text-white'
-                      : 'text-[#94A3B8] hover:text-white hover:bg-[#1E222D]'
+                      ? 'bg-[#131722] dark:bg-[#26A69A] text-white'
+                      : 'text-[#4A5162] dark:text-[#94A3B8] hover:text-[#131722] dark:hover:text-white hover:bg-[#EDF1F7] dark:hover:bg-[#1E222D]'
                   }`}
                 >
                   {tf}
@@ -609,9 +609,9 @@ export const AdminAnalyticsOverview: React.FC<Props> = ({
               soundManager.playClick();
               loadQuotaSafeActivity(timeframe, true);
             }}
-            className="px-3 py-1.5 rounded-md bg-[#1E222D] hover:bg-[#2A2E39] border border-[#2A2E39] text-xs font-semibold text-[#E2E8F0] flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            className="px-3 py-1.5 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] border border-[#E0E3EB] dark:border-[#2A2E39] text-xs font-semibold text-[#131722] dark:text-[#E2E8F0] flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
           >
-            <RefreshCw className={`w-3.5 h-3.5 text-[#26A69A] ${loadingActivity ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 text-[#089981] dark:text-[#26A69A] ${loadingActivity ? 'animate-spin' : ''}`} />
             <span>{isAr ? 'تحديث البيانات' : 'Refresh'}</span>
           </button>
 
@@ -622,7 +622,7 @@ export const AdminAnalyticsOverview: React.FC<Props> = ({
                 soundManager.playClick();
                 onOpenUsersCrm();
               }}
-              className="px-3 py-1.5 rounded-md bg-[#131722] hover:bg-[#1E222D] border border-[#2A2E39] text-xs font-semibold text-[#26A69A] flex items-center gap-1 cursor-pointer"
+              className="px-3 py-1.5 rounded-md bg-[#FFFFFF] dark:bg-[#131722] hover:bg-[#EDF1F7] dark:hover:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] text-xs font-semibold text-[#089981] dark:text-[#26A69A] flex items-center gap-1 cursor-pointer"
             >
               <span>{isAr ? 'سجل العملاء CRM' : 'Users CRM'}</span>
               <ArrowUpRight className="w-3.5 h-3.5" />
@@ -636,97 +636,97 @@ export const AdminAnalyticsOverview: React.FC<Props> = ({
       {/* ========================================================================= */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2.5">
         {/* KPI 1: Total Users */}
-        <div className="p-3.5 rounded-lg bg-[#131722] border border-[#2A2E39] space-y-1">
-          <div className="flex items-center justify-between text-[#94A3B8]">
+        <div className="p-3.5 rounded-lg bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] space-y-1">
+          <div className="flex items-center justify-between text-[#4A5162] dark:text-[#94A3B8]">
             <span className="text-[10px] font-semibold uppercase tracking-wider">
               {isAr ? 'إجمالي الأعضاء' : 'Total Users'}
             </span>
-            <Users className="w-3.5 h-3.5 text-[#26A69A]" />
+            <Users className="w-3.5 h-3.5 text-[#089981] dark:text-[#26A69A]" />
           </div>
-          <div className="text-xl font-bold text-[#F8FAFC] font-mono tabular-nums">
+          <div className="text-xl font-bold text-[#131722] dark:text-[#F8FAFC] font-mono tabular-nums">
             {metrics.totalUsers.toLocaleString()}
           </div>
-          <div className="text-[10px] font-mono tabular-nums text-[#26A69A]">
+          <div className="text-[10px] font-mono tabular-nums text-[#089981] dark:text-[#26A69A]">
             +{metrics.newUsersInWindow} {isAr ? `في آخر ${timeframe}` : `in last ${timeframe}`}
           </div>
         </div>
 
         {/* KPI 2: Active Paid (VIP + Elite) */}
-        <div className="p-3.5 rounded-lg bg-[#131722] border border-[#2A2E39] space-y-1">
-          <div className="flex items-center justify-between text-[#F0B90B]">
+        <div className="p-3.5 rounded-lg bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] space-y-1">
+          <div className="flex items-center justify-between text-[#9A6700] dark:text-[#F0B90B]">
             <span className="text-[10px] font-semibold uppercase tracking-wider">
               {isAr ? 'المشتركون النشطون' : 'Active Paid (VIP+Elite)'}
             </span>
-            <Crown className="w-3.5 h-3.5 text-[#F0B90B]" />
+            <Crown className="w-3.5 h-3.5 text-[#9A6700] dark:text-[#F0B90B]" />
           </div>
-          <div className="text-xl font-bold text-[#F0B90B] font-mono tabular-nums">
+          <div className="text-xl font-bold text-[#9A6700] dark:text-[#F0B90B] font-mono tabular-nums">
             {metrics.activePaidTotal.toLocaleString()}
           </div>
-          <div className="text-[10px] font-mono tabular-nums text-[#94A3B8]">
+          <div className="text-[10px] font-mono tabular-nums text-[#4A5162] dark:text-[#94A3B8]">
             VIP: {metrics.activeVipCount} • ELITE: {metrics.activeEliteCount}
           </div>
         </div>
 
         {/* KPI 3: Estimated MRR */}
-        <div className="p-3.5 rounded-lg bg-[#131722] border border-[#2A2E39] space-y-1">
-          <div className="flex items-center justify-between text-[#26A69A]">
+        <div className="p-3.5 rounded-lg bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] space-y-1">
+          <div className="flex items-center justify-between text-[#089981] dark:text-[#26A69A]">
             <span className="text-[10px] font-semibold uppercase tracking-wider">
               {isAr ? 'الإيراد الشهري المتوقع MRR' : 'Estimated MRR'}
             </span>
-            <DollarSign className="w-3.5 h-3.5 text-[#26A69A]" />
+            <DollarSign className="w-3.5 h-3.5 text-[#089981] dark:text-[#26A69A]" />
           </div>
-          <div className="text-xl font-bold text-[#26A69A] font-mono tabular-nums">
+          <div className="text-xl font-bold text-[#089981] dark:text-[#26A69A] font-mono tabular-nums">
             ${metrics.estimatedMrr.toLocaleString()}
           </div>
-          <div className="text-[10px] font-mono tabular-nums text-[#64748B]">
+          <div className="text-[10px] font-mono tabular-nums text-[#787B86] dark:text-[#64748B]">
             {isAr ? 'المحصّل:' : 'Collected:'} ${metrics.totalLedgerRevenue.toLocaleString()} • VIP ${metrics.vipMonthlyUsd} / Elite ${metrics.eliteMonthlyUsd}
           </div>
         </div>
 
         {/* KPI 4: Expiring <= 7 Days */}
-        <div className="p-3.5 rounded-lg bg-[#131722] border border-[#2A2E39] space-y-1">
-          <div className="flex items-center justify-between text-[#EF5350]">
+        <div className="p-3.5 rounded-lg bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] space-y-1">
+          <div className="flex items-center justify-between text-[#D93848] dark:text-[#EF5350]">
             <span className="text-[10px] font-semibold uppercase tracking-wider">
               {isAr ? 'ينتهي خلال <= 7 أيام' : 'Expiring <= 7 Days'}
             </span>
-            <Clock className="w-3.5 h-3.5 text-[#EF5350]" />
+            <Clock className="w-3.5 h-3.5 text-[#D93848] dark:text-[#EF5350]" />
           </div>
-          <div className="text-xl font-bold text-[#EF5350] font-mono tabular-nums">
+          <div className="text-xl font-bold text-[#D93848] dark:text-[#EF5350] font-mono tabular-nums">
             {metrics.expiringWithin7DaysCount}
           </div>
-          <div className="text-[10px] font-mono tabular-nums text-[#94A3B8]">
+          <div className="text-[10px] font-mono tabular-nums text-[#4A5162] dark:text-[#94A3B8]">
             {metrics.expiredPaidCount} {isAr ? 'اشتراك منتهي سابقاً' : 'expired accounts'}
           </div>
         </div>
 
         {/* KPI 5: Push-Enabled Devices (with opt-in %) */}
-        <div className="p-3.5 rounded-lg bg-[#131722] border border-[#2A2E39] space-y-1">
-          <div className="flex items-center justify-between text-[#26A69A]">
+        <div className="p-3.5 rounded-lg bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] space-y-1">
+          <div className="flex items-center justify-between text-[#089981] dark:text-[#26A69A]">
             <span className="text-[10px] font-semibold uppercase tracking-wider">
               {isAr ? 'أجهزة Web Push المفعلة' : 'Push-Enabled Devices'}
             </span>
-            <Bell className="w-3.5 h-3.5 text-[#26A69A]" />
+            <Bell className="w-3.5 h-3.5 text-[#089981] dark:text-[#26A69A]" />
           </div>
-          <div className="text-xl font-bold text-[#F8FAFC] font-mono tabular-nums">
+          <div className="text-xl font-bold text-[#131722] dark:text-[#F8FAFC] font-mono tabular-nums">
             {metrics.pushEnabledCount.toLocaleString()}
           </div>
-          <div className="text-[10px] font-mono tabular-nums text-[#26A69A]">
+          <div className="text-[10px] font-mono tabular-nums text-[#089981] dark:text-[#26A69A]">
             {metrics.pushOptInPct.toFixed(1)}% {isAr ? 'نسبة التفعيل' : 'Opt-in Rate'}
           </div>
         </div>
 
         {/* KPI 6: Open Support Threads (@mbktrading) */}
-        <div className="p-3.5 rounded-lg bg-[#131722] border border-[#2A2E39] space-y-1">
-          <div className="flex items-center justify-between text-[#3B82F6]">
+        <div className="p-3.5 rounded-lg bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] space-y-1">
+          <div className="flex items-center justify-between text-[#1E53E5] dark:text-[#3B82F6]">
             <span className="text-[10px] font-semibold uppercase tracking-wider">
               {isAr ? 'محادثات دعم @mbktrading' : 'Open Support Threads'}
             </span>
-            <Headphones className="w-3.5 h-3.5 text-[#3B82F6]" />
+            <Headphones className="w-3.5 h-3.5 text-[#1E53E5] dark:text-[#3B82F6]" />
           </div>
-          <div className="text-xl font-bold text-[#F8FAFC] font-mono tabular-nums">
+          <div className="text-xl font-bold text-[#131722] dark:text-[#F8FAFC] font-mono tabular-nums">
             {metrics.openSupportThreads.toLocaleString()}
           </div>
-          <div className="text-[10px] font-mono tabular-nums text-[#94A3B8]">
+          <div className="text-[10px] font-mono tabular-nums text-[#4A5162] dark:text-[#94A3B8]">
             {activityTotals.supportTickets} {isAr ? `نشطة في ${timeframe}` : `active in ${timeframe}`}
           </div>
         </div>
@@ -737,18 +737,18 @@ export const AdminAnalyticsOverview: React.FC<Props> = ({
       {/* ========================================================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         {/* CHART 1: USER GROWTH (New & Cumulative Signups over 7D / 30D / 90D) */}
-        <div className="lg:col-span-7 p-4 rounded-lg bg-[#131722] border border-[#2A2E39] flex flex-col justify-between space-y-3">
+        <div className="lg:col-span-7 p-4 rounded-lg bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] flex flex-col justify-between space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <div className="flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-[#26A69A]" />
-                <h3 className="text-xs sm:text-sm font-bold text-[#F8FAFC]">
+                <TrendingUp className="w-4 h-4 text-[#089981] dark:text-[#26A69A]" />
+                <h3 className="text-xs sm:text-sm font-bold text-[#131722] dark:text-[#F8FAFC]">
                   {isAr
                     ? `نمو المستخدمين والتسجيلات التراكمية (${timeframe})`
                     : `User Growth: New & Cumulative Signups (${timeframe})`}
                 </h3>
               </div>
-              <p className="text-[11px] text-[#64748B]">
+              <p className="text-[11px] text-[#787B86] dark:text-[#64748B]">
                 {isAr
                   ? 'الأعمدة الخضراء تمثل التسجيلات الجديدة والمنحنى يمثل الإجمالي التراكمي'
                   : 'Green bars show new signups per period; line shows cumulative member base'}
@@ -756,11 +756,11 @@ export const AdminAnalyticsOverview: React.FC<Props> = ({
             </div>
 
             <div className="flex items-center gap-3 text-[10px] font-mono">
-              <span className="inline-flex items-center gap-1.5 text-[#26A69A]">
+              <span className="inline-flex items-center gap-1.5 text-[#089981] dark:text-[#26A69A]">
                 <span className="w-2.5 h-2.5 rounded-xs bg-[#26A69A]" />
                 <span>{isAr ? 'تسجيلات جديدة' : 'New Signups'}</span>
               </span>
-              <span className="inline-flex items-center gap-1.5 text-[#F0B90B]">
+              <span className="inline-flex items-center gap-1.5 text-[#9A6700] dark:text-[#F0B90B]">
                 <span className="w-2.5 h-0.5 bg-[#F0B90B]" />
                 <span>{isAr ? 'الإجمالي التراكمي' : 'Cumulative'}</span>
               </span>
@@ -768,18 +768,18 @@ export const AdminAnalyticsOverview: React.FC<Props> = ({
           </div>
 
           {/* Interactive SVG + Bar Hybrid Chart */}
-          <div className="relative h-[210px] w-full pt-6 pb-5 px-2 bg-[#0B0E11] border border-[#2A2E39] rounded-md select-none">
+          <div className="relative h-[210px] w-full pt-6 pb-5 px-2 bg-[#F0F3FA] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39] rounded-md select-none">
             {/* Hover Tooltip Banner */}
             {hoveredGrowthIdx !== null && timeSeriesBuckets[hoveredGrowthIdx] && (
-              <div className="absolute top-1.5 inset-x-2 flex items-center justify-between px-2.5 py-1 rounded bg-[#1E222D] border border-[#2A2E39] text-[10px] font-mono tabular-nums z-10">
-                <span className="text-[#F8FAFC] font-bold">
+              <div className="absolute top-1.5 inset-x-2 flex items-center justify-between px-2.5 py-1 rounded bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] text-[10px] font-mono tabular-nums z-10">
+                <span className="text-[#131722] dark:text-[#F8FAFC] font-bold">
                   {timeSeriesBuckets[hoveredGrowthIdx].label}
                 </span>
                 <div className="flex items-center gap-3">
-                  <span className="text-[#26A69A]">
+                  <span className="text-[#089981] dark:text-[#26A69A]">
                     {isAr ? 'جديد:' : 'New:'} +{timeSeriesBuckets[hoveredGrowthIdx].newUsers}
                   </span>
-                  <span className="text-[#F0B90B]">
+                  <span className="text-[#9A6700] dark:text-[#F0B90B]">
                     {isAr ? 'الإجمالي:' : 'Total:'}{' '}
                     {timeSeriesBuckets[hoveredGrowthIdx].cumulativeUsers}
                   </span>
@@ -805,11 +805,11 @@ export const AdminAnalyticsOverview: React.FC<Props> = ({
                 const areaPoints = `0,100 ${points.join(' ')} 100,100`;
                 return (
                   <>
-                    <polygon points={areaPoints} fill="rgba(240, 185, 11, 0.08)" />
+                    <polygon points={areaPoints} className="fill-[#B47B00]/10 dark:fill-[#F0B90B]/10" />
                     <polyline
                       fill="none"
-                      stroke="#F0B90B"
-                      strokeWidth="1.6"
+                      className="stroke-[#B47B00] dark:stroke-[#F0B90B]"
+                      strokeWidth="1.8"
                       vectorEffect="non-scaling-stroke"
                       points={points.join(' ')}
                     />
@@ -838,9 +838,9 @@ export const AdminAnalyticsOverview: React.FC<Props> = ({
                       className={`w-full max-w-[22px] rounded-t transition-all ${
                         bucket.newUsers > 0
                           ? isHovered
-                            ? 'bg-[#26A69A] brightness-125'
-                            : 'bg-[#26A69A]/75'
-                          : 'bg-[#1E222D]'
+                            ? 'bg-[#089981] dark:bg-[#26A69A] brightness-110'
+                            : 'bg-[#089981]/80 dark:bg-[#26A69A]/75'
+                          : 'bg-[#E0E3EB] dark:bg-[#1E222D]'
                       }`}
                     />
                   </div>
@@ -849,7 +849,7 @@ export const AdminAnalyticsOverview: React.FC<Props> = ({
             </div>
 
             {/* X-Axis Start / Mid / End Labels */}
-            <div className="absolute bottom-1 inset-x-2 flex items-center justify-between text-[9px] font-mono text-[#64748B]">
+            <div className="absolute bottom-1 inset-x-2 flex items-center justify-between text-[9px] font-mono text-[#787B86] dark:text-[#64748B]">
               <span>{timeSeriesBuckets[0]?.label || ''}</span>
               <span>
                 {timeSeriesBuckets[Math.floor(timeSeriesBuckets.length / 2)]?.label || ''}
@@ -858,31 +858,31 @@ export const AdminAnalyticsOverview: React.FC<Props> = ({
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono tabular-nums text-[#94A3B8]">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono tabular-nums text-[#4A5162] dark:text-[#94A3B8]">
             <span>
               {isAr ? 'التسجيلات الجديدة خلال الفترة:' : 'Period New Signups:'}{' '}
-              <strong className="text-[#26A69A]">+{metrics.newUsersInWindow}</strong>
+              <strong className="text-[#089981] dark:text-[#26A69A]">+{metrics.newUsersInWindow}</strong>
             </span>
             <span>
               {isAr ? 'إجمالي قاعدة العملاء:' : 'Cumulative Users:'}{' '}
-              <strong className="text-[#F8FAFC]">{metrics.totalUsers}</strong>
+              <strong className="text-[#131722] dark:text-[#F8FAFC]">{metrics.totalUsers}</strong>
             </span>
           </div>
         </div>
 
         {/* CHART 2: PLAN & REVENUE BREAKDOWN (Free vs VIP vs Elite + Active vs Expired Ratio) */}
-        <div className="lg:col-span-5 p-4 rounded-lg bg-[#131722] border border-[#2A2E39] flex flex-col justify-between space-y-4">
+        <div className="lg:col-span-5 p-4 rounded-lg bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] flex flex-col justify-between space-y-4">
           <div className="flex items-center justify-between gap-2">
             <div>
               <div className="flex items-center gap-2">
-                <PieChart className="w-4 h-4 text-[#F0B90B]" />
-                <h3 className="text-xs sm:text-sm font-bold text-[#F8FAFC]">
+                <PieChart className="w-4 h-4 text-[#9A6700] dark:text-[#F0B90B]" />
+                <h3 className="text-xs sm:text-sm font-bold text-[#131722] dark:text-[#F8FAFC]">
                   {isAr
                     ? 'توزيع الباقات والإيرادات (Free / VIP / Elite)'
                     : 'Plan & Revenue Breakdown'}
                 </h3>
               </div>
-              <p className="text-[11px] text-[#64748B]">
+              <p className="text-[11px] text-[#787B86] dark:text-[#64748B]">
                 {isAr
                   ? 'نسب المشتركين حسب الباقة ومعدل الاحتفاظ بالاشتراكات النشطة'
                   : 'Tier share across active members & Active vs Expired subscription ratio'}
@@ -892,7 +892,7 @@ export const AdminAnalyticsOverview: React.FC<Props> = ({
 
           {/* Stacked Multi-Segment Distribution Bar */}
           <div className="space-y-2">
-            <div className="h-3.5 w-full rounded bg-[#0B0E11] border border-[#2A2E39] overflow-hidden flex">
+            <div className="h-3.5 w-full rounded bg-[#F0F3FA] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39] overflow-hidden flex">
               <div
                 style={{ width: `${elitePct}%` }}
                 className="h-full bg-[#26A69A] transition-all"
@@ -905,48 +905,48 @@ export const AdminAnalyticsOverview: React.FC<Props> = ({
               />
               <div
                 style={{ width: `${freePct}%` }}
-                className="h-full bg-[#334155] transition-all"
+                className="h-full bg-[#94A3B8] dark:bg-[#334155] transition-all"
                 title={`Free: ${metrics.freeCount} (${freePct}%)`}
               />
             </div>
 
             {/* Tier Breakdown Rows */}
             <div className="grid grid-cols-3 gap-2 pt-1">
-              <div className="p-2.5 rounded bg-[#0B0E11] border border-[#2A2E39] space-y-0.5">
-                <div className="flex items-center gap-1.5 text-[10px] font-mono text-[#26A69A]">
+              <div className="p-2.5 rounded bg-[#F0F3FA] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39] space-y-0.5">
+                <div className="flex items-center gap-1.5 text-[10px] font-mono text-[#089981] dark:text-[#26A69A]">
                   <span className="w-2 h-2 rounded-xs bg-[#26A69A]" />
                   <span>ELITE (${metrics.eliteMonthlyUsd})</span>
                 </div>
-                <div className="text-sm font-bold text-[#F8FAFC] font-mono tabular-nums">
+                <div className="text-sm font-bold text-[#131722] dark:text-[#F8FAFC] font-mono tabular-nums">
                   {metrics.activeEliteCount}
                 </div>
-                <div className="text-[10px] font-mono tabular-nums text-[#64748B]">
+                <div className="text-[10px] font-mono tabular-nums text-[#787B86] dark:text-[#64748B]">
                   {elitePct}% • ${(metrics.activeEliteCount * metrics.eliteMonthlyUsd).toLocaleString()}/mo
                 </div>
               </div>
 
-              <div className="p-2.5 rounded bg-[#0B0E11] border border-[#2A2E39] space-y-0.5">
-                <div className="flex items-center gap-1.5 text-[10px] font-mono text-[#F0B90B]">
+              <div className="p-2.5 rounded bg-[#F0F3FA] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39] space-y-0.5">
+                <div className="flex items-center gap-1.5 text-[10px] font-mono text-[#9A6700] dark:text-[#F0B90B]">
                   <span className="w-2 h-2 rounded-xs bg-[#F0B90B]" />
                   <span>VIP (${metrics.vipMonthlyUsd})</span>
                 </div>
-                <div className="text-sm font-bold text-[#F8FAFC] font-mono tabular-nums">
+                <div className="text-sm font-bold text-[#131722] dark:text-[#F8FAFC] font-mono tabular-nums">
                   {metrics.activeVipCount}
                 </div>
-                <div className="text-[10px] font-mono tabular-nums text-[#64748B]">
+                <div className="text-[10px] font-mono tabular-nums text-[#787B86] dark:text-[#64748B]">
                   {vipPct}% • ${(metrics.activeVipCount * metrics.vipMonthlyUsd).toLocaleString()}/mo
                 </div>
               </div>
 
-              <div className="p-2.5 rounded bg-[#0B0E11] border border-[#2A2E39] space-y-0.5">
-                <div className="flex items-center gap-1.5 text-[10px] font-mono text-[#94A3B8]">
+              <div className="p-2.5 rounded bg-[#F0F3FA] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39] space-y-0.5">
+                <div className="flex items-center gap-1.5 text-[10px] font-mono text-[#4A5162] dark:text-[#94A3B8]">
                   <span className="w-2 h-2 rounded-xs bg-[#475569]" />
                   <span>FREE</span>
                 </div>
-                <div className="text-sm font-bold text-[#F8FAFC] font-mono tabular-nums">
+                <div className="text-sm font-bold text-[#131722] dark:text-[#F8FAFC] font-mono tabular-nums">
                   {metrics.freeCount}
                 </div>
-                <div className="text-[10px] font-mono tabular-nums text-[#64748B]">
+                <div className="text-[10px] font-mono tabular-nums text-[#787B86] dark:text-[#64748B]">
                   {freePct}% • $0/mo
                 </div>
               </div>
@@ -954,17 +954,17 @@ export const AdminAnalyticsOverview: React.FC<Props> = ({
           </div>
 
           {/* Active vs Expired Paid Ratio Gauge */}
-          <div className="p-3 rounded-md bg-[#0B0E11] border border-[#2A2E39] space-y-2">
+          <div className="p-3 rounded-md bg-[#F0F3FA] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39] space-y-2">
             <div className="flex items-center justify-between text-xs">
-              <span className="font-semibold text-[#E2E8F0]">
+              <span className="font-semibold text-[#131722] dark:text-[#E2E8F0]">
                 {isAr ? 'معدل الاشتراكات النشطة مقابل المنتهية' : 'Active vs Expired Paid Ratio'}
               </span>
-              <span className="font-mono font-bold tabular-nums text-[#26A69A]">
+              <span className="font-mono font-bold tabular-nums text-[#089981] dark:text-[#26A69A]">
                 {activeRetentionPct}% {isAr ? 'نشط' : 'Active'}
               </span>
             </div>
 
-            <div className="h-2.5 w-full rounded bg-[#1E222D] overflow-hidden flex">
+            <div className="h-2.5 w-full rounded bg-[#F8F9FD] dark:bg-[#1E222D] overflow-hidden flex">
               <div
                 style={{ width: `${activeRetentionPct}%` }}
                 className="h-full bg-[#26A69A] transition-all"
@@ -975,11 +975,11 @@ export const AdminAnalyticsOverview: React.FC<Props> = ({
               />
             </div>
 
-            <div className="flex items-center justify-between text-[10px] font-mono tabular-nums text-[#94A3B8]">
-              <span className="text-[#26A69A]">
+            <div className="flex items-center justify-between text-[10px] font-mono tabular-nums text-[#4A5162] dark:text-[#94A3B8]">
+              <span className="text-[#089981] dark:text-[#26A69A]">
                 {isAr ? 'نشط حالياً:' : 'Active Paid:'} {metrics.activePaidTotal}
               </span>
-              <span className="text-[#EF5350]">
+              <span className="text-[#D93848] dark:text-[#EF5350]">
                 {isAr ? 'منتهي الصلاحية:' : 'Expired:'} {metrics.expiredPaidCount}
               </span>
             </div>
@@ -992,18 +992,18 @@ export const AdminAnalyticsOverview: React.FC<Props> = ({
       {/* ========================================================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         {/* CHART 3: PLATFORM ACTIVITY (Signals Published Bot+Manual, Chat Activity, Support Tickets) */}
-        <div className="lg:col-span-7 p-4 rounded-lg bg-[#131722] border border-[#2A2E39] flex flex-col justify-between space-y-3">
+        <div className="lg:col-span-7 p-4 rounded-lg bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] flex flex-col justify-between space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <div className="flex items-center gap-2">
-                <Activity className="w-4 h-4 text-[#26A69A]" />
-                <h3 className="text-xs sm:text-sm font-bold text-[#F8FAFC]">
+                <Activity className="w-4 h-4 text-[#089981] dark:text-[#26A69A]" />
+                <h3 className="text-xs sm:text-sm font-bold text-[#131722] dark:text-[#F8FAFC]">
                   {isAr
                     ? `نشاط المنصة اليومي (${timeframe}): التوصيات، الشات، والدعم`
                     : `Platform Activity (${timeframe}): Signals, Chat & Support`}
                 </h3>
               </div>
-              <p className="text-[11px] text-[#64748B]">
+              <p className="text-[11px] text-[#787B86] dark:text-[#64748B]">
                 {isAr
                   ? 'إحصائيات الصفقات المنشورة (بوت + يدوي)، رسائل الشات، وتذاكر الدعم'
                   : 'Bounded limit(300) telemetry across published signals, trading chat, and support desk'}
@@ -1011,19 +1011,19 @@ export const AdminAnalyticsOverview: React.FC<Props> = ({
             </div>
 
             <div className="flex flex-wrap items-center gap-3 text-[10px] font-mono">
-              <span className="inline-flex items-center gap-1 text-[#26A69A]">
+              <span className="inline-flex items-center gap-1 text-[#089981] dark:text-[#26A69A]">
                 <span className="w-2.5 h-2.5 rounded-xs bg-[#26A69A]" />
                 <span>
                   {isAr ? 'التوصيات' : 'Signals'} ({activityTotals.totalSignals})
                 </span>
               </span>
-              <span className="inline-flex items-center gap-1 text-[#3B82F6]">
+              <span className="inline-flex items-center gap-1 text-[#1E53E5] dark:text-[#3B82F6]">
                 <span className="w-2.5 h-2.5 rounded-xs bg-[#3B82F6]" />
                 <span>
                   {isAr ? 'الشات' : 'Chat'} ({activityTotals.chatMessages})
                 </span>
               </span>
-              <span className="inline-flex items-center gap-1 text-[#F0B90B]">
+              <span className="inline-flex items-center gap-1 text-[#9A6700] dark:text-[#F0B90B]">
                 <span className="w-2.5 h-2.5 rounded-xs bg-[#F0B90B]" />
                 <span>
                   {isAr ? 'تذاكر الدعم' : 'Support'} ({activityTotals.supportTickets})
@@ -1033,23 +1033,23 @@ export const AdminAnalyticsOverview: React.FC<Props> = ({
           </div>
 
           {/* Interactive Grouped Bar Chart */}
-          <div className="relative h-[200px] w-full pt-6 pb-5 px-2 bg-[#0B0E11] border border-[#2A2E39] rounded-md select-none">
+          <div className="relative h-[200px] w-full pt-6 pb-5 px-2 bg-[#F0F3FA] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39] rounded-md select-none">
             {hoveredActivityIdx !== null && timeSeriesBuckets[hoveredActivityIdx] && (
-              <div className="absolute top-1.5 inset-x-2 flex flex-wrap items-center justify-between gap-2 px-2.5 py-1 rounded bg-[#1E222D] border border-[#2A2E39] text-[10px] font-mono tabular-nums z-10">
-                <span className="text-[#F8FAFC] font-bold">
+              <div className="absolute top-1.5 inset-x-2 flex flex-wrap items-center justify-between gap-2 px-2.5 py-1 rounded bg-[#F8F9FD] dark:bg-[#1E222D] border border-[#E0E3EB] dark:border-[#2A2E39] text-[10px] font-mono tabular-nums z-10">
+                <span className="text-[#131722] dark:text-[#F8FAFC] font-bold">
                   {timeSeriesBuckets[hoveredActivityIdx].label}
                 </span>
                 <div className="flex items-center gap-3">
-                  <span className="text-[#26A69A]">
+                  <span className="text-[#089981] dark:text-[#26A69A]">
                     {isAr ? 'توصيات:' : 'Signals:'}{' '}
                     {timeSeriesBuckets[hoveredActivityIdx].totalSignals} (Bot:{' '}
                     {timeSeriesBuckets[hoveredActivityIdx].botSignals} / Manual:{' '}
                     {timeSeriesBuckets[hoveredActivityIdx].manualSignals})
                   </span>
-                  <span className="text-[#3B82F6]">
+                  <span className="text-[#1E53E5] dark:text-[#3B82F6]">
                     {isAr ? 'شات:' : 'Chat:'} {timeSeriesBuckets[hoveredActivityIdx].chatMessages}
                   </span>
-                  <span className="text-[#F0B90B]">
+                  <span className="text-[#9A6700] dark:text-[#F0B90B]">
                     {isAr ? 'دعم:' : 'Support:'}{' '}
                     {timeSeriesBuckets[hoveredActivityIdx].supportTickets}
                   </span>
@@ -1076,24 +1076,24 @@ export const AdminAnalyticsOverview: React.FC<Props> = ({
                     key={`act-${bucket.dayKey}`}
                     onMouseEnter={() => setHoveredActivityIdx(idx)}
                     onMouseLeave={() => setHoveredActivityIdx(null)}
-                    className="flex-1 h-full flex items-end justify-center gap-0.5 cursor-pointer py-0.5 hover:bg-[#1E222D]/40 rounded"
+                    className="flex-1 h-full flex items-end justify-center gap-0.5 cursor-pointer py-0.5 hover:bg-[#EDF1F7] dark:hover:bg-[#1E222D]/40 rounded"
                   >
                     <div
                       style={{ height: `${sigH}%` }}
                       className={`w-1.5 sm:w-2 rounded-t ${
-                        bucket.totalSignals > 0 ? 'bg-[#26A69A]' : 'bg-[#1E222D]'
+                        bucket.totalSignals > 0 ? 'bg-[#089981] dark:bg-[#26A69A]' : 'bg-[#E0E3EB] dark:bg-[#1E222D]'
                       }`}
                     />
                     <div
                       style={{ height: `${chatH}%` }}
                       className={`w-1.5 sm:w-2 rounded-t ${
-                        bucket.chatMessages > 0 ? 'bg-[#3B82F6]' : 'bg-[#1E222D]'
+                        bucket.chatMessages > 0 ? 'bg-[#1E53E5] dark:bg-[#3B82F6]' : 'bg-[#E0E3EB] dark:bg-[#1E222D]'
                       }`}
                     />
                     <div
                       style={{ height: `${supH}%` }}
                       className={`w-1.5 sm:w-2 rounded-t ${
-                        bucket.supportTickets > 0 ? 'bg-[#F0B90B]' : 'bg-[#1E222D]'
+                        bucket.supportTickets > 0 ? 'bg-[#B47B00] dark:bg-[#F0B90B]' : 'bg-[#E0E3EB] dark:bg-[#1E222D]'
                       }`}
                     />
                   </div>
@@ -1101,7 +1101,7 @@ export const AdminAnalyticsOverview: React.FC<Props> = ({
               })}
             </div>
 
-            <div className="absolute bottom-1 inset-x-2 flex items-center justify-between text-[9px] font-mono text-[#64748B]">
+            <div className="absolute bottom-1 inset-x-2 flex items-center justify-between text-[9px] font-mono text-[#787B86] dark:text-[#64748B]">
               <span>{timeSeriesBuckets[0]?.label || ''}</span>
               <span>
                 {timeSeriesBuckets[Math.floor(timeSeriesBuckets.length / 2)]?.label || ''}
@@ -1112,50 +1112,50 @@ export const AdminAnalyticsOverview: React.FC<Props> = ({
 
           {/* Activity Summary Pill Row */}
           <div className="grid grid-cols-3 gap-2 text-[11px] font-mono tabular-nums">
-            <div className="px-2.5 py-1.5 rounded bg-[#0B0E11] border border-[#2A2E39] flex items-center justify-between">
-              <span className="text-[#94A3B8]">{isAr ? 'البوت / يدوي:' : 'Bot / Manual:'}</span>
-              <span className="text-[#26A69A] font-bold">
+            <div className="px-2.5 py-1.5 rounded bg-[#F0F3FA] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39] flex items-center justify-between">
+              <span className="text-[#4A5162] dark:text-[#94A3B8]">{isAr ? 'البوت / يدوي:' : 'Bot / Manual:'}</span>
+              <span className="text-[#089981] dark:text-[#26A69A] font-bold">
                 {activityTotals.botSignals} / {activityTotals.manualSignals}
               </span>
             </div>
-            <div className="px-2.5 py-1.5 rounded bg-[#0B0E11] border border-[#2A2E39] flex items-center justify-between">
-              <span className="text-[#94A3B8]">{isAr ? 'رسائل الشات:' : 'Chat Msgs:'}</span>
-              <span className="text-[#3B82F6] font-bold">{activityTotals.chatMessages}</span>
+            <div className="px-2.5 py-1.5 rounded bg-[#F0F3FA] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39] flex items-center justify-between">
+              <span className="text-[#4A5162] dark:text-[#94A3B8]">{isAr ? 'رسائل الشات:' : 'Chat Msgs:'}</span>
+              <span className="text-[#1E53E5] dark:text-[#3B82F6] font-bold">{activityTotals.chatMessages}</span>
             </div>
-            <div className="px-2.5 py-1.5 rounded bg-[#0B0E11] border border-[#2A2E39] flex items-center justify-between">
-              <span className="text-[#94A3B8]">{isAr ? 'تذاكر الدعم:' : 'Support:'}</span>
-              <span className="text-[#F0B90B] font-bold">{activityTotals.supportTickets}</span>
+            <div className="px-2.5 py-1.5 rounded bg-[#F0F3FA] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39] flex items-center justify-between">
+              <span className="text-[#4A5162] dark:text-[#94A3B8]">{isAr ? 'تذاكر الدعم:' : 'Support:'}</span>
+              <span className="text-[#9A6700] dark:text-[#F0B90B] font-bold">{activityTotals.supportTickets}</span>
             </div>
           </div>
         </div>
 
         {/* QUICK ACTION PANEL: TOP 5 "EXPIRING SOON" USERS WITH 1-CLICK JUMP TO CRM DRAWER */}
-        <div className="lg:col-span-5 p-4 rounded-lg bg-[#131722] border border-[#2A2E39] flex flex-col justify-between space-y-3">
+        <div className="lg:col-span-5 p-4 rounded-lg bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2A2E39] flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-[#F0B90B]" />
+              <Clock className="w-4 h-4 text-[#9A6700] dark:text-[#F0B90B]" />
               <div>
-                <h3 className="text-xs sm:text-sm font-bold text-[#F8FAFC]">
+                <h3 className="text-xs sm:text-sm font-bold text-[#131722] dark:text-[#F8FAFC]">
                   {isAr
                     ? 'أولوية التجديد: أقرب 5 اشتراكات انتهاءً'
                     : 'Quick Action: Top 5 Expiring Soon'}
                 </h3>
-                <p className="text-[11px] text-[#64748B]">
+                <p className="text-[11px] text-[#787B86] dark:text-[#64748B]">
                   {isAr
                     ? 'قفزة فورية بضغطة واحدة إلى درج التحكم لتجديد الاشتراك'
                     : '1-click jump straight into the subscriber CRM Control Drawer'}
                 </p>
               </div>
             </div>
-            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold tabular-nums bg-[#F0B90B]/15 text-[#F0B90B] border border-[#F0B90B]/40">
+            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold tabular-nums bg-[#FDF6E3] dark:bg-[#F0B90B]/15 text-[#9A6700] dark:text-[#F0B90B] border border-[#EFE0B4] dark:border-[#F0B90B]/40">
               {metrics.expiringWithin7DaysCount} {'<='} 7D
             </span>
           </div>
 
           <div className="flex-1 space-y-2">
             {metrics.top5ExpiringSoon.length === 0 ? (
-              <div className="h-[190px] rounded-md bg-[#0B0E11] border border-[#2A2E39] flex flex-col items-center justify-center text-center p-4 text-xs text-[#64748B]">
-                <ShieldCheck className="w-6 h-6 text-[#26A69A] mb-1.5 opacity-80" />
+              <div className="h-[190px] rounded-md bg-[#F0F3FA] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39] flex flex-col items-center justify-center text-center p-4 text-xs text-[#787B86] dark:text-[#64748B]">
+                <ShieldCheck className="w-6 h-6 text-[#089981] dark:text-[#26A69A] mb-1.5 opacity-80" />
                 <span>
                   {isAr
                     ? 'لا توجد اشتراكات تنتهي خلال الـ 7 أيام القادمة.'
@@ -1168,27 +1168,27 @@ export const AdminAnalyticsOverview: React.FC<Props> = ({
                 return (
                   <div
                     key={`exp-soon-${u.id}`}
-                    className="p-2.5 rounded-md bg-[#0B0E11] border border-[#2A2E39] hover:border-[#F0B90B]/50 transition-colors flex items-center justify-between gap-2"
+                    className="p-2.5 rounded-md bg-[#F0F3FA] dark:bg-[#0B0E11] border border-[#E0E3EB] dark:border-[#2A2E39] hover:border-[#F0B90B]/50 transition-colors flex items-center justify-between gap-2"
                   >
                     <div className="min-w-0 space-y-0.5">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold text-[#F8FAFC] truncate">
+                        <span className="text-xs font-bold text-[#131722] dark:text-[#F8FAFC] truncate">
                           {u.displayName}
                         </span>
                         <span
                           className={`px-1.5 py-0.2 rounded text-[9px] font-mono font-bold border ${
                             effTier === 'ELITE'
-                              ? 'bg-[#26A69A]/15 text-[#26A69A] border-[#26A69A]/40'
-                              : 'bg-[#F0B90B]/15 text-[#F0B90B] border-[#F0B90B]/40'
+                              ? 'bg-[#E6F5F2] dark:bg-[#26A69A]/15 text-[#089981] dark:text-[#26A69A] border-[#B3E2D9] dark:border-[#26A69A]/40'
+                              : 'bg-[#FDF6E3] dark:bg-[#F0B90B]/15 text-[#9A6700] dark:text-[#F0B90B] border-[#EFE0B4] dark:border-[#F0B90B]/40'
                           }`}
                         >
                           {effTier}
                         </span>
-                        <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-semibold bg-[#EF5350]/15 text-[#EF5350] border border-[#EF5350]/30">
+                        <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-semibold bg-[#FDECEE] dark:bg-[#EF5350]/15 text-[#D93848] dark:text-[#EF5350] border border-[#F5C2C7] dark:border-[#EF5350]/30">
                           {formatExpiryShort(u.subscriptionEndDate, isAr)}
                         </span>
                       </div>
-                      <p className="text-[10px] font-mono text-[#64748B] truncate">
+                      <p className="text-[10px] font-mono text-[#787B86] dark:text-[#64748B] truncate">
                         {u.phone || u.email}
                       </p>
                     </div>
@@ -1199,7 +1199,7 @@ export const AdminAnalyticsOverview: React.FC<Props> = ({
                           href={`https://wa.me/${cleanPhone}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="p-1.5 rounded bg-[#1E222D] hover:bg-[#2A2E39] border border-[#2A2E39] text-[#26A69A] transition-colors"
+                          className="p-1.5 rounded bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] border border-[#E0E3EB] dark:border-[#2A2E39] text-[#089981] dark:text-[#26A69A] transition-colors"
                           title="WhatsApp"
                         >
                           <Phone className="w-3.5 h-3.5" />
@@ -1230,7 +1230,7 @@ export const AdminAnalyticsOverview: React.FC<Props> = ({
                 soundManager.playClick();
                 onOpenUsersCrm();
               }}
-              className="w-full py-1.5 rounded bg-[#1E222D] hover:bg-[#2A2E39] border border-[#2A2E39] text-[11px] font-semibold text-[#E2E8F0] cursor-pointer"
+              className="w-full py-1.5 rounded bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] border border-[#E0E3EB] dark:border-[#2A2E39] text-[11px] font-semibold text-[#131722] dark:text-[#E2E8F0] cursor-pointer"
             >
               {isAr
                 ? `عرض جميع الاشتراكات القريبة من الانتهاء (${metrics.expiringWithin7DaysCount}) في CRM`

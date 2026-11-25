@@ -22,10 +22,35 @@
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script>
       (function () {
         try {
+          // 1. Synchronous pre-paint theme application (zero FOUC)
+          var savedTheme = localStorage.getItem('mbk_theme_mode_v2');
+          var resolved = 'dark';
+          if (savedTheme === 'light') {
+            resolved = 'light';
+          } else if (savedTheme === 'auto') {
+            resolved = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+          }
+          var root = document.documentElement;
+          root.setAttribute('data-theme', resolved);
+          root.setAttribute('data-theme-mode', savedTheme || 'dark');
+          root.style.colorScheme = resolved;
+          if (resolved === 'light') {
+            root.classList.add('theme-light');
+            root.classList.remove('dark', 'theme-dark');
+          } else {
+            root.classList.add('dark', 'theme-dark');
+            root.classList.remove('theme-light');
+          }
+          var themeMeta = document.querySelector('meta[name="theme-color"]');
+          if (themeMeta) {
+            themeMeta.setAttribute('content', resolved === 'light' ? '#F0F3FA' : '#06080c');
+          }
+
+          // 2. Build version cache housekeeping
           var BUILD_VER = 'mbk-2026-11-18-v8';
           var prev = localStorage.getItem('mbk_app_build_ver');
           if (prev !== BUILD_VER) {
@@ -52,7 +77,7 @@
       })();
     </script>
   </head>
-  <body class="bg-[#06080c] text-[#f1f5f9] antialiased selection:bg-[#10b981]/30 selection:text-white">
+  <body class="antialiased selection:bg-[#1E53E5]/15 dark:selection:bg-[#10b981]/30 selection:text-[#131722] dark:selection:text-white">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

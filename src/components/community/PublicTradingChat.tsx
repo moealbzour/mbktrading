@@ -397,8 +397,8 @@ export const PublicTradingChat: React.FC<Props> = ({
             key={`mention-${idx}`}
             className={`inline-flex items-center px-1.5 py-0.2 mx-0.5 rounded-md font-bold text-[11px] ${
               isMentioningMe
-                ? 'bg-amber-500/25 text-amber-300 border border-amber-500/50 shadow-xs'
-                : 'bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/40'
+                ? 'bg-[#FDF6E3] dark:bg-amber-500/25 text-[#9A6700] dark:text-amber-300 border border-[#EFE0B4] dark:border-amber-500/50 shadow-xs'
+                : 'bg-[#E6F5F2] dark:bg-[#10b981]/20 text-[#089981] dark:text-[#10b981] border border-[#B3E2D9] dark:border-[#10b981]/40'
             }`}
           >
             {part}
@@ -1152,15 +1152,15 @@ export const PublicTradingChat: React.FC<Props> = ({
   if (!canAccessChat) {
     return (
       <div
-        className="h-full w-full flex-1 min-h-0 flex flex-col items-center justify-center p-5 text-center bg-[#131722] border border-[#2a2e39] select-none"
+        className="h-full w-full flex-1 min-h-0 flex flex-col items-center justify-center p-5 text-center bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] select-none"
         dir={isAr ? 'rtl' : 'ltr'}
       >
-        <div className="max-w-sm w-full bg-[#1e222d] border border-amber-500/30 rounded-2xl p-6 shadow-2xl space-y-4">
-          <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/40 text-amber-400 flex items-center justify-center mx-auto">
+        <div className="max-w-sm w-full bg-[#F8F9FD] dark:bg-[#1e222d] border border-[#EFE0B4] dark:border-amber-500/30 rounded-2xl p-6 shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl space-y-4">
+          <div className="w-12 h-12 rounded-2xl bg-[#FDF6E3] dark:bg-amber-500/15 border border-[#EFE0B4] dark:border-amber-500/40 text-[#9A6700] dark:text-amber-400 flex items-center justify-center mx-auto">
             <Lock className="w-6 h-6" />
           </div>
           <div>
-            <h3 className="text-sm font-black text-white">
+            <h3 className="text-sm font-black text-[#131722] dark:text-white">
               {isAr ? 'الشات العام' : 'General Chat'}
             </h3>
             <p className="text-xs text-[#787b86] mt-1.5 leading-relaxed">
@@ -1177,7 +1177,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                   soundManager.playClick();
                   onOpenPlansModal();
                 }}
-                className="w-full py-2.5 px-4 rounded-xl bg-[#089981] hover:bg-[#07846f] text-white font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg"
+                className="w-full py-2.5 px-4 rounded-xl bg-[#089981] hover:bg-[#07846f] text-white font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-2 shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-lg"
               >
                 <Crown className="w-4 h-4" />
                 <span>{isAr ? 'ترقية إلى VIP ($100/mo)' : 'Upgrade to VIP ($100/mo)'}</span>
@@ -1190,7 +1190,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                   soundManager.playClick();
                   onOpenPromoModal();
                 }}
-                className="w-full py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-[#131722] font-black text-xs transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg"
+                className="w-full py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-[#131722] font-black text-xs transition-all cursor-pointer flex items-center justify-center gap-2 shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-lg"
               >
                 <KeyRound className="w-4 h-4" />
                 <span>{isAr ? 'تفعيل مفتاح VIP للدخول' : 'Activate VIP Key to Enter'}</span>
@@ -1204,7 +1204,7 @@ export const PublicTradingChat: React.FC<Props> = ({
 
   return (
     <div
-      className="h-full w-full flex-1 min-h-0 flex flex-col overflow-hidden relative select-none bg-[#1e222d]"
+      className="h-full w-full flex-1 min-h-0 flex flex-col overflow-hidden relative select-none bg-[#F8F9FD] dark:bg-[#1e222d]"
       dir={isAr ? 'rtl' : 'ltr'}
     >
       <input
@@ -1217,19 +1217,19 @@ export const PublicTradingChat: React.FC<Props> = ({
 
       {/* 1. ROOM HEADER */}
       <div
-        className={`border-b border-[#2a2e39] bg-[#131722]/95 flex items-center justify-between gap-1.5 shrink-0 ${
+        className={`border-b border-[#E0E3EB] dark:border-[#2a2e39] bg-[#FFFFFF]/95 dark:bg-[#131722]/95 flex items-center justify-between gap-1.5 shrink-0 ${
           isCompact ? 'px-2 py-2' : 'px-3 py-2.5 sm:py-3'
         }`}
       >
         <div className="flex items-center gap-2 min-w-0">
-          <div className="w-7 h-7 rounded-full bg-[#089981]/15 border border-[#089981]/40 flex items-center justify-center text-[#089981] shadow-sm shrink-0">
+          <div className="w-7 h-7 rounded-full bg-[#E6F5F2] dark:bg-[#089981]/15 border border-[#B3E2D9] dark:border-[#089981]/40 flex items-center justify-center text-[#089981] shadow-sm shrink-0">
             <Users className="w-3.5 h-3.5" />
           </div>
 
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 min-w-0">
               <h2
-                className={`font-bold text-white flex items-center gap-1 truncate ${
+                className={`font-bold text-[#131722] dark:text-white flex items-center gap-1 truncate ${
                   isCompact ? 'text-xs' : 'text-xs sm:text-sm'
                 }`}
               >
@@ -1238,12 +1238,12 @@ export const PublicTradingChat: React.FC<Props> = ({
 
               {!isCompact && (
                 chatRoomSettings.isClosed ? (
-                  <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-rose-500/20 text-rose-400 border border-rose-500/40 flex items-center gap-1 shrink-0">
+                  <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-[#FDECEE] dark:bg-rose-500/20 text-[#D93848] dark:text-rose-400 border border-[#F5C2C7] dark:border-rose-500/40 flex items-center gap-1 shrink-0">
                     <Lock className="w-2.5 h-2.5" />
                     <span>{isAr ? 'مغلق مؤقتاً' : 'LOCKED'}</span>
                   </span>
                 ) : (
-                  <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-[#089981]/20 text-[#089981] border border-[#089981]/40 flex items-center gap-1 shrink-0">
+                  <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-[#E6F5F2] dark:bg-[#089981]/20 text-[#089981] border border-[#B3E2D9] dark:border-[#089981]/40 flex items-center gap-1 shrink-0">
                     <span className="relative flex h-1.5 w-1.5">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#089981] opacity-75" />
                       <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#089981]" />
@@ -1259,7 +1259,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                 {isAr ? `${messages.length} رسالة` : `${messages.length} msgs`}
               </span>
               <span className="text-[#434651]">•</span>
-              <span className={chatRoomSettings.isClosed ? 'text-rose-400 font-bold' : 'text-[#089981] font-bold'}>
+              <span className={chatRoomSettings.isClosed ? 'text-[#D93848] dark:text-rose-400 font-bold' : 'text-[#089981] font-bold'}>
                 {chatRoomSettings.isClosed
                   ? isAr
                     ? 'مغلق مؤقتاً'
@@ -1283,7 +1283,7 @@ export const PublicTradingChat: React.FC<Props> = ({
             className={`px-2 py-1 rounded-lg text-[10px] font-bold border flex items-center gap-1 transition-colors cursor-pointer shrink-0 ${
               showActiveTradersDrawer
                 ? 'bg-[#089981] text-white border-[#089981]'
-                : 'bg-[#1e222d] hover:bg-[#2a2e39] text-[#089981] border-[#2a2e39]'
+                : 'bg-[#F8F9FD] dark:bg-[#1e222d] hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] text-[#089981] border-[#E0E3EB] dark:border-[#2a2e39]'
             }`}
             title={
               isAr
@@ -1321,8 +1321,8 @@ export const PublicTradingChat: React.FC<Props> = ({
                 }
                 className={`px-2 py-1 rounded-lg text-[10px] font-bold border flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-50 shrink-0 ${
                   chatRoomSettings.isClosed
-                    ? 'bg-[#089981]/20 hover:bg-[#089981]/30 text-[#089981] border-[#089981]/50'
-                    : 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border-amber-500/40'
+                    ? 'bg-[#E6F5F2] dark:bg-[#089981]/20 hover:bg-[#089981]/30 text-[#089981] border-[#B3E2D9] dark:border-[#089981]/50'
+                    : 'bg-[#FDF6E3] dark:bg-amber-500/15 hover:bg-amber-500/25 text-[#9A6700] dark:text-amber-300 border-[#EFE0B4] dark:border-amber-500/40'
                 }`}
               >
                 {chatRoomSettings.isClosed ? <Unlock className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
@@ -1347,7 +1347,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                   setPendingResetConfirm(true);
                 }}
                 title={isAr ? 'تصفير وحذف جميع رسائل الشات' : 'Reset / Clear All Messages'}
-                className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#f23645]/15 hover:bg-[#f23645]/25 text-[#f23645] border border-[#f23645]/40 flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+                className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#FDECEE] dark:bg-[#f23645]/15 hover:bg-[#f23645]/25 text-[#D93848] dark:text-[#f23645] border border-[#F5C2C7] dark:border-[#f23645]/40 flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-50 shrink-0"
               >
                 <RotateCcw className="w-3 h-3" />
                 {!isCompact && <span className="hidden sm:inline">{isAr ? 'تصفير' : 'Reset'}</span>}
@@ -1356,15 +1356,15 @@ export const PublicTradingChat: React.FC<Props> = ({
           )}
 
           {!isCompact && (
-            <div className="flex items-center gap-0.5 bg-[#1e222d] p-0.5 rounded-lg border border-[#2a2e39] text-[10px] font-mono">
+            <div className="flex items-center gap-0.5 bg-[#F8F9FD] dark:bg-[#1e222d] p-0.5 rounded-lg border border-[#E0E3EB] dark:border-[#2a2e39] text-[10px] font-mono">
               {['ALL', 'XAUUSD', 'US100'].map((sym) => (
                 <button
                   key={sym}
                   onClick={() => setActiveSymbolFilter(sym)}
                   className={`px-1.5 py-0.5 rounded transition-all cursor-pointer ${
                     activeSymbolFilter === sym
-                      ? 'bg-white text-[#131722] font-bold shadow-sm'
-                      : 'text-[#787b86] hover:text-white'
+                      ? 'bg-[#131722] dark:bg-white text-white dark:text-[#131722] font-bold shadow-sm'
+                      : 'text-[#787b86] hover:text-[#131722] dark:hover:text-white'
                   }`}
                 >
                   {sym === 'ALL' ? (isAr ? 'الكل' : 'ALL') : sym}
@@ -1377,9 +1377,9 @@ export const PublicTradingChat: React.FC<Props> = ({
 
       {/* Collapsible Swipe-Down Active Chat Participants Strip (0 Extra Firestore Reads/Writes) */}
       {showActiveTradersDrawer && (
-        <div className="bg-[#161b26] border-b border-[#2a2e39] px-3 py-2.5 shrink-0 space-y-2 animate-in slide-in-from-top-1 duration-150">
+        <div className="bg-[#FFFFFF] dark:bg-[#161b26] border-b border-[#E0E3EB] dark:border-[#2a2e39] px-3 py-2.5 shrink-0 space-y-2 animate-in slide-in-from-top-1 duration-150">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] font-bold text-white flex items-center gap-1.5">
+            <span className="text-[11px] font-bold text-[#131722] dark:text-white flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-[#089981]" />
               <span>
                 {isAr
@@ -1390,7 +1390,7 @@ export const PublicTradingChat: React.FC<Props> = ({
             <button
               type="button"
               onClick={() => setShowActiveTradersDrawer(false)}
-              className="text-[10px] text-[#787b86] hover:text-white cursor-pointer flex items-center gap-1"
+              className="text-[10px] text-[#787b86] hover:text-[#131722] dark:hover:text-white cursor-pointer flex items-center gap-1"
             >
               <span>{isAr ? 'إخفاء' : 'Hide'}</span>
               <X className="w-3 h-3" />
@@ -1413,14 +1413,14 @@ export const PublicTradingChat: React.FC<Props> = ({
                       role: trader.role
                     });
                   }}
-                  className="px-2.5 py-1.5 rounded-xl bg-[#131722] hover:bg-[#1e222d] border border-[#2a2e39] hover:border-[#089981]/50 flex items-center gap-2 shrink-0 cursor-pointer transition-all"
+                  className="px-2.5 py-1.5 rounded-xl bg-[#FFFFFF] dark:bg-[#131722] hover:bg-[#EDF1F7] dark:hover:bg-[#1e222d] border border-[#E0E3EB] dark:border-[#2a2e39] hover:border-[#089981]/50 flex items-center gap-2 shrink-0 cursor-pointer transition-all"
                   title={
                     isAr
                       ? `اضغط لعرض بطاقة ${trader.name} أو إرسال رسالة خاصة`
                       : `Click to view ${trader.name}'s card or send DM`
                   }
                 >
-                  <div className="relative w-6 h-6 rounded-full bg-[#2a2e39] border border-[#363a45] flex items-center justify-center text-[10px] font-bold text-white overflow-hidden shrink-0">
+                  <div className="relative w-6 h-6 rounded-full bg-[#EDF1F7] dark:bg-[#2a2e39] border border-[#CBD2DF] dark:border-[#363a45] flex items-center justify-center text-[10px] font-bold text-[#131722] dark:text-white overflow-hidden shrink-0">
                     {trader.avatar ? (
                       <img src={trader.avatar} alt={trader.name} className="w-full h-full object-cover" />
                     ) : (
@@ -1434,14 +1434,14 @@ export const PublicTradingChat: React.FC<Props> = ({
                   </div>
                   <div className="text-start">
                     <div className="flex items-center gap-1">
-                      <span className="text-[11px] font-bold text-white max-w-[110px] truncate">
+                      <span className="text-[11px] font-bold text-[#131722] dark:text-white max-w-[110px] truncate">
                         {trader.name}
                       </span>
                       <span
                         className={`inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[8px] font-bold ${
                           traderOnline
-                            ? 'bg-[#089981]/15 text-[#089981]'
-                            : 'bg-white/5 text-[#787b86]'
+                            ? 'bg-[#E6F5F2] dark:bg-[#089981]/15 text-[#089981]'
+                            : 'bg-[#F8F9FD] dark:bg-white/5 text-[#787b86]'
                         }`}
                       >
                         <span
@@ -1473,8 +1473,8 @@ export const PublicTradingChat: React.FC<Props> = ({
         <div
           className={`px-3 py-1.5 text-[11px] font-bold flex items-center justify-between border-b ${
             chatFeedback.type === 'error'
-              ? 'bg-[#f23645]/15 border-[#f23645]/40 text-[#f23645]'
-              : 'bg-[#089981]/15 border-[#089981]/40 text-[#089981]'
+              ? 'bg-[#FDECEE] dark:bg-[#f23645]/15 border-[#F5C2C7] dark:border-[#f23645]/40 text-[#D93848] dark:text-[#f23645]'
+              : 'bg-[#E6F5F2] dark:bg-[#089981]/15 border-[#B3E2D9] dark:border-[#089981]/40 text-[#089981]'
           }`}
         >
           <span>{chatFeedback.text}</span>
@@ -1486,16 +1486,16 @@ export const PublicTradingChat: React.FC<Props> = ({
 
       {/* PINNED ANNOUNCEMENT BANNER */}
       {pinnedMessage && (
-        <div className="bg-[#1e222d] border-b border-[#2a2e39] px-2.5 py-1.5 flex items-center justify-between text-xs text-amber-300/90 gap-2 shrink-0">
+        <div className="bg-[#F8F9FD] dark:bg-[#1e222d] border-b border-[#E0E3EB] dark:border-[#2a2e39] px-2.5 py-1.5 flex items-center justify-between text-xs text-[#9A6700] dark:text-amber-300/90 gap-2 shrink-0">
           <div className="flex items-center gap-1.5 min-w-0">
-            <div className="w-4 h-4 rounded bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+            <div className="w-4 h-4 rounded bg-[#FDF6E3] dark:bg-amber-500/20 text-[#9A6700] dark:text-amber-400 flex items-center justify-center shrink-0">
               <Pin className="w-2.5 h-2.5 rotate-45" />
             </div>
             <div className="min-w-0 flex items-baseline gap-1">
-              <span className="text-[10px] font-bold text-amber-400 whitespace-nowrap">
+              <span className="text-[10px] font-bold text-[#9A6700] dark:text-amber-400 whitespace-nowrap">
                 {isAr ? 'مثبت:' : 'Pinned:'}
               </span>
-              <span className="text-[11px] text-[#d1d4dc] truncate">{pinnedMessage.text}</span>
+              <span className="text-[11px] text-[#131722] dark:text-[#d1d4dc] truncate">{pinnedMessage.text}</span>
             </div>
           </div>
           {pinnedMessage.imageUrl && (
@@ -1519,7 +1519,7 @@ export const PublicTradingChat: React.FC<Props> = ({
       <div
         ref={scrollRef}
         onScroll={handleMessagesScroll}
-        className="flex-1 min-h-0 overflow-y-auto p-2.5 sm:p-3 space-y-2.5 bg-[#131722]/50 bg-repeat overscroll-contain relative scroll-smooth"
+        className="flex-1 min-h-0 overflow-y-auto p-2.5 sm:p-3 space-y-2.5 bg-[#FFFFFF]/90 dark:bg-[#131722]/50 bg-repeat overscroll-contain relative scroll-smooth"
         style={{
           backgroundImage: 'radial-gradient(#2a2e39 0.75px, transparent 0.75px)',
           backgroundSize: '24px 24px'
@@ -1531,9 +1531,9 @@ export const PublicTradingChat: React.FC<Props> = ({
             <span>{isAr ? 'جاري الاتصال بالشات العام...' : 'Connecting to General Chat...'}</span>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-16 text-[#787b86] text-xs bg-[#1e222d]/60 rounded-xl border border-[#2a2e39] p-4 max-w-sm mx-auto">
+          <div className="text-center py-16 text-[#787b86] text-xs bg-[#F8F9FD] dark:bg-[#1e222d]/60 rounded-xl border border-[#E0E3EB] dark:border-[#2a2e39] p-4 max-w-sm mx-auto">
             <MessageSquare className="w-8 h-8 mx-auto mb-2 text-[#089981] opacity-60" />
-            <p className="font-bold text-white mb-1">{isAr ? 'لا توجد رسائل مطابقة' : 'No messages found'}</p>
+            <p className="font-bold text-[#131722] dark:text-white mb-1">{isAr ? 'لا توجد رسائل مطابقة' : 'No messages found'}</p>
             <p className="text-[11px]">
               {isAr ? 'كن أول من يشارك رسالة في الشات العام!' : 'Be the first to post in General Chat!'}
             </p>
@@ -1558,13 +1558,13 @@ export const PublicTradingChat: React.FC<Props> = ({
               >
                 {/* Floating Quick Action Bar */}
                 <div
-                  className={`absolute -top-3 z-20 flex items-center gap-1 bg-[#1e222d] border border-[#2a2e39] px-1.5 py-0.5 rounded-full shadow-lg transition-opacity ${
+                  className={`absolute -top-3 z-20 flex items-center gap-1 bg-[#F8F9FD] dark:bg-[#1e222d] border border-[#E0E3EB] dark:border-[#2a2e39] px-1.5 py-0.5 rounded-full shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-lg transition-opacity ${
                     hoveredMessageId === msg.id ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
                   } ${isMe ? 'start-2' : 'end-2'}`}
                 >
                   <button
                     onClick={() => setShowEmojiPickerFor(showEmojiPickerFor === msg.id ? null : msg.id)}
-                    className="p-1 hover:bg-[#2a2e39] rounded-full text-[#787b86] hover:text-white transition-colors cursor-pointer"
+                    className="p-1 hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] rounded-full text-[#787b86] hover:text-[#131722] dark:hover:text-white transition-colors cursor-pointer"
                     title={isAr ? 'تفاعل بإيموجي' : 'React'}
                   >
                     <Smile className="w-3.5 h-3.5" />
@@ -1575,7 +1575,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                       soundManager.playClick();
                       setReplyingTo(msg);
                     }}
-                    className="p-1 hover:bg-[#2a2e39] rounded-full text-[#787b86] hover:text-white transition-colors cursor-pointer"
+                    className="p-1 hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] rounded-full text-[#787b86] hover:text-[#131722] dark:hover:text-white transition-colors cursor-pointer"
                     title={isAr ? 'رد على الرسالة' : 'Reply'}
                   >
                     <Reply className="w-3.5 h-3.5" />
@@ -1611,8 +1611,8 @@ export const PublicTradingChat: React.FC<Props> = ({
                     <>
                       <button
                         onClick={() => handlePinMessage(msg.id, msg.isPinned)}
-                        className={`p-1 hover:bg-[#2a2e39] rounded-full transition-colors cursor-pointer ${
-                          msg.isPinned ? 'text-amber-400' : 'text-[#787b86] hover:text-amber-400'
+                        className={`p-1 hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] rounded-full transition-colors cursor-pointer ${
+                          msg.isPinned ? 'text-[#9A6700] dark:text-amber-400' : 'text-[#787b86] hover:text-[#9A6700] dark:hover:text-amber-400'
                         }`}
                         title={isAr ? (msg.isPinned ? 'إلغاء التثبيت' : 'تثبيت الرسالة') : 'Pin/Unpin'}
                       >
@@ -1624,7 +1624,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                           <button
                             onClick={() => handleToggleMuteUser(msg.uid, msg.user)}
                             className={`p-1 hover:bg-amber-500/20 rounded-full transition-colors cursor-pointer ${
-                              targetMod?.isMutedFromChat ? 'text-amber-400' : 'text-[#787b86] hover:text-amber-400'
+                              targetMod?.isMutedFromChat ? 'text-[#9A6700] dark:text-amber-400' : 'text-[#787b86] hover:text-[#9A6700] dark:hover:text-amber-400'
                             }`}
                             title={isAr ? 'كتم / فك كتم المستخدم' : 'Mute / Unmute user'}
                           >
@@ -1634,7 +1634,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                           <button
                             onClick={() => handleToggleBanUser(msg.uid, msg.user)}
                             className={`p-1 hover:bg-[#f23645]/20 rounded-full transition-colors cursor-pointer ${
-                              targetMod?.isBanned ? 'text-[#f23645]' : 'text-[#787b86] hover:text-[#f23645]'
+                              targetMod?.isBanned ? 'text-[#D93848] dark:text-[#f23645]' : 'text-[#787b86] hover:text-[#f23645]'
                             }`}
                             title={isAr ? 'حظر / إلغاء حظر المستخدم' : 'Ban / Unban user'}
                           >
@@ -1657,7 +1657,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                 {/* Floating Emoji Picker Popover */}
                 {showEmojiPickerFor === msg.id && (
                   <div
-                    className={`absolute -top-10 z-30 bg-[#131722] border border-[#2a2e39] rounded-full px-2 py-1 flex items-center gap-1.5 shadow-2xl animate-fade-in ${
+                    className={`absolute -top-10 z-30 bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] rounded-full px-2 py-1 flex items-center gap-1.5 shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl animate-fade-in ${
                       isMe ? 'start-2' : 'end-2'
                     }`}
                   >
@@ -1675,25 +1675,25 @@ export const PublicTradingChat: React.FC<Props> = ({
 
                 {/* Message Bubble */}
                 <div
-                  className={`max-w-[85%] sm:max-w-[75%] rounded-2xl p-2.5 sm:p-3 text-xs leading-relaxed transition-all shadow-md relative ${
+                  className={`max-w-[85%] sm:max-w-[75%] rounded-2xl p-2.5 sm:p-3 text-xs leading-relaxed transition-all shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-md relative ${
                     isMe
-                      ? 'bg-gradient-to-br from-[#1e2e28] to-[#16231f] border border-[#089981]/40 text-[#e1e4ea] rounded-ee-sm'
+                      ? 'bg-[#E6F5F2] dark:bg-gradient-to-br dark:from-[#1e2e28] dark:to-[#16231f] border border-[#B3E2D9] dark:border-[#089981]/40 text-[#131722] dark:text-[#e1e4ea] rounded-ee-sm'
                       : isAdminOrAnalyst
-                      ? 'bg-gradient-to-br from-[#1e222d] to-[#1a1e29] border border-amber-500/35 text-white rounded-es-sm shadow-[0_4px_16px_rgba(0,0,0,0.3)]'
-                      : 'bg-[#1e222d] border border-[#2a2e39] text-[#d1d4dc] rounded-es-sm'
+                      ? 'bg-[#FDF6E3] dark:bg-gradient-to-br dark:from-[#1e222d] dark:to-[#1a1e29] border border-[#EFE0B4] dark:border-amber-500/35 text-[#131722] dark:text-white rounded-es-sm shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.3)]'
+                      : 'bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#E0E3EB] dark:border-[#2a2e39] text-[#131722] dark:text-[#d1d4dc] rounded-es-sm'
                   }`}
                 >
                   {msg.replyTo && (
-                    <div className="mb-2 p-1.5 rounded-lg bg-[#131722]/80 border-s-4 border-[#089981] text-[11px] text-[#787b86] flex items-center justify-between gap-2">
+                    <div className="mb-2 p-1.5 rounded-lg bg-[#FFFFFF]/95 dark:bg-[#131722]/80 border-s-4 border-[#089981] text-[11px] text-[#787b86] flex items-center justify-between gap-2">
                       <div className="min-w-0">
                         <span className="font-bold text-[#089981] block truncate">{msg.replyTo.user}</span>
-                        <span className="truncate block text-white/80">{msg.replyTo.text}</span>
+                        <span className="truncate block text-[#4A5162] dark:text-white/80">{msg.replyTo.text}</span>
                       </div>
                       {msg.replyTo.imageUrl && (
                         <img
                           src={msg.replyTo.imageUrl}
                           alt="Thumbnail"
-                          className="w-8 h-8 rounded object-cover shrink-0 border border-[#2a2e39]"
+                          className="w-8 h-8 rounded object-cover shrink-0 border border-[#E0E3EB] dark:border-[#2a2e39]"
                         />
                       )}
                     </div>
@@ -1724,10 +1724,10 @@ export const PublicTradingChat: React.FC<Props> = ({
                                   <img
                                     src={msg.avatar}
                                     alt={msg.user}
-                                    className="w-5 h-5 rounded-full object-cover border border-[#363a45]"
+                                    className="w-5 h-5 rounded-full object-cover border border-[#CBD2DF] dark:border-[#363a45]"
                                   />
                                 ) : (
-                                  <div className="w-5 h-5 rounded-full bg-[#2a2e39] border border-[#363a45] text-[10px] font-bold text-white flex items-center justify-center">
+                                  <div className="w-5 h-5 rounded-full bg-[#EDF1F7] dark:bg-[#2a2e39] border border-[#CBD2DF] dark:border-[#363a45] text-[10px] font-bold text-[#131722] dark:text-white flex items-center justify-center">
                                     {msg.user ? msg.user[0].toUpperCase() : 'M'}
                                   </div>
                                 )}
@@ -1746,7 +1746,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                                   }
                                 />
                               </div>
-                              <span className="font-bold text-white hover:text-[#089981] text-[11px] sm:text-xs truncate transition-colors">
+                              <span className="font-bold text-[#131722] dark:text-white hover:text-[#089981] text-[11px] sm:text-xs truncate transition-colors">
                                 {msg.user}
                               </span>
                             </button>
@@ -1754,8 +1754,8 @@ export const PublicTradingChat: React.FC<Props> = ({
                             <span
                               className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[8px] font-bold border shrink-0 ${
                                 isMsgUserOnline
-                                  ? 'bg-[#089981]/15 text-[#089981] border-[#089981]/35'
-                                  : 'bg-white/5 text-[#787b86] border-white/10'
+                                  ? 'bg-[#E6F5F2] dark:bg-[#089981]/15 text-[#089981] border-[#B3E2D9] dark:border-[#089981]/35'
+                                  : 'bg-[#F8F9FD] dark:bg-white/5 text-[#787b86] border-[#E0E3EB] dark:border-white/10'
                               }`}
                               title={
                                 isMsgUserOnline
@@ -1790,24 +1790,24 @@ export const PublicTradingChat: React.FC<Props> = ({
                         const r = (msg.role || 'VIP').toUpperCase();
                         if (r === 'ADMIN') {
                           return (
-                            <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-black bg-rose-500/20 text-rose-300 border border-rose-500/50 flex items-center gap-0.5 shrink-0">
-                              <Crown className="w-2.5 h-2.5 text-rose-400" />
+                            <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-black bg-[#FDECEE] dark:bg-rose-500/20 text-[#D93848] dark:text-rose-300 border border-[#F5C2C7] dark:border-rose-500/50 flex items-center gap-0.5 shrink-0">
+                              <Crown className="w-2.5 h-2.5 text-[#D93848] dark:text-rose-400" />
                               <span>ADMIN</span>
                             </span>
                           );
                         }
                         if (r === 'VIP' || r === 'ELITE') {
                           return (
-                            <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/50 flex items-center gap-0.5 shrink-0">
-                              <Sparkles className="w-2.5 h-2.5 text-amber-400" />
+                            <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-bold bg-[#FDF6E3] dark:bg-amber-500/20 text-[#9A6700] dark:text-amber-300 border border-[#EFE0B4] dark:border-amber-500/50 flex items-center gap-0.5 shrink-0">
+                              <Sparkles className="w-2.5 h-2.5 text-[#9A6700] dark:text-amber-400" />
                               <span>{r}</span>
                             </span>
                           );
                         }
                         if (r === 'MODERATOR' || r === 'SALES' || r === 'ANALYST' || r === 'ANALYSER') {
                           return (
-                            <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 flex items-center gap-0.5 shrink-0">
-                              <ShieldCheck className="w-2.5 h-2.5 text-cyan-400" />
+                            <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-bold bg-[#EDF1F7] dark:bg-cyan-500/20 text-[#1E53E5] dark:text-cyan-300 border border-[#CBD2DF] dark:border-cyan-500/50 flex items-center gap-0.5 shrink-0">
+                              <ShieldCheck className="w-2.5 h-2.5 text-[#1E53E5] dark:text-cyan-400" />
                               <span>{r}</span>
                             </span>
                           );
@@ -1816,7 +1816,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                       })()}
 
                       {msg.symbolTag && (
-                        <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 shrink-0">
+                        <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-[#EDF1F7] dark:bg-cyan-500/15 text-[#1E53E5] dark:text-cyan-400 border border-[#CBD2DF] dark:border-cyan-500/30 shrink-0">
                           ${msg.symbolTag}
                         </span>
                       )}
@@ -1827,14 +1827,14 @@ export const PublicTradingChat: React.FC<Props> = ({
 
                   {/* Embedded Interactive Trade Setup Card */}
                   {msg.tradeCard && (
-                    <div className="mb-2 p-2.5 rounded-xl bg-[#131722]/90 border border-[#089981]/40 space-y-2">
-                      <div className="flex items-center justify-between gap-2 border-b border-[#2a2e39] pb-1.5">
+                    <div className="mb-2 p-2.5 rounded-xl bg-[#FFFFFF]/95 dark:bg-[#131722]/90 border border-[#B3E2D9] dark:border-[#089981]/40 space-y-2">
+                      <div className="flex items-center justify-between gap-2 border-b border-[#E0E3EB] dark:border-[#2a2e39] pb-1.5">
                         <div className="flex items-center gap-1.5">
                           <span
                             className={`px-2 py-0.5 rounded text-[10px] font-mono font-extrabold flex items-center gap-1 ${
                               msg.tradeCard.action === 'BUY'
-                                ? 'bg-[#089981]/20 text-[#089981] border border-[#089981]/40'
-                                : 'bg-[#f23645]/20 text-[#f23645] border border-[#f23645]/40'
+                                ? 'bg-[#E6F5F2] dark:bg-[#089981]/20 text-[#089981] border border-[#B3E2D9] dark:border-[#089981]/40'
+                                : 'bg-[#FDECEE] dark:bg-[#f23645]/20 text-[#D93848] dark:text-[#f23645] border border-[#F5C2C7] dark:border-[#f23645]/40'
                             }`}
                           >
                             {msg.tradeCard.action === 'BUY' ? (
@@ -1844,11 +1844,11 @@ export const PublicTradingChat: React.FC<Props> = ({
                             )}
                             <span>{msg.tradeCard.action}</span>
                           </span>
-                          <span className="font-mono font-black text-white text-xs">
+                          <span className="font-mono font-black text-[#131722] dark:text-white text-xs">
                             {msg.tradeCard.symbol}
                           </span>
                           {msg.tradeCard.timeframe && (
-                            <span className="text-[9px] font-mono text-[#787b86] bg-[#1e222d] px-1.5 py-0.5 rounded border border-[#2a2e39]">
+                            <span className="text-[9px] font-mono text-[#787b86] bg-[#F8F9FD] dark:bg-[#1e222d] px-1.5 py-0.5 rounded border border-[#E0E3EB] dark:border-[#2a2e39]">
                               {msg.tradeCard.timeframe}
                             </span>
                           )}
@@ -1870,17 +1870,17 @@ export const PublicTradingChat: React.FC<Props> = ({
                       </div>
 
                       <div className="grid grid-cols-3 gap-1.5 text-center font-mono tabular-nums text-[10px]">
-                        <div className="p-1.5 rounded-lg bg-[#1e222d] border border-[#2a2e39]">
+                        <div className="p-1.5 rounded-lg bg-[#F8F9FD] dark:bg-[#1e222d] border border-[#E0E3EB] dark:border-[#2a2e39]">
                           <span className="text-[8px] text-[#787b86] block">{isAr ? 'الدخول' : 'ENTRY'}</span>
-                          <span className="font-bold text-white">{msg.tradeCard.entry}</span>
+                          <span className="font-bold text-[#131722] dark:text-white">{msg.tradeCard.entry}</span>
                         </div>
-                        <div className="p-1.5 rounded-lg bg-[#089981]/10 border border-[#089981]/30">
+                        <div className="p-1.5 rounded-lg bg-[#E6F5F2] dark:bg-[#089981]/10 border border-[#B3E2D9] dark:border-[#089981]/30">
                           <span className="text-[8px] text-[#089981] block">{isAr ? 'الهدف TP1' : 'TARGET TP1'}</span>
                           <span className="font-bold text-[#089981]">{msg.tradeCard.tp1}</span>
                         </div>
-                        <div className="p-1.5 rounded-lg bg-[#f23645]/10 border border-[#f23645]/30">
-                          <span className="text-[8px] text-[#f23645] block">{isAr ? 'الوقف SL' : 'STOP LOSS'}</span>
-                          <span className="font-bold text-[#f23645]">{msg.tradeCard.sl}</span>
+                        <div className="p-1.5 rounded-lg bg-[#FDECEE] dark:bg-[#f23645]/10 border border-[#F5C2C7] dark:border-[#f23645]/30">
+                          <span className="text-[8px] text-[#D93848] dark:text-[#f23645] block">{isAr ? 'الوقف SL' : 'STOP LOSS'}</span>
+                          <span className="font-bold text-[#D93848] dark:text-[#f23645]">{msg.tradeCard.sl}</span>
                         </div>
                       </div>
                     </div>
@@ -1888,8 +1888,8 @@ export const PublicTradingChat: React.FC<Props> = ({
 
                   {/* Embedded Voice Note Player */}
                   {msg.audioUrl && (
-                    <div className="mb-2 p-2 rounded-xl bg-[#131722]/90 border border-[#089981]/35 flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-full bg-[#089981]/20 border border-[#089981]/40 text-[#089981] flex items-center justify-center shrink-0">
+                    <div className="mb-2 p-2 rounded-xl bg-[#FFFFFF]/95 dark:bg-[#131722]/90 border border-[#B3E2D9] dark:border-[#089981]/35 flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-full bg-[#E6F5F2] dark:bg-[#089981]/20 border border-[#B3E2D9] dark:border-[#089981]/40 text-[#089981] flex items-center justify-center shrink-0">
                         <Mic className="w-3.5 h-3.5" />
                       </div>
                       <audio
@@ -1906,7 +1906,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                   )}
 
                   {msg.imageUrl && (
-                    <div className="mb-2 rounded-xl overflow-hidden border border-[#2a2e39] bg-black/40 group/img relative">
+                    <div className="mb-2 rounded-xl overflow-hidden border border-[#E0E3EB] dark:border-[#2a2e39] bg-[#F8F9FD] dark:bg-black/40 group/img relative">
                       <img
                         src={msg.imageUrl}
                         alt="Chart Analysis"
@@ -1933,14 +1933,14 @@ export const PublicTradingChat: React.FC<Props> = ({
                             user: msg.user
                           })
                         }
-                        className="absolute bottom-2 end-2 px-2 py-1 rounded-lg bg-black/75 backdrop-blur-md text-white text-[10px] font-bold flex items-center gap-1 border border-white/20 opacity-90 hover:opacity-100 cursor-pointer shadow-lg"
+                        className="absolute bottom-2 end-2 px-2 py-1 rounded-lg bg-[#131722]/85 dark:bg-black/75 dark:backdrop-blur-md text-white text-[10px] font-bold flex items-center gap-1 border border-white/20 opacity-95 hover:opacity-100 cursor-pointer shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-lg"
                       >
-                        <Maximize2 className="w-3 h-3 text-[#089981]" />
+                        <Maximize2 className="w-3 h-3 text-[#26A69A] dark:text-[#089981]" />
                         <span>{isAr ? 'تكبير الشارت' : 'Zoom Chart'}</span>
                       </button>
 
                       {msg.imageCaption && (
-                        <div className="p-2 bg-[#131722]/90 border-t border-[#2a2e39] text-[11px] font-mono text-amber-300/90 font-semibold">
+                        <div className="p-2 bg-[#FFFFFF]/95 dark:bg-[#131722]/90 border-t border-[#E0E3EB] dark:border-[#2a2e39] text-[11px] font-mono text-[#9A6700] dark:text-amber-300/90 font-semibold">
                           📊 {msg.imageCaption}
                         </div>
                       )}
@@ -1963,7 +1963,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                             setEditingMessageText('');
                           }
                         }}
-                        className="w-full bg-[#131722] border border-[#089981] rounded-xl p-2 text-xs text-white focus:outline-none resize-none"
+                        className="w-full bg-[#FFFFFF] dark:bg-[#131722] border border-[#089981] rounded-xl p-2 text-xs text-[#131722] dark:text-white focus:outline-none resize-none"
                         autoFocus
                       />
                       <div className="flex items-center justify-end gap-1.5">
@@ -1974,7 +1974,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                             setEditingMessageId(null);
                             setEditingMessageText('');
                           }}
-                          className="px-2.5 py-1 rounded-lg bg-[#131722] border border-[#2a2e39] text-[#787b86] hover:text-white text-[10px] font-bold cursor-pointer"
+                          className="px-2.5 py-1 rounded-lg bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] text-[#787b86] hover:text-[#131722] dark:hover:text-white text-[10px] font-bold cursor-pointer"
                         >
                           {isAr ? 'إلغاء' : 'Cancel'}
                         </button>
@@ -1990,7 +1990,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                     </div>
                   ) : msg.text ? (
                     <div>
-                      <p className="text-xs text-[#e1e4ea] leading-relaxed break-words whitespace-pre-wrap">
+                      <p className="text-xs text-[#131722] dark:text-[#e1e4ea] leading-relaxed break-words whitespace-pre-wrap">
                         {renderMessageTextWithMentions(msg.text)}
                       </p>
                       {msg.editedAt && (
@@ -2002,7 +2002,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                   ) : null}
 
                   {/* Footer: Reactions + Admin/User quick actions */}
-                  <div className="flex items-center justify-between gap-2 mt-2 pt-1 border-t border-white/5">
+                  <div className="flex items-center justify-between gap-2 mt-2 pt-1 border-t border-[#E0E3EB] dark:border-white/5">
                     <div className="flex items-center gap-1 flex-wrap">
                       {msg.reactions &&
                         Object.entries(msg.reactions).map(([emoji, count]) => {
@@ -2027,8 +2027,8 @@ export const PublicTradingChat: React.FC<Props> = ({
                               }
                               className={`px-1.5 py-0.5 rounded-full border text-[10px] flex items-center gap-1 transition-colors cursor-pointer ${
                                 hasReacted && !isCurrentAdmin
-                                  ? 'bg-[#089981]/20 border-[#089981] text-white'
-                                  : 'bg-[#131722]/80 border-[#2a2e39] hover:border-[#089981]'
+                                  ? 'bg-[#E6F5F2] dark:bg-[#089981]/20 border-[#089981] text-[#131722] dark:text-white'
+                                  : 'bg-[#FFFFFF]/95 dark:bg-[#131722]/80 border-[#E0E3EB] dark:border-[#2a2e39] hover:border-[#089981]'
                               }`}
                             >
                               <span>{emoji}</span>
@@ -2041,7 +2041,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                         onClick={() => handleReact(msg.id, '❤️')}
                         className={`flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded transition-colors cursor-pointer ${
                           userReactionsSet.has(`${msg.id}::❤️`) && !isCurrentAdmin
-                            ? 'text-[#f23645] bg-[#f23645]/10'
+                            ? 'text-[#D93848] dark:text-[#f23645] bg-[#FDECEE] dark:bg-[#f23645]/10'
                             : 'text-[#787b86] hover:text-[#f23645]'
                         }`}
                       >
@@ -2055,7 +2055,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                         <button
                           type="button"
                           onClick={() => handleStartEditMessage(msg)}
-                          className="px-1.5 py-0.5 rounded-md bg-[#131722]/70 hover:bg-[#089981]/20 border border-[#2a2e39] hover:border-[#089981]/50 text-[#9db2c6] hover:text-[#089981] text-[9px] font-bold inline-flex items-center gap-1 cursor-pointer transition-colors"
+                          className="px-1.5 py-0.5 rounded-md bg-[#FFFFFF]/95 dark:bg-[#131722]/70 hover:bg-[#089981]/20 border border-[#E0E3EB] dark:border-[#2a2e39] hover:border-[#089981]/50 text-[#4A5162] dark:text-[#9db2c6] hover:text-[#089981] text-[9px] font-bold inline-flex items-center gap-1 cursor-pointer transition-colors"
                           title={isAr ? 'تعديل الرسالة' : 'Edit message'}
                         >
                           <Edit3 className="w-2.5 h-2.5" />
@@ -2074,7 +2074,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                               role: msg.role
                             });
                           }}
-                          className="px-1.5 py-0.5 rounded-md bg-[#131722]/70 hover:bg-[#089981]/20 border border-[#2a2e39] hover:border-[#089981]/50 text-[#9db2c6] hover:text-[#089981] text-[9px] font-bold inline-flex items-center gap-1 cursor-pointer transition-colors"
+                          className="px-1.5 py-0.5 rounded-md bg-[#FFFFFF]/95 dark:bg-[#131722]/70 hover:bg-[#089981]/20 border border-[#E0E3EB] dark:border-[#2a2e39] hover:border-[#089981]/50 text-[#4A5162] dark:text-[#9db2c6] hover:text-[#089981] text-[9px] font-bold inline-flex items-center gap-1 cursor-pointer transition-colors"
                           title={isAr ? `مراسلة ${msg.user} على الخاص` : `DM ${msg.user}`}
                         >
                           <Mail className="w-2.5 h-2.5" />
@@ -2110,7 +2110,7 @@ export const PublicTradingChat: React.FC<Props> = ({
         <button
           type="button"
           onClick={() => scrollToBottom('smooth')}
-          className="absolute bottom-16 start-1/2 -translate-x-1/2 z-30 px-3 py-1.5 rounded-full bg-[#089981] hover:bg-[#07806c] text-white text-[11px] font-bold shadow-2xl flex items-center gap-1.5 border border-white/20 animate-bounce cursor-pointer select-none"
+          className="absolute bottom-16 start-1/2 -translate-x-1/2 z-30 px-3 py-1.5 rounded-full bg-[#089981] hover:bg-[#07806c] text-white text-[11px] font-bold shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl flex items-center gap-1.5 border border-[#CBD2DF] dark:border-white/20 animate-bounce cursor-pointer select-none"
         >
           <ChevronDown className="w-3.5 h-3.5" />
           <span>{isAr ? 'أحدث الرسائل' : 'Latest messages'}</span>
@@ -2124,7 +2124,7 @@ export const PublicTradingChat: React.FC<Props> = ({
 
       {/* 3. ACTIVE REPLY PREVIEW BANNER */}
       {replyingTo && (
-        <div className="p-2 border-t border-[#2a2e39] bg-[#131722] flex items-center justify-between gap-2 text-xs shrink-0">
+        <div className="p-2 border-t border-[#E0E3EB] dark:border-[#2a2e39] bg-[#FFFFFF] dark:bg-[#131722] flex items-center justify-between gap-2 text-xs shrink-0">
           <div className="flex items-center gap-2 min-w-0">
             <Reply className="w-4 h-4 text-[#089981] shrink-0" />
             <div className="min-w-0">
@@ -2138,7 +2138,7 @@ export const PublicTradingChat: React.FC<Props> = ({
           </div>
           <button
             onClick={() => setReplyingTo(null)}
-            className="p-1 rounded text-[#787b86] hover:text-white hover:bg-[#2a2e39] cursor-pointer"
+            className="p-1 rounded text-[#787b86] hover:text-[#131722] dark:hover:text-white hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] cursor-pointer"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -2147,25 +2147,25 @@ export const PublicTradingChat: React.FC<Props> = ({
 
       {/* 4a. ATTACHED TRADE SETUP CARD PREVIEW */}
       {attachedTradeCard && (
-        <div className="p-2.5 border-t border-[#2a2e39] bg-[#1a1e28] flex items-center justify-between gap-3 shrink-0">
+        <div className="p-2.5 border-t border-[#E0E3EB] dark:border-[#2a2e39] bg-[#F8F9FD] dark:bg-[#1a1e28] flex items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-2.5 min-w-0">
             <span
               className={`px-2 py-0.5 rounded text-[10px] font-mono font-extrabold ${
                 attachedTradeCard.action === 'BUY'
-                  ? 'bg-[#089981]/20 text-[#089981] border border-[#089981]/40'
-                  : 'bg-[#f23645]/20 text-[#f23645] border border-[#f23645]/40'
+                  ? 'bg-[#E6F5F2] dark:bg-[#089981]/20 text-[#089981] border border-[#B3E2D9] dark:border-[#089981]/40'
+                  : 'bg-[#FDECEE] dark:bg-[#f23645]/20 text-[#D93848] dark:text-[#f23645] border border-[#F5C2C7] dark:border-[#f23645]/40'
               }`}
             >
               {attachedTradeCard.action} {attachedTradeCard.symbol}
             </span>
-            <span className="text-[11px] font-mono text-[#d1d4dc] truncate">
+            <span className="text-[11px] font-mono text-[#131722] dark:text-[#d1d4dc] truncate">
               E: {attachedTradeCard.entry} • TP: {attachedTradeCard.tp1} • SL: {attachedTradeCard.sl}
             </span>
           </div>
           <button
             type="button"
             onClick={() => setAttachedTradeCard(null)}
-            className="p-1 rounded-lg bg-[#131722] text-[#787b86] hover:text-[#f23645] cursor-pointer"
+            className="p-1 rounded-lg bg-[#FFFFFF] dark:bg-[#131722] text-[#787b86] hover:text-[#f23645] cursor-pointer"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -2174,10 +2174,10 @@ export const PublicTradingChat: React.FC<Props> = ({
 
       {/* 4b. RECORDED VOICE NOTE PREVIEW OR ACTIVE RECORDING BAR */}
       {(isRecordingVoice || recordedAudioDataUrl) && (
-        <div className="p-2.5 border-t border-[#2a2e39] bg-[#1a1e28] flex items-center justify-between gap-2.5 shrink-0">
+        <div className="p-2.5 border-t border-[#E0E3EB] dark:border-[#2a2e39] bg-[#F8F9FD] dark:bg-[#1a1e28] flex items-center justify-between gap-2.5 shrink-0">
           {isRecordingVoice ? (
             <>
-              <div className="flex items-center gap-2 text-xs font-bold text-[#f23645]">
+              <div className="flex items-center gap-2 text-xs font-bold text-[#D93848] dark:text-[#f23645]">
                 <span className="w-2.5 h-2.5 rounded-full bg-[#f23645] animate-ping" />
                 <span>
                   {isAr ? 'جاري تسجيل ملاحظة صوتية...' : 'Recording voice note...'} ({recordingSeconds}s / 30s)
@@ -2187,7 +2187,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                 <button
                   type="button"
                   onClick={cancelVoiceRecording}
-                  className="px-2.5 py-1 rounded-lg bg-[#131722] border border-[#2a2e39] text-[#787b86] hover:text-white text-[11px] font-bold cursor-pointer"
+                  className="px-2.5 py-1 rounded-lg bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] text-[#787b86] hover:text-[#131722] dark:hover:text-white text-[11px] font-bold cursor-pointer"
                 >
                   {isAr ? 'إلغاء' : 'Cancel'}
                 </button>
@@ -2204,7 +2204,7 @@ export const PublicTradingChat: React.FC<Props> = ({
           ) : (
             <>
               <div className="flex items-center gap-2 flex-1 min-w-0">
-                <div className="w-7 h-7 rounded-full bg-[#089981]/20 border border-[#089981]/40 text-[#089981] flex items-center justify-center shrink-0">
+                <div className="w-7 h-7 rounded-full bg-[#E6F5F2] dark:bg-[#089981]/20 border border-[#B3E2D9] dark:border-[#089981]/40 text-[#089981] flex items-center justify-center shrink-0">
                   <Mic className="w-3.5 h-3.5" />
                 </div>
                 <audio controls src={recordedAudioDataUrl!} className="h-8 w-full max-w-[220px]" />
@@ -2215,7 +2215,7 @@ export const PublicTradingChat: React.FC<Props> = ({
               <button
                 type="button"
                 onClick={cancelVoiceRecording}
-                className="p-1 rounded-lg bg-[#131722] text-[#787b86] hover:text-[#f23645] cursor-pointer"
+                className="p-1 rounded-lg bg-[#FFFFFF] dark:bg-[#131722] text-[#787b86] hover:text-[#f23645] cursor-pointer"
                 title={isAr ? 'حذف التسجيل' : 'Discard voice note'}
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -2227,12 +2227,12 @@ export const PublicTradingChat: React.FC<Props> = ({
 
       {/* 4c. ATTACHED IMAGE PREVIEW (Admin Only) */}
       {selectedImage && isCurrentAdmin && (
-        <div className="p-2.5 border-t border-[#2a2e39] bg-[#1a1e28] flex items-center gap-3 shrink-0">
+        <div className="p-2.5 border-t border-[#E0E3EB] dark:border-[#2a2e39] bg-[#F8F9FD] dark:bg-[#1a1e28] flex items-center gap-3 shrink-0">
           <div className="relative w-14 h-14 rounded-lg overflow-hidden border border-[#089981] shrink-0">
             <img src={selectedImage} alt="Attachment Preview" className="w-full h-full object-cover" />
             <button
               onClick={() => setSelectedImage(null)}
-              className="absolute top-0.5 end-0.5 p-0.5 rounded-full bg-black/80 text-white hover:text-[#f23645] cursor-pointer"
+              className="absolute top-0.5 end-0.5 p-0.5 rounded-full bg-[#131722]/85 dark:bg-black/80 text-white hover:text-[#f23645] cursor-pointer"
             >
               <X className="w-3 h-3" />
             </button>
@@ -2248,7 +2248,7 @@ export const PublicTradingChat: React.FC<Props> = ({
               value={imageCaption}
               onChange={(e) => setImageCaption(e.target.value.slice(0, 200))}
               placeholder={isAr ? 'اكتب تعليقاً على الشارت (اختياري)...' : 'Add chart caption...'}
-              className="w-full bg-[#131722] border border-[#2a2e39] rounded px-2 py-1 text-xs text-white placeholder-[#787b86] mt-1 focus:outline-none focus:border-[#089981]"
+              className="w-full bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] rounded px-2 py-1 text-xs text-[#131722] dark:text-white placeholder-[#787B86] dark:placeholder-[#787b86] mt-1 focus:outline-none focus:border-[#1E53E5] dark:focus:border-[#089981]"
             />
           </div>
         </div>
@@ -2256,7 +2256,7 @@ export const PublicTradingChat: React.FC<Props> = ({
 
       {/* 5. COMPACT INPUT ROW */}
       {isMutedFromChat ? (
-        <div className="p-3 border-t border-[#f23645]/40 bg-[#f23645]/10 text-[#f23645] text-xs font-bold text-center flex items-center justify-center gap-2 shrink-0">
+        <div className="p-3 border-t border-[#F5C2C7] dark:border-[#f23645]/40 bg-[#FDECEE] dark:bg-[#f23645]/10 text-[#D93848] dark:text-[#f23645] text-xs font-bold text-center flex items-center justify-center gap-2 shrink-0">
           <span>🔇</span>
           <span>
             {isAr
@@ -2265,7 +2265,7 @@ export const PublicTradingChat: React.FC<Props> = ({
           </span>
         </div>
       ) : chatRoomSettings.isClosed && !isCurrentAdmin ? (
-        <div className="p-3 border-t border-amber-500/40 bg-amber-500/10 text-amber-300 text-xs font-bold text-center flex items-center justify-center gap-2 shrink-0">
+        <div className="p-3 border-t border-[#EFE0B4] dark:border-amber-500/40 bg-[#FDF6E3] dark:bg-amber-500/10 text-[#9A6700] dark:text-amber-300 text-xs font-bold text-center flex items-center justify-center gap-2 shrink-0">
           <Lock className="w-4 h-4 shrink-0" />
           <span>
             {isAr
@@ -2276,7 +2276,7 @@ export const PublicTradingChat: React.FC<Props> = ({
       ) : (
         <>
           {chatRoomSettings.isClosed && isCurrentAdmin && (
-            <div className="px-3 py-1.5 border-t border-amber-500/40 bg-amber-500/15 text-amber-300 text-[11px] font-bold flex items-center justify-between gap-2 shrink-0">
+            <div className="px-3 py-1.5 border-t border-[#EFE0B4] dark:border-amber-500/40 bg-[#FDF6E3] dark:bg-amber-500/15 text-[#9A6700] dark:text-amber-300 text-[11px] font-bold flex items-center justify-between gap-2 shrink-0">
               <span className="flex items-center gap-1.5 truncate">
                 <Lock className="w-3.5 h-3.5 shrink-0" />
                 <span className="truncate">
@@ -2297,7 +2297,7 @@ export const PublicTradingChat: React.FC<Props> = ({
           )}
           {/* @Mention Autocomplete Dropdown (0 Firestore Reads/Writes) */}
           {mentionCandidates.length > 0 && (
-            <div className="border-t border-[#2a2e39] bg-[#131722] px-2.5 py-2 shrink-0 shadow-2xl z-30 animate-in slide-in-from-bottom-1 duration-150">
+            <div className="border-t border-[#E0E3EB] dark:border-[#2a2e39] bg-[#FFFFFF] dark:bg-[#131722] px-2.5 py-2 shrink-0 shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl z-30 animate-in slide-in-from-bottom-1 duration-150">
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-[10px] font-bold text-[#089981] flex items-center gap-1">
                   <AtSign className="w-3 h-3" />
@@ -2310,7 +2310,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                 <button
                   type="button"
                   onClick={() => setManualMentionMenuOpen(false)}
-                  className="text-[10px] text-[#787b86] hover:text-white cursor-pointer flex items-center gap-0.5"
+                  className="text-[10px] text-[#787b86] hover:text-[#131722] dark:hover:text-white cursor-pointer flex items-center gap-0.5"
                 >
                   <span>{isAr ? 'إغلاق' : 'Close'}</span>
                   <X className="w-3 h-3" />
@@ -2322,9 +2322,9 @@ export const PublicTradingChat: React.FC<Props> = ({
                     key={cand.uid || cand.name}
                     type="button"
                     onClick={() => handleInsertMention(cand.name)}
-                    className="px-2.5 py-1.5 rounded-xl bg-[#1e222d] hover:bg-[#089981]/20 border border-[#2a2e39] hover:border-[#089981]/50 flex items-center gap-1.5 shrink-0 cursor-pointer transition-all"
+                    className="px-2.5 py-1.5 rounded-xl bg-[#F8F9FD] dark:bg-[#1e222d] hover:bg-[#089981]/20 border border-[#E0E3EB] dark:border-[#2a2e39] hover:border-[#089981]/50 flex items-center gap-1.5 shrink-0 cursor-pointer transition-all"
                   >
-                    <div className="relative w-5 h-5 rounded-full bg-[#2a2e39] border border-[#363a45] flex items-center justify-center text-[9px] font-bold text-white overflow-hidden shrink-0">
+                    <div className="relative w-5 h-5 rounded-full bg-[#EDF1F7] dark:bg-[#2a2e39] border border-[#CBD2DF] dark:border-[#363a45] flex items-center justify-center text-[9px] font-bold text-[#131722] dark:text-white overflow-hidden shrink-0">
                       {cand.avatar ? (
                         <img src={cand.avatar} alt={cand.name} className="w-full h-full object-cover" />
                       ) : (
@@ -2336,7 +2336,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                         }`}
                       />
                     </div>
-                    <span className="text-[11px] font-bold text-white">@{cand.name}</span>
+                    <span className="text-[11px] font-bold text-[#131722] dark:text-white">@{cand.name}</span>
                     <span
                       className={`w-1.5 h-1.5 rounded-full ${
                         cand.isOnline ? 'bg-[#089981]' : 'bg-[#64748b]'
@@ -2351,7 +2351,7 @@ export const PublicTradingChat: React.FC<Props> = ({
 
           <form
             onSubmit={handleSendMessage}
-            className="p-2 sm:p-2.5 border-t border-[#2a2e39] bg-[#1a1e28] flex items-center gap-1.5 shrink-0 sticky bottom-0 z-30 shadow-[0_-4px_16px_rgba(0,0,0,0.35)]"
+            className="p-2 sm:p-2.5 border-t border-[#E0E3EB] dark:border-[#2a2e39] bg-[#F8F9FD] dark:bg-[#1a1e28] flex items-center gap-1.5 shrink-0 sticky bottom-0 z-30 shadow-[0_-1px_4px_rgba(19,23,34,0.06)] dark:shadow-[0_-4px_16px_rgba(0,0,0,0.35)]"
           >
           {isCurrentAdmin && (
             <button
@@ -2363,7 +2363,7 @@ export const PublicTradingChat: React.FC<Props> = ({
               className={`p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-center shrink-0 ${
                 selectedImage
                   ? 'bg-[#089981] text-white border-[#089981]'
-                  : 'bg-[#131722] hover:bg-[#2a2e39] text-[#089981] border-[#2a2e39]'
+                  : 'bg-[#FFFFFF] dark:bg-[#131722] hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] text-[#089981] border-[#E0E3EB] dark:border-[#2a2e39]'
               }`}
               title={isAr ? 'إرفاق صورة شارت من جهازك' : 'Attach chart image'}
             >
@@ -2381,7 +2381,7 @@ export const PublicTradingChat: React.FC<Props> = ({
             className={`p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-center shrink-0 ${
               attachedTradeCard
                 ? 'bg-[#089981] text-white border-[#089981]'
-                : 'bg-[#131722] hover:bg-[#2a2e39] text-amber-400 border-[#2a2e39]'
+                : 'bg-[#FFFFFF] dark:bg-[#131722] hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] text-[#9A6700] dark:text-amber-400 border-[#E0E3EB] dark:border-[#2a2e39]'
             }`}
             title={isAr ? 'مشاركة بطاقة صفقة أو توصية تداول' : 'Share Trade Setup Card'}
           >
@@ -2397,7 +2397,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                 ? 'bg-[#f23645] text-white border-[#f23645] animate-pulse'
                 : recordedAudioDataUrl
                 ? 'bg-[#089981] text-white border-[#089981]'
-                : 'bg-[#131722] hover:bg-[#2a2e39] text-[#089981] border-[#2a2e39]'
+                : 'bg-[#FFFFFF] dark:bg-[#131722] hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] text-[#089981] border-[#E0E3EB] dark:border-[#2a2e39]'
             }`}
             title={
               isRecordingVoice
@@ -2422,7 +2422,7 @@ export const PublicTradingChat: React.FC<Props> = ({
             className={`p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-center shrink-0 ${
               manualMentionMenuOpen || mentionQueryMatch !== null
                 ? 'bg-[#089981] text-white border-[#089981]'
-                : 'bg-[#131722] hover:bg-[#2a2e39] text-[#089981] border-[#2a2e39]'
+                : 'bg-[#FFFFFF] dark:bg-[#131722] hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] text-[#089981] border-[#E0E3EB] dark:border-[#2a2e39]'
             }`}
             title={isAr ? 'إشارة إلى مستخدم (@Mention)' : 'Mention user (@Mention)'}
           >
@@ -2440,11 +2440,11 @@ export const PublicTradingChat: React.FC<Props> = ({
                   ? 'اكتب رسالة أو @ للإشارة إلى متداول...'
                   : 'Type a message or @ to mention a trader...'
               }
-              className="w-full bg-[#131722] border border-[#2a2e39] focus:border-[#089981] rounded-xl px-3 py-2 pe-16 text-xs text-white placeholder-[#787b86] transition-all focus:outline-none"
+              className="w-full bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] focus:border-[#1E53E5] dark:focus:border-[#089981] rounded-xl px-3 py-2 pe-16 text-xs text-[#131722] dark:text-white placeholder-[#787B86] dark:placeholder-[#787b86] transition-all focus:outline-none"
             />
             <span
               className={`absolute end-8 text-[9px] font-mono pointer-events-none ${
-                inputText.length >= MAX_CHAT_CHARS - 30 ? 'text-amber-400' : 'text-[#787b86]'
+                inputText.length >= MAX_CHAT_CHARS - 30 ? 'text-[#9A6700] dark:text-amber-400' : 'text-[#787b86]'
               }`}
             >
               {inputText.length}/{MAX_CHAT_CHARS}
@@ -2478,20 +2478,20 @@ export const PublicTradingChat: React.FC<Props> = ({
       {/* 6. POP-UP TYPING MODAL */}
       {isTypePopupOpen && (
         <div
-          className="absolute inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-end sm:items-center justify-center p-2 sm:p-4 animate-in fade-in duration-200"
+          className="absolute inset-0 z-50 bg-[#131722]/45 dark:bg-black/75 dark:backdrop-blur-xs flex items-end sm:items-center justify-center p-2 sm:p-4 animate-in fade-in duration-200"
           onClick={() => setIsTypePopupOpen(false)}
         >
           <div
-            className="bg-[#1e222d] border border-[#2a2e39] rounded-2xl w-full max-w-lg shadow-[0_12px_40px_rgba(0,0,0,0.65)] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
+            className="bg-[#F8F9FD] dark:bg-[#1e222d] border border-[#E0E3EB] dark:border-[#2a2e39] rounded-2xl w-full max-w-lg shadow-[0_4px_16px_rgba(19,23,34,0.08)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.65)] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
             dir={isAr ? 'rtl' : 'ltr'}
           >
-            <div className="px-3.5 py-2.5 border-b border-[#2a2e39] bg-[#171b26] flex items-center justify-between">
+            <div className="px-3.5 py-2.5 border-b border-[#E0E3EB] dark:border-[#2a2e39] bg-[#FFFFFF] dark:bg-[#171b26] flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-lg bg-[#089981]/20 border border-[#089981]/40 flex items-center justify-center text-[#089981]">
+                <div className="w-6 h-6 rounded-lg bg-[#E6F5F2] dark:bg-[#089981]/20 border border-[#B3E2D9] dark:border-[#089981]/40 flex items-center justify-center text-[#089981]">
                   <MessageSquare className="w-3.5 h-3.5" />
                 </div>
-                <h3 className="text-xs font-bold text-white">
+                <h3 className="text-xs font-bold text-[#131722] dark:text-white">
                   {isAr ? 'كتابة رسالة في الشات العام' : 'Compose General Chat Message'}
                 </h3>
               </div>
@@ -2499,13 +2499,13 @@ export const PublicTradingChat: React.FC<Props> = ({
               <button
                 type="button"
                 onClick={() => setIsTypePopupOpen(false)}
-                className="p-1 rounded-lg text-[#787b86] hover:text-white hover:bg-[#2a2e39] transition-colors cursor-pointer"
+                className="p-1 rounded-lg text-[#787b86] hover:text-[#131722] dark:hover:text-white hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="px-3 py-1.5 bg-[#131722] border-b border-[#2a2e39]/60 flex items-center justify-between gap-1 overflow-x-auto no-scrollbar">
+            <div className="px-3 py-1.5 bg-[#FFFFFF] dark:bg-[#131722] border-b border-[#E0E3EB] dark:border-[#2a2e39]/60 flex items-center justify-between gap-1 overflow-x-auto no-scrollbar">
               <div className="flex items-center gap-1.5">
                 <span className="text-[10px] text-[#089981] font-bold flex items-center gap-1 shrink-0">
                   <Sparkles className="w-3 h-3 text-[#089981]" />
@@ -2521,7 +2521,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                       );
                       popupTextareaRef.current?.focus();
                     }}
-                    className="px-2 py-0.5 rounded-md bg-[#1e222d] hover:bg-[#089981]/20 hover:text-[#089981] hover:border-[#089981]/50 border border-[#2a2e39] text-[10px] font-mono text-[#9db2ce] transition-colors cursor-pointer shrink-0"
+                    className="px-2 py-0.5 rounded-md bg-[#F8F9FD] dark:bg-[#1e222d] hover:bg-[#089981]/20 hover:text-[#089981] hover:border-[#089981]/50 border border-[#E0E3EB] dark:border-[#2a2e39] text-[10px] font-mono text-[#4A5162] dark:text-[#9db2ce] transition-colors cursor-pointer shrink-0"
                   >
                     {sym}
                   </button>
@@ -2532,9 +2532,9 @@ export const PublicTradingChat: React.FC<Props> = ({
               </span>
             </div>
 
-            <div className="p-3 bg-[#1a1e28] flex flex-col gap-2.5">
+            <div className="p-3 bg-[#F8F9FD] dark:bg-[#1a1e28] flex flex-col gap-2.5">
               {replyingTo && (
-                <div className="p-2 rounded-lg bg-[#131722] border border-[#2a2e39] flex items-center justify-between text-xs text-[#787b86]">
+                <div className="p-2 rounded-lg bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] flex items-center justify-between text-xs text-[#787b86]">
                   <div className="flex items-center gap-2 min-w-0">
                     <Reply className="w-3.5 h-3.5 text-[#089981] shrink-0" />
                     <span className="truncate">
@@ -2545,7 +2545,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                   <button
                     type="button"
                     onClick={() => setReplyingTo(null)}
-                    className="text-[#787b86] hover:text-white cursor-pointer"
+                    className="text-[#787b86] hover:text-[#131722] dark:hover:text-white cursor-pointer"
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -2572,11 +2572,11 @@ export const PublicTradingChat: React.FC<Props> = ({
                       ? 'اكتب رسالتك أو استفسارك هنا (بحد أقصى 500 حرف)...'
                       : 'Type your message here (max 500 chars)...'
                   }
-                  className="w-full bg-[#131722] border border-[#2a2e39] focus:border-[#089981] rounded-xl p-3 text-xs sm:text-sm text-white placeholder-[#787b86] focus:outline-none focus:ring-1 focus:ring-[#089981]/40 resize-none h-32 leading-relaxed shadow-inner"
+                  className="w-full bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] focus:border-[#1E53E5] dark:focus:border-[#089981] rounded-xl p-3 text-xs sm:text-sm text-[#131722] dark:text-white placeholder-[#787B86] dark:placeholder-[#787b86] focus:outline-none focus:ring-1 focus:ring-[#1E53E5]/30 dark:focus:ring-[#089981]/40 resize-none h-32 leading-relaxed shadow-inner"
                 />
                 <div
-                  className={`absolute bottom-2 end-2 text-[10px] font-mono bg-[#131722]/90 px-1.5 py-0.5 rounded border border-[#2a2e39]/60 pointer-events-none ${
-                    inputText.length >= MAX_CHAT_CHARS - 30 ? 'text-amber-400' : 'text-[#787b86]'
+                  className={`absolute bottom-2 end-2 text-[10px] font-mono bg-[#FFFFFF]/95 dark:bg-[#131722]/90 px-1.5 py-0.5 rounded border border-[#E0E3EB] dark:border-[#2a2e39]/60 pointer-events-none ${
+                    inputText.length >= MAX_CHAT_CHARS - 30 ? 'text-[#9A6700] dark:text-amber-400' : 'text-[#787b86]'
                   }`}
                 >
                   {inputText.length}/{MAX_CHAT_CHARS}
@@ -2593,7 +2593,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                         setInputText((prev) => `${prev} ${emoji}`.slice(0, MAX_CHAT_CHARS));
                         popupTextareaRef.current?.focus();
                       }}
-                      className="p-1.5 rounded-lg hover:bg-[#2a2e39] text-sm cursor-pointer transition-colors"
+                      className="p-1.5 rounded-lg hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] text-sm cursor-pointer transition-colors"
                     >
                       {emoji}
                     </button>
@@ -2608,7 +2608,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                         soundManager.playClick();
                         fileInputRef.current?.click();
                       }}
-                      className="p-1.5 px-2.5 rounded-lg bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-[#089981] text-xs font-medium transition-colors cursor-pointer flex items-center gap-1"
+                      className="p-1.5 px-2.5 rounded-lg bg-[#FFFFFF] dark:bg-[#131722] hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] border border-[#E0E3EB] dark:border-[#2a2e39] text-[#089981] text-xs font-medium transition-colors cursor-pointer flex items-center gap-1"
                     >
                       <Paperclip className="w-3.5 h-3.5" />
                       <span>{isAr ? 'إرفاق شارت' : 'Attach'}</span>
@@ -2618,11 +2618,11 @@ export const PublicTradingChat: React.FC<Props> = ({
               </div>
             </div>
 
-            <div className="px-3.5 py-2.5 border-t border-[#2a2e39] bg-[#171b26] flex items-center justify-between">
+            <div className="px-3.5 py-2.5 border-t border-[#E0E3EB] dark:border-[#2a2e39] bg-[#FFFFFF] dark:bg-[#171b26] flex items-center justify-between">
               <button
                 type="button"
                 onClick={() => setIsTypePopupOpen(false)}
-                className="px-3 py-1.5 rounded-xl border border-[#2a2e39] text-[#787b86] hover:text-white hover:bg-[#2a2e39] text-xs font-semibold transition-all cursor-pointer"
+                className="px-3 py-1.5 rounded-xl border border-[#E0E3EB] dark:border-[#2a2e39] text-[#787b86] hover:text-[#131722] dark:hover:text-white hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] text-xs font-semibold transition-all cursor-pointer"
               >
                 {isAr ? 'إلغاء' : 'Cancel'}
               </button>
@@ -2644,21 +2644,21 @@ export const PublicTradingChat: React.FC<Props> = ({
       {/* BAN USER CONFIRMATION DIALOG (Admin Only) */}
       {pendingBanTarget && isCurrentAdmin && (
         <div
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+          className="fixed inset-0 z-50 bg-[#131722]/45 dark:bg-black/80 dark:backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
           onClick={() => setPendingBanTarget(null)}
         >
           <div
-            className="bg-[#1e222d] border border-rose-500/40 rounded-2xl p-5 max-w-sm w-full shadow-2xl space-y-4"
+            className="bg-[#F8F9FD] dark:bg-[#1e222d] border border-[#F5C2C7] dark:border-rose-500/40 rounded-2xl p-5 max-w-sm w-full shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl space-y-4"
             onClick={(e) => e.stopPropagation()}
             dir={isAr ? 'rtl' : 'ltr'}
           >
-            <div className="flex items-center gap-2.5 text-rose-400">
+            <div className="flex items-center gap-2.5 text-[#D93848] dark:text-rose-400">
               <Ban className="w-5 h-5 shrink-0" />
-              <h3 className="text-sm font-bold text-white">
+              <h3 className="text-sm font-bold text-[#131722] dark:text-white">
                 {isAr ? 'تأكيد حظر المستخدم' : 'Confirm User Ban'}
               </h3>
             </div>
-            <p className="text-xs text-[#d1d4dc] leading-relaxed">
+            <p className="text-xs text-[#131722] dark:text-[#d1d4dc] leading-relaxed">
               {isAr
                 ? `هل تريد حظر المستخدم "${pendingBanTarget.name}" نهائياً من دخول المنصة والمحادثة؟`
                 : `Ban "${pendingBanTarget.name}" from platform and chat access?`}
@@ -2667,7 +2667,7 @@ export const PublicTradingChat: React.FC<Props> = ({
               <button
                 type="button"
                 onClick={() => setPendingBanTarget(null)}
-                className="px-3.5 py-2 rounded-xl border border-[#2a2e39] text-xs font-semibold text-[#787b86] hover:text-white cursor-pointer"
+                className="px-3.5 py-2 rounded-xl border border-[#E0E3EB] dark:border-[#2a2e39] text-xs font-semibold text-[#787b86] hover:text-[#131722] dark:hover:text-white cursor-pointer"
               >
                 {isAr ? 'إلغاء' : 'Cancel'}
               </button>
@@ -2690,21 +2690,21 @@ export const PublicTradingChat: React.FC<Props> = ({
       {/* RESET CHAT CONFIRMATION DIALOG (Admin Only) */}
       {pendingResetConfirm && isCurrentAdmin && (
         <div
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+          className="fixed inset-0 z-50 bg-[#131722]/45 dark:bg-black/80 dark:backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
           onClick={() => !resettingChat && setPendingResetConfirm(false)}
         >
           <div
-            className="bg-[#1e222d] border border-[#f23645]/40 rounded-2xl p-5 max-w-sm w-full shadow-2xl space-y-4"
+            className="bg-[#F8F9FD] dark:bg-[#1e222d] border border-[#F5C2C7] dark:border-[#f23645]/40 rounded-2xl p-5 max-w-sm w-full shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl space-y-4"
             onClick={(e) => e.stopPropagation()}
             dir={isAr ? 'rtl' : 'ltr'}
           >
-            <div className="flex items-center gap-2.5 text-[#f23645]">
+            <div className="flex items-center gap-2.5 text-[#D93848] dark:text-[#f23645]">
               <RotateCcw className="w-5 h-5 shrink-0" />
-              <h3 className="text-sm font-bold text-white">
+              <h3 className="text-sm font-bold text-[#131722] dark:text-white">
                 {isAr ? 'تأكيد تصفير رسائل الشات' : 'Confirm Chat Reset'}
               </h3>
             </div>
-            <p className="text-xs text-[#d1d4dc] leading-relaxed">
+            <p className="text-xs text-[#131722] dark:text-[#d1d4dc] leading-relaxed">
               {isAr
                 ? `هل أنت متأكد من حذف جميع الرسائل (${messages.length} رسالة) وتصفير سجل الدردشة بالكامل؟ لا يمكن التراجع عن هذه الخطوة.`
                 : `Are you sure you want to permanently clear all ${messages.length} chat messages? This action cannot be undone.`}
@@ -2714,7 +2714,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                 type="button"
                 disabled={resettingChat}
                 onClick={() => setPendingResetConfirm(false)}
-                className="px-3.5 py-2 rounded-xl border border-[#2a2e39] text-xs font-semibold text-[#787b86] hover:text-white cursor-pointer disabled:opacity-50"
+                className="px-3.5 py-2 rounded-xl border border-[#E0E3EB] dark:border-[#2a2e39] text-xs font-semibold text-[#787b86] hover:text-[#131722] dark:hover:text-white cursor-pointer disabled:opacity-50"
               >
                 {isAr ? 'إلغاء' : 'Cancel'}
               </button>
@@ -2742,8 +2742,8 @@ export const PublicTradingChat: React.FC<Props> = ({
 
       {/* FULL-SCREEN IMAGE LIGHTBOX */}
       {lightboxImage && (
-        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col justify-between p-4 animate-fade-in">
-          <div className="flex items-center justify-between text-white pb-3 border-b border-white/10">
+        <div className="fixed inset-0 z-50 bg-[#131722]/60 dark:bg-black/95 dark:backdrop-blur-md flex flex-col justify-between p-4 animate-fade-in">
+          <div className="flex items-center justify-between text-[#131722] dark:text-white pb-3 border-b border-[#E0E3EB] dark:border-white/10">
             <div className="flex items-center gap-2">
               <span className="font-bold text-sm">{lightboxImage.user || 'MBK Analyst'}</span>
               {lightboxImage.caption && (
@@ -2757,7 +2757,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                 target="_blank"
                 rel="noreferrer"
                 download="chart-analysis.jpg"
-                className="p-2 rounded-lg bg-[#1e222d] hover:bg-[#2a2e39] text-white text-xs flex items-center gap-1 transition-colors cursor-pointer"
+                className="p-2 rounded-lg bg-[#F8F9FD] dark:bg-[#1e222d] hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] text-[#131722] dark:text-white text-xs flex items-center gap-1 transition-colors cursor-pointer"
               >
                 <ExternalLink className="w-4 h-4 text-[#089981]" />
                 <span className="hidden sm:inline">{isAr ? 'فتح بالحجم الكامل' : 'Full Size'}</span>
@@ -2765,7 +2765,7 @@ export const PublicTradingChat: React.FC<Props> = ({
 
               <button
                 onClick={() => setLightboxImage(null)}
-                className="p-2 rounded-lg bg-[#1e222d] hover:bg-[#f23645]/20 text-[#787b86] hover:text-[#f23645] transition-colors cursor-pointer"
+                className="p-2 rounded-lg bg-[#F8F9FD] dark:bg-[#1e222d] hover:bg-[#f23645]/20 text-[#787b86] hover:text-[#f23645] transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -2776,12 +2776,12 @@ export const PublicTradingChat: React.FC<Props> = ({
             <img
               src={lightboxImage.url}
               alt="Fullscreen Chart"
-              className="max-h-full max-w-full object-contain rounded-lg shadow-2xl"
+              className="max-h-full max-w-full object-contain rounded-lg shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl"
             />
           </div>
 
           {lightboxImage.caption && (
-            <div className="pt-3 border-t border-white/10 text-center text-xs text-amber-300 font-mono">
+            <div className="pt-3 border-t border-[#E0E3EB] dark:border-white/10 text-center text-xs text-[#9A6700] dark:text-amber-300 font-mono">
               📊 {lightboxImage.caption}
             </div>
           )}
@@ -2791,27 +2791,27 @@ export const PublicTradingChat: React.FC<Props> = ({
       {/* 7. TRADE SETUP CARD PICKER & BUILDER MODAL */}
       {showTradeCardModal && (
         <div
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+          className="fixed inset-0 z-50 bg-[#131722]/45 dark:bg-black/80 dark:backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
           onClick={() => setShowTradeCardModal(false)}
         >
           <div
-            className="bg-[#1e222d] border border-[#2a2e39] rounded-2xl max-w-md w-full p-4 shadow-2xl space-y-4"
+            className="bg-[#F8F9FD] dark:bg-[#1e222d] border border-[#E0E3EB] dark:border-[#2a2e39] rounded-2xl max-w-md w-full p-4 shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl space-y-4"
             onClick={(e) => e.stopPropagation()}
             dir={isAr ? 'rtl' : 'ltr'}
           >
-            <div className="flex items-center justify-between border-b border-[#2a2e39] pb-2.5">
+            <div className="flex items-center justify-between border-b border-[#E0E3EB] dark:border-[#2a2e39] pb-2.5">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-[#089981]/20 border border-[#089981]/40 text-[#089981] flex items-center justify-center">
+                <div className="w-7 h-7 rounded-lg bg-[#E6F5F2] dark:bg-[#089981]/20 border border-[#B3E2D9] dark:border-[#089981]/40 text-[#089981] flex items-center justify-center">
                   <BarChart2 className="w-4 h-4" />
                 </div>
-                <h3 className="text-xs sm:text-sm font-extrabold text-white">
+                <h3 className="text-xs sm:text-sm font-extrabold text-[#131722] dark:text-white">
                   {isAr ? 'مشاركة بطاقة صفقة تفاعلية في الشات' : 'Share Interactive Trade Setup Card'}
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setShowTradeCardModal(false)}
-                className="p-1 rounded-lg text-[#787b86] hover:text-white cursor-pointer"
+                className="p-1 rounded-lg text-[#787b86] hover:text-[#131722] dark:hover:text-white cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -2820,7 +2820,7 @@ export const PublicTradingChat: React.FC<Props> = ({
             {/* Option A: Quick-Pick from Live Signals */}
             {liveSignals && liveSignals.length > 0 && (
               <div className="space-y-1.5">
-                <span className="text-[11px] font-bold text-[#9db2c6] block">
+                <span className="text-[11px] font-bold text-[#4A5162] dark:text-[#9db2c6] block">
                   {isAr ? 'اختر من الصفقات الجارية حالياً:' : 'Pick from active live signals:'}
                 </span>
                 <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1">
@@ -2843,19 +2843,19 @@ export const PublicTradingChat: React.FC<Props> = ({
                         });
                         setShowTradeCardModal(false);
                       }}
-                      className="w-full p-2 rounded-xl bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] hover:border-[#089981] flex items-center justify-between text-xs cursor-pointer transition-all"
+                      className="w-full p-2 rounded-xl bg-[#FFFFFF] dark:bg-[#131722] hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] border border-[#E0E3EB] dark:border-[#2a2e39] hover:border-[#089981] flex items-center justify-between text-xs cursor-pointer transition-all"
                     >
                       <div className="flex items-center gap-2">
                         <span
                           className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${
                             sig.action === 'BUY'
-                              ? 'bg-[#089981]/20 text-[#089981]'
-                              : 'bg-[#f23645]/20 text-[#f23645]'
+                              ? 'bg-[#E6F5F2] dark:bg-[#089981]/20 text-[#089981]'
+                              : 'bg-[#FDECEE] dark:bg-[#f23645]/20 text-[#D93848] dark:text-[#f23645]'
                           }`}
                         >
                           {sig.action}
                         </span>
-                        <span className="font-mono font-bold text-white">{sig.symbol}</span>
+                        <span className="font-mono font-bold text-[#131722] dark:text-white">{sig.symbol}</span>
                       </div>
                       <span className="text-[10px] font-mono text-[#787b86]">
                         E: {sig.entryPrice} • TP: {sig.tp1}
@@ -2867,8 +2867,8 @@ export const PublicTradingChat: React.FC<Props> = ({
             )}
 
             {/* Option B: Custom Trade Setup Card */}
-            <div className="space-y-2.5 pt-2 border-t border-[#2a2e39]">
-              <span className="text-[11px] font-bold text-amber-400 block">
+            <div className="space-y-2.5 pt-2 border-t border-[#E0E3EB] dark:border-[#2a2e39]">
+              <span className="text-[11px] font-bold text-[#9A6700] dark:text-amber-400 block">
                 {isAr ? 'أو أنشئ بطاقة صفقة مخصصة:' : 'Or create a custom trade setup card:'}
               </span>
               <div className="grid grid-cols-2 gap-2">
@@ -2877,7 +2877,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                   <select
                     value={customTradeSymbol}
                     onChange={(e) => setCustomTradeSymbol(e.target.value as MarketSymbol)}
-                    className="w-full bg-[#131722] border border-[#2a2e39] rounded-lg px-2.5 py-1.5 text-xs font-mono text-white"
+                    className="w-full bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] rounded-lg px-2.5 py-1.5 text-xs font-mono text-[#131722] dark:text-white"
                   >
                     <option value="XAUUSD">XAUUSD (Gold)</option>
                     <option value="US100">US100 (Nasdaq)</option>
@@ -2896,7 +2896,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                       className={`py-1.5 rounded-lg text-xs font-mono font-bold cursor-pointer border ${
                         customTradeAction === 'BUY'
                           ? 'bg-[#089981] text-white border-[#089981]'
-                          : 'bg-[#131722] text-[#787b86] border-[#2a2e39]'
+                          : 'bg-[#FFFFFF] dark:bg-[#131722] text-[#787b86] border-[#E0E3EB] dark:border-[#2a2e39]'
                       }`}
                     >
                       BUY
@@ -2907,7 +2907,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                       className={`py-1.5 rounded-lg text-xs font-mono font-bold cursor-pointer border ${
                         customTradeAction === 'SELL'
                           ? 'bg-[#f23645] text-white border-[#f23645]'
-                          : 'bg-[#131722] text-[#787b86] border-[#2a2e39]'
+                          : 'bg-[#FFFFFF] dark:bg-[#131722] text-[#787b86] border-[#E0E3EB] dark:border-[#2a2e39]'
                       }`}
                     >
                       SELL
@@ -2923,7 +2923,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                     type="text"
                     value={customTradeEntry}
                     onChange={(e) => setCustomTradeEntry(e.target.value)}
-                    className="w-full bg-[#131722] border border-[#2a2e39] rounded-lg px-2 py-1.5 text-xs font-mono text-white"
+                    className="w-full bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] rounded-lg px-2 py-1.5 text-xs font-mono text-[#131722] dark:text-white"
                   />
                 </div>
                 <div>
@@ -2932,16 +2932,16 @@ export const PublicTradingChat: React.FC<Props> = ({
                     type="text"
                     value={customTradeTp1}
                     onChange={(e) => setCustomTradeTp1(e.target.value)}
-                    className="w-full bg-[#131722] border border-[#089981]/40 rounded-lg px-2 py-1.5 text-xs font-mono text-[#089981]"
+                    className="w-full bg-[#FFFFFF] dark:bg-[#131722] border border-[#B3E2D9] dark:border-[#089981]/40 rounded-lg px-2 py-1.5 text-xs font-mono text-[#089981]"
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] text-[#f23645] block mb-1">{isAr ? 'الوقف SL' : 'Stop Loss'}</label>
+                  <label className="text-[10px] text-[#D93848] dark:text-[#f23645] block mb-1">{isAr ? 'الوقف SL' : 'Stop Loss'}</label>
                   <input
                     type="text"
                     value={customTradeSl}
                     onChange={(e) => setCustomTradeSl(e.target.value)}
-                    className="w-full bg-[#131722] border border-[#f23645]/40 rounded-lg px-2 py-1.5 text-xs font-mono text-[#f23645]"
+                    className="w-full bg-[#FFFFFF] dark:bg-[#131722] border border-[#F5C2C7] dark:border-[#f23645]/40 rounded-lg px-2 py-1.5 text-xs font-mono text-[#D93848] dark:text-[#f23645]"
                   />
                 </div>
               </div>
@@ -2972,11 +2972,11 @@ export const PublicTradingChat: React.FC<Props> = ({
       {/* 8. CLICKABLE TRADER PROFILE POPOVER CARD MODAL */}
       {inspectedTrader && (
         <div
-          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+          className="fixed inset-0 z-50 bg-[#131722]/45 dark:bg-black/75 dark:backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
           onClick={() => setInspectedTrader(null)}
         >
           <div
-            className="bg-[#1e222d] border border-[#2a2e39] rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-4"
+            className="bg-[#F8F9FD] dark:bg-[#1e222d] border border-[#E0E3EB] dark:border-[#2a2e39] rounded-2xl max-w-sm w-full p-5 shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl space-y-4"
             onClick={(e) => e.stopPropagation()}
             dir={isAr ? 'rtl' : 'ltr'}
           >
@@ -2990,7 +2990,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                       className="w-12 h-12 rounded-2xl object-cover border-2 border-[#089981]"
                     />
                   ) : (
-                    <div className="w-12 h-12 rounded-2xl bg-[#131722] border-2 border-[#089981] text-white font-mono font-black text-lg flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-2xl bg-[#FFFFFF] dark:bg-[#131722] border-2 border-[#089981] text-[#131722] dark:text-white font-mono font-black text-lg flex items-center justify-center">
                       {inspectedTrader.name ? inspectedTrader.name[0].toUpperCase() : 'T'}
                     </div>
                   )}
@@ -3004,7 +3004,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-extrabold text-white">{inspectedTrader.name}</h3>
+                    <h3 className="text-sm font-extrabold text-[#131722] dark:text-white">{inspectedTrader.name}</h3>
                     {(() => {
                       const traderOnline = checkIsTraderOnline(
                         inspectedTrader.uid,
@@ -3015,8 +3015,8 @@ export const PublicTradingChat: React.FC<Props> = ({
                         <span
                           className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold border ${
                             traderOnline
-                              ? 'bg-[#089981]/15 text-[#089981] border-[#089981]/35'
-                              : 'bg-white/5 text-[#787b86] border-white/10'
+                              ? 'bg-[#E6F5F2] dark:bg-[#089981]/15 text-[#089981] border-[#B3E2D9] dark:border-[#089981]/35'
+                              : 'bg-[#F8F9FD] dark:bg-white/5 text-[#787b86] border-[#E0E3EB] dark:border-white/10'
                           }`}
                         >
                           <span
@@ -3038,7 +3038,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                     })()}
                   </div>
                   <div className="flex items-center gap-1.5 mt-1">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#089981]/20 text-[#089981] border border-[#089981]/40">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#E6F5F2] dark:bg-[#089981]/20 text-[#089981] border border-[#B3E2D9] dark:border-[#089981]/40">
                       {(inspectedTrader.role || 'TRADER').toUpperCase()}
                     </span>
                     <span className="text-[10px] text-[#787b86]">
@@ -3050,13 +3050,13 @@ export const PublicTradingChat: React.FC<Props> = ({
               <button
                 type="button"
                 onClick={() => setInspectedTrader(null)}
-                className="p-1 rounded-lg text-[#787b86] hover:text-white cursor-pointer"
+                className="p-1 rounded-lg text-[#787b86] hover:text-[#131722] dark:hover:text-white cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#2a2e39]">
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#E0E3EB] dark:border-[#2a2e39]">
               <button
                 type="button"
                 onClick={() => {
@@ -3064,7 +3064,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                   setInspectedTrader(null);
                   handleInsertMention(target.name);
                 }}
-                className="col-span-2 py-2 px-3 rounded-xl bg-[#131722] hover:bg-[#089981]/20 border border-[#2a2e39] hover:border-[#089981]/50 text-[#089981] text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                className="col-span-2 py-2 px-3 rounded-xl bg-[#FFFFFF] dark:bg-[#131722] hover:bg-[#089981]/20 border border-[#E0E3EB] dark:border-[#2a2e39] hover:border-[#089981]/50 text-[#089981] text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
               >
                 <AtSign className="w-3.5 h-3.5" />
                 <span>
@@ -3106,7 +3106,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                         setInspectedTrader(null);
                         handleToggleMuteUser(target.uid, target.name);
                       }}
-                      className="py-2 px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+                      className="py-2 px-3 rounded-xl bg-[#FDF6E3] dark:bg-amber-500/15 hover:bg-amber-500/25 border border-[#EFE0B4] dark:border-amber-500/40 text-[#9A6700] dark:text-amber-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <VolumeX className="w-3.5 h-3.5" />
                       <span>{isAr ? 'كتم / فك كتم' : 'Mute / Unmute'}</span>
@@ -3118,7 +3118,7 @@ export const PublicTradingChat: React.FC<Props> = ({
                         setInspectedTrader(null);
                         handleToggleBanUser(target.uid, target.name);
                       }}
-                      className="py-2 px-3 rounded-xl bg-[#f23645]/15 hover:bg-[#f23645]/25 border border-[#f23645]/40 text-[#f23645] text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+                      className="py-2 px-3 rounded-xl bg-[#FDECEE] dark:bg-[#f23645]/15 hover:bg-[#f23645]/25 border border-[#F5C2C7] dark:border-[#f23645]/40 text-[#D93848] dark:text-[#f23645] text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <Ban className="w-3.5 h-3.5" />
                       <span>{isAr ? 'حظر الحساب' : 'Ban User'}</span>

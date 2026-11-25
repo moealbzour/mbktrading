@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Globe, UserPlus, Lock, Mail, ArrowRight, AlertCircle, Eye, EyeOff, CheckCircle2, Copy, ArrowLeft } from 'lucide-react';
+import { Globe, UserPlus, Lock, Mail, ArrowRight, AlertCircle, Eye, EyeOff, CheckCircle2, Copy, ArrowLeft, Sun, Moon } from 'lucide-react';
 import { UserProfile } from '../types/trading';
+import { useTheme } from '../context/ThemeContext';
 import { soundManager } from '../utils/audio';
 import {
   loginWithFirebase,
@@ -27,6 +28,8 @@ export const Login: React.FC<LoginProps> = ({
   onToggleLang
 }) => {
   const isAr = lang === 'ar';
+  const { resolvedTheme, cycleThemeMode } = useTheme();
+  const isLight = resolvedTheme === 'light';
 
   const [emailInput, setEmailInput] = useState('');
   const [password, setPassword] = useState('');
@@ -136,40 +139,52 @@ export const Login: React.FC<LoginProps> = ({
   return (
     <div
       dir={isAr ? 'rtl' : 'ltr'}
-      className="min-h-screen w-full bg-[#131722] text-[#d1d4dc] flex flex-col justify-between font-sans relative overflow-x-hidden select-none antialiased"
+      className="min-h-screen w-full bg-[#F0F3FA] dark:bg-[#131722] text-[#131722] dark:text-[#d1d4dc] flex flex-col justify-between font-sans relative overflow-x-hidden select-none antialiased"
     >
       {/* Clean Subtle Grid */}
-      <div className="absolute inset-0 bg-[radial-gradient(#1e222d_1px,transparent_1px)] [background-size:24px_24px] opacity-30 pointer-events-none" />
-      <div className="absolute -top-40 start-1/4 w-[500px] h-[500px] bg-[#089981]/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(#CBD2DF_1px,transparent_1px)] dark:bg-[radial-gradient(#1e222d_1px,transparent_1px)] [background-size:24px_24px] opacity-30 pointer-events-none" />
+      <div className="hidden dark:block absolute -top-40 start-1/4 w-[500px] h-[500px] bg-[#089981]/10 rounded-full blur-[120px] pointer-events-none" />
 
       {/* Clean 3-Zone Top Navigation Bar */}
-      <header className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between gap-8 relative z-20 shrink-0 border-b border-[#2a2e39]/60">
+      <header className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between gap-4 sm:gap-8 relative z-20 shrink-0 border-b border-[#E0E3EB] dark:border-[#2a2e39]/60">
         <div className="flex items-center gap-2.5 shrink-0">
           <img
             src="/mbk-logo.png"
             alt="MBK Trading"
-            className="h-9 w-auto rounded-lg object-contain border border-white/10 shadow-sm"
+            className="h-9 w-auto rounded-lg object-contain border border-[#E0E3EB] dark:border-white/10 shadow-sm"
           />
-          <span className="text-base font-extrabold text-white tracking-tight whitespace-nowrap">
+          <span className="text-base font-extrabold text-[#131722] dark:text-white tracking-tight whitespace-nowrap">
             MBK Trading
           </span>
         </div>
 
-        <nav className="hidden md:flex items-center gap-6 text-xs font-medium text-[#8a93a6]">
-          <a href="#tiers-showcase-login" className="hover:text-white transition-colors whitespace-nowrap shrink-0">
+        <nav className="hidden md:flex items-center gap-6 text-xs font-medium text-[#4A5162] dark:text-[#8a93a6]">
+          <a href="#tiers-showcase-login" className="hover:text-[#131722] dark:hover:text-white transition-colors whitespace-nowrap shrink-0">
             {isAr ? 'الباقات والأسعار' : 'Plans & Pricing'}
           </a>
-          <a href="#login-panel-card" className="hover:text-white transition-colors whitespace-nowrap shrink-0">
+          <a href="#login-panel-card" className="hover:text-[#131722] dark:hover:text-white transition-colors whitespace-nowrap shrink-0">
             {isAr ? 'تسجيل الدخول' : 'Sign In'}
           </a>
         </nav>
 
-        <div className="flex items-center gap-2.5 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              soundManager.playClick();
+              cycleThemeMode();
+            }}
+            title={isLight ? (isAr ? 'الوضع الداكن' : 'Switch to Dark Mode') : (isAr ? 'الوضع النهاري' : 'Switch to Light Mode')}
+            aria-label={isLight ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
+            className="p-2 rounded-xl bg-[#FFFFFF] dark:bg-[#1e222d] hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] border border-[#E0E3EB] dark:border-[#2a2e39] text-[#131722] dark:text-[#d1d4dc] transition-colors flex items-center justify-center cursor-pointer shrink-0"
+          >
+            {isLight ? <Moon className="w-3.5 h-3.5 text-[#131722]" /> : <Sun className="w-3.5 h-3.5 text-[#F0B90B]" />}
+          </button>
           {onToggleLang && (
             <button
               type="button"
               onClick={onToggleLang}
-              className="px-3 py-2 rounded-xl bg-[#1e222d] hover:bg-[#2a2e39] border border-[#2a2e39] text-xs font-semibold text-[#d1d4dc] hover:text-white transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
+              className="px-3 py-2 rounded-xl bg-[#FFFFFF] dark:bg-[#1e222d] hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] border border-[#E0E3EB] dark:border-[#2a2e39] text-xs font-semibold text-[#131722] dark:text-[#d1d4dc] hover:text-[#131722] dark:hover:text-white transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
             >
               <Globe className="w-3.5 h-3.5 text-[#089981]" />
               <span>{isAr ? 'EN' : 'AR'}</span>
@@ -178,7 +193,7 @@ export const Login: React.FC<LoginProps> = ({
           <button
             type="button"
             onClick={onNavigateRegister}
-            className="px-4 py-2 rounded-xl bg-[#089981] hover:bg-[#07846f] text-xs font-bold text-white transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
+            className="px-4 py-2 rounded-xl bg-[#131722] hover:bg-[#2A2E39] dark:bg-[#089981] dark:hover:bg-[#07846f] text-xs font-bold text-white transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
           >
             <UserPlus className="w-3.5 h-3.5" />
             <span>{isAr ? 'إنشاء حساب جديد' : 'Create Account'}</span>
@@ -201,22 +216,22 @@ export const Login: React.FC<LoginProps> = ({
 
           {/* Right Column: Institutional Auth Card */}
           <section id="login-panel-card" className="lg:col-span-4 order-1 lg:order-2 lg:sticky lg:top-6 w-full">
-            <div className="bg-[#1e222d] border border-[#2a2e39] rounded-2xl p-5 sm:p-6 shadow-2xl relative overflow-hidden">
+            <div className="bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#E0E3EB] dark:border-[#2a2e39] rounded-2xl p-5 sm:p-6 shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl relative overflow-hidden">
               {/* Header Accent Line */}
-              <div className="absolute top-0 start-0 w-full h-1 bg-gradient-to-r from-[#089981] via-[#00f2fe] to-blue-600" />
+              <div className="absolute top-0 start-0 w-full h-1 bg-[#131722] dark:bg-gradient-to-r dark:from-[#089981] dark:via-[#00f2fe] dark:to-blue-600" />
 
               {/* Instant Mode Switcher (Create Account vs Sign In) */}
-              <div className="grid grid-cols-2 gap-1 p-1 bg-[#131722] border border-[#2a2e39] rounded-xl mb-5">
+              <div className="grid grid-cols-2 gap-1 p-1 bg-[#F8F9FD] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] rounded-xl mb-5">
                 <button
                   type="button"
                   onClick={onNavigateRegister}
-                  className="py-2 px-3 rounded-lg text-xs font-bold text-[#8a93a6] hover:text-white transition-colors cursor-pointer whitespace-nowrap"
+                  className="py-2 px-3 rounded-lg text-xs font-bold text-[#4A5162] dark:text-[#8a93a6] hover:text-[#131722] dark:hover:text-white transition-colors cursor-pointer whitespace-nowrap"
                 >
                   {isAr ? 'إنشاء حساب جديد' : 'Create Account'}
                 </button>
                 <button
                   type="button"
-                  className="py-2 px-3 rounded-lg text-xs font-bold bg-[#089981] text-white cursor-default whitespace-nowrap"
+                  className="py-2 px-3 rounded-lg text-xs font-bold bg-[#131722] dark:bg-[#089981] text-white cursor-default whitespace-nowrap"
                 >
                   {isAr ? 'تسجيل الدخول' : 'Sign In'}
                 </button>
@@ -224,14 +239,14 @@ export const Login: React.FC<LoginProps> = ({
 
               {/* Form Title & Subtitle */}
               <div className="text-center mb-5">
-                <div className="w-28 mx-auto mb-3 rounded-xl bg-[#0b0e14] border border-[#2a2e39] p-1.5 flex items-center justify-center shadow-inner">
+                <div className="w-28 mx-auto mb-3 rounded-xl bg-[#F0F3FA] dark:bg-[#0b0e14] border border-[#E0E3EB] dark:border-[#2a2e39] p-1.5 flex items-center justify-center shadow-inner">
                   <img
                     src="/mbk-logo.png"
                     alt="MBK Trading"
                     className="w-full h-auto object-contain rounded-lg"
                   />
                 </div>
-                <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+                <h2 className="text-xl sm:text-2xl font-bold text-[#131722] dark:text-white tracking-tight">
                   {isAr ? 'تسجيل الدخول' : 'Sign In'}
                 </h2>
                 <p className="text-xs text-[#787b86] mt-1">
@@ -241,19 +256,19 @@ export const Login: React.FC<LoginProps> = ({
 
               {/* Inline Styled Validation / Error Alert */}
               {error && (
-                <div className="mb-5 p-3.5 rounded-xl bg-[#f23645]/10 border border-[#f23645]/30 text-[#f23645] text-xs font-medium space-y-2 animate-in fade-in slide-in-from-top-1">
+                <div className="mb-5 p-3.5 rounded-xl bg-[#FDECEE] dark:bg-[#f23645]/10 border border-[#F5C2C7] dark:border-[#f23645]/30 text-[#D93848] dark:text-[#f23645] text-xs font-medium space-y-2 animate-in fade-in slide-in-from-top-1">
                   <div className="flex items-center gap-2.5">
                     <AlertCircle className="w-4 h-4 shrink-0" />
                     <span className="leading-tight">{error}</span>
                   </div>
                   {unauthorizedHost && (
-                    <div className="p-2.5 rounded-lg bg-[#131722] border border-[#2a2e39] text-[#d1d4dc] text-[11px] space-y-1.5">
-                      <p className="text-[#8a93a6]">
+                    <div className="p-2.5 rounded-lg bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] text-[#131722] dark:text-[#d1d4dc] text-[11px] space-y-1.5">
+                      <p className="text-[#4A5162] dark:text-[#8a93a6]">
                         {isAr
                           ? 'أضف هذا النطاق في Firebase Console ← Authentication ← Settings ← Authorized domains:'
                           : 'Add this domain in Firebase Console → Authentication → Settings → Authorized domains:'}
                       </p>
-                      <div className="flex items-center justify-between gap-2 bg-[#1e222d] px-2.5 py-1.5 rounded border border-[#2a2e39] font-mono text-white">
+                      <div className="flex items-center justify-between gap-2 bg-[#F8F9FD] dark:bg-[#1e222d] px-2.5 py-1.5 rounded border border-[#E0E3EB] dark:border-[#2a2e39] font-mono text-[#131722] dark:text-white">
                         <span className="truncate select-all">{unauthorizedHost}</span>
                         <button
                           type="button"
@@ -262,7 +277,7 @@ export const Login: React.FC<LoginProps> = ({
                             setCopiedDomain(true);
                             setTimeout(() => setCopiedDomain(false), 2000);
                           }}
-                          className="text-[10px] px-2 py-0.5 rounded bg-[#089981]/20 text-[#089981] hover:bg-[#089981]/30 font-bold shrink-0 cursor-pointer flex items-center gap-1"
+                          className="text-[10px] px-2 py-0.5 rounded bg-[#E6F5F2] dark:bg-[#089981]/20 text-[#089981] hover:bg-[#089981]/30 font-bold shrink-0 cursor-pointer flex items-center gap-1"
                         >
                           <Copy className="w-3 h-3" />
                           <span>{copiedDomain ? (isAr ? 'تم النسخ' : 'Copied') : isAr ? 'نسخ' : 'Copy'}</span>
@@ -274,7 +289,7 @@ export const Login: React.FC<LoginProps> = ({
               )}
 
               {resetSuccess && (
-                <div className="mb-5 p-3.5 rounded-xl bg-[#089981]/15 border border-[#089981]/40 text-[#089981] text-xs font-medium flex items-start gap-2.5 animate-in fade-in">
+                <div className="mb-5 p-3.5 rounded-xl bg-[#E6F5F2] dark:bg-[#089981]/15 border border-[#B3E2D9] dark:border-[#089981]/40 text-[#089981] text-xs font-medium flex items-start gap-2.5 animate-in fade-in">
                   <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
                   <span className="leading-relaxed">{resetSuccess}</span>
                 </div>
@@ -282,24 +297,24 @@ export const Login: React.FC<LoginProps> = ({
 
               {resetMode ? (
                 <form onSubmit={handlePasswordResetSubmit} className="space-y-4">
-                  <div className="p-3 rounded-xl bg-[#131722] border border-[#2a2e39] text-xs text-[#8a93a6] leading-relaxed">
+                  <div className="p-3 rounded-xl bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] text-xs text-[#4A5162] dark:text-[#8a93a6] leading-relaxed">
                     {isAr
                       ? 'أدخل بريدك الإلكتروني المسجل وسنرسل لك رابطاً آمناً لإعادة تعيين كلمة المرور.'
                       : 'Enter your registered email address and we will send a secure password reset link.'}
                   </div>
 
                   <div className="space-y-1">
-                    <label className="block text-xs font-semibold text-[#d1d4dc]">
+                    <label className="block text-xs font-semibold text-[#131722] dark:text-[#d1d4dc]">
                       {isAr ? 'البريد الإلكتروني للاستعادة' : 'Account Email'}
                     </label>
-                    <div className="relative rounded-xl border border-[#2a2e39] focus-within:ring-2 focus-within:ring-[#089981]/40 focus-within:border-[#089981]">
+                    <div className="relative rounded-xl border border-[#E0E3EB] dark:border-[#2a2e39] focus-within:ring-2 focus-within:ring-[#1E53E5]/30 dark:focus-within:ring-[#089981]/40 focus-within:border-[#1E53E5] dark:focus-within:border-[#089981]">
                       <Mail className="w-4 h-4 absolute start-3.5 top-1/2 -translate-y-1/2 text-[#787b86]" />
                       <input
                         type="email"
                         value={resetEmail}
                         onChange={(e) => setResetEmail(e.target.value)}
                         placeholder="trader@domain.com"
-                        className="w-full ps-10 pe-4 py-3 bg-[#131722] border-0 rounded-xl text-xs text-white placeholder-[#787b86] focus:outline-hidden font-mono"
+                        className="w-full ps-10 pe-4 py-3 bg-[#FFFFFF] dark:bg-[#131722] border-0 rounded-xl text-xs text-[#131722] dark:text-white placeholder-[#787B86] dark:placeholder-[#787b86] focus:outline-hidden font-mono"
                         required
                       />
                     </div>
@@ -308,10 +323,10 @@ export const Login: React.FC<LoginProps> = ({
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#089981] to-[#067a67] hover:from-[#09a98e] hover:to-[#088a75] text-white font-bold text-xs shadow-lg shadow-[#089981]/25 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+                    className="w-full py-3.5 px-4 rounded-xl bg-[#131722] hover:bg-[#2A2E39] dark:bg-gradient-to-r dark:from-[#089981] dark:to-[#067a67] dark:hover:from-[#09a98e] dark:hover:to-[#088a75] text-white font-bold text-xs shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-lg dark:shadow-[#089981]/25 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
                   >
                     {loading ? (
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <div className="w-4 h-4 border-2 border-[#CBD2DF] dark:border-white/30 border-t-white rounded-full animate-spin" />
                     ) : (
                       <>
                         <span>{isAr ? 'إرسال رابط إعادة التعيين' : 'Send Password Reset Email'}</span>
@@ -327,7 +342,7 @@ export const Login: React.FC<LoginProps> = ({
                       setError(null);
                       setResetSuccess(null);
                     }}
-                    className="w-full py-2.5 px-4 rounded-xl bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] text-[#d1d4dc] text-xs font-semibold transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                    className="w-full py-2.5 px-4 rounded-xl bg-[#FFFFFF] dark:bg-[#131722] hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] border border-[#E0E3EB] dark:border-[#2a2e39] text-[#131722] dark:text-[#d1d4dc] text-xs font-semibold transition-colors cursor-pointer flex items-center justify-center gap-1.5"
                   >
                     <ArrowLeft className={`w-3.5 h-3.5 ${isAr ? 'rotate-180' : ''}`} />
                     <span>{isAr ? 'العودة لتسجيل الدخول' : 'Back to Sign In'}</span>
@@ -337,14 +352,14 @@ export const Login: React.FC<LoginProps> = ({
                 <form onSubmit={handleSubmit} className="space-y-4">
                   {/* Email Input */}
                   <div className="space-y-1">
-                    <label className="block text-xs font-semibold text-[#d1d4dc]">
+                    <label className="block text-xs font-semibold text-[#131722] dark:text-[#d1d4dc]">
                       {isAr ? 'البريد الإلكتروني' : 'Email Address'}
                     </label>
                     <div className={`relative transition-all duration-200 rounded-xl ${
-                      emailFocused ? 'ring-2 ring-[#089981]/40 border-[#089981]' : 'border-[#2a2e39]'
+                      emailFocused ? 'ring-2 ring-[#1E53E5]/30 border-[#1E53E5] dark:ring-[#089981]/40 dark:border-[#089981]' : 'border-[#CBD2DF] dark:border-[#2a2e39]'
                     }`}>
                       <Mail className={`w-4 h-4 absolute start-3.5 top-1/2 -translate-y-1/2 transition-colors ${
-                        emailFocused ? 'text-[#089981]' : 'text-[#787b86]'
+                        emailFocused ? 'text-[#1E53E5] dark:text-[#089981]' : 'text-[#787b86]'
                       }`} />
                       <input
                         type="text"
@@ -353,7 +368,7 @@ export const Login: React.FC<LoginProps> = ({
                         onBlur={() => setEmailFocused(false)}
                         onChange={(e) => setEmailInput(e.target.value)}
                         placeholder="trader@domain.com"
-                        className="w-full ps-10 pe-4 py-3 bg-[#131722] border border-inherit rounded-xl text-xs text-white placeholder-[#787b86] focus:outline-hidden font-mono"
+                        className="w-full ps-10 pe-4 py-3 bg-[#FFFFFF] dark:bg-[#131722] border border-inherit rounded-xl text-xs text-[#131722] dark:text-white placeholder-[#787B86] dark:placeholder-[#787b86] focus:outline-hidden font-mono"
                         required
                       />
                     </div>
@@ -362,7 +377,7 @@ export const Login: React.FC<LoginProps> = ({
                   {/* Password Input */}
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
-                      <label className="block text-xs font-semibold text-[#d1d4dc]">
+                      <label className="block text-xs font-semibold text-[#131722] dark:text-[#d1d4dc]">
                         {isAr ? 'كلمة المرور' : 'Password'}
                       </label>
                       <button
@@ -381,10 +396,10 @@ export const Login: React.FC<LoginProps> = ({
                       </button>
                     </div>
                     <div className={`relative transition-all duration-200 rounded-xl ${
-                      passFocused ? 'ring-2 ring-[#089981]/40 border-[#089981]' : 'border-[#2a2e39]'
+                      passFocused ? 'ring-2 ring-[#1E53E5]/30 border-[#1E53E5] dark:ring-[#089981]/40 dark:border-[#089981]' : 'border-[#CBD2DF] dark:border-[#2a2e39]'
                     }`}>
                       <Lock className={`w-4 h-4 absolute start-3.5 top-1/2 -translate-y-1/2 transition-colors ${
-                        passFocused ? 'text-[#089981]' : 'text-[#787b86]'
+                        passFocused ? 'text-[#1E53E5] dark:text-[#089981]' : 'text-[#787b86]'
                       }`} />
                       <input
                         type={showPassword ? 'text' : 'password'}
@@ -393,13 +408,13 @@ export const Login: React.FC<LoginProps> = ({
                         onBlur={() => setPassFocused(false)}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="••••••••"
-                        className="w-full ps-10 pe-10 py-3 bg-[#131722] border border-inherit rounded-xl text-xs text-white placeholder-[#787b86] focus:outline-hidden font-mono"
+                        className="w-full ps-10 pe-10 py-3 bg-[#FFFFFF] dark:bg-[#131722] border border-inherit rounded-xl text-xs text-[#131722] dark:text-white placeholder-[#787B86] dark:placeholder-[#787b86] focus:outline-hidden font-mono"
                         required
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute end-3.5 top-1/2 -translate-y-1/2 text-[#787b86] hover:text-white transition-colors cursor-pointer"
+                        className="absolute end-3.5 top-1/2 -translate-y-1/2 text-[#787b86] hover:text-[#131722] dark:hover:text-white transition-colors cursor-pointer"
                         title={showPassword ? 'Hide password' : 'Show password'}
                       >
                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -411,10 +426,10 @@ export const Login: React.FC<LoginProps> = ({
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#089981] to-[#067a67] hover:from-[#09a98e] hover:to-[#088a75] text-white font-bold text-xs shadow-lg shadow-[#089981]/25 transition-all cursor-pointer flex items-center justify-center gap-2 mt-2 disabled:opacity-50 active:scale-[0.99]"
+                    className="w-full py-3.5 px-4 rounded-xl bg-[#131722] hover:bg-[#2A2E39] dark:bg-gradient-to-r dark:from-[#089981] dark:to-[#067a67] dark:hover:from-[#09a98e] dark:hover:to-[#088a75] text-white font-bold text-xs shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-lg dark:shadow-[#089981]/25 transition-all cursor-pointer flex items-center justify-center gap-2 mt-2 disabled:opacity-50 active:scale-[0.99]"
                   >
                     {loading ? (
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <div className="w-4 h-4 border-2 border-[#CBD2DF] dark:border-white/30 border-t-white rounded-full animate-spin" />
                     ) : (
                       <>
                         <span>{isAr ? 'تسجيل الدخول' : 'Sign In to Workspace'}</span>
@@ -426,12 +441,12 @@ export const Login: React.FC<LoginProps> = ({
               )}
 
               {/* Polished Google OAuth Login Option */}
-              <div className="mt-5 pt-4 border-t border-[#2a2e39]">
+              <div className="mt-5 pt-4 border-t border-[#E0E3EB] dark:border-[#2a2e39]">
                 <button
                   type="button"
                   onClick={handleGoogleLogin}
                   disabled={loading}
-                  className="w-full py-3 px-4 rounded-xl bg-[#131722] hover:bg-[#2a2e39] border border-[#2a2e39] hover:border-[#089981]/40 text-white text-xs font-semibold transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50 group shadow-sm"
+                  className="w-full py-3 px-4 rounded-xl bg-[#FFFFFF] dark:bg-[#131722] hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] border border-[#E0E3EB] dark:border-[#2a2e39] hover:border-[#089981]/40 text-[#131722] dark:text-white text-xs font-semibold transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50 group shadow-sm"
                 >
                   <svg className="w-4 h-4 shrink-0 transition-transform group-hover:scale-110" viewBox="0 0 24 24">
                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -460,7 +475,7 @@ export const Login: React.FC<LoginProps> = ({
       </main>
 
       {/* Footer */}
-      <footer className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-4 text-center text-[11px] text-[#787b86] border-t border-[#2a2e39]/60 relative z-20 shrink-0">
+      <footer className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-4 text-center text-[11px] text-[#787b86] border-t border-[#E0E3EB] dark:border-[#2a2e39]/60 relative z-20 shrink-0">
         MBK Trading © 2026
       </footer>
     </div>

@@ -77,8 +77,8 @@ function formatMessageTime(tsMs: number, isAr: boolean): string {
 function renderRoleBadge(role?: string, isOfficialPlatform?: boolean) {
   if (isOfficialPlatform) {
     return (
-      <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-black bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/40 inline-flex items-center gap-0.5 shrink-0">
-        <Headphones className="w-2.5 h-2.5 text-[#10b981]" />
+      <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-black bg-[#E6F5F2] dark:bg-[#10b981]/20 text-[#089981] dark:text-[#10b981] border border-[#B3E2D9] dark:border-[#10b981]/40 inline-flex items-center gap-0.5 shrink-0">
+        <Headphones className="w-2.5 h-2.5 text-[#089981] dark:text-[#10b981]" />
         <span>OFFICIAL DESK</span>
       </span>
     );
@@ -86,30 +86,30 @@ function renderRoleBadge(role?: string, isOfficialPlatform?: boolean) {
   const r = (role || 'FREE').toUpperCase();
   if (r === 'ADMIN') {
     return (
-      <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-black bg-rose-500/20 text-rose-300 border border-rose-500/40 inline-flex items-center gap-0.5 shrink-0">
-        <Crown className="w-2.5 h-2.5 text-rose-400" />
+      <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-black bg-[#FDECEE] dark:bg-rose-500/20 text-[#D93848] dark:text-rose-300 border border-[#F5C2C7] dark:border-rose-500/40 inline-flex items-center gap-0.5 shrink-0">
+        <Crown className="w-2.5 h-2.5 text-[#D93848] dark:text-rose-400" />
         <span>ADMIN</span>
       </span>
     );
   }
   if (r === 'VIP' || r === 'ELITE') {
     return (
-      <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 inline-flex items-center gap-0.5 shrink-0">
-        <Sparkles className="w-2.5 h-2.5 text-amber-400" />
+      <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-bold bg-[#FDF6E3] dark:bg-amber-500/20 text-[#9A6700] dark:text-amber-300 border border-[#EFE0B4] dark:border-amber-500/40 inline-flex items-center gap-0.5 shrink-0">
+        <Sparkles className="w-2.5 h-2.5 text-[#9A6700] dark:text-amber-400" />
         <span>{r}</span>
       </span>
     );
   }
   if (['MODERATOR', 'SALES', 'ANALYST', 'ANALYSER'].includes(r)) {
     return (
-      <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 inline-flex items-center gap-0.5 shrink-0">
-        <ShieldCheck className="w-2.5 h-2.5 text-cyan-400" />
+      <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-bold bg-[#EDF1F7] dark:bg-cyan-500/20 text-[#1E53E5] dark:text-cyan-300 border border-[#CBD2DF] dark:border-cyan-500/40 inline-flex items-center gap-0.5 shrink-0">
+        <ShieldCheck className="w-2.5 h-2.5 text-[#1E53E5] dark:text-cyan-400" />
         <span>{r}</span>
       </span>
     );
   }
   return (
-    <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-bold bg-[#2a2e39] text-[#9db2c6] border border-[#363a45] shrink-0">
+    <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-bold bg-[#EDF1F7] dark:bg-[#2a2e39] text-[#4A5162] dark:text-[#9db2c6] border border-[#CBD2DF] dark:border-[#363a45] shrink-0">
       FREE
     </span>
   );
@@ -647,8 +647,8 @@ export const DirectMessagesPanel: React.FC<Props> = ({
     <div
       className={`${
         isCompact
-          ? 'h-full w-full flex-1 min-h-0 bg-[#1e222d]'
-          : 'h-[calc(100vh-140px)] min-h-[480px] w-full rounded-2xl border border-[#2a2e39] bg-[#1e222d] shadow-2xl'
+          ? 'h-full w-full flex-1 min-h-0 bg-[#F8F9FD] dark:bg-[#1e222d]'
+          : 'h-[calc(100vh-140px)] min-h-[480px] w-full rounded-2xl border border-[#E0E3EB] dark:border-[#2a2e39] bg-[#F8F9FD] dark:bg-[#1e222d] shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl'
       } overflow-hidden flex flex-col`}
       dir={isAr ? 'rtl' : 'ltr'}
     >
@@ -656,15 +656,15 @@ export const DirectMessagesPanel: React.FC<Props> = ({
       <div
         className={`${
           isCompact ? 'px-2.5 py-2' : 'px-4 py-3'
-        } bg-[#131722] border-b border-[#2a2e39] flex flex-wrap items-center justify-between gap-2 shrink-0`}
+        } bg-[#FFFFFF] dark:bg-[#131722] border-b border-[#E0E3EB] dark:border-[#2a2e39] flex flex-wrap items-center justify-between gap-2 shrink-0`}
       >
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-[#089981]/15 border border-[#089981]/40 flex items-center justify-center text-[#089981]">
+          <div className="w-8 h-8 rounded-xl bg-[#E6F5F2] dark:bg-[#089981]/15 border border-[#B3E2D9] dark:border-[#089981]/40 flex items-center justify-center text-[#089981]">
             <Mail className="w-4 h-4" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-xs sm:text-sm font-black text-white">
+              <h2 className="text-xs sm:text-sm font-black text-[#131722] dark:text-white">
                 {isAr ? 'صندوق الوارد ودعم المنصة (Inbox)' : 'Platform & Direct Inbox'}
               </h2>
               {totalUnread > 0 && (
@@ -691,8 +691,8 @@ export const DirectMessagesPanel: React.FC<Props> = ({
               }}
               className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
                 adminOversightMode
-                  ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
-                  : 'bg-[#1e222d] border-[#2a2e39] text-[#787b86] hover:text-white'
+                  ? 'bg-[#FDF6E3] dark:bg-amber-500/20 border-[#EFE0B4] dark:border-amber-500/50 text-[#9A6700] dark:text-amber-300'
+                  : 'bg-[#F8F9FD] dark:bg-[#1e222d] border-[#E0E3EB] dark:border-[#2a2e39] text-[#787b86] hover:text-[#131722] dark:hover:text-white'
               }`}
               title={
                 isAr
@@ -712,8 +712,8 @@ export const DirectMessagesPanel: React.FC<Props> = ({
             onClick={handleToggleGlobalDm}
             className={`px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shrink-0 ${
               myAllowDm
-                ? 'bg-[#089981]/15 border-[#089981]/40 text-[#089981] hover:bg-[#089981]/25'
-                : 'bg-rose-500/15 border-rose-500/40 text-rose-400 hover:bg-rose-500/25'
+                ? 'bg-[#E6F5F2] dark:bg-[#089981]/15 border-[#B3E2D9] dark:border-[#089981]/40 text-[#089981] hover:bg-[#089981]/25'
+                : 'bg-[#FDECEE] dark:bg-rose-500/15 border-[#F5C2C7] dark:border-rose-500/40 text-[#D93848] dark:text-rose-400 hover:bg-rose-500/25'
             }`}
             title={isAr ? 'تبديل استقبال الرسائل الخاصة' : 'Toggle receiving direct messages'}
           >
@@ -736,8 +736,8 @@ export const DirectMessagesPanel: React.FC<Props> = ({
         <div
           className={`px-4 py-2 text-xs font-bold border-b shrink-0 ${
             feedback.type === 'error'
-              ? 'bg-[#f23645]/15 border-[#f23645]/30 text-[#f23645]'
-              : 'bg-[#089981]/15 border-[#089981]/30 text-[#089981]'
+              ? 'bg-[#FDECEE] dark:bg-[#f23645]/15 border-[#F5C2C7] dark:border-[#f23645]/30 text-[#D93848] dark:text-[#f23645]'
+              : 'bg-[#E6F5F2] dark:bg-[#089981]/15 border-[#B3E2D9] dark:border-[#089981]/30 text-[#089981]'
           }`}
         >
           {feedback.text}
@@ -749,15 +749,15 @@ export const DirectMessagesPanel: React.FC<Props> = ({
         {/* LEFT/START: User's Direct Conversations Inbox */}
         <div
           className={`${
-            isCompact ? 'w-full' : 'w-full md:w-72 lg:w-80 border-e border-[#2a2e39]'
-          } bg-[#171b26] flex flex-col shrink-0 ${
+            isCompact ? 'w-full' : 'w-full md:w-72 lg:w-80 border-e border-[#E0E3EB] dark:border-[#2a2e39]'
+          } bg-[#FFFFFF] dark:bg-[#171b26] flex flex-col shrink-0 ${
             selectedRecipientUid ? (isCompact ? 'hidden' : 'hidden md:flex') : 'flex'
           }`}
         >
           {/* Inbox Header + Admin Filter + Search Input */}
-          <div className="p-2.5 border-b border-[#2a2e39] space-y-2">
+          <div className="p-2.5 border-b border-[#E0E3EB] dark:border-[#2a2e39] space-y-2">
             <div className="flex items-center justify-between px-1">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-white">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-[#131722] dark:text-white">
                 <MessageCircle className="w-3.5 h-3.5 text-[#089981]" />
                 <span>{isAr ? 'المحادثات وبريد المنصة' : 'Inbox & Support Desk'}</span>
               </div>
@@ -768,7 +768,7 @@ export const DirectMessagesPanel: React.FC<Props> = ({
 
             {/* Admin Inbox Filter Tabs (All / @mbktrading Platform Desk / Personal) */}
             {isAdminUser && (
-              <div className="grid grid-cols-3 gap-1 bg-[#131722] p-1 rounded-xl border border-[#2a2e39] text-[10px] font-bold">
+              <div className="grid grid-cols-3 gap-1 bg-[#FFFFFF] dark:bg-[#131722] p-1 rounded-xl border border-[#E0E3EB] dark:border-[#2a2e39] text-[10px] font-bold">
                 <button
                   type="button"
                   onClick={() => {
@@ -777,8 +777,8 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                   }}
                   className={`py-1 rounded-lg cursor-pointer transition-colors ${
                     adminInboxFilter === 'ALL'
-                      ? 'bg-[#1c2432] text-white border border-[#2a3446]'
-                      : 'text-[#787b86] hover:text-white'
+                      ? 'bg-[#F8F9FD] dark:bg-[#1c2432] text-[#131722] dark:text-white border border-[#CBD2DF] dark:border-[#2a3446]'
+                      : 'text-[#787b86] hover:text-[#131722] dark:hover:text-white'
                   }`}
                 >
                   {isAr ? 'الكل' : 'All'}
@@ -791,8 +791,8 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                   }}
                   className={`py-1 rounded-lg cursor-pointer transition-colors flex items-center justify-center gap-1 ${
                     adminInboxFilter === 'PLATFORM'
-                      ? 'bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/40'
-                      : 'text-[#787b86] hover:text-white'
+                      ? 'bg-[#E6F5F2] dark:bg-[#10b981]/20 text-[#089981] dark:text-[#10b981] border border-[#B3E2D9] dark:border-[#10b981]/40'
+                      : 'text-[#787b86] hover:text-[#131722] dark:hover:text-white'
                   }`}
                 >
                   <span>@mbktrading</span>
@@ -810,8 +810,8 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                   }}
                   className={`py-1 rounded-lg cursor-pointer transition-colors ${
                     adminInboxFilter === 'PERSONAL'
-                      ? 'bg-[#1c2432] text-white border border-[#2a3446]'
-                      : 'text-[#787b86] hover:text-white'
+                      ? 'bg-[#F8F9FD] dark:bg-[#1c2432] text-[#131722] dark:text-white border border-[#CBD2DF] dark:border-[#2a3446]'
+                      : 'text-[#787b86] hover:text-[#131722] dark:hover:text-white'
                   }`}
                 >
                   {isAr ? 'خاصتي' : 'My DMs'}
@@ -827,13 +827,13 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={isAr ? 'ابحث في الرسائل أو التذاكر...' : 'Search inbox or tickets...'}
-                className="w-full ps-8 pe-3 py-1.5 rounded-xl bg-[#131722] border border-[#2a2e39] focus:border-[#089981] text-xs text-white placeholder-[#787b86] focus:outline-none"
+                className="w-full ps-8 pe-3 py-1.5 rounded-xl bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] focus:border-[#1E53E5] dark:focus:border-[#089981] text-xs text-[#131722] dark:text-white placeholder-[#787B86] dark:placeholder-[#787b86] focus:outline-none"
               />
             </div>
           </div>
 
           {/* Conversations List Body */}
-          <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-[#2a2e39]/60">
+          <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-[#E0E3EB] dark:divide-[#2a2e39]/60">
             {/* PINNED TOP ROW FOR ALL TRADERS: Official @mbktrading Support, Suggestions & Questions Inbox */}
             {!isAdminUser && (
               <button
@@ -851,11 +851,11 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                 }}
                 className={`w-full p-3 flex items-center gap-2.5 text-start transition-colors cursor-pointer ${
                   selectedRecipientUid === OFFICIAL_PLATFORM_UID
-                    ? 'bg-[#10b981]/15 border-s-2 border-[#10b981]'
-                    : 'bg-[#10b981]/5 hover:bg-[#1e222d]'
+                    ? 'bg-[#E6F5F2] dark:bg-[#10b981]/15 border-s-2 border-[#10b981]'
+                    : 'bg-[#E6F5F2] dark:bg-[#10b981]/5 hover:bg-[#EDF1F7] dark:hover:bg-[#1e222d]'
                 }`}
               >
-                <div className="relative w-10 h-10 rounded-xl bg-[#10b981]/20 border border-[#10b981]/40 flex items-center justify-center font-black text-xs text-[#10b981] shrink-0 shadow-sm">
+                <div className="relative w-10 h-10 rounded-xl bg-[#E6F5F2] dark:bg-[#10b981]/20 border border-[#B3E2D9] dark:border-[#10b981]/40 flex items-center justify-center font-black text-xs text-[#089981] dark:text-[#10b981] shrink-0 shadow-sm">
                   <Headphones className="w-5 h-5" />
                   <span
                     className="absolute -bottom-0.5 -end-0.5 w-2.5 h-2.5 rounded-full bg-[#10b981] ring-2 ring-[#171b26]"
@@ -865,10 +865,10 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-1.5">
                     <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="text-xs font-black text-white truncate">
+                      <span className="text-xs font-black text-[#131722] dark:text-white truncate">
                         @{OFFICIAL_PLATFORM_USERNAME}
                       </span>
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-[#10b981]/15 text-[#10b981] border border-[#10b981]/30 shrink-0">
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-[#E6F5F2] dark:bg-[#10b981]/15 text-[#089981] dark:text-[#10b981] border border-[#B3E2D9] dark:border-[#10b981]/30 shrink-0">
                         <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse" />
                         <span>{isAr ? 'متصل' : 'Online'}</span>
                       </span>
@@ -881,7 +881,7 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                     ) : null}
                   </div>
                   <div className="flex items-center justify-between gap-2 mt-0.5">
-                    <span className="text-[11px] text-[#9db2c6] truncate">
+                    <span className="text-[11px] text-[#4A5162] dark:text-[#9db2c6] truncate">
                       {myOfficialConvo?.lastMessage
                         ? `${
                             myOfficialConvo.lastSenderUid === myUid
@@ -907,7 +907,7 @@ export const DirectMessagesPanel: React.FC<Props> = ({
             {filteredConversations.length === 0 ? (
               <div className="p-6 text-center space-y-2 text-[#787b86]">
                 <MessageCircle className="w-8 h-8 mx-auto opacity-40 text-[#089981]" />
-                <p className="text-xs font-bold text-white">
+                <p className="text-xs font-bold text-[#131722] dark:text-white">
                   {isAdminUser
                     ? isAr
                       ? 'لا توجد رسائل أو تذاكر دعم حالياً'
@@ -968,11 +968,11 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                       });
                     }}
                     className={`w-full p-3 flex items-center gap-2.5 text-start transition-colors cursor-pointer ${
-                      isActive ? 'bg-[#089981]/15 border-s-2 border-[#089981]' : 'hover:bg-[#1e222d]'
+                      isActive ? 'bg-[#E6F5F2] dark:bg-[#089981]/15 border-s-2 border-[#089981]' : 'hover:bg-[#EDF1F7] dark:hover:bg-[#1e222d]'
                     }`}
                   >
                     <div className="relative w-9 h-9 shrink-0">
-                      <div className="w-9 h-9 rounded-full bg-[#2a2e39] border border-[#363a45] flex items-center justify-center font-bold text-xs text-white overflow-hidden">
+                      <div className="w-9 h-9 rounded-full bg-[#EDF1F7] dark:bg-[#2a2e39] border border-[#CBD2DF] dark:border-[#363a45] flex items-center justify-center font-bold text-xs text-[#131722] dark:text-white overflow-hidden">
                         {otherAvatar ? (
                           <img src={otherAvatar} alt={otherName} className="w-full h-full object-cover" />
                         ) : (
@@ -997,12 +997,12 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-1.5">
                         <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-                          <span className="text-xs font-bold text-white truncate">{otherName}</span>
+                          <span className="text-xs font-bold text-[#131722] dark:text-white truncate">{otherName}</span>
                           <span
                             className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[8.5px] font-bold shrink-0 ${
                               isOtherOnline
-                                ? 'bg-[#10b981]/15 text-[#10b981] border border-[#10b981]/35'
-                                : 'bg-white/[0.04] text-[#8b95a5] border border-white/10'
+                                ? 'bg-[#E6F5F2] dark:bg-[#10b981]/15 text-[#089981] dark:text-[#10b981] border border-[#B3E2D9] dark:border-[#10b981]/35'
+                                : 'bg-white/[0.04] text-[#4A5162] dark:text-[#8b95a5] border border-[#E0E3EB] dark:border-white/10'
                             }`}
                           >
                             <span
@@ -1022,7 +1022,7 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                           </span>
                           {renderRoleBadge(otherRole, otherUid === OFFICIAL_PLATFORM_UID)}
                           {isAdminUser && isPlatformTicket && (
-                            <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-bold bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/40 shrink-0">
+                            <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-bold bg-[#E6F5F2] dark:bg-[#10b981]/20 text-[#089981] dark:text-[#10b981] border border-[#B3E2D9] dark:border-[#10b981]/40 shrink-0">
                               @mbktrading
                             </span>
                           )}
@@ -1032,7 +1032,7 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                         </span>
                       </div>
                       <div className="flex items-center justify-between gap-2 mt-0.5">
-                        <span className="text-[11px] text-[#9db2c6] truncate">
+                        <span className="text-[11px] text-[#4A5162] dark:text-[#9db2c6] truncate">
                           {convo.lastSenderUid === OFFICIAL_PLATFORM_UID
                             ? '@mbktrading: '
                             : convo.lastSenderUid === myUid
@@ -1058,16 +1058,16 @@ export const DirectMessagesPanel: React.FC<Props> = ({
 
         {/* RIGHT/END: Active DM Thread */}
         <div
-          className={`flex-1 min-w-0 flex flex-col bg-[#131722] ${
+          className={`flex-1 min-w-0 flex flex-col bg-[#FFFFFF] dark:bg-[#131722] ${
             selectedRecipientUid ? 'flex' : isCompact ? 'hidden' : 'hidden md:flex'
           }`}
         >
           {!activeRecipient ? (
             <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-3">
-              <div className="w-14 h-14 rounded-2xl bg-[#1e222d] border border-[#2a2e39] flex items-center justify-center text-[#089981]">
+              <div className="w-14 h-14 rounded-2xl bg-[#F8F9FD] dark:bg-[#1e222d] border border-[#E0E3EB] dark:border-[#2a2e39] flex items-center justify-center text-[#089981]">
                 <Headphones className="w-7 h-7" />
               </div>
-              <h3 className="text-sm font-bold text-white">
+              <h3 className="text-sm font-bold text-[#131722] dark:text-white">
                 {isAr ? 'بريد المنصة (@mbktrading)' : '@mbktrading Inbox'}
               </h3>
               {!isAdminUser && (
@@ -1088,14 +1088,14 @@ export const DirectMessagesPanel: React.FC<Props> = ({
           ) : (
             <>
               {/* Thread Header */}
-              <div className="px-3 py-2 bg-[#1e222d] border-b border-[#2a2e39] flex items-center justify-between gap-2 shrink-0">
+              <div className="px-3 py-2 bg-[#F8F9FD] dark:bg-[#1e222d] border-b border-[#E0E3EB] dark:border-[#2a2e39] flex items-center justify-between gap-2 shrink-0">
                 <div className="flex items-center gap-2 min-w-0">
                   <button
                     type="button"
                     onClick={() => setSelectedRecipientUid(null)}
                     className={`${
                       isCompact ? 'flex' : 'md:hidden'
-                    } p-1.5 rounded-lg bg-[#131722] border border-[#2a2e39] text-[#d1d4dc] hover:text-white cursor-pointer shrink-0`}
+                    } p-1.5 rounded-lg bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] text-[#131722] dark:text-[#d1d4dc] hover:text-[#131722] dark:hover:text-white cursor-pointer shrink-0`}
                     aria-label="Back"
                   >
                     {isAr ? <ArrowRight className="w-4 h-4" /> : <ArrowLeft className="w-4 h-4" />}
@@ -1117,8 +1117,8 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                           <div
                             className={`w-9 h-9 rounded-full border flex items-center justify-center font-bold text-xs overflow-hidden ${
                               isOfficialThreadForUser
-                                ? 'bg-[#10b981]/20 border-[#10b981]/40 text-[#10b981]'
-                                : 'bg-[#2a2e39] border-[#363a45] text-white'
+                                ? 'bg-[#E6F5F2] dark:bg-[#10b981]/20 border-[#B3E2D9] dark:border-[#10b981]/40 text-[#089981] dark:text-[#10b981]'
+                                : 'bg-[#EDF1F7] dark:bg-[#2a2e39] border-[#CBD2DF] dark:border-[#363a45] text-[#131722] dark:text-white'
                             }`}
                           >
                             {isOfficialThreadForUser ? (
@@ -1142,7 +1142,7 @@ export const DirectMessagesPanel: React.FC<Props> = ({
 
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-xs sm:text-sm font-bold text-white truncate">
+                            <span className="text-xs sm:text-sm font-bold text-[#131722] dark:text-white truncate">
                               {isOfficialThreadForUser
                                 ? `@${OFFICIAL_PLATFORM_USERNAME}`
                                 : activeRecipient.displayName}
@@ -1150,8 +1150,8 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                             <span
                               className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[9px] font-bold shrink-0 ${
                                 isRecipientOnline
-                                  ? 'bg-[#10b981]/15 text-[#10b981] border border-[#10b981]/35'
-                                  : 'bg-white/[0.04] text-[#8b95a5] border border-white/10'
+                                  ? 'bg-[#E6F5F2] dark:bg-[#10b981]/15 text-[#089981] dark:text-[#10b981] border border-[#B3E2D9] dark:border-[#10b981]/35'
+                                  : 'bg-white/[0.04] text-[#4A5162] dark:text-[#8b95a5] border border-[#E0E3EB] dark:border-white/10'
                               }`}
                             >
                               <span
@@ -1171,7 +1171,7 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                             </span>
                             {renderRoleBadge(activeRecipient.role, isOfficialThreadForUser)}
                             {isOfficialTicketForAdmin && (
-                              <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/40">
+                              <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-[#E6F5F2] dark:bg-[#10b981]/20 text-[#089981] dark:text-[#10b981] border border-[#B3E2D9] dark:border-[#10b981]/40">
                                 @mbktrading
                               </span>
                             )}
@@ -1207,8 +1207,8 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                     onClick={handleToggleBlockRecipient}
                     className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-all shrink-0 ${
                       isRecipientBlockedByMe
-                        ? 'bg-[#089981]/15 border-[#089981]/40 text-[#089981] hover:bg-[#089981]/25'
-                        : 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20'
+                        ? 'bg-[#E6F5F2] dark:bg-[#089981]/15 border-[#B3E2D9] dark:border-[#089981]/40 text-[#089981] hover:bg-[#089981]/25'
+                        : 'bg-[#FDECEE] dark:bg-rose-500/10 border-[#F5C2C7] dark:border-rose-500/30 text-[#D93848] dark:text-rose-400 hover:bg-rose-500/20'
                     }`}
                   >
                     {isRecipientBlockedByMe ? (
@@ -1230,8 +1230,8 @@ export const DirectMessagesPanel: React.FC<Props> = ({
               <div ref={messagesContainerRef} className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 space-y-2.5">
                 {messages.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-center text-[#787b86] text-xs space-y-2 max-w-md mx-auto">
-                    <Headphones className="w-8 h-8 opacity-50 text-[#10b981]" />
-                    <p className="font-bold text-white">
+                    <Headphones className="w-8 h-8 opacity-50 text-[#089981] dark:text-[#10b981]" />
+                    <p className="font-bold text-[#131722] dark:text-white">
                       {isOfficialThreadForUser
                         ? `@${OFFICIAL_PLATFORM_USERNAME}`
                         : isAr
@@ -1249,19 +1249,19 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                     return (
                       <div key={msg.id} className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
                         <div
-                          className={`max-w-[85%] sm:max-w-[70%] rounded-2xl px-3 py-2 text-xs leading-relaxed shadow ${
+                          className={`max-w-[85%] sm:max-w-[70%] rounded-2xl px-3 py-2 text-xs leading-relaxed shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow ${
                             isMine
-                              ? 'bg-gradient-to-br from-[#089981]/30 to-[#065f46]/30 border border-[#089981]/40 text-white rounded-ee-sm'
+                              ? 'bg-[#E6F5F2] dark:bg-gradient-to-br dark:from-[#089981]/30 dark:to-[#065f46]/30 border border-[#B3E2D9] dark:border-[#089981]/40 text-[#131722] dark:text-white rounded-ee-sm'
                               : isFromPlatformDesk
-                              ? 'bg-[#10b981]/15 border border-[#10b981]/40 text-white rounded-es-sm'
-                              : 'bg-[#1e222d] border border-[#2a2e39] text-[#e1e4ea] rounded-es-sm'
+                              ? 'bg-[#FFFFFF] dark:bg-[#10b981]/15 border border-[#B3E2D9] dark:border-[#10b981]/40 text-[#131722] dark:text-white rounded-es-sm'
+                              : 'bg-[#F8F9FD] dark:bg-[#1e222d] border border-[#E0E3EB] dark:border-[#2a2e39] text-[#131722] dark:text-[#e1e4ea] rounded-es-sm'
                           }`}
                         >
                           <div className="flex items-center justify-between gap-2 mb-1">
                             <div className="flex items-center gap-1.5">
                               <span
                                 className={`text-[10px] font-mono font-bold ${
-                                  isFromPlatformDesk ? 'text-[#10b981]' : 'text-[#8492a6]'
+                                  isFromPlatformDesk ? 'text-[#089981] dark:text-[#10b981]' : 'text-[#4A5162] dark:text-[#8492a6]'
                                 }`}
                               >
                                 {isFromPlatformDesk
@@ -1274,14 +1274,14 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                               {(isFromPlatformDesk ||
                                 (msg.senderName || '').trim().toLowerCase() === 'manager' ||
                                 (msg.senderName || '').startsWith('MBK')) && (
-                                <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-black bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/40 inline-flex items-center gap-0.5">
+                                <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-black bg-[#E6F5F2] dark:bg-[#10b981]/20 text-[#089981] dark:text-[#10b981] border border-[#B3E2D9] dark:border-[#10b981]/40 inline-flex items-center gap-0.5">
                                   <Check className="w-2.5 h-2.5" />
                                   <span>OFFICIAL</span>
                                 </span>
                               )}
                               {isAdminUser && isFromPlatformDesk && msg.repliedByName && (
                                 <span
-                                  className="px-1.5 py-0.2 rounded text-[8px] font-mono font-semibold bg-[#131722] text-[#9db2c6] border border-[#2a2e39]"
+                                  className="px-1.5 py-0.2 rounded text-[8px] font-mono font-semibold bg-[#FFFFFF] dark:bg-[#131722] text-[#4A5162] dark:text-[#9db2c6] border border-[#E0E3EB] dark:border-[#2a2e39]"
                                   title={
                                     isAr
                                       ? 'خاص بطاقم الإدارة والدعم فقط (غير مرئي للعميل)'
@@ -1297,7 +1297,7 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                               <button
                                 type="button"
                                 onClick={() => handleStartEditMessage(msg)}
-                                className="px-1.5 py-0.5 rounded bg-black/25 hover:bg-amber-500/20 text-[10px] text-[#9db2c6] hover:text-amber-300 border border-white/10 hover:border-amber-500/40 flex items-center gap-1 cursor-pointer transition-colors"
+                                className="px-1.5 py-0.5 rounded bg-[#FFFFFF] dark:bg-black/25 hover:bg-[#FDF6E3] dark:hover:bg-amber-500/20 text-[10px] text-[#4A5162] dark:text-[#9db2c6] hover:text-[#9A6700] dark:hover:text-amber-300 border border-[#CBD2DF] dark:border-white/10 hover:border-[#EFE0B4] dark:hover:border-amber-500/40 flex items-center gap-1 cursor-pointer transition-colors"
                                 title={isAr ? 'تعديل الرسالة' : 'Edit message'}
                               >
                                 <Edit2 className="w-2.5 h-2.5" />
@@ -1312,13 +1312,13 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                                 value={editingText}
                                 onChange={(e) => setEditingText(e.target.value.slice(0, 1000))}
                                 rows={2}
-                                className="w-full rounded-xl bg-[#0b0e14] border border-amber-500/40 px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-amber-400 resize-none"
+                                className="w-full rounded-xl bg-[#F0F3FA] dark:bg-[#0b0e14] border border-[#EFE0B4] dark:border-amber-500/40 px-2.5 py-1.5 text-xs text-[#131722] dark:text-white focus:outline-none focus:border-amber-400 resize-none"
                               />
                               <div className="flex items-center justify-end gap-1.5">
                                 <button
                                   type="button"
                                   onClick={handleCancelEditMessage}
-                                  className="px-2 py-1 rounded-lg bg-[#1e222d] hover:bg-[#2a2e39] text-[10px] font-bold text-[#9db2c6] flex items-center gap-1 cursor-pointer"
+                                  className="px-2 py-1 rounded-lg bg-[#F8F9FD] dark:bg-[#1e222d] hover:bg-[#EDF1F7] dark:hover:bg-[#2a2e39] text-[10px] font-bold text-[#4A5162] dark:text-[#9db2c6] flex items-center gap-1 cursor-pointer"
                                 >
                                   <X className="w-3 h-3" />
                                   <span>{isAr ? 'إلغاء' : 'Cancel'}</span>
@@ -1338,7 +1338,7 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                             <p className="break-words whitespace-pre-wrap">
                               {msg.text}
                               {msg.editedAt && (
-                                <span className="ms-1.5 text-[9px] font-mono text-[#8b95a5] italic">
+                                <span className="ms-1.5 text-[9px] font-mono text-[#4A5162] dark:text-[#8b95a5] italic">
                                   {isAr ? '(تم التعديل)' : '(edited)'}
                                 </span>
                               )}
@@ -1359,7 +1359,7 @@ export const DirectMessagesPanel: React.FC<Props> = ({
 
               {/* Topic Selector Bar when messaging @mbktrading (Support / Suggestion / Question) */}
               {isOfficialThreadForUser && (
-                <div className="px-3 py-1.5 bg-[#171b26] border-t border-[#2a2e39] flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0">
+                <div className="px-3 py-1.5 bg-[#FFFFFF] dark:bg-[#171b26] border-t border-[#E0E3EB] dark:border-[#2a2e39] flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0">
                   <span className="text-[10px] text-[#787b86] font-bold shrink-0">
                     {isAr ? 'الموضوع:' : 'Topic:'}
                   </span>
@@ -1373,8 +1373,8 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                       }}
                       className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer shrink-0 ${
                         selectedTopic === topic.id
-                          ? 'bg-[#10b981]/20 text-[#10b981] border-[#10b981]/50'
-                          : 'bg-[#131722] text-[#787b86] border-[#2a2e39] hover:text-white'
+                          ? 'bg-[#E6F5F2] dark:bg-[#10b981]/20 text-[#089981] dark:text-[#10b981] border-[#B3E2D9] dark:border-[#10b981]/50'
+                          : 'bg-[#FFFFFF] dark:bg-[#131722] text-[#787b86] border-[#E0E3EB] dark:border-[#2a2e39] hover:text-[#131722] dark:hover:text-white'
                       }`}
                     >
                       {isAr ? topic.labelAr : topic.labelEn}
@@ -1385,7 +1385,7 @@ export const DirectMessagesPanel: React.FC<Props> = ({
 
               {/* Composer or Privacy Lock Notice */}
               {!canSendMessage ? (
-                <div className="p-3 border-t border-[#2a2e39] bg-[#1e222d] text-center text-xs font-bold text-amber-300 flex items-center justify-center gap-2 shrink-0">
+                <div className="p-3 border-t border-[#E0E3EB] dark:border-[#2a2e39] bg-[#F8F9FD] dark:bg-[#1e222d] text-center text-xs font-bold text-[#9A6700] dark:text-amber-300 flex items-center justify-center gap-2 shrink-0">
                   <Lock className="w-4 h-4 shrink-0" />
                   <span>
                     {isRecipientBlockedByMe
@@ -1400,7 +1400,7 @@ export const DirectMessagesPanel: React.FC<Props> = ({
               ) : (
                 <form
                   onSubmit={handleSend}
-                  className="p-2.5 sm:p-3 border-t border-[#2a2e39] bg-[#1e222d] flex items-center gap-2 shrink-0"
+                  className="p-2.5 sm:p-3 border-t border-[#E0E3EB] dark:border-[#2a2e39] bg-[#F8F9FD] dark:bg-[#1e222d] flex items-center gap-2 shrink-0"
                 >
                   <input
                     type="text"
@@ -1420,7 +1420,7 @@ export const DirectMessagesPanel: React.FC<Props> = ({
                         ? `اكتب رسالة خاصة إلى ${activeRecipient.displayName}...`
                         : `Message ${activeRecipient.displayName}...`
                     }
-                    className="flex-1 bg-[#131722] border border-[#2a2e39] focus:border-[#089981] rounded-xl px-3 py-2 text-xs text-white placeholder-[#787b86] focus:outline-none"
+                    className="flex-1 bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] focus:border-[#1E53E5] dark:focus:border-[#089981] rounded-xl px-3 py-2 text-xs text-[#131722] dark:text-white placeholder-[#787B86] dark:placeholder-[#787b86] focus:outline-none"
                   />
                   <button
                     type="submit"

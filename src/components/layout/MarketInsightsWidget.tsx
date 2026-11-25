@@ -9,6 +9,7 @@ import {
   Flame
 } from 'lucide-react';
 import { getUpcomingMacroEvents } from '../../services/macroEventsAndAnnouncementsService';
+import { useTheme } from '../../context/ThemeContext';
 
 interface MarketInsightsWidgetProps {
   selectedSymbol: MarketSymbol;
@@ -95,6 +96,8 @@ const TradingViewSymbolInfoWidget: React.FC<{
 }> = ({ symbol, lang = 'ar' }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const isVisible = useLazyWidgetVisible(containerRef);
+  const { resolvedTheme } = useTheme();
+  const isLight = resolvedTheme === 'light';
   const tvSymbol = getTVSymbol(symbol);
 
   useEffect(() => {
@@ -115,7 +118,7 @@ const TradingViewSymbolInfoWidget: React.FC<{
       symbol: tvSymbol,
       width: '100%',
       locale: lang === 'ar' ? 'ar' : 'en',
-      colorTheme: 'dark',
+      colorTheme: isLight ? 'light' : 'dark',
       isTransparent: true
     });
 
@@ -133,12 +136,12 @@ const TradingViewSymbolInfoWidget: React.FC<{
         container.innerHTML = '';
       }
     };
-  }, [symbol, tvSymbol, lang, isVisible]);
+  }, [symbol, tvSymbol, lang, isVisible, isLight]);
 
   return (
     <div
       ref={containerRef}
-      className="w-full rounded-xl overflow-hidden bg-[#06080C]/40 border border-white/5 relative min-h-[90px]"
+      className="w-full rounded-xl overflow-hidden bg-[#F8F9FD] dark:bg-[#06080C]/40 border border-[#E0E3EB] dark:border-white/5 relative min-h-[90px]"
     />
   );
 };
@@ -150,6 +153,8 @@ const TradingViewTechnicalAnalysisWidget: React.FC<{
 }> = ({ symbol, lang = 'ar' }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const isVisible = useLazyWidgetVisible(containerRef);
+  const { resolvedTheme } = useTheme();
+  const isLight = resolvedTheme === 'light';
   const tvSymbol = getTVSymbol(symbol);
 
   useEffect(() => {
@@ -175,7 +180,7 @@ const TradingViewTechnicalAnalysisWidget: React.FC<{
       showIntervalTabs: true,
       displayMode: 'single',
       locale: lang === 'ar' ? 'ar' : 'en',
-      colorTheme: 'dark'
+      colorTheme: isLight ? 'light' : 'dark'
     });
 
     const wrapper = document.createElement('div');
@@ -192,12 +197,12 @@ const TradingViewTechnicalAnalysisWidget: React.FC<{
         container.innerHTML = '';
       }
     };
-  }, [symbol, tvSymbol, lang, isVisible]);
+  }, [symbol, tvSymbol, lang, isVisible, isLight]);
 
   return (
     <div
       ref={containerRef}
-      className="w-full min-h-[420px] rounded-xl overflow-hidden bg-[#131722] border border-[#2a2e39] flex items-center justify-center relative shadow-md"
+      className="w-full min-h-[420px] rounded-xl overflow-hidden bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] flex items-center justify-center relative shadow-md"
     />
   );
 };
@@ -209,6 +214,8 @@ const TradingViewTimelineWidget: React.FC<{
 }> = ({ symbol, lang = 'ar' }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const isVisible = useLazyWidgetVisible(containerRef);
+  const { resolvedTheme } = useTheme();
+  const isLight = resolvedTheme === 'light';
   const tvSymbol = getTVSymbol(symbol);
 
   useEffect(() => {
@@ -232,7 +239,7 @@ const TradingViewTimelineWidget: React.FC<{
       displayMode: 'regular',
       width: '100%',
       height: 420,
-      colorTheme: 'dark',
+      colorTheme: isLight ? 'light' : 'dark',
       locale: lang === 'ar' ? 'ar' : 'en'
     });
 
@@ -250,12 +257,12 @@ const TradingViewTimelineWidget: React.FC<{
         container.innerHTML = '';
       }
     };
-  }, [symbol, tvSymbol, lang, isVisible]);
+  }, [symbol, tvSymbol, lang, isVisible, isLight]);
 
   return (
     <div
       ref={containerRef}
-      className="w-full min-h-[420px] rounded-xl overflow-hidden bg-[#131722] border border-[#2a2e39] flex items-center justify-center relative shadow-md"
+      className="w-full min-h-[420px] rounded-xl overflow-hidden bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39] flex items-center justify-center relative shadow-md"
     />
   );
 };
@@ -264,6 +271,8 @@ const TradingViewTimelineWidget: React.FC<{
 const TradingViewLiveEventsPanel: React.FC<{ lang?: 'ar' | 'en' }> = ({ lang = 'ar' }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const isVisible = useLazyWidgetVisible(containerRef);
+  const { resolvedTheme } = useTheme();
+  const isLight = resolvedTheme === 'light';
 
   useEffect(() => {
     const container = containerRef.current;
@@ -280,7 +289,7 @@ const TradingViewLiveEventsPanel: React.FC<{ lang?: 'ar' | 'en' }> = ({ lang = '
     script.type = 'text/javascript';
     script.async = true;
     script.innerHTML = JSON.stringify({
-      colorTheme: 'dark',
+      colorTheme: isLight ? 'light' : 'dark',
       isTransparent: true,
       width: '100%',
       height: '100%',
@@ -303,12 +312,12 @@ const TradingViewLiveEventsPanel: React.FC<{ lang?: 'ar' | 'en' }> = ({ lang = '
         container.innerHTML = '';
       }
     };
-  }, [lang, isVisible]);
+  }, [lang, isVisible, isLight]);
 
   return (
     <div
       ref={containerRef}
-      className="w-full flex-1 min-h-[540px] rounded-xl overflow-hidden bg-[#131722] border border-[#2a2e39]"
+      className="w-full flex-1 min-h-[540px] rounded-xl overflow-hidden bg-[#FFFFFF] dark:bg-[#131722] border border-[#E0E3EB] dark:border-[#2a2e39]"
     />
   );
 };
@@ -321,17 +330,17 @@ export const MarketInsightsWidget: React.FC<MarketInsightsWidgetProps> = ({
   const activeAsset = selectedSymbol || 'XAUUSD';
 
   return (
-    <div className="w-full space-y-3 p-2.5 sm:p-3 bg-[#0c0f17]/80 backdrop-blur-md rounded-2xl border border-white/10 shadow-2xl text-[#d1d4dc] transition-all">
+    <div className="w-full space-y-3 p-2.5 sm:p-3 bg-[#FFFFFF] dark:bg-[#0c0f17]/80 dark:backdrop-blur-md rounded-2xl border border-[#E0E3EB] dark:border-white/10 shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl text-[#131722] dark:text-[#d1d4dc] transition-all">
       {/* Container Header with Title */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E0E3EB] dark:border-white/10 pb-2">
         <div className="flex items-center gap-2 min-w-0">
-          <div className="p-1.5 rounded-lg bg-[#089981]/20 border border-[#089981]/40 text-[#089981] shrink-0">
+          <div className="p-1.5 rounded-lg bg-[#E6F5F2] dark:bg-[#089981]/20 border border-[#B3E2D9] dark:border-[#089981]/40 text-[#089981] shrink-0">
             <Compass className="w-4 h-4 animate-spin-slow" />
           </div>
           <div className="min-w-0">
-            <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5 truncate">
+            <h3 className="text-xs sm:text-sm font-bold text-[#131722] dark:text-white flex items-center gap-1.5 truncate">
               <span>{isAr ? 'تحليلات السوق' : 'Market Insights'}</span>
-              <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center gap-1 shrink-0">
+              <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-[#FDF6E3] dark:bg-amber-500/20 text-[#9A6700] dark:text-amber-400 border border-[#EFE0B4] dark:border-amber-500/30 flex items-center gap-1 shrink-0">
                 <Sparkles className="w-2.5 h-2.5" />
                 <span>MBK</span>
               </span>
@@ -341,24 +350,24 @@ export const MarketInsightsWidget: React.FC<MarketInsightsWidgetProps> = ({
             </p>
           </div>
         </div>
-        <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-mono font-bold bg-[#089981]/20 text-[#089981] border border-[#089981]/40">
+        <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-mono font-bold bg-[#E6F5F2] dark:bg-[#089981]/20 text-[#089981] border border-[#B3E2D9] dark:border-[#089981]/40">
           {activeAsset}
         </span>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         {/* REAL TRADINGVIEW SYMBOL INFO, TECHNICAL ANALYSIS GAUGES & TOP STORIES TIMELINE WIDGETS (Spans 2 columns on desktop) */}
-        <div className="lg:col-span-2 bg-[#131722] p-3 rounded-xl border border-[#2a2e39] flex flex-col space-y-3 shadow-xl group hover:border-[#089981]/40 transition-all">
-          <div className="flex items-center justify-between pb-1 border-b border-[#2a2e39]">
+        <div className="lg:col-span-2 bg-[#FFFFFF] dark:bg-[#131722] p-3 rounded-xl border border-[#E0E3EB] dark:border-[#2a2e39] flex flex-col space-y-3 shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-xl group hover:border-[#089981]/40 transition-all">
+          <div className="flex items-center justify-between pb-1 border-b border-[#E0E3EB] dark:border-[#2a2e39]">
             <div className="flex items-center gap-2">
-              <div className="p-1 rounded bg-[#089981]/20 border border-[#089981]/30 text-[#089981]">
+              <div className="p-1 rounded bg-[#E6F5F2] dark:bg-[#089981]/20 border border-[#B3E2D9] dark:border-[#089981]/30 text-[#089981]">
                 <BarChart3 className="w-3.5 h-3.5" />
               </div>
-              <span className="text-xs font-bold text-white">
+              <span className="text-xs font-bold text-[#131722] dark:text-white">
                 {isAr ? `مؤشرات التحليل الفني والقصص الرئيسية — ${activeAsset}` : `Technical Analysis & Top Stories — ${activeAsset}`}
               </span>
             </div>
-            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#089981]/20 text-[#089981] border border-[#089981]/30">
+            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#E6F5F2] dark:bg-[#089981]/20 text-[#089981] border border-[#B3E2D9] dark:border-[#089981]/30">
               {TRADINGVIEW_TICKERS[activeAsset] || activeAsset}
             </span>
           </div>
@@ -370,7 +379,7 @@ export const MarketInsightsWidget: React.FC<MarketInsightsWidgetProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="flex flex-col space-y-1.5">
               <div className="flex items-center justify-between px-1">
-                <span className="text-[11px] font-bold text-amber-400 font-mono flex items-center gap-1">
+                <span className="text-[11px] font-bold text-[#9A6700] dark:text-amber-400 font-mono flex items-center gap-1">
                   <span>🎯</span>
                   <span>{isAr ? 'مؤشرات الشراء والبيع' : 'Buy/Sell Gauges'}</span>
                 </span>
@@ -381,7 +390,7 @@ export const MarketInsightsWidget: React.FC<MarketInsightsWidgetProps> = ({
 
             <div className="flex flex-col space-y-1.5">
               <div className="flex items-center justify-between px-1">
-                <span className="text-[11px] font-bold text-blue-400 font-mono flex items-center gap-1">
+                <span className="text-[11px] font-bold text-[#1E53E5] dark:text-blue-400 font-mono flex items-center gap-1">
                   <span>📰</span>
                   <span>{isAr ? 'أخبار MBK' : 'MBK News'}</span>
                 </span>
@@ -396,15 +405,15 @@ export const MarketInsightsWidget: React.FC<MarketInsightsWidgetProps> = ({
         </div>
 
         {/* LIVE ECONOMIC CALENDAR (1 Column - Arabic/English Upcoming Events + Official TradingView Widget) */}
-        <div className="lg:col-span-1 bg-[#131722]/80 backdrop-blur-md p-3 rounded-xl border border-white/10 flex flex-col space-y-2.5 shadow-lg group hover:border-red-500/40 transition-all">
-          <div className="flex items-center justify-between pb-1 border-b border-white/5 shrink-0">
+        <div className="lg:col-span-1 bg-[#FFFFFF]/95 dark:bg-[#131722]/80 dark:backdrop-blur-md p-3 rounded-xl border border-[#E0E3EB] dark:border-white/10 flex flex-col space-y-2.5 shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-lg group hover:border-red-500/40 transition-all">
+          <div className="flex items-center justify-between pb-1 border-b border-[#E0E3EB] dark:border-white/5 shrink-0">
             <div className="flex items-center gap-1.5">
-              <Calendar className="w-4 h-4 text-red-500" />
-              <span className="text-xs font-bold text-white">
+              <Calendar className="w-4 h-4 text-[#D93848] dark:text-red-500" />
+              <span className="text-xs font-bold text-[#131722] dark:text-white">
                 {isAr ? 'التقويم الاقتصادي' : 'Economic Calendar'}
               </span>
             </div>
-            <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/30">
+            <span className="text-[10px] font-mono text-[#089981] dark:text-emerald-400 bg-[#E6F5F2] dark:bg-emerald-500/10 px-1.5 py-0.5 rounded border border-[#B3E2D9] dark:border-emerald-500/30">
               {isAr ? 'تنبيه قبل ساعة' : 'LIVE FEED'}
             </span>
           </div>
@@ -413,15 +422,15 @@ export const MarketInsightsWidget: React.FC<MarketInsightsWidgetProps> = ({
             {getUpcomingMacroEvents().slice(0, 3).map((ev) => (
               <div
                 key={ev.id}
-                className="p-2 rounded-lg bg-[#1e222d] border border-[#2a2e39] flex items-center justify-between gap-2 text-start"
+                className="p-2 rounded-lg bg-[#F8F9FD] dark:bg-[#1e222d] border border-[#E0E3EB] dark:border-[#2a2e39] flex items-center justify-between gap-2 text-start"
               >
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <Flame className="w-3 h-3 text-rose-400 shrink-0" />
-                    <span className="px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-400 text-[9px] font-mono font-bold">
+                    <Flame className="w-3 h-3 text-[#D93848] dark:text-rose-400 shrink-0" />
+                    <span className="px-1.5 py-0.2 rounded bg-[#FDECEE] dark:bg-rose-500/20 text-[#D93848] dark:text-rose-400 text-[9px] font-mono font-bold">
                       {ev.code}
                     </span>
-                    <span className="text-[11px] font-bold text-white truncate">
+                    <span className="text-[11px] font-bold text-[#131722] dark:text-white truncate">
                       {isAr ? ev.titleAr : ev.titleEn}
                     </span>
                   </div>
@@ -431,7 +440,7 @@ export const MarketInsightsWidget: React.FC<MarketInsightsWidgetProps> = ({
                       : `Forecast: ${ev.forecast} • Prev: ${ev.previous}`}
                   </span>
                 </div>
-                <span className="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[9.5px] font-mono font-bold shrink-0">
+                <span className="px-1.5 py-0.5 rounded bg-[#FDF6E3] dark:bg-amber-500/15 text-[#9A6700] dark:text-amber-300 border border-[#EFE0B4] dark:border-amber-500/30 text-[9.5px] font-mono font-bold shrink-0">
                   {new Date(ev.releaseTimeMs).toLocaleTimeString(isAr ? 'ar-SA' : 'en-US', {
                     hour: '2-digit',
                     minute: '2-digit'

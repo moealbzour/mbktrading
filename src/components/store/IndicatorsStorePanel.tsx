@@ -228,7 +228,7 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
         labelAr: 'روبوت تداول آلي',
         labelEn: 'Algo Trading Bot',
         icon: Bot,
-        badgeClass: 'bg-[#10b981]/15 text-[#10b981] border-[#10b981]/30'
+        badgeClass: 'bg-[#E6F5F2] dark:bg-[#10b981]/15 text-[#089981] dark:text-[#10b981] border-[#B3E2D9] dark:border-[#10b981]/30'
       };
     }
     if (cat === 'bundle') {
@@ -236,7 +236,7 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
         labelAr: 'باقة متكاملة',
         labelEn: 'System Bundle',
         icon: Layers,
-        badgeClass: 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+        badgeClass: 'bg-[#FDF6E3] dark:bg-amber-500/15 text-[#9A6700] dark:text-amber-400 border-[#EFE0B4] dark:border-amber-500/30'
       };
     }
     if (cat === 'tool') {
@@ -244,14 +244,14 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
         labelAr: 'أداة احترافية',
         labelEn: 'Pro Trading Tool',
         icon: Wrench,
-        badgeClass: 'bg-purple-500/15 text-purple-300 border-purple-500/30'
+        badgeClass: 'bg-[#EDF1F7] dark:bg-purple-500/15 text-[#4A5162] dark:text-purple-300 border-[#CBD2DF] dark:border-purple-500/30'
       };
     }
     return {
       labelAr: 'مؤشر TradingView',
       labelEn: 'TradingView Indicator',
       icon: TrendingUp,
-      badgeClass: 'bg-[#089981]/15 text-[#089981] border-[#089981]/30'
+      badgeClass: 'bg-[#E6F5F2] dark:bg-[#089981]/15 text-[#089981] border-[#B3E2D9] dark:border-[#089981]/30'
     };
   };
 
@@ -441,22 +441,22 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
   };
 
   return (
-    <div className="space-y-4 bg-[#06080c] text-[#D1D4DC]" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="space-y-4 bg-[#F0F3FA] dark:bg-[#06080c] text-[#131722] dark:text-[#D1D4DC]" dir={isAr ? 'rtl' : 'ltr'}>
       {/* 1. STORE HEADER & CATEGORY FILTER BAR */}
-      <div className="bg-[#0b0e14] border border-white/10 rounded-xl overflow-hidden">
-        <div className="p-4 bg-[#06080c] border-b border-white/10 flex flex-wrap items-center justify-between gap-3">
+      <div className="bg-[#F0F3FA] dark:bg-[#0b0e14] border border-[#E0E3EB] dark:border-white/10 rounded-xl overflow-hidden">
+        <div className="p-4 bg-[#F0F3FA] dark:bg-[#06080c] border-b border-[#E0E3EB] dark:border-white/10 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#10b981]/15 border border-[#10b981]/40 flex items-center justify-center text-[#10b981] shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-[#E6F5F2] dark:bg-[#10b981]/15 border border-[#B3E2D9] dark:border-[#10b981]/40 flex items-center justify-center text-[#089981] dark:text-[#10b981] shrink-0">
               <ShoppingBag className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-sm sm:text-base font-extrabold text-white flex items-center gap-2 flex-wrap">
+              <h2 className="text-sm sm:text-base font-extrabold text-[#131722] dark:text-white flex items-center gap-2 flex-wrap">
                 <span>
                   {isAr
                     ? 'متجر مؤشرات وروبوتات MBK المؤسسية'
                     : 'MBK Indicators & Algo Bots Store'}
                 </span>
-                <span className="px-2 py-0.5 rounded-[3px] text-[10px] font-mono font-bold bg-[#089981]/15 text-[#089981] border border-[#089981]/30">
+                <span className="px-2 py-0.5 rounded-[3px] text-[10px] font-mono font-bold bg-[#E6F5F2] dark:bg-[#089981]/15 text-[#089981] border border-[#B3E2D9] dark:border-[#089981]/30">
                   PINE SCRIPT & MT5
                 </span>
               </h2>
@@ -473,11 +473,11 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
               type="button"
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className="px-2.5 py-1.5 rounded-[4px] bg-[#0b0e14] hover:bg-[#0f141e] border border-white/10 text-xs font-semibold text-[#D1D4DC] flex items-center gap-1.5 cursor-pointer transition-colors"
+              className="px-2.5 py-1.5 rounded-[4px] bg-[#F0F3FA] dark:bg-[#0b0e14] hover:bg-[#EDF1F7] dark:hover:bg-[#0f141e] border border-[#E0E3EB] dark:border-white/10 text-xs font-semibold text-[#131722] dark:text-[#D1D4DC] flex items-center gap-1.5 cursor-pointer transition-colors"
               title={isAr ? 'تحديث المتجر' : 'Refresh Store'}
             >
               <RefreshCw
-                className={`w-3.5 h-3.5 text-[#10b981] ${isRefreshing ? 'animate-spin' : ''}`}
+                className={`w-3.5 h-3.5 text-[#089981] dark:text-[#10b981] ${isRefreshing ? 'animate-spin' : ''}`}
               />
               <span className="hidden sm:inline">{isAr ? 'تحديث' : 'Refresh'}</span>
             </button>
@@ -496,7 +496,7 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
         </div>
 
         {/* Category Filter Pills */}
-        <div className="px-4 py-2.5 bg-[#0b0e14] flex flex-wrap items-center justify-between gap-2">
+        <div className="px-4 py-2.5 bg-[#F0F3FA] dark:bg-[#0b0e14] flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 flex-wrap">
             {(
               [
@@ -520,7 +520,7 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
                 className={`px-3 py-1.5 rounded-[4px] text-xs font-bold transition-colors cursor-pointer border ${
                   categoryFilter === tab.id
                     ? 'bg-[#10b981] text-white border-[#10b981]'
-                    : 'bg-[#06080c] text-[#787B86] hover:text-[#D1D4DC] border-white/10'
+                    : 'bg-[#F0F3FA] dark:bg-[#06080c] text-[#787B86] hover:text-[#131722] dark:hover:text-[#D1D4DC] border-[#E0E3EB] dark:border-white/10'
                 }`}
               >
                 {isAr ? tab.labelAr : tab.labelEn}
@@ -535,9 +535,9 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
                 soundManager.playClick();
                 handlePlansClick();
               }}
-              className="px-2.5 py-1 rounded-[4px] bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 text-amber-300 text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+              className="px-2.5 py-1 rounded-[4px] bg-[#FDF6E3] dark:bg-amber-500/15 hover:bg-amber-500/25 border border-[#EFE0B4] dark:border-amber-500/35 text-[#9A6700] dark:text-amber-300 text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
             >
-              <Crown className="w-3.5 h-3.5 text-amber-400" />
+              <Crown className="w-3.5 h-3.5 text-[#9A6700] dark:text-amber-400" />
               <span>
                 {isAr
                   ? 'باقة Elite تشمل المؤشرات المعتمدة مجاناً'
@@ -550,20 +550,20 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
 
       {/* 2. PRODUCTS GRID OR ZERO-FAKE-DATA EMPTY STATE */}
       {isLoading ? (
-        <div className="bg-[#0b0e14] border border-white/10 rounded-xl p-12 text-center space-y-2">
-          <RefreshCw className="w-6 h-6 text-[#10b981] animate-spin mx-auto" />
+        <div className="bg-[#F0F3FA] dark:bg-[#0b0e14] border border-[#E0E3EB] dark:border-white/10 rounded-xl p-12 text-center space-y-2">
+          <RefreshCw className="w-6 h-6 text-[#089981] dark:text-[#10b981] animate-spin mx-auto" />
           <p className="text-xs text-[#787B86] font-mono">
             {isAr ? 'جاري تحميل منتجات المتجر...' : 'Loading store products...'}
           </p>
         </div>
       ) : visibleProducts.length === 0 ? (
-        <div className="bg-[#0b0e14] border border-white/10 rounded-xl p-8 sm:p-12 text-center max-w-2xl mx-auto space-y-4">
-          <div className="w-12 h-12 rounded-xl bg-[#10b981]/15 border border-[#10b981]/35 flex items-center justify-center text-[#10b981] mx-auto">
+        <div className="bg-[#F0F3FA] dark:bg-[#0b0e14] border border-[#E0E3EB] dark:border-white/10 rounded-xl p-8 sm:p-12 text-center max-w-2xl mx-auto space-y-4">
+          <div className="w-12 h-12 rounded-xl bg-[#E6F5F2] dark:bg-[#10b981]/15 border border-[#B3E2D9] dark:border-[#10b981]/35 flex items-center justify-center text-[#089981] dark:text-[#10b981] mx-auto">
             <Package className="w-6 h-6" />
           </div>
 
           <div className="space-y-1.5">
-            <h3 className="text-sm sm:text-base font-extrabold text-white">
+            <h3 className="text-sm sm:text-base font-extrabold text-[#131722] dark:text-white">
               {isAr
                 ? 'المتجر قيد التجهيز — سيتم إضافة مؤشرات وروبوتات MBK الحصرية قريباً'
                 : 'MBK Indicators & Algo Bots Store launching soon'}
@@ -621,16 +621,16 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
             return (
               <div
                 key={product.id}
-                className={`bg-[#0b0e14] border rounded-xl overflow-hidden flex flex-col justify-between transition-colors ${
+                className={`bg-[#F0F3FA] dark:bg-[#0b0e14] border rounded-xl overflow-hidden flex flex-col justify-between transition-colors ${
                   !product.isPublished
-                    ? 'border-amber-500/50 opacity-85'
-                    : 'border-white/10 hover:border-[#10b981]/60'
+                    ? 'border-[#EFE0B4] dark:border-amber-500/50 opacity-85'
+                    : 'border-[#E0E3EB] dark:border-white/10 hover:border-[#10b981]/60'
                 }`}
               >
                 <div>
                   {/* Optional Preview Image */}
                   {product.imageUrl && (
-                    <div className="w-full h-44 bg-[#06080c] border-b border-white/10 relative overflow-hidden">
+                    <div className="w-full h-44 bg-[#F0F3FA] dark:bg-[#06080c] border-b border-[#E0E3EB] dark:border-white/10 relative overflow-hidden">
                       <img
                         src={product.imageUrl}
                         alt={title}
@@ -661,13 +661,13 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
                           <CatIcon className="w-3 h-3" />
                           <span>{isAr ? catMeta.labelAr : catMeta.labelEn}</span>
                         </span>
-                        <span className="px-2 py-0.5 rounded-[3px] bg-[#06080c] border border-white/10 text-[#787B86] text-[10px] font-mono">
+                        <span className="px-2 py-0.5 rounded-[3px] bg-[#F0F3FA] dark:bg-[#06080c] border border-[#E0E3EB] dark:border-white/10 text-[#787B86] text-[10px] font-mono">
                           {product.platform}
                         </span>
                       </div>
 
                       {!product.imageUrl && badgeText && (
-                        <span className="px-2 py-0.5 rounded-[3px] bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/40 text-[10px] font-bold">
+                        <span className="px-2 py-0.5 rounded-[3px] bg-[#E6F5F2] dark:bg-[#10b981]/20 text-[#089981] dark:text-[#10b981] border border-[#B3E2D9] dark:border-[#10b981]/40 text-[10px] font-bold">
                           {badgeText}
                         </span>
                       )}
@@ -684,9 +684,9 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
                               handlePlansClick();
                             }
                           }}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[3px] bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 text-amber-300 text-[10px] font-bold cursor-pointer transition-colors"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[3px] bg-[#FDF6E3] dark:bg-amber-500/15 hover:bg-amber-500/25 border border-[#EFE0B4] dark:border-amber-500/35 text-[#9A6700] dark:text-amber-300 text-[10px] font-bold cursor-pointer transition-colors"
                         >
-                          <Crown className="w-3 h-3 text-amber-400" />
+                          <Crown className="w-3 h-3 text-[#9A6700] dark:text-amber-400" />
                           <span>
                             {isAr
                               ? 'مشمول مجاناً ضمن باقة Elite — عرض الباقات'
@@ -699,11 +699,11 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
                     {/* Title & Short Description */}
                     <div className="space-y-1">
                       <div className="flex items-start justify-between gap-2">
-                        <h3 className="text-sm sm:text-base font-extrabold text-white leading-snug">
+                        <h3 className="text-sm sm:text-base font-extrabold text-[#131722] dark:text-white leading-snug">
                           {title}
                         </h3>
                         {!product.isPublished && !product.imageUrl && isAdmin && (
-                          <span className="px-1.5 py-0.5 rounded-[3px] bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] font-mono font-bold shrink-0">
+                          <span className="px-1.5 py-0.5 rounded-[3px] bg-[#FDF6E3] dark:bg-amber-500/20 text-[#9A6700] dark:text-amber-300 border border-[#EFE0B4] dark:border-amber-500/40 text-[9px] font-mono font-bold shrink-0">
                             {isAr ? 'مخفي' : 'DRAFT'}
                           </span>
                         )}
@@ -724,7 +724,7 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
                         {product.markets.map((mkt) => (
                           <span
                             key={mkt}
-                            className="px-1.5 py-0.5 rounded-[3px] bg-[#06080c] border border-white/10 text-[#D1D4DC] font-mono font-bold text-[10px]"
+                            className="px-1.5 py-0.5 rounded-[3px] bg-[#F0F3FA] dark:bg-[#06080c] border border-[#E0E3EB] dark:border-white/10 text-[#131722] dark:text-[#D1D4DC] font-mono font-bold text-[10px]"
                           >
                             {mkt}
                           </span>
@@ -734,11 +734,11 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
 
                     {/* Features Checklist */}
                     {features.length > 0 && (
-                      <ul className="space-y-1.5 pt-2 border-t border-white/10">
+                      <ul className="space-y-1.5 pt-2 border-t border-[#E0E3EB] dark:border-white/10">
                         {features.map((feat, idx) => (
                           <li
                             key={idx}
-                            className="flex items-start gap-2 text-xs text-[#D1D4DC]"
+                            className="flex items-start gap-2 text-xs text-[#131722] dark:text-[#D1D4DC]"
                           >
                             <CheckCircle2 className="w-3.5 h-3.5 text-[#089981] shrink-0 mt-0.5" />
                             <span className="leading-snug">{feat}</span>
@@ -750,14 +750,14 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
                 </div>
 
                 {/* Card Footer: Price + CTA + Admin Actions */}
-                <div className="p-4 pt-3 bg-[#06080c]/70 border-t border-white/10 space-y-3">
+                <div className="p-4 pt-3 bg-[#F0F3FA]/90 dark:bg-[#06080c]/70 border-t border-[#E0E3EB] dark:border-white/10 space-y-3">
                   <div className="flex items-center justify-between gap-2">
                     <div>
                       <span className="text-[10px] text-[#787B86] block">
                         {isAr ? 'السعر الرسمي' : 'License Price'}
                       </span>
                       <div className="flex items-baseline gap-1.5">
-                        <span className="text-lg font-mono tabular-nums font-extrabold text-white">
+                        <span className="text-lg font-mono tabular-nums font-extrabold text-[#131722] dark:text-white">
                           {product.priceUsd === 0
                             ? isAr
                               ? 'مجاني'
@@ -776,9 +776,9 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
                           href={product.demoUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="px-2.5 py-2 rounded-[4px] bg-[#0b0e14] hover:bg-[#0f141e] border border-white/10 text-[#D1D4DC] text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                          className="px-2.5 py-2 rounded-[4px] bg-[#F0F3FA] dark:bg-[#0b0e14] hover:bg-[#EDF1F7] dark:hover:bg-[#0f141e] border border-[#E0E3EB] dark:border-white/10 text-[#131722] dark:text-[#D1D4DC] text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
                         >
-                          <ExternalLink className="w-3.5 h-3.5 text-[#10b981]" />
+                          <ExternalLink className="w-3.5 h-3.5 text-[#089981] dark:text-[#10b981]" />
                           <span>{isAr ? 'عرض تجريبي' : 'View Demo'}</span>
                         </a>
                       )}
@@ -797,15 +797,15 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
 
                   {/* Admin Controls Bar */}
                   {isAdmin && (
-                    <div className="pt-2.5 border-t border-white/10 flex items-center justify-between gap-2">
+                    <div className="pt-2.5 border-t border-[#E0E3EB] dark:border-white/10 flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1.5">
                         <button
                           type="button"
                           onClick={() => openEditModal(product)}
                           disabled={isBusy}
-                          className="px-2.5 py-1 rounded-[3px] bg-[#0b0e14] hover:bg-[#0f141e] border border-white/10 text-[11px] font-semibold text-[#D1D4DC] flex items-center gap-1 cursor-pointer"
+                          className="px-2.5 py-1 rounded-[3px] bg-[#F0F3FA] dark:bg-[#0b0e14] hover:bg-[#EDF1F7] dark:hover:bg-[#0f141e] border border-[#E0E3EB] dark:border-white/10 text-[11px] font-semibold text-[#131722] dark:text-[#D1D4DC] flex items-center gap-1 cursor-pointer"
                         >
-                          <Edit3 className="w-3 h-3 text-[#10b981]" />
+                          <Edit3 className="w-3 h-3 text-[#089981] dark:text-[#10b981]" />
                           <span>{isAr ? 'تعديل' : 'Edit'}</span>
                         </button>
 
@@ -813,11 +813,11 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
                           type="button"
                           onClick={() => handleTogglePublish(product)}
                           disabled={isBusy}
-                          className="px-2.5 py-1 rounded-[3px] bg-[#0b0e14] hover:bg-[#0f141e] border border-white/10 text-[11px] font-semibold text-[#D1D4DC] flex items-center gap-1 cursor-pointer"
+                          className="px-2.5 py-1 rounded-[3px] bg-[#F0F3FA] dark:bg-[#0b0e14] hover:bg-[#EDF1F7] dark:hover:bg-[#0f141e] border border-[#E0E3EB] dark:border-white/10 text-[11px] font-semibold text-[#131722] dark:text-[#D1D4DC] flex items-center gap-1 cursor-pointer"
                         >
                           {product.isPublished ? (
                             <>
-                              <EyeOff className="w-3 h-3 text-amber-400" />
+                              <EyeOff className="w-3 h-3 text-[#9A6700] dark:text-amber-400" />
                               <span>{isAr ? 'إخفاء' : 'Hide'}</span>
                             </>
                           ) : (
@@ -842,7 +842,7 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
                           <button
                             type="button"
                             onClick={() => setConfirmDeleteId(null)}
-                            className="px-2 py-1 rounded-[3px] bg-[#0b0e14] border border-white/10 text-[#787B86] text-[10px] cursor-pointer"
+                            className="px-2 py-1 rounded-[3px] bg-[#F0F3FA] dark:bg-[#0b0e14] border border-[#E0E3EB] dark:border-white/10 text-[#787B86] text-[10px] cursor-pointer"
                           >
                             {isAr ? 'إلغاء' : 'Cancel'}
                           </button>
@@ -852,7 +852,7 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
                           type="button"
                           onClick={() => setConfirmDeleteId(product.id)}
                           disabled={isBusy}
-                          className="px-2 py-1 rounded-[3px] bg-[#F23645]/15 hover:bg-[#F23645]/25 border border-[#F23645]/30 text-[#F23645] text-[11px] font-semibold flex items-center gap-1 cursor-pointer"
+                          className="px-2 py-1 rounded-[3px] bg-[#FDECEE] dark:bg-[#F23645]/15 hover:bg-[#F23645]/25 border border-[#F5C2C7] dark:border-[#F23645]/30 text-[#D93848] dark:text-[#F23645] text-[11px] font-semibold flex items-center gap-1 cursor-pointer"
                         >
                           <Trash2 className="w-3 h-3" />
                           <span>{isAr ? 'حذف' : 'Delete'}</span>
@@ -869,15 +869,15 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
 
       {/* 3. ADMIN PRODUCT EDITOR MODAL */}
       {isAdmin && editorOpen && (
-        <div className="fixed inset-0 z-[90] bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-[90] bg-[#131722]/45 dark:bg-black/75 dark:backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
           <div
-            className="bg-[#0b0e14] border border-white/10 rounded-xl w-full max-w-2xl overflow-hidden shadow-2xl my-auto"
+            className="bg-[#F0F3FA] dark:bg-[#0b0e14] border border-[#E0E3EB] dark:border-white/10 rounded-xl w-full max-w-2xl overflow-hidden shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl my-auto"
             dir={isAr ? 'rtl' : 'ltr'}
           >
-            <div className="px-4 py-3 bg-[#06080c] border-b border-white/10 flex items-center justify-between">
+            <div className="px-4 py-3 bg-[#F0F3FA] dark:bg-[#06080c] border-b border-[#E0E3EB] dark:border-white/10 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-[#10b981]" />
-                <h3 className="text-sm font-extrabold text-white">
+                <Sparkles className="w-4 h-4 text-[#089981] dark:text-[#10b981]" />
+                <h3 className="text-sm font-extrabold text-[#131722] dark:text-white">
                   {formState.id
                     ? isAr
                       ? 'تعديل بيانات المنتج في المتجر'
@@ -890,7 +890,7 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
               <button
                 type="button"
                 onClick={() => setEditorOpen(false)}
-                className="p-1 rounded text-[#787B86] hover:text-white cursor-pointer"
+                className="p-1 rounded text-[#787B86] hover:text-[#131722] dark:hover:text-white cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -901,14 +901,14 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
               className="p-4 space-y-3.5 max-h-[80vh] overflow-y-auto text-xs"
             >
               {editorError && (
-                <div className="p-2.5 rounded bg-[#F23645]/15 border border-[#F23645]/40 text-[#F23645] text-xs font-semibold">
+                <div className="p-2.5 rounded bg-[#FDECEE] dark:bg-[#F23645]/15 border border-[#F5C2C7] dark:border-[#F23645]/40 text-[#D93848] dark:text-[#F23645] text-xs font-semibold">
                   {editorError}
                 </div>
               )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold text-[#D1D4DC] mb-1">
+                  <label className="block text-[11px] font-bold text-[#131722] dark:text-[#D1D4DC] mb-1">
                     {isAr ? 'اسم المنتج (بالعربية) *' : 'Title (Arabic) *'}
                   </label>
                   <input
@@ -919,12 +919,12 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
                       setFormState((prev) => ({ ...prev, titleAr: e.target.value }))
                     }
                     placeholder={isAr ? 'مثال: مؤشر سيولة الذهب الذكي MBK' : 'Arabic title'}
-                    className="w-full px-3 py-2 rounded-[4px] bg-[#06080c] border border-white/10 text-white focus:outline-none focus:border-[#10b981]"
+                    className="w-full px-3 py-2 rounded-[4px] bg-[#F0F3FA] dark:bg-[#06080c] border border-[#E0E3EB] dark:border-white/10 text-[#131722] dark:text-white focus:outline-none focus:border-[#1E53E5] dark:focus:border-[#10b981]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-[#D1D4DC] mb-1">
+                  <label className="block text-[11px] font-bold text-[#131722] dark:text-[#D1D4DC] mb-1">
                     {isAr ? 'اسم المنتج (بالإنجليزية)' : 'Title (English)'}
                   </label>
                   <input
@@ -934,14 +934,14 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
                       setFormState((prev) => ({ ...prev, titleEn: e.target.value }))
                     }
                     placeholder="e.g. MBK Institutional Liquidity Suite"
-                    className="w-full px-3 py-2 rounded-[4px] bg-[#06080c] border border-white/10 text-white focus:outline-none focus:border-[#10b981]"
+                    className="w-full px-3 py-2 rounded-[4px] bg-[#F0F3FA] dark:bg-[#06080c] border border-[#E0E3EB] dark:border-white/10 text-[#131722] dark:text-white focus:outline-none focus:border-[#1E53E5] dark:focus:border-[#10b981]"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold text-[#D1D4DC] mb-1">
+                  <label className="block text-[11px] font-bold text-[#131722] dark:text-[#D1D4DC] mb-1">
                     {isAr ? 'التصنيف' : 'Category'}
                   </label>
                   <select
@@ -952,7 +952,7 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
                         category: e.target.value as StoreProductCategory
                       }))
                     }
-                    className="w-full px-3 py-2 rounded-[4px] bg-[#06080c] border border-white/10 text-white focus:outline-none focus:border-[#10b981]"
+                    className="w-full px-3 py-2 rounded-[4px] bg-[#F0F3FA] dark:bg-[#06080c] border border-[#E0E3EB] dark:border-white/10 text-[#131722] dark:text-white focus:outline-none focus:border-[#1E53E5] dark:focus:border-[#10b981]"
                   >
                     <option value="indicator">
                       {isAr ? 'مؤشر TradingView' : 'TradingView Indicator'}
@@ -970,7 +970,7 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-[#D1D4DC] mb-1">
+                  <label className="block text-[11px] font-bold text-[#131722] dark:text-[#D1D4DC] mb-1">
                     {isAr ? 'المنصة' : 'Platform'}
                   </label>
                   <input
@@ -980,12 +980,12 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
                       setFormState((prev) => ({ ...prev, platform: e.target.value }))
                     }
                     placeholder="TradingView (Pine Script) / MT5"
-                    className="w-full px-3 py-2 rounded-[4px] bg-[#06080c] border border-white/10 text-white focus:outline-none focus:border-[#10b981]"
+                    className="w-full px-3 py-2 rounded-[4px] bg-[#F0F3FA] dark:bg-[#06080c] border border-[#E0E3EB] dark:border-white/10 text-[#131722] dark:text-white focus:outline-none focus:border-[#1E53E5] dark:focus:border-[#10b981]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-[#D1D4DC] mb-1">
+                  <label className="block text-[11px] font-bold text-[#131722] dark:text-[#D1D4DC] mb-1">
                     {isAr ? 'الأسواق (مفصولة بفاصلة)' : 'Markets (comma-separated)'}
                   </label>
                   <input
@@ -995,14 +995,14 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
                       setFormState((prev) => ({ ...prev, marketsInput: e.target.value }))
                     }
                     placeholder="XAUUSD, US100, EURUSD"
-                    className="w-full px-3 py-2 rounded-[4px] bg-[#06080c] border border-white/10 text-white font-mono focus:outline-none focus:border-[#10b981]"
+                    className="w-full px-3 py-2 rounded-[4px] bg-[#F0F3FA] dark:bg-[#06080c] border border-[#E0E3EB] dark:border-white/10 text-[#131722] dark:text-white font-mono focus:outline-none focus:border-[#1E53E5] dark:focus:border-[#10b981]"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold text-[#D1D4DC] mb-1">
+                  <label className="block text-[11px] font-bold text-[#131722] dark:text-[#D1D4DC] mb-1">
                     {isAr ? 'السعر بالدولار ($)' : 'Price (USD)'}
                   </label>
                   <input
@@ -1013,12 +1013,12 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
                     onChange={(e) =>
                       setFormState((prev) => ({ ...prev, priceUsd: e.target.value }))
                     }
-                    className="w-full px-3 py-2 rounded-[4px] bg-[#06080c] border border-white/10 text-white font-mono focus:outline-none focus:border-[#10b981]"
+                    className="w-full px-3 py-2 rounded-[4px] bg-[#F0F3FA] dark:bg-[#06080c] border border-[#E0E3EB] dark:border-white/10 text-[#131722] dark:text-white font-mono focus:outline-none focus:border-[#1E53E5] dark:focus:border-[#10b981]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-[#D1D4DC] mb-1">
+                  <label className="block text-[11px] font-bold text-[#131722] dark:text-[#D1D4DC] mb-1">
                     {isAr ? 'نظام الدفع' : 'Billing Cycle'}
                   </label>
                   <select
@@ -1029,7 +1029,7 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
                         billingCycle: e.target.value as StoreBillingCycle
                       }))
                     }
-                    className="w-full px-3 py-2 rounded-[4px] bg-[#06080c] border border-white/10 text-white focus:outline-none focus:border-[#10b981]"
+                    className="w-full px-3 py-2 rounded-[4px] bg-[#F0F3FA] dark:bg-[#06080c] border border-[#E0E3EB] dark:border-white/10 text-[#131722] dark:text-white focus:outline-none focus:border-[#1E53E5] dark:focus:border-[#10b981]"
                   >
                     <option value="one_time">
                       {isAr ? 'دفعة واحدة (مدى الحياة)' : 'One-Time'}
@@ -1043,7 +1043,7 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-[#D1D4DC] mb-1">
+                  <label className="block text-[11px] font-bold text-[#131722] dark:text-[#D1D4DC] mb-1">
                     {isAr ? 'ترتيب العرض (الأقل أولاً)' : 'Sort Order'}
                   </label>
                   <input
@@ -1052,14 +1052,14 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
                     onChange={(e) =>
                       setFormState((prev) => ({ ...prev, sortOrder: e.target.value }))
                     }
-                    className="w-full px-3 py-2 rounded-[4px] bg-[#06080c] border border-white/10 text-white font-mono focus:outline-none focus:border-[#10b981]"
+                    className="w-full px-3 py-2 rounded-[4px] bg-[#F0F3FA] dark:bg-[#06080c] border border-[#E0E3EB] dark:border-white/10 text-[#131722] dark:text-white font-mono focus:outline-none focus:border-[#1E53E5] dark:focus:border-[#10b981]"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold text-[#D1D4DC] mb-1">
+                  <label className="block text-[11px] font-bold text-[#131722] dark:text-[#D1D4DC] mb-1">
                     {isAr ? 'وصف مختصر (بالعربية)' : 'Short Description (Arabic)'}
                   </label>
                   <textarea
@@ -1068,12 +1068,12 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
                     onChange={(e) =>
                       setFormState((prev) => ({ ...prev, shortDescAr: e.target.value }))
                     }
-                    className="w-full px-3 py-2 rounded-[4px] bg-[#06080c] border border-white/10 text-white focus:outline-none focus:border-[#10b981]"
+                    className="w-full px-3 py-2 rounded-[4px] bg-[#F0F3FA] dark:bg-[#06080c] border border-[#E0E3EB] dark:border-white/10 text-[#131722] dark:text-white focus:outline-none focus:border-[#1E53E5] dark:focus:border-[#10b981]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-[#D1D4DC] mb-1">
+                  <label className="block text-[11px] font-bold text-[#131722] dark:text-[#D1D4DC] mb-1">
                     {isAr ? 'وصف مختصر (بالإنجليزية)' : 'Short Description (English)'}
                   </label>
                   <textarea
@@ -1082,14 +1082,14 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
                     onChange={(e) =>
                       setFormState((prev) => ({ ...prev, shortDescEn: e.target.value }))
                     }
-                    className="w-full px-3 py-2 rounded-[4px] bg-[#06080c] border border-white/10 text-white focus:outline-none focus:border-[#10b981]"
+                    className="w-full px-3 py-2 rounded-[4px] bg-[#F0F3FA] dark:bg-[#06080c] border border-[#E0E3EB] dark:border-white/10 text-[#131722] dark:text-white focus:outline-none focus:border-[#1E53E5] dark:focus:border-[#10b981]"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold text-[#D1D4DC] mb-1">
+                  <label className="block text-[11px] font-bold text-[#131722] dark:text-[#D1D4DC] mb-1">
                     {isAr ? 'المميزات بالعربية (كل ميزة في سطر)' : 'Features Arabic (1 per line)'}
                   </label>
                   <textarea
@@ -1103,12 +1103,12 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
                         ? 'تحديد مناطق السيولة المؤسسية تلقائياً\nتنبيهات فورية على الهاتف و TradingView'
                         : 'One feature per line'
                     }
-                    className="w-full px-3 py-2 rounded-[4px] bg-[#06080c] border border-white/10 text-white focus:outline-none focus:border-[#10b981]"
+                    className="w-full px-3 py-2 rounded-[4px] bg-[#F0F3FA] dark:bg-[#06080c] border border-[#E0E3EB] dark:border-white/10 text-[#131722] dark:text-white focus:outline-none focus:border-[#1E53E5] dark:focus:border-[#10b981]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-[#D1D4DC] mb-1">
+                  <label className="block text-[11px] font-bold text-[#131722] dark:text-[#D1D4DC] mb-1">
                     {isAr ? 'المميزات بالإنجليزية (كل ميزة في سطر)' : 'Features English (1 per line)'}
                   </label>
                   <textarea
@@ -1118,14 +1118,14 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
                       setFormState((prev) => ({ ...prev, featuresEnInput: e.target.value }))
                     }
                     placeholder="Automated institutional order block zones&#10;Real-time mobile & webhook alerts"
-                    className="w-full px-3 py-2 rounded-[4px] bg-[#06080c] border border-white/10 text-white focus:outline-none focus:border-[#10b981]"
+                    className="w-full px-3 py-2 rounded-[4px] bg-[#F0F3FA] dark:bg-[#06080c] border border-[#E0E3EB] dark:border-white/10 text-[#131722] dark:text-white focus:outline-none focus:border-[#1E53E5] dark:focus:border-[#10b981]"
                   />
                 </div>
               </div>
 
               {/* Screenshot URL or Upload */}
               <div className="space-y-1.5">
-                <label className="block text-[11px] font-bold text-[#D1D4DC]">
+                <label className="block text-[11px] font-bold text-[#131722] dark:text-[#D1D4DC]">
                   {isAr
                     ? 'صورة الشارت أو الروبوت (رابط مباشر أو رفع صورة)'
                     : 'Chart / Bot Screenshot (URL or Upload)'}
@@ -1140,11 +1140,11 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
                         setFormState((prev) => ({ ...prev, imageUrl: e.target.value }))
                       }
                       placeholder="https://..."
-                      className="w-full ps-8 pe-3 py-2 rounded-[4px] bg-[#06080c] border border-white/10 text-white focus:outline-none focus:border-[#10b981]"
+                      className="w-full ps-8 pe-3 py-2 rounded-[4px] bg-[#F0F3FA] dark:bg-[#06080c] border border-[#E0E3EB] dark:border-white/10 text-[#131722] dark:text-white focus:outline-none focus:border-[#1E53E5] dark:focus:border-[#10b981]"
                     />
                   </div>
-                  <label className="px-3 py-2 rounded-[4px] bg-[#06080c] hover:bg-[#0f141e] border border-white/10 text-[#D1D4DC] text-xs font-semibold flex items-center gap-1.5 cursor-pointer shrink-0">
-                    <Upload className="w-3.5 h-3.5 text-[#10b981]" />
+                  <label className="px-3 py-2 rounded-[4px] bg-[#F0F3FA] dark:bg-[#06080c] hover:bg-[#EDF1F7] dark:hover:bg-[#0f141e] border border-[#E0E3EB] dark:border-white/10 text-[#131722] dark:text-[#D1D4DC] text-xs font-semibold flex items-center gap-1.5 cursor-pointer shrink-0">
+                    <Upload className="w-3.5 h-3.5 text-[#089981] dark:text-[#10b981]" />
                     <span>{isAr ? 'رفع صورة' : 'Upload'}</span>
                     <input
                       type="file"
@@ -1158,7 +1158,7 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold text-[#D1D4DC] mb-1">
+                  <label className="block text-[11px] font-bold text-[#131722] dark:text-[#D1D4DC] mb-1">
                     {isAr
                       ? 'رابط الشراء المباشر (اتركه فارغاً للتحويل التلقائي لواتساب المنصة)'
                       : 'Direct Checkout URL (leave empty for WhatsApp order)'}
@@ -1170,12 +1170,12 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
                       setFormState((prev) => ({ ...prev, checkoutUrl: e.target.value }))
                     }
                     placeholder={isAr ? 'تلقائي عبر واتساب/تيليجرام إذا ترك فارغاً' : 'Optional checkout URL'}
-                    className="w-full px-3 py-2 rounded-[4px] bg-[#06080c] border border-white/10 text-white focus:outline-none focus:border-[#10b981]"
+                    className="w-full px-3 py-2 rounded-[4px] bg-[#F0F3FA] dark:bg-[#06080c] border border-[#E0E3EB] dark:border-white/10 text-[#131722] dark:text-white focus:outline-none focus:border-[#1E53E5] dark:focus:border-[#10b981]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-[#D1D4DC] mb-1">
+                  <label className="block text-[11px] font-bold text-[#131722] dark:text-[#D1D4DC] mb-1">
                     {isAr ? 'رابط العرض التجريبي / الفيديو (اختياري)' : 'Demo / Video URL (Optional)'}
                   </label>
                   <input
@@ -1185,14 +1185,14 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
                       setFormState((prev) => ({ ...prev, demoUrl: e.target.value }))
                     }
                     placeholder="https://www.tradingview.com/..."
-                    className="w-full px-3 py-2 rounded-[4px] bg-[#06080c] border border-white/10 text-white focus:outline-none focus:border-[#10b981]"
+                    className="w-full px-3 py-2 rounded-[4px] bg-[#F0F3FA] dark:bg-[#06080c] border border-[#E0E3EB] dark:border-white/10 text-[#131722] dark:text-white focus:outline-none focus:border-[#1E53E5] dark:focus:border-[#10b981]"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold text-[#D1D4DC] mb-1">
+                  <label className="block text-[11px] font-bold text-[#131722] dark:text-[#D1D4DC] mb-1">
                     {isAr ? 'شارة مميزة بالعربية (اختياري)' : 'Badge Text (Arabic)'}
                   </label>
                   <input
@@ -1202,12 +1202,12 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
                       setFormState((prev) => ({ ...prev, badgeTextAr: e.target.value }))
                     }
                     placeholder={isAr ? 'مثال: الأكثر طلباً / جديد' : 'e.g. Best Seller'}
-                    className="w-full px-3 py-2 rounded-[4px] bg-[#06080c] border border-white/10 text-white focus:outline-none focus:border-[#10b981]"
+                    className="w-full px-3 py-2 rounded-[4px] bg-[#F0F3FA] dark:bg-[#06080c] border border-[#E0E3EB] dark:border-white/10 text-[#131722] dark:text-white focus:outline-none focus:border-[#1E53E5] dark:focus:border-[#10b981]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-[#D1D4DC] mb-1">
+                  <label className="block text-[11px] font-bold text-[#131722] dark:text-[#D1D4DC] mb-1">
                     {isAr ? 'شارة مميزة بالإنجليزية (اختياري)' : 'Badge Text (English)'}
                   </label>
                   <input
@@ -1217,12 +1217,12 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
                       setFormState((prev) => ({ ...prev, badgeTextEn: e.target.value }))
                     }
                     placeholder="e.g. BEST SELLER / NEW"
-                    className="w-full px-3 py-2 rounded-[4px] bg-[#06080c] border border-white/10 text-white focus:outline-none focus:border-[#10b981]"
+                    className="w-full px-3 py-2 rounded-[4px] bg-[#F0F3FA] dark:bg-[#06080c] border border-[#E0E3EB] dark:border-white/10 text-[#131722] dark:text-white focus:outline-none focus:border-[#1E53E5] dark:focus:border-[#10b981]"
                   />
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-5 pt-2 border-t border-white/10">
+              <div className="flex flex-wrap items-center gap-5 pt-2 border-t border-[#E0E3EB] dark:border-white/10">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
@@ -1235,7 +1235,7 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
                     }
                     className="accent-[#10b981]"
                   />
-                  <span className="text-xs font-semibold text-[#D1D4DC]">
+                  <span className="text-xs font-semibold text-[#131722] dark:text-[#D1D4DC]">
                     {isAr ? 'مشمول مجاناً ضمن باقة Elite' : 'Included in Elite Tier'}
                   </span>
                 </label>
@@ -1252,17 +1252,17 @@ export const IndicatorsStorePanel: React.FC<IndicatorsStorePanelProps> = ({
                     }
                     className="accent-[#089981]"
                   />
-                  <span className="text-xs font-semibold text-[#D1D4DC]">
+                  <span className="text-xs font-semibold text-[#131722] dark:text-[#D1D4DC]">
                     {isAr ? 'منشور ومرئي لجميع الأعضاء' : 'Published & visible to users'}
                   </span>
                 </label>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/10">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#E0E3EB] dark:border-white/10">
                 <button
                   type="button"
                   onClick={() => setEditorOpen(false)}
-                  className="px-4 py-2 rounded-[4px] bg-[#06080c] hover:bg-[#0f141e] border border-white/10 text-[#787B86] hover:text-white text-xs font-semibold cursor-pointer"
+                  className="px-4 py-2 rounded-[4px] bg-[#F0F3FA] dark:bg-[#06080c] hover:bg-[#EDF1F7] dark:hover:bg-[#0f141e] border border-[#E0E3EB] dark:border-white/10 text-[#787B86] hover:text-[#131722] dark:hover:text-white text-xs font-semibold cursor-pointer"
                 >
                   {isAr ? 'إلغاء' : 'Cancel'}
                 </button>

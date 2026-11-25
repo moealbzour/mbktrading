@@ -38,6 +38,7 @@ import { parsePlainTextSignal } from '../../utils/signalChartParser';
 import { useSignalsContext } from '../../context/SignalsContext';
 import { auth } from '../../lib/firebase';
 import { triggerServerWebPush } from '../../utils/mobileNotifications';
+import { useTheme } from '../../context/ThemeContext';
 
 export interface MBKProCanvasChartProps {
   lang: 'ar' | 'en';
@@ -256,6 +257,168 @@ const OBSIDIAN_CHART_STYLES: DeepPartial<Styles> = {
   },
 };
 
+const DAY_DESK_CHART_STYLES: DeepPartial<Styles> = {
+  grid: {
+    show: true,
+    horizontal: {
+      show: true,
+      size: 1,
+      color: '#E0E3EB',
+      style: 'dashed',
+      dashedValue: [3, 3],
+    },
+    vertical: {
+      show: true,
+      size: 1,
+      color: '#E0E3EB',
+      style: 'dashed',
+      dashedValue: [3, 3],
+    },
+  },
+  candle: {
+    type: 'candle_solid',
+    bar: {
+      compareRule: 'current_open',
+      upColor: '#089981',
+      downColor: '#D93848',
+      noChangeColor: '#787B86',
+      upBorderColor: '#089981',
+      downBorderColor: '#D93848',
+      noChangeBorderColor: '#787B86',
+      upWickColor: '#089981',
+      downWickColor: '#D93848',
+      noChangeWickColor: '#787B86',
+    },
+    priceMark: {
+      show: true,
+      high: {
+        show: true,
+        color: '#4A5162',
+        textSize: 10,
+      },
+      low: {
+        show: true,
+        color: '#4A5162',
+        textSize: 10,
+      },
+      last: {
+        show: true,
+        upColor: '#089981',
+        downColor: '#D93848',
+        noChangeColor: '#787B86',
+        line: {
+          show: true,
+          style: 'dashed',
+          dashedValue: [4, 4],
+          size: 1,
+        },
+        text: {
+          show: true,
+          style: 'fill',
+          size: 11,
+          paddingLeft: 6,
+          paddingTop: 3,
+          paddingRight: 6,
+          paddingBottom: 3,
+          color: '#FFFFFF',
+          borderRadius: 4,
+        },
+      },
+    },
+    tooltip: {
+      showRule: 'always',
+      showType: 'standard',
+      legend: {
+        size: 11,
+        color: '#131722',
+      },
+    },
+  },
+  xAxis: {
+    show: true,
+    axisLine: {
+      show: true,
+      color: '#E0E3EB',
+      size: 1,
+    },
+    tickLine: {
+      show: true,
+      size: 1,
+      length: 3,
+      color: '#CBD2DF',
+    },
+    tickText: {
+      show: true,
+      color: '#4A5162',
+      size: 11,
+    },
+  },
+  yAxis: {
+    show: true,
+    axisLine: {
+      show: true,
+      color: '#E0E3EB',
+      size: 1,
+    },
+    tickLine: {
+      show: true,
+      size: 1,
+      length: 3,
+      color: '#CBD2DF',
+    },
+    tickText: {
+      show: true,
+      color: '#4A5162',
+      size: 11,
+    },
+  },
+  separator: {
+    size: 1,
+    color: '#E0E3EB',
+    fill: true,
+    activeBackgroundColor: 'rgba(8, 153, 129, 0.12)',
+  },
+  crosshair: {
+    show: true,
+    horizontal: {
+      show: true,
+      line: {
+        show: true,
+        style: 'dashed',
+        dashedValue: [4, 4],
+        size: 1,
+        color: '#787B86',
+      },
+      text: {
+        show: true,
+        style: 'fill',
+        color: '#FFFFFF',
+        size: 11,
+        backgroundColor: '#131722',
+        borderRadius: 3,
+      },
+    },
+    vertical: {
+      show: true,
+      line: {
+        show: true,
+        style: 'dashed',
+        dashedValue: [4, 4],
+        size: 1,
+        color: '#787B86',
+      },
+      text: {
+        show: true,
+        style: 'fill',
+        color: '#FFFFFF',
+        size: 11,
+        backgroundColor: '#131722',
+        borderRadius: 3,
+      },
+    },
+  },
+};
+
 export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
   lang,
   activeSymbol = 'XAUUSD',
@@ -266,6 +429,8 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
   onOpenPlans,
 }) => {
   const isAr = lang === 'ar';
+  const { resolvedTheme } = useTheme();
+  const isLight = resolvedTheme === 'light';
   const canManageBroadcast = Boolean(isAdmin || isAnalyser);
   const canViewAdminLayer = Boolean(isVip || isAdmin || isAnalyser);
   const { botAlerts, signals, addToast } = useSignalsContext();
@@ -524,7 +689,7 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
     if (!container) return;
 
     const chart = init(container, {
-      styles: OBSIDIAN_CHART_STYLES,
+      styles: isLight ? DAY_DESK_CHART_STYLES : OBSIDIAN_CHART_STYLES,
       timezone: 'UTC',
     });
 
@@ -600,6 +765,11 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
       dispose(container);
     };
   }, []);
+
+  // Sync canvas theme live when toggling Light / Dark mode
+  useEffect(() => {
+    chartInstanceRef.current?.setStyles(isLight ? DAY_DESK_CHART_STYLES : OBSIDIAN_CHART_STYLES);
+  }, [isLight]);
 
   // Update symbol & precision when symbol state changes
   useEffect(() => {
@@ -947,14 +1117,14 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
     <div
       className={`${
         isFullChart ? 'fixed inset-0 z-[120]' : 'relative w-full h-full min-h-[540px]'
-      } flex flex-col bg-[#06080c] text-slate-100 select-none overflow-hidden`}
+      } flex flex-col bg-[#F0F3FA] dark:bg-[#06080c] text-[#131722] dark:text-slate-100 select-none overflow-hidden`}
     >
       {/* 1. TOP COMPACT BAR: Symbol Selector, Timeframes, Indicators, MBK Admin Layer Toggle */}
-      <div className="shrink-0 bg-[#0b0e14] border-b border-white/10 px-2.5 py-2 flex flex-wrap items-center justify-between gap-2">
+      <div className="shrink-0 bg-[#F0F3FA] dark:bg-[#0b0e14] border-b border-[#E0E3EB] dark:border-white/10 px-2.5 py-2 flex flex-wrap items-center justify-between gap-2">
         {/* Left / Start: Symbol Pills & Timeframes */}
         <div className="flex flex-wrap items-center gap-1.5">
           {/* Symbol Selector */}
-          <div className="flex items-center bg-[#0f141e] border border-white/10 rounded-lg p-0.5 gap-0.5 overflow-x-auto max-w-full">
+          <div className="flex items-center bg-[#FFFFFF] dark:bg-[#0f141e] border border-[#E0E3EB] dark:border-white/10 rounded-lg p-0.5 gap-0.5 overflow-x-auto max-w-full">
             {SYMBOLS.map((s) => {
               const active = symbol === s.id;
               return (
@@ -967,8 +1137,8 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
                   }}
                   className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${
                     active
-                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
-                      : 'text-slate-400 hover:text-white hover:bg-white/5'
+                      ? 'bg-[#E6F5F2] dark:bg-emerald-500/20 text-[#089981] dark:text-emerald-300 border border-[#B3E2D9] dark:border-emerald-500/40 shadow-sm'
+                      : 'text-[#4A5162] dark:text-slate-400 hover:text-[#131722] dark:hover:text-white hover:bg-[#EDF1F7] dark:hover:bg-white/5'
                   }`}
                 >
                   {isAr ? s.labelAr : s.labelEn}
@@ -978,7 +1148,7 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
           </div>
 
           {/* Timeframe Selector */}
-          <div className="flex items-center bg-[#0f141e] border border-white/10 rounded-lg p-0.5 gap-0.5">
+          <div className="flex items-center bg-[#FFFFFF] dark:bg-[#0f141e] border border-[#E0E3EB] dark:border-white/10 rounded-lg p-0.5 gap-0.5">
             {INTERVALS.map((tf) => {
               const active = interval === tf.id;
               return (
@@ -988,8 +1158,8 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
                   onClick={() => setIntervalState(tf.id)}
                   className={`px-2 py-1 rounded-md text-[11px] font-mono font-bold transition-all ${
                     active
-                      ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40'
-                      : 'text-slate-400 hover:text-white hover:bg-white/5'
+                      ? 'bg-[#EDF1F7] dark:bg-sky-500/20 text-[#1E53E5] dark:text-sky-300 border border-sky-500/40'
+                      : 'text-[#4A5162] dark:text-slate-400 hover:text-[#131722] dark:hover:text-white hover:bg-[#EDF1F7] dark:hover:bg-white/5'
                   }`}
                 >
                   {isAr ? tf.labelAr : tf.labelEn}
@@ -999,7 +1169,7 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
           </div>
 
           {/* Indicator Toggles */}
-          <div className="flex items-center bg-[#0f141e] border border-white/10 rounded-lg p-0.5 gap-0.5">
+          <div className="flex items-center bg-[#FFFFFF] dark:bg-[#0f141e] border border-[#E0E3EB] dark:border-white/10 rounded-lg p-0.5 gap-0.5">
             {INDICATORS.map((ind) => {
               const active = activeIndicators.includes(ind.id);
               return (
@@ -1009,8 +1179,8 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
                   onClick={() => handleToggleIndicator(ind.id)}
                   className={`px-2 py-1 rounded-md text-[10px] font-mono font-bold transition-all ${
                     active
-                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                      : 'text-slate-500 hover:text-slate-300'
+                      ? 'bg-[#FDF6E3] dark:bg-amber-500/20 text-[#9A6700] dark:text-amber-300 border border-[#EFE0B4] dark:border-amber-500/40'
+                      : 'text-[#787B86] dark:text-slate-500 hover:text-[#131722] dark:hover:text-slate-300'
                   }`}
                 >
                   {ind.id}
@@ -1029,11 +1199,11 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
               onClick={() => setShowAdminLayer((v) => !v)}
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all ${
                 showAdminLayer
-                  ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
-                  : 'bg-[#0f141e] border-white/10 text-slate-400 hover:text-white'
+                  ? 'bg-[#E6F5F2] dark:bg-emerald-500/15 border-[#B3E2D9] dark:border-emerald-500/40 text-[#089981] dark:text-emerald-300'
+                  : 'bg-[#FFFFFF] dark:bg-[#0f141e] border-[#E0E3EB] dark:border-white/10 text-[#4A5162] dark:text-slate-400 hover:text-[#131722] dark:hover:text-white'
               }`}
             >
-              {showAdminLayer ? <Eye className="w-3.5 h-3.5 text-emerald-400" /> : <EyeOff className="w-3.5 h-3.5" />}
+              {showAdminLayer ? <Eye className="w-3.5 h-3.5 text-[#089981] dark:text-emerald-400" /> : <EyeOff className="w-3.5 h-3.5" />}
               <span>{isAr ? 'تحليل الإدارة (VIP)' : 'MBK Admin Layer'}</span>
               {(adminSetup?.overlays?.length || adminSetup?.activeSetup) && (
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -1043,16 +1213,16 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
             <button
               type="button"
               onClick={() => onOpenPlans?.()}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-[#0f141e] border border-amber-500/30 text-amber-300 hover:bg-amber-500/10 transition-all"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-[#FFFFFF] dark:bg-[#0f141e] border border-[#EFE0B4] dark:border-amber-500/30 text-[#9A6700] dark:text-amber-300 hover:bg-amber-500/10 transition-all"
               title={
                 isAr
                   ? 'اشترك في VIP لفتح رسومات الإدارة ومستويات الدخول والأهداف المباشرة على الشارت'
                   : 'Upgrade to VIP to unlock live Admin drawings and signal levels on the chart'
               }
             >
-              <Lock className="w-3.5 h-3.5 text-amber-400" />
+              <Lock className="w-3.5 h-3.5 text-[#9A6700] dark:text-amber-400" />
               <span>{isAr ? 'تحليل الإدارة المباشر' : 'MBK Admin Layer'}</span>
-              <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 text-[9px] font-extrabold">
+              <span className="px-1.5 py-0.2 rounded bg-[#FDF6E3] dark:bg-amber-500/20 text-[#9A6700] dark:text-amber-300 text-[9px] font-extrabold">
                 VIP
               </span>
             </button>
@@ -1065,9 +1235,9 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
                 type="button"
                 disabled={isBroadcasting}
                 onClick={handleBroadcastAdminDrawings}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/40 text-sky-300 transition-all disabled:opacity-50"
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-[#EDF1F7] dark:bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/40 text-[#1E53E5] dark:text-sky-300 transition-all disabled:opacity-50"
               >
-                <Radio className={`w-3.5 h-3.5 ${isBroadcasting ? 'animate-spin' : 'text-sky-400'}`} />
+                <Radio className={`w-3.5 h-3.5 ${isBroadcasting ? 'animate-spin' : 'text-[#1E53E5] dark:text-sky-400'}`} />
                 <span>{isAr ? 'بث الرسومات للـ VIP' : 'Broadcast Drawings'}</span>
               </button>
 
@@ -1076,11 +1246,11 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
                 onClick={() => setPinDrawerOpen((v) => !v)}
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all ${
                   pinDrawerOpen
-                    ? 'bg-amber-500/25 border-amber-500/50 text-amber-200'
-                    : 'bg-amber-500/15 hover:bg-amber-500/25 border-amber-500/35 text-amber-300'
+                    ? 'bg-[#FDF6E3] dark:bg-amber-500/25 border-[#EFE0B4] dark:border-amber-500/50 text-[#9A6700] dark:text-amber-200'
+                    : 'bg-[#FDF6E3] dark:bg-amber-500/15 hover:bg-amber-500/25 border-[#EFE0B4] dark:border-amber-500/35 text-[#9A6700] dark:text-amber-300'
                 }`}
               >
-                <Pin className="w-3.5 h-3.5 text-amber-400" />
+                <Pin className="w-3.5 h-3.5 text-[#9A6700] dark:text-amber-400" />
                 <span>{isAr ? 'تثبيت صفقة/إشارة' : 'Pin Signal on Chart'}</span>
               </button>
             </>
@@ -1090,16 +1260,16 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
           <button
             type="button"
             onClick={() => chartInstanceRef.current?.resetData()}
-            className="p-1.5 rounded-lg bg-[#0f141e] border border-white/10 text-slate-400 hover:text-white transition-all"
+            className="p-1.5 rounded-lg bg-[#FFFFFF] dark:bg-[#0f141e] border border-[#E0E3EB] dark:border-white/10 text-[#4A5162] dark:text-slate-400 hover:text-[#131722] dark:hover:text-white transition-all"
             title={isAr ? 'تحديث الشموع' : 'Refresh Candles'}
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoadingCandles ? 'animate-spin text-emerald-400' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoadingCandles ? 'animate-spin text-[#089981] dark:text-emerald-400' : ''}`} />
           </button>
 
           <button
             type="button"
             onClick={() => setIsFullChart((v) => !v)}
-            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-[#0f141e] border border-white/10 text-slate-300 hover:text-white text-[11px] font-bold transition-all"
+            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-[#FFFFFF] dark:bg-[#0f141e] border border-[#E0E3EB] dark:border-white/10 text-[#4A5162] dark:text-slate-300 hover:text-[#131722] dark:hover:text-white text-[11px] font-bold transition-all"
           >
             {isFullChart ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
             <span className="hidden sm:inline">{isAr ? (isFullChart ? 'تصغير' : 'ملء الشاشة') : isFullChart ? 'Exit' : 'Full'}</span>
@@ -1108,9 +1278,9 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
       </div>
 
       {/* 2. DRAWING TOOLBAR (Available 100% Free to EVERY User, Persisted in localStorage) */}
-      <div className="shrink-0 bg-[#0b0e14]/95 border-b border-white/10 px-2.5 py-1.5 flex items-center justify-between gap-2 overflow-x-auto">
+      <div className="shrink-0 bg-[#FFFFFF]/95 dark:bg-[#0b0e14]/95 border-b border-[#E0E3EB] dark:border-white/10 px-2.5 py-1.5 flex items-center justify-between gap-2 overflow-x-auto">
         <div className="flex items-center gap-1">
-          <span className="text-[10px] font-bold text-slate-400 px-1.5 whitespace-nowrap">
+          <span className="text-[10px] font-bold text-[#4A5162] dark:text-slate-400 px-1.5 whitespace-nowrap">
             {isAr ? 'أدوات الرسم الشخصي:' : 'Drawing Tools:'}
           </span>
           {DRAWING_TOOLS.map((tool) => {
@@ -1123,11 +1293,11 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
                 onClick={() => handleSelectDrawingTool(tool.id)}
                 className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium whitespace-nowrap transition-all ${
                   active
-                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                    : 'bg-[#0f141e] text-slate-300 hover:text-white border border-white/5 hover:border-white/15'
+                    ? 'bg-[#E6F5F2] dark:bg-emerald-500/20 text-[#089981] dark:text-emerald-300 border border-[#B3E2D9] dark:border-emerald-500/40'
+                    : 'bg-[#FFFFFF] dark:bg-[#0f141e] text-[#4A5162] dark:text-slate-300 hover:text-[#131722] dark:hover:text-white border border-[#E0E3EB] dark:border-white/5 hover:border-[#CBD2DF] dark:hover:border-white/15'
                 }`}
               >
-                <Icon className="w-3.5 h-3.5 text-emerald-400" />
+                <Icon className="w-3.5 h-3.5 text-[#089981] dark:text-emerald-400" />
                 <span>{isAr ? tool.labelAr : tool.labelEn}</span>
               </button>
             );
@@ -1136,9 +1306,9 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
           <button
             type="button"
             onClick={handleClearPersonalDrawings}
-            className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium whitespace-nowrap bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/25 transition-all"
+            className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium whitespace-nowrap bg-[#FDECEE] dark:bg-rose-500/10 hover:bg-rose-500/20 text-[#D93848] dark:text-rose-300 border border-[#F5C2C7] dark:border-rose-500/25 transition-all"
           >
-            <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+            <Trash2 className="w-3.5 h-3.5 text-[#D93848] dark:text-rose-400" />
             <span>{isAr ? 'مسح رسوماتي' : 'Clear My Drawings'}</span>
           </button>
         </div>
@@ -1146,11 +1316,11 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
         {/* Live Price & Feed Status Pill */}
         <div className="flex items-center gap-2 text-[11px] font-mono shrink-0">
           {lastPrice !== null && (
-            <span className="px-2 py-0.5 rounded bg-[#0f141e] border border-white/10 text-emerald-400 font-bold">
+            <span className="px-2 py-0.5 rounded bg-[#FFFFFF] dark:bg-[#0f141e] border border-[#E0E3EB] dark:border-white/10 text-[#089981] dark:text-emerald-400 font-bold">
               {symbol}: {lastPrice.toFixed(getPrecisionForSymbol(symbol))}
             </span>
           )}
-          <span className="hidden md:inline-flex items-center gap-1 text-[10px] text-slate-500">
+          <span className="hidden md:inline-flex items-center gap-1 text-[10px] text-[#787B86] dark:text-slate-500">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             {isAr ? 'محفوظ تلقائياً على جهازك' : 'Auto-saved locally'} ({candleSource})
           </span>
@@ -1159,14 +1329,14 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
 
       {/* Optional Custom Text Annotation Prompt */}
       {annotationPromptOpen && (
-        <div className="shrink-0 bg-[#0f141e] border-b border-emerald-500/30 px-3 py-2 flex items-center gap-2">
-          <Type className="w-4 h-4 text-emerald-400 shrink-0" />
+        <div className="shrink-0 bg-[#FFFFFF] dark:bg-[#0f141e] border-b border-[#B3E2D9] dark:border-emerald-500/30 px-3 py-2 flex items-center gap-2">
+          <Type className="w-4 h-4 text-[#089981] dark:text-emerald-400 shrink-0" />
           <input
             type="text"
             value={annotationText}
             onChange={(e) => setAnnotationText(e.target.value)}
             placeholder={isAr ? 'اكتب نص الملاحظة ثم اضغط على الشارت...' : 'Enter label text then click on chart...'}
-            className="flex-1 bg-[#06080c] border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none focus:border-emerald-500/50"
+            className="flex-1 bg-[#F0F3FA] dark:bg-[#06080c] border border-[#E0E3EB] dark:border-white/10 rounded-lg px-2.5 py-1 text-xs text-[#131722] dark:text-white focus:outline-none focus:border-emerald-500/50"
           />
           <button
             type="button"
@@ -1181,7 +1351,7 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
               setAnnotationPromptOpen(false);
               setActiveTool(null);
             }}
-            className="p-1 text-slate-400 hover:text-white"
+            className="p-1 text-[#4A5162] dark:text-slate-400 hover:text-[#131722] dark:hover:text-white"
           >
             <X className="w-4 h-4" />
           </button>
@@ -1189,7 +1359,7 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
       )}
 
       {/* 3. MAIN CANVAS VIEWPORT + SMART TRADE HUD + ADMIN PIN SIGNAL DRAWER */}
-      <div className="relative flex-1 w-full min-h-[450px] bg-[#06080c]">
+      <div className="relative flex-1 w-full min-h-[450px] bg-[#F0F3FA] dark:bg-[#06080c]">
         {/* Klinecharts HTML5 Canvas Mount */}
         <div ref={chartContainerRef} className="w-full h-full" />
 
@@ -1198,15 +1368,15 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
           <div
             className={`absolute top-3 ${
               isAr ? 'left-3' : 'right-3'
-            } z-20 w-64 sm:w-72 bg-[#0f141e]/95 backdrop-blur-md border border-white/15 rounded-xl p-3 shadow-2xl pointer-events-auto`}
+            } z-20 w-64 sm:w-72 bg-[#FFFFFF] dark:bg-[#0f141e]/95 dark:backdrop-blur-md border border-[#CBD2DF] dark:border-white/15 rounded-xl p-3 shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl pointer-events-auto`}
           >
-            <div className="flex items-center justify-between gap-2 pb-2 mb-2 border-b border-white/10">
+            <div className="flex items-center justify-between gap-2 pb-2 mb-2 border-b border-[#E0E3EB] dark:border-white/10">
               <div className="flex items-center gap-1.5">
                 <span
                   className={`px-2 py-0.5 rounded text-[10px] font-extrabold tracking-wider ${
                     activePinnedSignal.side === 'BUY'
-                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                      : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                      ? 'bg-[#E6F5F2] dark:bg-emerald-500/20 text-[#089981] dark:text-emerald-300 border border-[#B3E2D9] dark:border-emerald-500/40'
+                      : 'bg-[#FDECEE] dark:bg-rose-500/20 text-[#D93848] dark:text-rose-300 border border-[#F5C2C7] dark:border-rose-500/40'
                   }`}
                 >
                   {activePinnedSignal.side === 'BUY'
@@ -1217,80 +1387,80 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
                     ? 'بيع مؤسسي SELL'
                     : 'INSTITUTIONAL SELL'}
                 </span>
-                <span className="text-xs font-extrabold text-white font-mono">{symbol}</span>
+                <span className="text-xs font-extrabold text-[#131722] dark:text-white font-mono">{symbol}</span>
               </div>
-              <span className="text-[10px] text-slate-400 font-mono">{adminSetup?.timeframe || interval}</span>
+              <span className="text-[10px] text-[#4A5162] dark:text-slate-400 font-mono">{adminSetup?.timeframe || interval}</span>
             </div>
 
             <div className="grid grid-cols-2 gap-1.5 text-[11px] font-mono">
-              <div className="bg-[#0b0e14] border border-sky-500/30 rounded-lg px-2 py-1.5">
-                <div className="text-[9px] text-sky-400 font-sans font-bold">
+              <div className="bg-[#F0F3FA] dark:bg-[#0b0e14] border border-sky-500/30 rounded-lg px-2 py-1.5">
+                <div className="text-[9px] text-[#1E53E5] dark:text-sky-400 font-sans font-bold">
                   {isAr ? 'نقطة الدخول (Entry)' : 'Entry Price'}
                 </div>
-                <div className="text-white font-bold">{activePinnedSignal.entry}</div>
+                <div className="text-[#131722] dark:text-white font-bold">{activePinnedSignal.entry}</div>
               </div>
 
-              <div className="bg-[#0b0e14] border border-rose-500/30 rounded-lg px-2 py-1.5">
-                <div className="text-[9px] text-rose-400 font-sans font-bold">
+              <div className="bg-[#F0F3FA] dark:bg-[#0b0e14] border border-[#F5C2C7] dark:border-rose-500/30 rounded-lg px-2 py-1.5">
+                <div className="text-[9px] text-[#D93848] dark:text-rose-400 font-sans font-bold">
                   {isAr ? 'وقف الخسارة (SL)' : 'Stop Loss'}
                 </div>
-                <div className="text-rose-300 font-bold">{activePinnedSignal.sl}</div>
+                <div className="text-[#D93848] dark:text-rose-300 font-bold">{activePinnedSignal.sl}</div>
               </div>
 
               {activePinnedSignal.tp1 !== undefined && (
-                <div className="bg-[#0b0e14] border border-emerald-500/30 rounded-lg px-2 py-1.5">
-                  <div className="text-[9px] text-emerald-400 font-sans font-bold">
+                <div className="bg-[#F0F3FA] dark:bg-[#0b0e14] border border-[#B3E2D9] dark:border-emerald-500/30 rounded-lg px-2 py-1.5">
+                  <div className="text-[9px] text-[#089981] dark:text-emerald-400 font-sans font-bold">
                     {isAr ? 'الهدف الأول (TP1)' : 'Target 1 (TP1)'}
                   </div>
-                  <div className="text-emerald-300 font-bold">{activePinnedSignal.tp1}</div>
+                  <div className="text-[#089981] dark:text-emerald-300 font-bold">{activePinnedSignal.tp1}</div>
                 </div>
               )}
 
               {activePinnedSignal.tp2 !== undefined && (
-                <div className="bg-[#0b0e14] border border-emerald-500/30 rounded-lg px-2 py-1.5">
-                  <div className="text-[9px] text-emerald-400 font-sans font-bold">
+                <div className="bg-[#F0F3FA] dark:bg-[#0b0e14] border border-[#B3E2D9] dark:border-emerald-500/30 rounded-lg px-2 py-1.5">
+                  <div className="text-[9px] text-[#089981] dark:text-emerald-400 font-sans font-bold">
                     {isAr ? 'الهدف الثاني (TP2)' : 'Target 2 (TP2)'}
                   </div>
-                  <div className="text-emerald-300 font-bold">{activePinnedSignal.tp2}</div>
+                  <div className="text-[#089981] dark:text-emerald-300 font-bold">{activePinnedSignal.tp2}</div>
                 </div>
               )}
 
               {activePinnedSignal.tp3 !== undefined && (
-                <div className="bg-[#0b0e14] border border-emerald-500/30 rounded-lg px-2 py-1.5">
-                  <div className="text-[9px] text-emerald-400 font-sans font-bold">
+                <div className="bg-[#F0F3FA] dark:bg-[#0b0e14] border border-[#B3E2D9] dark:border-emerald-500/30 rounded-lg px-2 py-1.5">
+                  <div className="text-[9px] text-[#089981] dark:text-emerald-400 font-sans font-bold">
                     {isAr ? 'الهدف الثالث (TP3)' : 'Target 3 (TP3)'}
                   </div>
-                  <div className="text-emerald-300 font-bold">{activePinnedSignal.tp3}</div>
+                  <div className="text-[#089981] dark:text-emerald-300 font-bold">{activePinnedSignal.tp3}</div>
                 </div>
               )}
 
               {activePinnedSignal.sweepPrice !== undefined && (
-                <div className="bg-[#0b0e14] border border-amber-500/30 rounded-lg px-2 py-1.5">
-                  <div className="text-[9px] text-amber-400 font-sans font-bold">
+                <div className="bg-[#F0F3FA] dark:bg-[#0b0e14] border border-[#EFE0B4] dark:border-amber-500/30 rounded-lg px-2 py-1.5">
+                  <div className="text-[9px] text-[#9A6700] dark:text-amber-400 font-sans font-bold">
                     {isAr ? 'سحب سيولة (Sweep)' : 'Liquidity Sweep'}
                   </div>
-                  <div className="text-amber-300 font-bold">{activePinnedSignal.sweepPrice}</div>
+                  <div className="text-[#9A6700] dark:text-amber-300 font-bold">{activePinnedSignal.sweepPrice}</div>
                 </div>
               )}
             </div>
 
             {(activePinnedSignal.rrText || activePinnedSignal.atr !== undefined) && (
-              <div className="mt-2 pt-1.5 border-t border-white/10 flex items-center justify-between text-[10px] text-slate-300 font-mono">
+              <div className="mt-2 pt-1.5 border-t border-[#E0E3EB] dark:border-white/10 flex items-center justify-between text-[10px] text-[#4A5162] dark:text-slate-300 font-mono">
                 {activePinnedSignal.rrText && (
                   <span>
-                    R:R <strong className="text-emerald-400">{activePinnedSignal.rrText}</strong>
+                    R:R <strong className="text-[#089981] dark:text-emerald-400">{activePinnedSignal.rrText}</strong>
                   </span>
                 )}
                 {activePinnedSignal.atr !== undefined && (
                   <span>
-                    ATR <strong className="text-amber-300">{activePinnedSignal.atr}</strong>
+                    ATR <strong className="text-[#9A6700] dark:text-amber-300">{activePinnedSignal.atr}</strong>
                   </span>
                 )}
               </div>
             )}
 
             {(activePinnedSignal.noteAr || activePinnedSignal.noteEn) && (
-              <p className="mt-1.5 text-[11px] text-slate-300 leading-relaxed bg-[#0b0e14] rounded-lg p-2 border border-white/5">
+              <p className="mt-1.5 text-[11px] text-[#4A5162] dark:text-slate-300 leading-relaxed bg-[#F0F3FA] dark:bg-[#0b0e14] rounded-lg p-2 border border-[#E0E3EB] dark:border-white/5">
                 {isAr
                   ? activePinnedSignal.noteAr || activePinnedSignal.noteEn
                   : activePinnedSignal.noteEn || activePinnedSignal.noteAr}
@@ -1304,19 +1474,19 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
           <div
             className={`absolute top-3 ${
               isAr ? 'right-3' : 'left-3'
-            } z-30 w-80 sm:w-96 max-h-[90%] overflow-y-auto bg-[#0f141e] border border-white/15 rounded-xl p-3.5 shadow-2xl`}
+            } z-30 w-80 sm:w-96 max-h-[90%] overflow-y-auto bg-[#FFFFFF] dark:bg-[#0f141e] border border-[#CBD2DF] dark:border-white/15 rounded-xl p-3.5 shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl`}
           >
-            <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-white/10">
+            <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-[#E0E3EB] dark:border-white/10">
               <div className="flex items-center gap-2">
-                <Pin className="w-4 h-4 text-amber-400" />
-                <h4 className="text-xs font-extrabold text-white">
+                <Pin className="w-4 h-4 text-[#9A6700] dark:text-amber-400" />
+                <h4 className="text-xs font-extrabold text-[#131722] dark:text-white">
                   {isAr ? `تثبيت صفقة وبثها على شارت ${symbol}` : `Pin & Broadcast Signal (${symbol})`}
                 </h4>
               </div>
               <button
                 type="button"
                 onClick={() => setPinDrawerOpen(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/5"
+                className="p-1 rounded-lg text-[#4A5162] dark:text-slate-400 hover:text-[#131722] dark:hover:text-white hover:bg-[#EDF1F7] dark:hover:bg-white/5"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1325,8 +1495,8 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
             {/* Option A: Pick from recent Bot Alerts / Signals */}
             {recentParsedBotAlerts.length > 0 && (
               <div className="mb-3">
-                <label className="block text-[10px] font-bold text-slate-400 mb-1 flex items-center gap-1">
-                  <Bot className="w-3.5 h-3.5 text-emerald-400" />
+                <label className="block text-[10px] font-bold text-[#4A5162] dark:text-slate-400 mb-1 flex items-center gap-1">
+                  <Bot className="w-3.5 h-3.5 text-[#089981] dark:text-emerald-400" />
                   <span>{isAr ? 'اختر من آخر إشارات البوت أو التوصيات:' : 'Pick Recent Bot Alert / Signal:'}</span>
                 </label>
                 <select
@@ -1334,7 +1504,7 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
                     if (e.target.value) handleParseRawAlertText(e.target.value);
                   }}
                   defaultValue=""
-                  className="w-full bg-[#06080c] border border-white/10 rounded-lg px-2.5 py-1.5 text-[11px] text-slate-200 focus:outline-none focus:border-emerald-500/50"
+                  className="w-full bg-[#F0F3FA] dark:bg-[#06080c] border border-[#E0E3EB] dark:border-white/10 rounded-lg px-2.5 py-1.5 text-[11px] text-[#131722] dark:text-slate-200 focus:outline-none focus:border-emerald-500/50"
                 >
                   <option value="">
                     {isAr ? '-- اختر إشارة جاهزة لتعبئة الحقول تلقائياً --' : '-- Select alert to auto-fill --'}
@@ -1350,8 +1520,8 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
 
             {/* Option B: Paste Plain-Text Alert (Arabic or English — No JSON needed) */}
             <div className="mb-3">
-              <label className="block text-[10px] font-bold text-slate-400 mb-1 flex items-center gap-1">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <label className="block text-[10px] font-bold text-[#4A5162] dark:text-slate-400 mb-1 flex items-center gap-1">
+                <Sparkles className="w-3.5 h-3.5 text-[#9A6700] dark:text-amber-400" />
                 <span>
                   {isAr
                     ? 'أو الصق نص الإشارة (عربي/إنجليزي بدون JSON):'
@@ -1367,7 +1537,7 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
                     ? 'مثال: شراء XAUUSD دخول 3025 وقف 3015 هدف 1: 3038 هدف 2: 3050 سحب سيولة 3020'
                     : 'e.g. BUY XAUUSD Entry: 3025 SL: 3015 TP1: 3038 TP2: 3050 Sweep: 3020'
                 }
-                className="w-full bg-[#06080c] border border-white/10 rounded-lg p-2 text-[11px] text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-500/50"
+                className="w-full bg-[#F0F3FA] dark:bg-[#06080c] border border-[#E0E3EB] dark:border-white/10 rounded-lg p-2 text-[11px] text-[#131722] dark:text-white placeholder:text-[#787B86] dark:placeholder:text-slate-600 focus:outline-none focus:border-amber-500/50"
               />
             </div>
 
@@ -1379,8 +1549,8 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
                   onClick={() => setPinSide('BUY')}
                   className={`py-1.5 rounded-lg text-xs font-extrabold border transition-all ${
                     pinSide === 'BUY'
-                      ? 'bg-emerald-500/25 border-emerald-500/50 text-emerald-300'
-                      : 'bg-[#06080c] border-white/10 text-slate-400'
+                      ? 'bg-[#E6F5F2] dark:bg-emerald-500/25 border-emerald-500/50 text-[#089981] dark:text-emerald-300'
+                      : 'bg-[#F0F3FA] dark:bg-[#06080c] border-[#E0E3EB] dark:border-white/10 text-[#4A5162] dark:text-slate-400'
                   }`}
                 >
                   {isAr ? 'شراء (BUY)' : 'BUY / LONG'}
@@ -1390,8 +1560,8 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
                   onClick={() => setPinSide('SELL')}
                   className={`py-1.5 rounded-lg text-xs font-extrabold border transition-all ${
                     pinSide === 'SELL'
-                      ? 'bg-rose-500/25 border-rose-500/50 text-rose-300'
-                      : 'bg-[#06080c] border-white/10 text-slate-400'
+                      ? 'bg-[#FDECEE] dark:bg-rose-500/25 border-[#F5C2C7] dark:border-rose-500/50 text-[#D93848] dark:text-rose-300'
+                      : 'bg-[#F0F3FA] dark:bg-[#06080c] border-[#E0E3EB] dark:border-white/10 text-[#4A5162] dark:text-slate-400'
                   }`}
                 >
                   {isAr ? 'بيع (SELL)' : 'SELL / SHORT'}
@@ -1400,7 +1570,7 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-[10px] text-sky-400 font-bold mb-0.5">
+                  <label className="block text-[10px] text-[#1E53E5] dark:text-sky-400 font-bold mb-0.5">
                     {isAr ? 'سعر الدخول (Entry) *' : 'Entry Price *'}
                   </label>
                   <input
@@ -1409,11 +1579,11 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
                     required
                     value={pinEntry}
                     onChange={(e) => setPinEntry(e.target.value)}
-                    className="w-full bg-[#06080c] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs font-mono text-white"
+                    className="w-full bg-[#F0F3FA] dark:bg-[#06080c] border border-[#E0E3EB] dark:border-white/10 rounded-lg px-2.5 py-1.5 text-xs font-mono text-[#131722] dark:text-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] text-rose-400 font-bold mb-0.5">
+                  <label className="block text-[10px] text-[#D93848] dark:text-rose-400 font-bold mb-0.5">
                     {isAr ? 'وقف الخسارة (SL) *' : 'Stop Loss (SL) *'}
                   </label>
                   <input
@@ -1422,47 +1592,47 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
                     required
                     value={pinSl}
                     onChange={(e) => setPinSl(e.target.value)}
-                    className="w-full bg-[#06080c] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs font-mono text-white"
+                    className="w-full bg-[#F0F3FA] dark:bg-[#06080c] border border-[#E0E3EB] dark:border-white/10 rounded-lg px-2.5 py-1.5 text-xs font-mono text-[#131722] dark:text-white"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="block text-[10px] text-emerald-400 font-bold mb-0.5">TP1</label>
+                  <label className="block text-[10px] text-[#089981] dark:text-emerald-400 font-bold mb-0.5">TP1</label>
                   <input
                     type="number"
                     step="any"
                     value={pinTp1}
                     onChange={(e) => setPinTp1(e.target.value)}
-                    className="w-full bg-[#06080c] border border-white/10 rounded-lg px-2 py-1 text-xs font-mono text-white"
+                    className="w-full bg-[#F0F3FA] dark:bg-[#06080c] border border-[#E0E3EB] dark:border-white/10 rounded-lg px-2 py-1 text-xs font-mono text-[#131722] dark:text-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] text-emerald-400 font-bold mb-0.5">TP2</label>
+                  <label className="block text-[10px] text-[#089981] dark:text-emerald-400 font-bold mb-0.5">TP2</label>
                   <input
                     type="number"
                     step="any"
                     value={pinTp2}
                     onChange={(e) => setPinTp2(e.target.value)}
-                    className="w-full bg-[#06080c] border border-white/10 rounded-lg px-2 py-1 text-xs font-mono text-white"
+                    className="w-full bg-[#F0F3FA] dark:bg-[#06080c] border border-[#E0E3EB] dark:border-white/10 rounded-lg px-2 py-1 text-xs font-mono text-[#131722] dark:text-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] text-emerald-400 font-bold mb-0.5">TP3</label>
+                  <label className="block text-[10px] text-[#089981] dark:text-emerald-400 font-bold mb-0.5">TP3</label>
                   <input
                     type="number"
                     step="any"
                     value={pinTp3}
                     onChange={(e) => setPinTp3(e.target.value)}
-                    className="w-full bg-[#06080c] border border-white/10 rounded-lg px-2 py-1 text-xs font-mono text-white"
+                    className="w-full bg-[#F0F3FA] dark:bg-[#06080c] border border-[#E0E3EB] dark:border-white/10 rounded-lg px-2 py-1 text-xs font-mono text-[#131722] dark:text-white"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="block text-[10px] text-amber-400 font-bold mb-0.5">
+                  <label className="block text-[10px] text-[#9A6700] dark:text-amber-400 font-bold mb-0.5">
                     {isAr ? 'سحب سيولة' : 'Sweep Price'}
                   </label>
                   <input
@@ -1470,33 +1640,33 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
                     step="any"
                     value={pinSweep}
                     onChange={(e) => setPinSweep(e.target.value)}
-                    className="w-full bg-[#06080c] border border-white/10 rounded-lg px-2 py-1 text-xs font-mono text-white"
+                    className="w-full bg-[#F0F3FA] dark:bg-[#06080c] border border-[#E0E3EB] dark:border-white/10 rounded-lg px-2 py-1 text-xs font-mono text-[#131722] dark:text-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] text-slate-400 font-bold mb-0.5">ATR</label>
+                  <label className="block text-[10px] text-[#4A5162] dark:text-slate-400 font-bold mb-0.5">ATR</label>
                   <input
                     type="number"
                     step="any"
                     value={pinAtr}
                     onChange={(e) => setPinAtr(e.target.value)}
-                    className="w-full bg-[#06080c] border border-white/10 rounded-lg px-2 py-1 text-xs font-mono text-white"
+                    className="w-full bg-[#F0F3FA] dark:bg-[#06080c] border border-[#E0E3EB] dark:border-white/10 rounded-lg px-2 py-1 text-xs font-mono text-[#131722] dark:text-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] text-slate-400 font-bold mb-0.5">R:R</label>
+                  <label className="block text-[10px] text-[#4A5162] dark:text-slate-400 font-bold mb-0.5">R:R</label>
                   <input
                     type="text"
                     placeholder="1:2.5"
                     value={pinRr}
                     onChange={(e) => setPinRr(e.target.value)}
-                    className="w-full bg-[#06080c] border border-white/10 rounded-lg px-2 py-1 text-xs font-mono text-white"
+                    className="w-full bg-[#F0F3FA] dark:bg-[#06080c] border border-[#E0E3EB] dark:border-white/10 rounded-lg px-2 py-1 text-xs font-mono text-[#131722] dark:text-white"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[10px] text-slate-400 font-bold mb-0.5">
+                <label className="block text-[10px] text-[#4A5162] dark:text-slate-400 font-bold mb-0.5">
                   {isAr ? 'ملاحظة فنية على الشارت (اختياري)' : 'Technical Note (Optional)'}
                 </label>
                 <input
@@ -1504,7 +1674,7 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
                   value={pinNoteAr}
                   onChange={(e) => setPinNoteAr(e.target.value)}
                   placeholder={isAr ? 'مثال: انتظار إغلاق شمعة 15د فوق منطقة الطلب' : 'e.g. Wait for 15m candle close above demand'}
-                  className="w-full bg-[#06080c] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                  className="w-full bg-[#F0F3FA] dark:bg-[#06080c] border border-[#E0E3EB] dark:border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-[#131722] dark:text-white"
                 />
               </div>
 
@@ -1521,18 +1691,18 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
             </form>
 
             {/* Clear Admin Signal / Drawings actions */}
-            <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between gap-1.5">
+            <div className="mt-3 pt-2.5 border-t border-[#E0E3EB] dark:border-white/10 flex items-center justify-between gap-1.5">
               <button
                 type="button"
                 onClick={() => handleClearAdminBroadcast('signal')}
-                className="flex-1 py-1.5 px-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/25 text-rose-300 text-[10px] font-bold"
+                className="flex-1 py-1.5 px-2 rounded-lg bg-[#FDECEE] dark:bg-rose-500/10 hover:bg-rose-500/20 border border-[#F5C2C7] dark:border-rose-500/25 text-[#D93848] dark:text-rose-300 text-[10px] font-bold"
               >
                 {isAr ? 'إزالة الصفقة المثبتة' : 'Clear Pinned Signal'}
               </button>
               <button
                 type="button"
                 onClick={() => handleClearAdminBroadcast('drawings')}
-                className="flex-1 py-1.5 px-2 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/25 text-amber-300 text-[10px] font-bold"
+                className="flex-1 py-1.5 px-2 rounded-lg bg-[#FDF6E3] dark:bg-amber-500/10 hover:bg-amber-500/20 border border-[#EFE0B4] dark:border-amber-500/25 text-[#9A6700] dark:text-amber-300 text-[10px] font-bold"
               >
                 {isAr ? 'مسح رسومات البث' : 'Clear Broadcast Drawings'}
               </button>

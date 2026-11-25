@@ -533,7 +533,7 @@ export default function App() {
     <ThemeProvider>
       <div
         dir={lang === 'ar' ? 'rtl' : 'ltr'}
-        className={`min-h-screen bg-[#131722] text-[#d1d4dc] flex flex-col ${
+        className={`min-h-screen bg-[#FFFFFF] dark:bg-[#131722] text-[#131722] dark:text-[#d1d4dc] flex flex-col ${
           lang === 'ar' ? "font-['Cairo',sans-serif]" : "font-['Plus_Jakarta_Sans',sans-serif]"
         }`}
       >
@@ -567,11 +567,11 @@ export default function App() {
           onToggleLang={() => setLang((prev) => (prev === 'ar' ? 'en' : 'ar'))}
         />
       ) : currentUser && currentUser.isBanned ? (
-        <div className="min-h-screen bg-[#131722] text-[#d1d4dc] flex flex-col items-center justify-center p-6 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-rose-500/20 border border-rose-500/40 text-rose-500 flex items-center justify-center text-3xl mb-4">
+        <div className="min-h-screen bg-[#FFFFFF] dark:bg-[#131722] text-[#131722] dark:text-[#d1d4dc] flex flex-col items-center justify-center p-6 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-[#FDECEE] dark:bg-rose-500/20 border border-[#F5C2C7] dark:border-rose-500/40 text-rose-500 flex items-center justify-center text-3xl mb-4">
             🚫
           </div>
-          <h1 className="text-xl font-bold text-white mb-2">
+          <h1 className="text-xl font-bold text-[#131722] dark:text-white mb-2">
             {lang === 'ar' ? 'تم حظر حسابك من الوصول للمنصة' : 'Account Banned'}
           </h1>
           <p className="text-sm text-[#787b86] max-w-md mb-6 leading-relaxed">
@@ -648,17 +648,17 @@ export default function App() {
 
       {/* Remote Live Update Overlay */}
       {isApplyingRemoteUpdate && (
-        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-[#1e222d] border border-[#089981] rounded-2xl px-6 py-5 max-w-sm w-full text-center shadow-2xl space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-[#089981]/20 border border-[#089981]/40 text-[#089981] flex items-center justify-center text-2xl mx-auto animate-bounce">
+        <div className="fixed inset-0 z-[9999] bg-[#131722]/45 dark:bg-black/80 dark:backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#F8F9FD] dark:bg-[#1e222d] border border-[#089981] rounded-2xl px-6 py-5 max-w-sm w-full text-center shadow-[0_1px_2px_rgba(19,23,34,0.04)] dark:shadow-2xl space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-[#E6F5F2] dark:bg-[#089981]/20 border border-[#B3E2D9] dark:border-[#089981]/40 text-[#089981] flex items-center justify-center text-2xl mx-auto animate-bounce">
               🚀
             </div>
-            <h3 className="text-sm font-extrabold text-white">
+            <h3 className="text-sm font-extrabold text-[#131722] dark:text-white">
               {lang === 'ar'
                 ? 'جاري تحديث المنصة للإصدار الجديد...'
                 : 'Updating platform to the latest version...'}
             </h3>
-            <p className="text-xs text-[#9ca3af]">
+            <p className="text-xs text-[#4A5162] dark:text-[#9ca3af]">
               {lang === 'ar'
                 ? 'يتم الآن مسح الكاش القديم وتفعيل الميزات الجديدة تلقائياً دون تسجيل الخروج.'
                 : 'Clearing old cache and syncing new features automatically while keeping you signed in.'}
