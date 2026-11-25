@@ -59,7 +59,6 @@ import {
   doc,
   getDocs,
   limit,
-  onSnapshot,
   query,
   serverTimestamp,
   setDoc,
@@ -404,11 +403,11 @@ export const AdminDashboard: React.FC<Props> = ({
         shortEn: 'System',
         shortAr: 'النظام',
         icon: Wrench,
-        allowed: Boolean(myPermissions.canManageSystem || myPermissions.canManageUsers)
+        allowed: Boolean(isFullAdmin)
       }
     ];
     return allSections.filter((s) => s.allowed);
-  }, [myPermissions]);
+  }, [myPermissions, isFullAdmin]);
 
   const [activeSection, setActiveSection] = useState<AdminSectionId>(() => {
     if (myPermissions.canViewAnalytics || myPermissions.canManageSystem) return 'overview';
@@ -591,17 +590,14 @@ export const AdminDashboard: React.FC<Props> = ({
     setTimeout(() => setFeedback(null), 4000);
   };
 
-  // Load Push Subscription active UIDs once per session when Users & CRM or Overview loads (or on manual refresh)
+  // Load Push Subscription active UIDs once per session ONLY when Users & CRM tab is opened
+  // (Overview tab already uses 1-read getCountFromServer in AdminAnalyticsOverview)
   useEffect(() => {
     if (!isStaff) return;
-    if (
-      !myPermissions.canManageUsers &&
-      !myPermissions.canViewAnalytics &&
-      !myPermissions.canManageSystem
-    ) {
+    if (!myPermissions.canManageUsers && !myPermissions.canManageSystem) {
       return;
     }
-    if (activeSection !== 'users' && activeSection !== 'overview') return;
+    if (activeSection !== 'users') return;
 
     const isManualRefresh = crmRetryTick > lastHandledPushRetryTick;
     if (hasFetchedPushActiveUidsThisSession && !isManualRefresh) {
@@ -632,7 +628,6 @@ export const AdminDashboard: React.FC<Props> = ({
     activeSection,
     crmRetryTick,
     myPermissions.canManageUsers,
-    myPermissions.canViewAnalytics,
     myPermissions.canManageSystem
   ]);
 
@@ -1365,9 +1360,9 @@ export const AdminDashboard: React.FC<Props> = ({
     }
   };
 
-  // ================= ON-DEMAND FIRESTORE ACTIVATION KEYS FETCH =================
+  // ================= ON-DEMAND FIRESTORE ACTIVATION KEYS FETCH (SUPER ADMIN ONLY) =================
   useEffect(() => {
-    if (!isStaff || activeSection !== 'system') return;
+    if (!isFullAdmin || activeSection !== 'system') return;
     if (hasFetchedActivationKeysThisSession && activationKeys.length > 0 && crmRetryTick === 0) {
       return;
     }
@@ -1416,7 +1411,7 @@ export const AdminDashboard: React.FC<Props> = ({
         }
         console.warn('activation_keys fetch warning:', err?.message || err);
       });
-  }, [isStaff, activeSection, crmRetryTick]);
+  }, [isFullAdmin, activeSection, crmRetryTick]);
 
   const generateSecureRandomCode = (tag: string): string => {
     const charset = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -1434,6 +1429,7 @@ export const AdminDashboard: React.FC<Props> = ({
   };
 
   const handleGenerateKey = async () => {
+    if (!isFullAdmin) return;
     const qty = Math.min(200, Math.max(1, Number(bulkKeyQuantity) || 1));
     setIsGeneratingKey(true);
     soundManager.playClick();
@@ -1519,6 +1515,7 @@ export const AdminDashboard: React.FC<Props> = ({
   };
 
   const handleGenerateTrialKeys = async () => {
+    if (!isFullAdmin) return;
     const days = Math.max(1, Math.min(36500, Number(trialDurationDays) || 3));
     const qty = Math.min(50, Math.max(1, Number(trialQuantity) || 1));
 
@@ -1662,6 +1659,7 @@ export const AdminDashboard: React.FC<Props> = ({
   };
 
   const handleDeleteKey = async (code: string) => {
+    if (!isFullAdmin) return;
     soundManager.playClick();
     try {
       await deleteDoc(doc(db, 'activation_keys', code));
@@ -1681,6 +1679,7 @@ export const AdminDashboard: React.FC<Props> = ({
   };
 
   const handleRevokeKey = async (code: string) => {
+    if (!isFullAdmin) return;
     soundManager.playClick();
     try {
       await setDoc(doc(db, 'activation_keys', code), { status: 'revoked' }, { merge: true });
@@ -4215,7 +4214,7 @@ export const AdminDashboard: React.FC<Props> = ({
           {/* ========================================================================= */}
           {/* SECTION 6: SYSTEM & TOOLS (KEYS, BACKUP/RESTORE, PUSH, FORCE UPDATE, SETTINGS) */}
           {/* ========================================================================= */}
-          {activeSection === 'system' && (
+          {activeSection === 'system' && isFullAdmin && (
             <div className="space-y-6">
               {/* System Operations Bar (Super Admin only) */}
               {isFullAdmin && (

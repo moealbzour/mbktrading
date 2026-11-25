@@ -159,14 +159,6 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
   const [activeSubTab, setActiveSubTab] = useState<'popups' | 'bulk_dm' | 'templates'>('popups');
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
 
-  // Tick every 1 second so the Live Preview countdown timer ticks in real time
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setNowMs(Date.now());
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
   // ================= 1. POPUP STUDIO STATE =================
   const [announcements, setAnnouncements] = useState<AdminAnnouncement[]>([]);
   const [editingPopupId, setEditingPopupId] = useState<string | null>(null);
@@ -248,6 +240,32 @@ export const AdminBroadcastsTab: React.FC<Props> = ({ users, isAr, onShowFeedbac
       unsubTpl();
     };
   }, []);
+
+  // Tick every 1 second ONLY when Popup Studio is showing a live countdown preview or active countdown banner
+  const hasActiveCountdownBanner = useMemo(
+    () =>
+      activeSubTab === 'popups' &&
+      announcements.some(
+        (ann) =>
+          ann.isActive &&
+          Boolean(ann.countdownEnabled) &&
+          typeof ann.countdownEndAtMs === 'number' &&
+          ann.countdownEndAtMs > Date.now()
+      ),
+    [activeSubTab, announcements]
+  );
+
+  const shouldTickCountdown =
+    activeSubTab === 'popups' && (countdownEnabled || hasActiveCountdownBanner);
+
+  useEffect(() => {
+    if (!shouldTickCountdown) return;
+    setNowMs(Date.now());
+    const timer = setInterval(() => {
+      setNowMs(Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [shouldTickCountdown]);
 
   const popupTemplates = useMemo(
     () => savedTemplates.filter((t) => t.templateType === 'popup'),

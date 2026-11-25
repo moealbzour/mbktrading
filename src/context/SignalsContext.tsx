@@ -532,8 +532,16 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
             seenStatuses[docId] = status;
 
             if (change.type === 'added') {
-              const isNewerThanLastNotified = tsMs > lastSignalNotifMs && tsMs > Date.now() - 12 * 60 * 60 * 1000;
-              if (!isFirstSignalsSnapshot || isNewerThanLastNotified) {
+              const isNewerThanLastNotified =
+                tsMs > lastSignalNotifMs && tsMs > Date.now() - 12 * 60 * 60 * 1000;
+              if (isFirstSignalsSnapshot) {
+                // On app launch (including opening from a mobile Web Push tap), silently advance high-water
+                // timestamp and unread badge without duplicating OS notifications or toast/audio bursts.
+                if (isNewerThanLastNotified) {
+                  if (tsMs > maxSeenSignalMs) maxSeenSignalMs = tsMs;
+                  setUnreadTradesCount((prev) => prev + 1);
+                }
+              } else {
                 if (tsMs > maxSeenSignalMs) maxSeenSignalMs = tsMs;
                 setUnreadTradesCount((prev) => prev + 1);
                 triggerAudioAlert();
@@ -746,7 +754,13 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 const tsMs = Number(data.timestampMs || Date.now());
                 const isNewerThanLastNotified = tsMs > lastBotNotifMs && tsMs > Date.now() - 12 * 60 * 60 * 1000;
 
-                if (!isFirstBotSnapshot || isNewerThanLastNotified) {
+                if (isFirstBotSnapshot) {
+                  // Silently sync high-water timestamp & badge on initial mount (no duplicate startup toast/OS alert)
+                  if (isNewerThanLastNotified) {
+                    if (tsMs > maxSeenBotMs) maxSeenBotMs = tsMs;
+                    setUnreadTradesCount((prev) => prev + 1);
+                  }
+                } else {
                   if (tsMs > maxSeenBotMs) maxSeenBotMs = tsMs;
                   setUnreadTradesCount((prev) => prev + 1);
                   triggerAudioAlert();
@@ -921,28 +935,29 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
             msgMs > prevMs &&
             d.lastSenderUid &&
             d.lastSenderUid !== currentUserUid &&
-            d.lastMessage &&
-            (!isFirstDmSnapshot || unreadForMe > 0)
+            d.lastMessage
           ) {
             setLastNotifiedMs(`mbk_last_notif_dm_${docSnap.id}`, msgMs);
-            const senderName =
-              d.lastSenderUid === 'mbktrading'
-                ? 'mbktrading'
-                : d.participantNames?.[d.lastSenderUid] || 'متداول MBK';
-            const preview = String(d.lastMessage).slice(0, 120);
+            if (!isFirstDmSnapshot) {
+              const senderName =
+                d.lastSenderUid === 'mbktrading'
+                  ? 'mbktrading'
+                  : d.participantNames?.[d.lastSenderUid] || 'متداول MBK';
+              const preview = String(d.lastMessage).slice(0, 120);
 
-            triggerAudioAlert();
-            addToast({
-              title: `رسالة خاصة من ${senderName} 💬`,
-              message: preview,
-              type: 'info',
-              timestamp: 'الآن'
-            });
-            sendBrowserNotification(
-              `رسالة خاصة • ${senderName}`,
-              preview,
-              `dm-${docSnap.id}-${msgMs}`
-            );
+              triggerAudioAlert();
+              addToast({
+                title: `رسالة خاصة من ${senderName} 💬`,
+                message: preview,
+                type: 'info',
+                timestamp: 'الآن'
+              });
+              sendBrowserNotification(
+                `رسالة خاصة • ${senderName}`,
+                preview,
+                `dm-${docSnap.id}-${msgMs}`
+              );
+            }
           }
         });
 

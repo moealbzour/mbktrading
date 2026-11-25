@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { db } from './lib/firebase';
 import {
   MarketSymbol,
@@ -301,27 +301,69 @@ export default function App() {
       }
     };
 
-    const versionRef = doc(db, 'settings', 'app_version');
-    const unsubVersion = onSnapshot(
-      versionRef,
-      (snap) => {
-        if (snap.exists()) {
-          const data = snap.data();
-          try {
-            localStorage.setItem('mbk_remote_app_version_info', JSON.stringify(data));
-          } catch {
-            // ignore
+    const APP_VERSION_CACHE_KEY = 'mbk_cached_app_version_v1';
+    const APP_VERSION_CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
+    let isCancelled = false;
+
+    const checkRemoteAppVersionOnce = async () => {
+      if (isCancelled || isReloadingRef.current) return;
+
+      // Serve from 15-minute sessionStorage cache first (0 Firestore reads)
+      try {
+        const rawCache = sessionStorage.getItem(APP_VERSION_CACHE_KEY);
+        if (rawCache) {
+          const parsed = JSON.parse(rawCache);
+          if (
+            parsed &&
+            typeof parsed.fetchedAtMs === 'number' &&
+            Date.now() - parsed.fetchedAtMs < APP_VERSION_CACHE_TTL_MS
+          ) {
+            if (parsed.data) {
+              applyRemoteVersionIfNeeded(parsed.data);
+            }
+            return;
           }
+        }
+      } catch {
+        // ignore storage errors
+      }
+
+      try {
+        const versionRef = doc(db, 'settings', 'app_version');
+        const snap = await getDoc(versionRef);
+        if (isCancelled) return;
+        const data = snap.exists() ? snap.data() : null;
+        try {
+          sessionStorage.setItem(
+            APP_VERSION_CACHE_KEY,
+            JSON.stringify({ fetchedAtMs: Date.now(), data })
+          );
+          if (data) {
+            localStorage.setItem('mbk_remote_app_version_info', JSON.stringify(data));
+          }
+        } catch {
+          // ignore storage errors
+        }
+        if (data) {
           applyRemoteVersionIfNeeded(data);
         }
-      },
-      () => {
-        // ignore snapshot permission/quota transient notice
+      } catch {
+        // ignore transient permission/quota notice
       }
-    );
+    };
+
+    checkRemoteAppVersionOnce();
+
+    const handleVisibilityResume = () => {
+      if (document.visibilityState === 'visible') {
+        checkRemoteAppVersionOnce();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityResume);
 
     return () => {
-      unsubVersion();
+      isCancelled = true;
+      document.removeEventListener('visibilitychange', handleVisibilityResume);
     };
   }, []);
 
