@@ -824,13 +824,17 @@ export const MBKProCanvasChart: React.FC<MBKProCanvasChartProps> = ({
     return () => window.clearInterval(timer);
   }, [symbol, interval]);
 
-  // Subscribe to Admin Chart Setup ONLY while mounted & when symbol changes
+  // Subscribe to Admin Chart Setup ONLY for VIP / Staff users (0 Firestore reads for Free users)
   useEffect(() => {
+    if (!canViewAdminLayer) {
+      setAdminSetup(null);
+      return;
+    }
     const unsubscribe = subscribeAdminChartSetup(symbol, (docData) => {
       setAdminSetup(docData);
     });
     return () => unsubscribe();
-  }, [symbol]);
+  }, [symbol, canViewAdminLayer]);
 
   // Re-render Admin Broadcast layer whenever adminSetup or showAdminLayer changes
   useEffect(() => {

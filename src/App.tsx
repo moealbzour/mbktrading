@@ -12,6 +12,7 @@ import {
   signOutUser
 } from './services/firebaseAuthService';
 import { KeyRedemptionResult } from './utils/activationKeyService';
+import { detachCurrentDeviceWebPush } from './utils/mobileNotifications';
 
 // Pages & Components
 import { MotionSplashScreen } from './components/MotionSplashScreen';
@@ -450,6 +451,11 @@ export default function App() {
 
   const handleLogout = async () => {
     try {
+      await detachCurrentDeviceWebPush();
+    } catch {
+      // ignore push detach errors during logout
+    }
+    try {
       await signOutUser();
     } catch (err) {
       console.warn('Sign out error:', err);
@@ -464,6 +470,12 @@ export default function App() {
       localStorage.removeItem('mbk_vip_key');
       localStorage.removeItem('mbk_bot_unlocked');
       localStorage.removeItem('mbk_chat_admin_mode');
+      localStorage.removeItem('mbk_cached_signals_v1');
+      localStorage.removeItem('mbk_cached_trades_v1');
+      localStorage.removeItem('mbk_cached_bot_alerts_v1');
+      localStorage.removeItem('mbk_seen_signal_status_map_v1');
+      localStorage.removeItem('mbk_last_notif_signal_ms');
+      localStorage.removeItem('mbk_last_notif_bot_ms');
     } catch {
       // ignore
     }

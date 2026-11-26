@@ -57,11 +57,13 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   limit,
   query,
   serverTimestamp,
   setDoc,
+  updateDoc,
   writeBatch
 } from 'firebase/firestore';
 import {
@@ -73,6 +75,7 @@ import {
 } from '../../lib/firebase';
 import { soundManager } from '../../utils/audio';
 import {
+  invalidateServerPushCache,
   registerWebPushSubscription,
   requestAppNotificationPermission
 } from '../../utils/mobileNotifications';
@@ -104,6 +107,8 @@ import {
   getActiveTrialFeatures,
   getEffectiveTier,
   getFeatureLabel,
+  hasFeatureAccess,
+  isStaffOrAdminUser,
   SubscriptionTier
 } from '../../utils/entitlements';
 import {
@@ -569,6 +574,7 @@ export const AdminDashboard: React.FC<Props> = ({
   const [confirmWipeBots, setConfirmWipeBots] = useState<boolean>(false);
   const [isPushingAppUpdate, setIsPushingAppUpdate] = useState<boolean>(false);
   const [isTestingBackgroundPush, setIsTestingBackgroundPush] = useState<boolean>(false);
+  const [isAuditingPushSubs, setIsAuditingPushSubs] = useState<boolean>(false);
   const [backgroundPushResult, setBackgroundPushResult] = useState<Record<string, any> | null>(
     null
   );
@@ -854,6 +860,7 @@ export const AdminDashboard: React.FC<Props> = ({
       const idToken = await currentUser.getIdToken(true);
       const subRes = await registerWebPushSubscription(idToken, {
         isVip: true,
+        hasBotAccess: true,
         isAdmin: true,
         canAccessInbox: true,
         forceSync: true
@@ -913,6 +920,221 @@ export const AdminDashboard: React.FC<Props> = ({
       });
     } finally {
       setIsTestingBackgroundPush(false);
+    }
+  };
+
+  const computePushEntitlementUpdate = (profileLike: Record<string, any> | null) => {
+    const nowMs = Date.now();
+    if (!profileLike) {
+      return {
+        isVip: false,
+        hasBotAccess: false,
+        isAdmin: false,
+        canAccessInbox: false,
+        isBanned: false,
+        vipExpiryMs: null as number | null,
+        botExpiryMs: null as number | null,
+        verifiedAt: nowMs,
+        updatedAt: nowMs
+      };
+    }
+
+    const emailLower = String(profileLike.email || '').toLowerCase();
+    const isSuper = emailLower === 'moe.albzour@gmail.com';
+    const isBannedUser = !isSuper && Boolean(profileLike.isBanned);
+    if (isBannedUser) {
+      return {
+        isVip: false,
+        hasBotAccess: false,
+        isAdmin: false,
+        canAccessInbox: false,
+        isBanned: true,
+        vipExpiryMs: null as number | null,
+        botExpiryMs: null as number | null,
+        subscriptions: [] as any[],
+        verifiedAt: nowMs,
+        updatedAt: nowMs
+      };
+    }
+
+    const roleUpper = String(profileLike.role || '').toUpperCase();
+    const staffRoleLower = String(profileLike.staffRole || '').toLowerCase();
+    const perms =
+      profileLike.permissions && typeof profileLike.permissions === 'object'
+        ? profileLike.permissions
+        : {};
+    const hasExplicitPerms = Object.keys(perms).length > 0;
+    const isAdminFlag =
+      isSuper ||
+      Boolean(profileLike.isAdmin) ||
+      roleUpper === 'ADMIN' ||
+      staffRoleLower === 'super_admin' ||
+      Boolean(perms.canManageSystem);
+    const isStaffFlag = isSuper || isAdminFlag || isStaffOrAdminUser(profileLike);
+    const canInboxFlag =
+      isAdminFlag ||
+      Boolean(perms.canAccessInbox) ||
+      (!hasExplicitPerms &&
+        (staffRoleLower === 'customer_service' ||
+          staffRoleLower === 'operations_manager' ||
+          roleUpper === 'SALES'));
+
+    if (isStaffFlag) {
+      return {
+        isVip: true,
+        hasBotAccess: true,
+        isAdmin: isAdminFlag,
+        canAccessInbox: canInboxFlag,
+        isBanned: false,
+        vipExpiryMs: null as number | null,
+        botExpiryMs: null as number | null,
+        verifiedAt: nowMs,
+        updatedAt: nowMs
+      };
+    }
+
+    const normalizedProfile: Partial<UserProfile> = {
+      ...profileLike,
+      subscriptionEndDate: profileLike.subscriptionEndDate ?? profileLike.subscription_end_date ?? null
+    };
+    const isVipActive = hasFeatureAccess(normalizedProfile, 'vipSignals');
+    const isBotActive = hasFeatureAccess(normalizedProfile, 'botSignals');
+    const effTier = getEffectiveTier(normalizedProfile);
+
+    const tierExpiryCandidates = [
+      parseFirestoreTimestampMs(profileLike.eliteExpiryDate),
+      parseFirestoreTimestampMs(profileLike.vipExpiryDate),
+      parseFirestoreTimestampMs(profileLike.subscriptionEndDate),
+      parseFirestoreTimestampMs(profileLike.subscription_end_date)
+    ].filter((ms) => ms > 0);
+    const latestTierExpiryMs =
+      tierExpiryCandidates.length > 0 ? Math.max(...tierExpiryCandidates) : 0;
+    const isLifetimePaid = (effTier === 'vip' || effTier === 'elite') && latestTierExpiryMs === 0;
+
+    const granted =
+      profileLike.grantedFeatures && typeof profileLike.grantedFeatures === 'object'
+        ? profileLike.grantedFeatures
+        : {};
+    const vipGrantMs = parseFirestoreTimestampMs(granted.vipSignals);
+    const botGrantMs = parseFirestoreTimestampMs(granted.botSignals);
+
+    const effectiveVipExp = isLifetimePaid
+      ? null
+      : Math.max(effTier !== 'free' ? latestTierExpiryMs : 0, vipGrantMs > nowMs ? vipGrantMs : 0) ||
+        null;
+    const effectiveBotExp = isLifetimePaid
+      ? null
+      : Math.max(effTier !== 'free' ? latestTierExpiryMs : 0, botGrantMs > nowMs ? botGrantMs : 0) ||
+        null;
+
+    return {
+      isVip: isVipActive,
+      hasBotAccess: isBotActive,
+      isAdmin: false,
+      canAccessInbox: false,
+      isBanned: false,
+      vipExpiryMs: isVipActive ? effectiveVipExp : null,
+      botExpiryMs: isBotActive ? effectiveBotExp : null,
+      verifiedAt: nowMs,
+      updatedAt: nowMs
+    };
+  };
+
+  const syncTargetUserPushEntitlements = async (
+    targetUid: string,
+    mergedProfile: Record<string, any> | null
+  ) => {
+    if (!targetUid) return;
+    const pushPatch = computePushEntitlementUpdate(mergedProfile);
+    try {
+      await updateDoc(doc(db, 'push_subscriptions', targetUid), pushPatch);
+    } catch {
+      // Ignore if user has no push_subscriptions doc yet
+    }
+    invalidateServerPushCache({
+      targetUid,
+      patch: pushPatch
+    }).catch(() => {});
+  };
+
+  const handleAuditAndCleanPushSubscriptions = async () => {
+    if (!isFullAdmin || isAuditingPushSubs) return;
+    soundManager.playClick();
+    setIsAuditingPushSubs(true);
+    try {
+      const pushSnap = await getDocs(collection(db, 'push_subscriptions'));
+      const userMap = new Map<string, Record<string, any>>();
+      for (const u of users) {
+        userMap.set(u.id, u);
+      }
+
+      let scanned = 0;
+      let fixed = 0;
+      let downgradedFreeOrExpired = 0;
+
+      const docsToUpdate: Array<{ uid: string; patch: Record<string, any> }> = [];
+
+      for (const pushDoc of pushSnap.docs) {
+        scanned += 1;
+        const uid = pushDoc.id;
+        const pushData = pushDoc.data() as Record<string, any>;
+        let userData = userMap.get(uid) || null;
+        if (!userData) {
+          try {
+            const uSnap = await getDoc(doc(db, 'users', uid));
+            if (uSnap.exists()) {
+              userData = { id: uid, ...(uSnap.data() as Record<string, any>) };
+              userMap.set(uid, userData);
+            }
+          } catch {
+            // treat missing user as non-VIP
+          }
+        }
+
+        const expected = computePushEntitlementUpdate(userData);
+        const wasVipOrBot = Boolean(pushData.isVip || pushData.hasBotAccess || pushData.isAdmin);
+        const isNowVipOrBot = Boolean(expected.isVip || expected.hasBotAccess || expected.isAdmin);
+
+        const needsUpdate =
+          Boolean(pushData.isVip) !== expected.isVip ||
+          pushData.hasBotAccess !== expected.hasBotAccess ||
+          Boolean(pushData.isAdmin) !== expected.isAdmin ||
+          Boolean(pushData.isBanned) !== expected.isBanned ||
+          (pushData.vipExpiryMs ?? null) !== (expected.vipExpiryMs ?? null) ||
+          (pushData.botExpiryMs ?? null) !== (expected.botExpiryMs ?? null) ||
+          !pushData.verifiedAt;
+
+        if (needsUpdate) {
+          docsToUpdate.push({ uid, patch: expected });
+          fixed += 1;
+          if (wasVipOrBot && !isNowVipOrBot) {
+            downgradedFreeOrExpired += 1;
+          }
+        }
+      }
+
+      for (let i = 0; i < docsToUpdate.length; i += 400) {
+        const batch = writeBatch(db);
+        const slice = docsToUpdate.slice(i, i + 400);
+        for (const item of slice) {
+          batch.update(doc(db, 'push_subscriptions', item.uid), item.patch);
+        }
+        await batch.commit();
+      }
+
+      invalidateServerPushCache({ clearAll: true }).catch(() => {});
+
+      soundManager.playProfitChime();
+      showFeedback(
+        'success',
+        isAr
+          ? `تم فحص ${scanned} مشترك إشعارات وتحديث ${fixed} سجل (${downgradedFreeOrExpired} حساب مجاني/منتهي تم إيقاف تنبيهات البوت والـ VIP عنهم فوراً).`
+          : `Audited ${scanned} push subscribers, updated ${fixed} records (${downgradedFreeOrExpired} Free/expired accounts stripped from VIP & Bot alerts).`
+      );
+    } catch (err: any) {
+      showFeedback('error', err?.message || 'Failed to audit push subscriptions');
+    } finally {
+      setIsAuditingPushSubs(false);
     }
   };
 
@@ -2036,6 +2258,10 @@ export const AdminDashboard: React.FC<Props> = ({
         { uid: targetUser.id, isBanned: nextBanned, updatedAt: serverTimestamp() },
         { merge: true }
       );
+      await syncTargetUserPushEntitlements(targetUser.id, {
+        ...targetUser,
+        isBanned: nextBanned
+      });
       setUsers((prev) => {
         const nextList = prev.map((u) =>
           u.id === targetUser.id ? { ...u, isBanned: nextBanned } : u
@@ -2168,39 +2394,62 @@ export const AdminDashboard: React.FC<Props> = ({
 
       if (lowerRole === 'free') {
         rolePayload.tier = 'free';
+        rolePayload.isVip = false;
+        rolePayload.vipAccess = false;
         rolePayload.isElite = false;
+        rolePayload.isAdmin = false;
+        rolePayload.isStaff = false;
+        rolePayload.staffRole = 'none';
+        rolePayload.permissions = {};
+        rolePayload.grantedFeatures = {};
         rolePayload.vipExpiryDate = null;
         rolePayload.eliteExpiryDate = null;
         rolePayload.subscription_status = 'none';
+        rolePayload.subscriptionStatus = 'none';
         rolePayload.subscription_end_date = null;
+        rolePayload.subscriptionEndDate = null;
       } else if (lowerRole === 'vip') {
         rolePayload.tier = 'vip';
         rolePayload.isElite = false;
         rolePayload.subscription_status = 'active';
+        rolePayload.subscriptionStatus = 'active';
         if (hadExpiredDate) {
           rolePayload.vipExpiryDate = null;
           rolePayload.eliteExpiryDate = null;
           rolePayload.subscription_end_date = null;
+          rolePayload.subscriptionEndDate = null;
         }
       } else if (lowerRole === 'elite' || lowerRole === 'admin') {
         rolePayload.tier = 'elite';
         rolePayload.isElite = true;
         rolePayload.subscription_status = 'active';
+        rolePayload.subscriptionStatus = 'active';
         if (hadExpiredDate) {
           rolePayload.vipExpiryDate = null;
           rolePayload.eliteExpiryDate = null;
           rolePayload.subscription_end_date = null;
+          rolePayload.subscriptionEndDate = null;
         }
       } else if (isStaffOrVip) {
         rolePayload.subscription_status = 'active';
+        rolePayload.subscriptionStatus = 'active';
         if (hadExpiredDate) {
           rolePayload.vipExpiryDate = null;
           rolePayload.eliteExpiryDate = null;
           rolePayload.subscription_end_date = null;
+          rolePayload.subscriptionEndDate = null;
         }
       }
 
       await setDoc(userRef, rolePayload, { merge: true });
+      await syncTargetUserPushEntitlements(targetUserId, {
+        ...(targetObj || {}),
+        ...rolePayload,
+        subscriptionEndDate:
+          'subscription_end_date' in rolePayload
+            ? rolePayload.subscription_end_date
+            : targetObj?.subscriptionEndDate ?? null
+      });
       if (targetObj?.altDocIds && targetObj.altDocIds.length > 0) {
         await Promise.all(
           targetObj.altDocIds.map((altId) =>
@@ -2214,6 +2463,8 @@ export const AdminDashboard: React.FC<Props> = ({
         {
           uid: targetUserId,
           role: upperRole === 'ELITE' ? 'VIP' : upperRole,
+          isVip: Boolean(rolePayload.isVip),
+          isElite: Boolean(rolePayload.isElite),
           updatedAt: new Date().toISOString()
         },
         { merge: true }
@@ -2240,6 +2491,18 @@ export const AdminDashboard: React.FC<Props> = ({
                 isVip: rolePayload.isVip,
                 vipAccess: rolePayload.vipAccess,
                 isElite: Boolean(rolePayload.isElite),
+                ...(lowerRole === 'free'
+                  ? {
+                      isAdmin: false,
+                      isStaff: false,
+                      staffRole: 'none' as any,
+                      permissions: {},
+                      grantedFeatures: {},
+                      vipExpiryDate: null,
+                      eliteExpiryDate: null,
+                      subscriptionEndDate: null
+                    }
+                  : {}),
                 subscriptionStatus: (rolePayload.subscription_status ||
                   u.subscriptionStatus) as any
               }
@@ -2262,6 +2525,18 @@ export const AdminDashboard: React.FC<Props> = ({
               isVip: rolePayload.isVip,
               vipAccess: rolePayload.vipAccess,
               isElite: Boolean(rolePayload.isElite),
+              ...(lowerRole === 'free'
+                ? {
+                    isAdmin: false,
+                    isStaff: false,
+                    staffRole: 'none' as any,
+                    permissions: {},
+                    grantedFeatures: {},
+                    vipExpiryDate: null,
+                    eliteExpiryDate: null,
+                    subscriptionEndDate: null
+                  }
+                : {}),
               subscriptionStatus:
                 rolePayload.subscription_status || prev.subscriptionStatus
             }
@@ -2316,6 +2591,11 @@ export const AdminDashboard: React.FC<Props> = ({
       };
 
       await setDoc(doc(db, 'users', inspectUser.id), payload, { merge: true });
+      await syncTargetUserPushEntitlements(inspectUser.id, {
+        ...inspectUser,
+        ...payload,
+        subscriptionEndDate: expiryIso
+      });
       if (inspectUser.altDocIds && inspectUser.altDocIds.length > 0) {
         await Promise.all(
           inspectUser.altDocIds.map((altId) =>
@@ -2427,6 +2707,11 @@ export const AdminDashboard: React.FC<Props> = ({
       };
 
       await setDoc(doc(db, 'users', inspectUser.id), payload, { merge: true });
+      await syncTargetUserPushEntitlements(inspectUser.id, {
+        ...inspectUser,
+        ...payload,
+        subscriptionEndDate: expiryIso
+      });
       if (inspectUser.altDocIds && inspectUser.altDocIds.length > 0) {
         await Promise.all(
           inspectUser.altDocIds.map((altId) =>
@@ -2514,14 +2799,22 @@ export const AdminDashboard: React.FC<Props> = ({
         isVip: false,
         vipAccess: false,
         isElite: false,
+        grantedFeatures: {},
         vipExpiryDate: null,
         eliteExpiryDate: null,
         subscription_status: 'none',
+        subscriptionStatus: 'none',
         subscription_end_date: null,
+        subscriptionEndDate: null,
         updatedAt: serverTimestamp()
       };
 
       await setDoc(doc(db, 'users', inspectUser.id), payload, { merge: true });
+      await syncTargetUserPushEntitlements(inspectUser.id, {
+        ...inspectUser,
+        ...payload,
+        subscriptionEndDate: null
+      });
       if (inspectUser.altDocIds && inspectUser.altDocIds.length > 0) {
         await Promise.all(
           inspectUser.altDocIds.map((altId) =>
@@ -2530,11 +2823,23 @@ export const AdminDashboard: React.FC<Props> = ({
         );
       }
 
+      await setDoc(
+        doc(db, 'chat_profiles', inspectUser.id),
+        {
+          uid: inspectUser.id,
+          role: isStaffTarget ? inspectUser.role.toUpperCase() : 'FREE',
+          isVip: false,
+          isElite: false,
+          updatedAt: new Date().toISOString()
+        },
+        { merge: true }
+      ).catch(() => {});
+
       await recordAdminAuditLog({
         action: 'USER_EXPIRY_UPDATED',
         targetUid: inspectUser.id,
         targetLabel: `${inspectUser.displayName} (${inspectUser.email})`,
-        details: 'Revoked paid subscription / expired now to Free plan'
+        details: 'Revoked paid subscription & active feature trials to Free plan'
       });
 
       setUsers((prev) => {
@@ -2547,6 +2852,7 @@ export const AdminDashboard: React.FC<Props> = ({
                 isVip: false,
                 vipAccess: false,
                 isElite: false,
+                grantedFeatures: {},
                 vipExpiryDate: null,
                 eliteExpiryDate: null,
                 subscriptionStatus: 'none' as any,
@@ -2570,6 +2876,7 @@ export const AdminDashboard: React.FC<Props> = ({
               isVip: false,
               vipAccess: false,
               isElite: false,
+              grantedFeatures: {},
               vipExpiryDate: null,
               eliteExpiryDate: null,
               subscriptionStatus: 'none',
@@ -2707,6 +3014,10 @@ export const AdminDashboard: React.FC<Props> = ({
         updatedAt: serverTimestamp()
       };
       await setDoc(doc(db, 'users', inspectUser.id), grantPayload, { merge: true });
+      await syncTargetUserPushEntitlements(inspectUser.id, {
+        ...inspectUser,
+        grantedFeatures: nextMap
+      });
       if (inspectUser.altDocIds && inspectUser.altDocIds.length > 0) {
         await Promise.all(
           inspectUser.altDocIds.map((altId) =>
@@ -2760,6 +3071,10 @@ export const AdminDashboard: React.FC<Props> = ({
         updatedAt: serverTimestamp()
       };
       await setDoc(doc(db, 'users', inspectUser.id), revokePayload, { merge: true });
+      await syncTargetUserPushEntitlements(inspectUser.id, {
+        ...inspectUser,
+        grantedFeatures: nextMap
+      });
       if (inspectUser.altDocIds && inspectUser.altDocIds.length > 0) {
         await Promise.all(
           inspectUser.altDocIds.map((altId) =>
@@ -2833,6 +3148,11 @@ export const AdminDashboard: React.FC<Props> = ({
         updatedAt: serverTimestamp()
       };
       await setDoc(userRef, paymentPayload, { merge: true });
+      await syncTargetUserPushEntitlements(inspectUser.id, {
+        ...inspectUser,
+        ...paymentPayload,
+        subscriptionEndDate: newEndDate
+      });
       if (inspectUser.altDocIds && inspectUser.altDocIds.length > 0) {
         await Promise.all(
           inspectUser.altDocIds.map((altId) =>
@@ -4344,6 +4664,31 @@ export const AdminDashboard: React.FC<Props> = ({
                         </div>
                       </div>
                       <BellRing className="w-4 h-4 text-[#089981] dark:text-[#26A69A]" />
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={isAuditingPushSubs}
+                      onClick={handleAuditAndCleanPushSubscriptions}
+                      className="p-3 rounded-md bg-[#F8F9FD] dark:bg-[#1E222D] hover:bg-[#EDF1F7] dark:hover:bg-[#2A2E39] border border-[#E0E3EB] dark:border-[#2A2E39] text-start flex items-center justify-between cursor-pointer disabled:opacity-60"
+                    >
+                      <div>
+                        <div className="text-xs font-bold text-[#131722] dark:text-[#F8FAFC]">
+                          {isAuditingPushSubs
+                            ? isAr
+                              ? 'جاري تنظيف قائمة الإشعارات...'
+                              : 'Auditing push list...'
+                            : isAr
+                            ? 'تنظيف ومزامنة إشعارات VIP والبوت'
+                            : 'Audit & Clean VIP/Bot Push List'}
+                        </div>
+                        <div className="text-[10px] text-[#787B86] dark:text-[#64748B]">
+                          {isAr
+                            ? 'إزالة الحسابات المجانية والمنتهية من إشعارات البوت فوراً'
+                            : 'Strip Free & expired accounts from VIP/Bot pushes immediately'}
+                        </div>
+                      </div>
+                      <ShieldCheck className="w-4 h-4 text-[#2962FF]" />
                     </button>
                   </div>
                 </div>

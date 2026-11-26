@@ -586,7 +586,8 @@ export function getLastAutoBackupTime(): string | null {
 
 export async function createFullBackupSnapshot(
   mirrorToSecondaryDb = false,
-  useCacheOnly = false
+  useCacheOnly = false,
+  includeLiveDmMessages = false
 ): Promise<MbkFullBackupSnapshot> {
   const snapshot: MbkFullBackupSnapshot = {
     version: '1.0',
@@ -634,6 +635,7 @@ export async function createFullBackupSnapshot(
   try {
     const dmQuery = query(collection(db, 'dm_conversations'), limit(150));
     const dmSnap = useCacheOnly ? await getDocsFromCache(dmQuery) : await getDocs(dmQuery);
+    const useCachedMessagesOnly = useCacheOnly || !includeLiveDmMessages;
     for (const d of dmSnap.docs) {
       snapshot.dm_conversations.push({ id: d.id, ...d.data() });
       try {
@@ -642,12 +644,14 @@ export async function createFullBackupSnapshot(
           orderBy('timestampMs', 'asc'),
           limit(100)
         );
-        const msgSnap = useCacheOnly ? await getDocsFromCache(msgQuery) : await getDocs(msgQuery);
+        const msgSnap = useCachedMessagesOnly
+          ? await getDocsFromCache(msgQuery)
+          : await getDocs(msgQuery);
         msgSnap.forEach((m) => {
           snapshot.dm_messages.push({ convoId: d.id, id: m.id, data: m.data() });
         });
       } catch {
-        // ignore
+        // ignore if subcollection is not in local cache
       }
     }
   } catch {

@@ -13,6 +13,7 @@ import {
   ensureBackgroundNotificationWorkerReady,
   getNotificationPermissionState,
   requestAppNotificationPermission,
+  resetWebPushClientState,
   syncCurrentUserWebPush
 } from '../utils/mobileNotifications';
 import { isDocumentDeleted, markDocumentDeleted } from '../utils/legacyDbRecovery';
@@ -438,14 +439,25 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   useEffect(() => {
     const unsubscribe = subscribeToAuth((profile) => {
       if (!profile) {
+        resetWebPushClientState();
         setCurrentUserUid(null);
         setIsAdminUser(false);
         setCanAccessSupportInbox(false);
         setCanReadVipSignals(false);
         setCanReadBotAlerts(false);
         setCanReadVipChat(false);
+        setSignals([]);
+        setRawTrades([]);
+        setBotAlerts([]);
         setDmConversations([]);
         setUnreadDmCount(0);
+        try {
+          localStorage.removeItem(CACHED_SIGNALS_KEY);
+          localStorage.removeItem(CACHED_TRADES_KEY);
+          localStorage.removeItem(CACHED_BOT_ALERTS_KEY);
+        } catch {
+          // ignore
+        }
         setAuthResolved(true);
         return;
       }
@@ -467,17 +479,24 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setCanReadBotAlerts(true);
         setCanReadVipChat(true);
         setAuthResolved(true);
-        syncCurrentUserWebPush({ isVip: true, isAdmin: true, canAccessInbox: true }).catch(() => {});
+        syncCurrentUserWebPush({
+          isVip: true,
+          hasBotAccess: true,
+          isAdmin: true,
+          canAccessInbox: true
+        }).catch(() => {});
         return;
       }
 
       const hasVip = hasFeatureAccess(profile, 'vipSignals');
+      const hasBot = hasFeatureAccess(profile, 'botSignals');
       setCanReadVipSignals(hasVip);
-      setCanReadBotAlerts(hasFeatureAccess(profile, 'botSignals'));
+      setCanReadBotAlerts(hasBot);
       setCanReadVipChat(!profile.isBanned);
       setAuthResolved(true);
       syncCurrentUserWebPush({
         isVip: hasVip,
+        hasBotAccess: hasBot,
         isAdmin: false,
         canAccessInbox: hasInboxAccess
       }).catch(() => {});
@@ -495,6 +514,27 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     setLoading(true);
     setDbError(null);
+
+    if (!canReadVipSignals) {
+      setSignals((prev) => {
+        const freeOnly = prev.filter((s) => s.accessLevel === 'free' && s.channel === 'free');
+        try {
+          localStorage.setItem(CACHED_SIGNALS_KEY, JSON.stringify(freeOnly));
+        } catch {
+          // ignore
+        }
+        return freeOnly;
+      });
+      setRawTrades((prev) => {
+        const freeOnly = prev.filter((t) => t.accessLevel === 'free' && t.source === 'FREE_PUBLIC');
+        try {
+          localStorage.setItem(CACHED_TRADES_KEY, JSON.stringify(freeOnly));
+        } catch {
+          // ignore
+        }
+        return freeOnly;
+      });
+    }
 
     const signalsQuery = canReadVipSignals
       ? query(collection(db, 'signals'), orderBy('timestampMs', 'desc'), limit(LIVE_SIGNALS_LIMIT))
@@ -843,6 +883,11 @@ export const SignalsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       );
     } else {
       setBotAlerts([]);
+      try {
+        localStorage.removeItem(CACHED_BOT_ALERTS_KEY);
+      } catch {
+        // ignore
+      }
       setBotAlertsLoading(false);
     }
 

@@ -15,14 +15,79 @@ export interface WebPushSubscribeResult {
 
 const NOTIFICATION_PREF_KEY = 'mbk_app_notifications_enabled';
 const CHAT_PUSH_MUTE_KEY = 'mbk_chat_push_muted';
-const WEB_PUSH_SYNC_CACHE_KEY = 'mbk_web_push_sync_fp_v1';
+const WEB_PUSH_SYNC_CACHE_KEY = 'mbk_web_push_sync_fp_v2';
 const WEB_PUSH_SYNC_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours (instant bypass on any role/tier/endpoint/mute change)
 const RECENT_ACTIVITY_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 const CLIENT_CHAT_PUSH_COOLDOWN_MS = 20_000; // 20 seconds client-side guard for high-frequency chat
 
 let cachedSwRegistration: ServiceWorkerRegistration | null = null;
-let lastWebPushSyncMeta: { isVip?: boolean; isAdmin?: boolean; canAccessInbox?: boolean } = {};
+let lastWebPushSyncMeta: {
+  uid?: string | null;
+  isVip?: boolean;
+  hasBotAccess?: boolean;
+  isAdmin?: boolean;
+  canAccessInbox?: boolean;
+} = {};
+let inFlightWebPushSync: {
+  fingerprint: string;
+  promise: Promise<WebPushSubscribeResult>;
+} | null = null;
 let lastClientChatPushAtMs = 0;
+
+/**
+ * Clears cached in-memory and localStorage Web Push sync metadata on sign-out or account switch
+ * so a previous VIP/Admin session can never bleed privileges into a Free session on the same device.
+ */
+export function resetWebPushClientState(): void {
+  lastWebPushSyncMeta = {};
+  inFlightWebPushSync = null;
+  try {
+    localStorage.removeItem(WEB_PUSH_SYNC_CACHE_KEY);
+    localStorage.removeItem('mbk_web_push_sync_fp_v1');
+  } catch {
+    // ignore storage errors
+  }
+}
+
+/**
+ * Detaches this browser's Web Push endpoint from the currently signed-in user's server doc
+ * right before sign-out so another account signing in on the same phone never receives old VIP/Bot alerts.
+ */
+export async function detachCurrentDeviceWebPush(): Promise<void> {
+  if (typeof window === 'undefined') return;
+  try {
+    const currentUser = auth.currentUser;
+    if (currentUser && 'serviceWorker' in navigator && 'PushManager' in window) {
+      const [idToken, registration] = await Promise.all([
+        currentUser.getIdToken().catch(() => ''),
+        ensureBackgroundNotificationWorkerReady().catch(() => null)
+      ]);
+      const subscription = await registration?.pushManager?.getSubscription().catch(() => null);
+      const endpoint = subscription?.endpoint || '';
+      if (idToken && endpoint) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        await fetch('/api/push/subscribe', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${idToken}`
+          },
+          body: JSON.stringify({
+            action: 'unsubscribe',
+            endpoint
+          }),
+          signal: controller.signal
+        }).catch(() => {});
+        clearTimeout(timeoutId);
+      }
+    }
+  } catch {
+    // Never block logout on push network errors
+  } finally {
+    resetWebPushClientState();
+  }
+}
 
 function readWebPushSyncFingerprint(): { fingerprint: string; syncedAtMs: number } | null {
   try {
@@ -116,11 +181,27 @@ export async function ensureBackgroundNotificationWorkerReady(): Promise<Service
  */
 export async function registerWebPushSubscription(
   idToken: string,
-  meta?: { isVip?: boolean; isAdmin?: boolean; canAccessInbox?: boolean; forceSync?: boolean }
+  meta?: {
+    isVip?: boolean;
+    hasBotAccess?: boolean;
+    isAdmin?: boolean;
+    canAccessInbox?: boolean;
+    forceSync?: boolean;
+  }
 ): Promise<WebPushSubscribeResult> {
+  const activeUid = auth.currentUser?.uid || null;
+  if (activeUid && lastWebPushSyncMeta.uid && lastWebPushSyncMeta.uid !== activeUid) {
+    lastWebPushSyncMeta = { uid: activeUid };
+  }
+
   if (meta) {
     lastWebPushSyncMeta = {
+      uid: activeUid || lastWebPushSyncMeta.uid || null,
       isVip: meta.isVip !== undefined ? Boolean(meta.isVip) : lastWebPushSyncMeta.isVip,
+      hasBotAccess:
+        meta.hasBotAccess !== undefined
+          ? Boolean(meta.hasBotAccess)
+          : lastWebPushSyncMeta.hasBotAccess,
       isAdmin: meta.isAdmin !== undefined ? Boolean(meta.isAdmin) : lastWebPushSyncMeta.isAdmin,
       canAccessInbox:
         meta.canAccessInbox !== undefined
@@ -209,6 +290,9 @@ export async function registerWebPushSubscription(
     }
 
     const effectiveIsVip = Boolean(meta?.isVip ?? lastWebPushSyncMeta.isVip);
+    const effectiveHasBotAccess = Boolean(
+      meta?.hasBotAccess ?? lastWebPushSyncMeta.hasBotAccess ?? effectiveIsVip
+    );
     const effectiveIsAdmin = Boolean(meta?.isAdmin ?? lastWebPushSyncMeta.isAdmin);
     const effectiveCanAccessInbox = Boolean(
       meta?.canAccessInbox ??
@@ -219,8 +303,8 @@ export async function registerWebPushSubscription(
     const effectiveMuteChatPush = isChatPushMuted();
     const uidForFingerprint = auth.currentUser?.uid || '';
     const syncFingerprint = `${uidForFingerprint}|${subJson.endpoint}|${effectiveIsVip ? 1 : 0}|${
-      effectiveIsAdmin ? 1 : 0
-    }|${effectiveCanAccessInbox ? 1 : 0}|${effectiveMuteChatPush ? 1 : 0}`;
+      effectiveHasBotAccess ? 1 : 0
+    }|${effectiveIsAdmin ? 1 : 0}|${effectiveCanAccessInbox ? 1 : 0}|${effectiveMuteChatPush ? 1 : 0}`;
 
     if (!meta?.forceSync && uidForFingerprint) {
       const cachedSync = readWebPushSyncFingerprint();
@@ -237,40 +321,56 @@ export async function registerWebPushSubscription(
       }
     }
 
-    const res = await fetch('/api/push/subscribe', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${idToken}`
-      },
-      body: JSON.stringify({
-        subscription: subJson,
-        isVip: effectiveIsVip,
-        isAdmin: effectiveIsAdmin,
-        canAccessInbox: effectiveCanAccessInbox,
-        muteChatPush: effectiveMuteChatPush
-      })
-    });
-
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data?.ok) {
-      return {
-        ok: false,
-        subscribed: false,
-        error: data?.error || `Subscribe endpoint failed (HTTP ${res.status})`
-      };
+    if (inFlightWebPushSync && inFlightWebPushSync.fingerprint === syncFingerprint) {
+      return await inFlightWebPushSync.promise;
     }
 
-    if (uidForFingerprint) {
-      writeWebPushSyncFingerprint(syncFingerprint);
-    }
+    const requestPromise = (async (): Promise<WebPushSubscribeResult> => {
+      try {
+        const res = await fetch('/api/push/subscribe', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${idToken}`
+          },
+          body: JSON.stringify({
+            subscription: subJson,
+            muteChatPush: effectiveMuteChatPush
+          })
+        });
 
-    return {
-      ok: true,
-      subscribed: true,
-      deviceCount: Number(data.deviceCount || 1),
-      storageMode: data.storageMode
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data?.ok) {
+          return {
+            ok: false,
+            subscribed: false,
+            error: data?.error || `Subscribe endpoint failed (HTTP ${res.status})`
+          };
+        }
+
+        if (uidForFingerprint) {
+          writeWebPushSyncFingerprint(syncFingerprint);
+        }
+
+        return {
+          ok: true,
+          subscribed: true,
+          deviceCount: Number(data.deviceCount || 1),
+          storageMode: data.storageMode
+        };
+      } finally {
+        if (inFlightWebPushSync?.fingerprint === syncFingerprint) {
+          inFlightWebPushSync = null;
+        }
+      }
+    })();
+
+    inFlightWebPushSync = {
+      fingerprint: syncFingerprint,
+      promise: requestPromise
     };
+
+    return await requestPromise;
   } catch (err: any) {
     return {
       ok: false,
@@ -285,13 +385,23 @@ export async function registerWebPushSubscription(
  */
 export async function syncCurrentUserWebPush(meta?: {
   isVip?: boolean;
+  hasBotAccess?: boolean;
   isAdmin?: boolean;
   canAccessInbox?: boolean;
   forceSync?: boolean;
 }): Promise<WebPushSubscribeResult> {
+  const currentUser = auth.currentUser;
+  if (currentUser && lastWebPushSyncMeta.uid && lastWebPushSyncMeta.uid !== currentUser.uid) {
+    lastWebPushSyncMeta = { uid: currentUser.uid };
+  }
   if (meta) {
     lastWebPushSyncMeta = {
+      uid: currentUser?.uid || lastWebPushSyncMeta.uid || null,
       isVip: meta.isVip !== undefined ? Boolean(meta.isVip) : lastWebPushSyncMeta.isVip,
+      hasBotAccess:
+        meta.hasBotAccess !== undefined
+          ? Boolean(meta.hasBotAccess)
+          : lastWebPushSyncMeta.hasBotAccess,
       isAdmin: meta.isAdmin !== undefined ? Boolean(meta.isAdmin) : lastWebPushSyncMeta.isAdmin,
       canAccessInbox:
         meta.canAccessInbox !== undefined
@@ -302,7 +412,6 @@ export async function syncCurrentUserWebPush(meta?: {
     };
   }
   try {
-    const currentUser = auth.currentUser;
     if (!currentUser) {
       return { ok: false, subscribed: false, error: 'No signed-in Firebase user' };
     }
@@ -369,6 +478,43 @@ export function triggerServerWebPush(params: {
     .catch(() => {
       // Non-blocking fire-and-forget
     });
+}
+
+/**
+ * Notifies the server push dispatcher to immediately patch or drop its warm subscriber cache
+ * after an Admin downgrades, revokes, bans, or audits push subscriptions (0 notifications sent).
+ */
+export async function invalidateServerPushCache(params?: {
+  targetUid?: string;
+  patch?: Record<string, any>;
+  clearAll?: boolean;
+}): Promise<void> {
+  if (typeof window === 'undefined') return;
+  const currentUser = auth.currentUser;
+  if (!currentUser) return;
+  try {
+    const idToken = await currentUser.getIdToken();
+    if (!idToken) return;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+    await fetch('/api/push/send', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${idToken}`
+      },
+      body: JSON.stringify({
+        action: 'invalidateCache',
+        ...(params?.targetUid ? { targetUid: params.targetUid } : {}),
+        ...(params?.patch ? { patch: params.patch } : {}),
+        ...(params?.clearAll ? { clearAll: true } : {})
+      }),
+      signal: controller.signal
+    }).catch(() => {});
+    clearTimeout(timeoutId);
+  } catch {
+    // Non-blocking best-effort cache refresh
+  }
 }
 
 /**

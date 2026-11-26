@@ -30,9 +30,14 @@ export interface StoredPushEndpoint {
 export interface PushSubscriptionDoc {
   uid: string;
   isVip: boolean;
+  hasBotAccess?: boolean;
   isAdmin: boolean;
   canAccessInbox?: boolean;
+  isBanned?: boolean;
   muteChatPush?: boolean;
+  vipExpiryMs?: number | null;
+  botExpiryMs?: number | null;
+  verifiedAt?: number;
   subscriptions: StoredPushEndpoint[];
   updatedAt: number;
 }
@@ -42,6 +47,8 @@ const FALLBACK_FIREBASE_CONFIG = {
   firestoreDatabaseId: '(default)',
   apiKey: 'AIzaSyCgNCyANwJ9CJmTJX0HKH-ssGHlfktF0L8'
 };
+
+const SUPER_ADMIN_EMAIL = 'moe.albzour@gmail.com';
 
 export function cleanEnvKey(raw?: string): string {
   return String(raw || '')
@@ -232,6 +239,272 @@ function sendJson(res: ServerResponse, statusCode: number, data: Record<string, 
   res.end(JSON.stringify(data));
 }
 
+function parseTimestampMs(val: any): number {
+  if (!val) return 0;
+  if (typeof val === 'number') return Number.isFinite(val) ? val : 0;
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (!trimmed) return 0;
+    const ms = new Date(trimmed).getTime();
+    return Number.isNaN(ms) ? 0 : ms;
+  }
+  if (typeof val === 'object') {
+    if (typeof val.toMillis === 'function') return val.toMillis();
+    if (typeof val.seconds === 'number') return val.seconds * 1000;
+    if (typeof val.timestampValue === 'string') return parseTimestampMs(val.timestampValue);
+    if (typeof val.stringValue === 'string') return parseTimestampMs(val.stringValue);
+    if (val.integerValue !== undefined) return Number(val.integerValue) || 0;
+    if (val.doubleValue !== undefined) return Number(val.doubleValue) || 0;
+  }
+  return 0;
+}
+
+function decodeRestFieldValue(val: any): any {
+  if (!val || typeof val !== 'object') return undefined;
+  if ('booleanValue' in val) return Boolean(val.booleanValue);
+  if ('stringValue' in val) return String(val.stringValue);
+  if ('integerValue' in val) return Number(val.integerValue);
+  if ('doubleValue' in val) return Number(val.doubleValue);
+  if ('timestampValue' in val) return String(val.timestampValue);
+  if ('nullValue' in val) return null;
+  if ('mapValue' in val) {
+    const out: Record<string, any> = {};
+    const fields = val.mapValue?.fields || {};
+    for (const [k, v] of Object.entries(fields)) {
+      out[k] = decodeRestFieldValue(v);
+    }
+    return out;
+  }
+  if ('arrayValue' in val) {
+    const values = Array.isArray(val.arrayValue?.values) ? val.arrayValue.values : [];
+    return values.map(decodeRestFieldValue);
+  }
+  return undefined;
+}
+
+function decodeRestUserFields(fields: Record<string, any> | undefined): Record<string, any> {
+  const out: Record<string, any> = {};
+  if (!fields || typeof fields !== 'object') return out;
+  for (const [k, v] of Object.entries(fields)) {
+    out[k] = decodeRestFieldValue(v);
+  }
+  return out;
+}
+
+interface VerifiedPushEntitlements {
+  isVip: boolean;
+  hasBotAccess: boolean;
+  isAdmin: boolean;
+  canAccessInbox: boolean;
+  isBanned: boolean;
+  vipExpiryMs: number | null;
+  botExpiryMs: number | null;
+}
+
+function computeAuthoritativeEntitlementsFromUser(
+  userData: Record<string, any> | null,
+  email: string,
+  nowMs: number
+): VerifiedPushEntitlements {
+  const isSuperAdmin = email.toLowerCase() === SUPER_ADMIN_EMAIL;
+  if (isSuperAdmin) {
+    return {
+      isVip: true,
+      hasBotAccess: true,
+      isAdmin: true,
+      canAccessInbox: true,
+      isBanned: false,
+      vipExpiryMs: null,
+      botExpiryMs: null
+    };
+  }
+
+  if (!userData || typeof userData !== 'object') {
+    return {
+      isVip: false,
+      hasBotAccess: false,
+      isAdmin: false,
+      canAccessInbox: false,
+      isBanned: false,
+      vipExpiryMs: null,
+      botExpiryMs: null
+    };
+  }
+
+  if (userData.isBanned === true) {
+    return {
+      isVip: false,
+      hasBotAccess: false,
+      isAdmin: false,
+      canAccessInbox: false,
+      isBanned: true,
+      vipExpiryMs: null,
+      botExpiryMs: null
+    };
+  }
+
+  const roleUpper = String(userData.role || '').toUpperCase();
+  const roleLower = roleUpper.toLowerCase();
+  const tierLower = String(userData.tier || '').toLowerCase();
+  const staffRoleLower = String(userData.staffRole || '').toLowerCase();
+  const perms =
+    userData.permissions && typeof userData.permissions === 'object' ? userData.permissions : {};
+  const hasExplicitPerms = Object.keys(perms).length > 0;
+  const hasAnyPerm = Object.values(perms).some(Boolean);
+
+  const isAdmin =
+    userData.isAdmin === true ||
+    roleUpper === 'ADMIN' ||
+    staffRoleLower === 'super_admin' ||
+    Boolean(perms.canManageSystem);
+
+  const isStaff =
+    isAdmin ||
+    userData.isStaff === true ||
+    ['ADMIN', 'MODERATOR', 'SALES', 'ANALYSER', 'ANALYST'].includes(roleUpper) ||
+    (Boolean(staffRoleLower) && staffRoleLower !== 'none') ||
+    hasAnyPerm;
+
+  const canAccessInbox =
+    isAdmin ||
+    Boolean(perms.canAccessInbox) ||
+    (!hasExplicitPerms &&
+      (staffRoleLower === 'customer_service' ||
+        staffRoleLower === 'operations_manager' ||
+        roleUpper === 'SALES'));
+
+  if (isStaff) {
+    return {
+      isVip: true,
+      hasBotAccess: true,
+      isAdmin,
+      canAccessInbox,
+      isBanned: false,
+      vipExpiryMs: null,
+      botExpiryMs: null
+    };
+  }
+
+  const expiryCandidates = [
+    parseTimestampMs(userData.eliteExpiryDate),
+    parseTimestampMs(userData.vipExpiryDate),
+    parseTimestampMs(userData.subscription_end_date),
+    parseTimestampMs(userData.subscriptionEndDate)
+  ].filter((ms) => ms > 0);
+  const latestTierExpiryMs = expiryCandidates.length > 0 ? Math.max(...expiryCandidates) : 0;
+
+  const hasEliteClaim =
+    tierLower === 'elite' || roleLower === 'elite' || userData.isElite === true;
+  const hasVipClaim =
+    hasEliteClaim ||
+    tierLower === 'vip' ||
+    roleLower === 'vip' ||
+    userData.isVip === true ||
+    userData.vipAccess === true;
+
+  const isTierActive = hasVipClaim && (latestTierExpiryMs === 0 || latestTierExpiryMs > nowMs);
+  const isLifetimeTier = isTierActive && latestTierExpiryMs === 0;
+
+  const granted =
+    userData.grantedFeatures && typeof userData.grantedFeatures === 'object'
+      ? userData.grantedFeatures
+      : {};
+  const vipGrantMs = parseTimestampMs(granted.vipSignals);
+  const botGrantMs = parseTimestampMs(granted.botSignals);
+
+  if (isLifetimeTier) {
+    return {
+      isVip: true,
+      hasBotAccess: true,
+      isAdmin: false,
+      canAccessInbox: false,
+      isBanned: false,
+      vipExpiryMs: null,
+      botExpiryMs: null
+    };
+  }
+
+  const effectiveVipExpiryMs = Math.max(
+    isTierActive ? latestTierExpiryMs : 0,
+    vipGrantMs > nowMs ? vipGrantMs : 0
+  );
+  const effectiveBotExpiryMs = Math.max(
+    isTierActive ? latestTierExpiryMs : 0,
+    botGrantMs > nowMs ? botGrantMs : 0
+  );
+
+  return {
+    isVip: effectiveVipExpiryMs > nowMs,
+    hasBotAccess: effectiveBotExpiryMs > nowMs,
+    isAdmin: false,
+    canAccessInbox: false,
+    isBanned: false,
+    vipExpiryMs: effectiveVipExpiryMs > nowMs ? effectiveVipExpiryMs : null,
+    botExpiryMs: effectiveBotExpiryMs > nowMs ? effectiveBotExpiryMs : null
+  };
+}
+
+async function fetchAuthoritativeUserEntitlements(
+  uid: string,
+  email: string,
+  idToken: string,
+  nowMs: number
+): Promise<{ verified: boolean; entitlements: VerifiedPushEntitlements | null }> {
+  if (email.toLowerCase() === SUPER_ADMIN_EMAIL) {
+    return {
+      verified: true,
+      entitlements: computeAuthoritativeEntitlementsFromUser(null, email, nowMs)
+    };
+  }
+
+  // Primary: Firestore REST using the signed-in user's Bearer ID token (works on Vercel Serverless & AI Studio)
+  try {
+    const userDocUrl = `${getFirestoreRestBaseUrl()}/users/${encodeURIComponent(uid)}`;
+    const res = await fetch(userDocUrl, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${idToken}` },
+      signal: AbortSignal.timeout(5000)
+    });
+    if (res.ok) {
+      const json = await res.json();
+      const decoded = decodeRestUserFields(json?.fields);
+      return {
+        verified: true,
+        entitlements: computeAuthoritativeEntitlementsFromUser(decoded, email, nowMs)
+      };
+    }
+    if (res.status === 404) {
+      return {
+        verified: true,
+        entitlements: computeAuthoritativeEntitlementsFromUser(null, email, nowMs)
+      };
+    }
+  } catch {
+    // Fall through to optional Admin SDK
+  }
+
+  // Fallback: Firebase Admin SDK if available
+  const adminDb = getOptionalAdminFirestore();
+  if (adminDb) {
+    try {
+      const snap = await adminDb.collection('users').doc(uid).get();
+      return {
+        verified: true,
+        entitlements: computeAuthoritativeEntitlementsFromUser(
+          snap.exists ? (snap.data() as Record<string, any>) : null,
+          email,
+          nowMs
+        )
+      };
+    } catch {
+      // Transient failure below
+    }
+  }
+
+  // Transient lookup failure (network/5xx/429): do NOT overwrite existing VIP push subscriptions with Free!
+  return { verified: false, entitlements: null };
+}
+
 export function extractRestSubscriptions(fields: Record<string, any> | undefined): StoredPushEndpoint[] {
   const values = fields?.subscriptions?.arrayValue?.values;
   if (!Array.isArray(values)) return [];
@@ -256,13 +529,27 @@ export function extractRestSubscriptions(fields: Record<string, any> | undefined
 }
 
 export function toFirestoreRestPushDoc(docData: PushSubscriptionDoc) {
+  const vipExpVal =
+    typeof docData.vipExpiryMs === 'number' && docData.vipExpiryMs > 0
+      ? { integerValue: String(Math.trunc(docData.vipExpiryMs)) }
+      : { nullValue: null };
+  const botExpVal =
+    typeof docData.botExpiryMs === 'number' && docData.botExpiryMs > 0
+      ? { integerValue: String(Math.trunc(docData.botExpiryMs)) }
+      : { nullValue: null };
+
   return {
     fields: {
       uid: { stringValue: docData.uid },
-      isVip: { booleanValue: docData.isVip },
-      isAdmin: { booleanValue: docData.isAdmin },
+      isVip: { booleanValue: Boolean(docData.isVip) },
+      hasBotAccess: { booleanValue: Boolean(docData.hasBotAccess) },
+      isAdmin: { booleanValue: Boolean(docData.isAdmin) },
       canAccessInbox: { booleanValue: Boolean(docData.canAccessInbox || docData.isAdmin) },
+      isBanned: { booleanValue: Boolean(docData.isBanned) },
       muteChatPush: { booleanValue: Boolean(docData.muteChatPush) },
+      vipExpiryMs: vipExpVal,
+      botExpiryMs: botExpVal,
+      verifiedAt: { integerValue: String(Math.trunc(docData.verifiedAt || docData.updatedAt)) },
       updatedAt: { integerValue: String(Math.trunc(docData.updatedAt)) },
       subscriptions: {
         arrayValue: {
@@ -332,6 +619,117 @@ export default async function handler(req: Req, res: ServerResponse) {
     });
   }
 
+  const nowMs = Date.now();
+  const isUnsubscribe = String(body?.action || '').toLowerCase() === 'unsubscribe';
+
+  // Handle clean device detach on user logout so a shared/switched phone never receives the previous user's VIP/Bot pushes
+  if (isUnsubscribe) {
+    const removeEndpoint = typeof body?.endpoint === 'string' ? body.endpoint.trim() : '';
+    try {
+      const docUrl = `${getFirestoreRestBaseUrl()}/push_subscriptions/${encodeURIComponent(verifiedUser.uid)}`;
+      const getRes = await fetch(docUrl, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${idToken}` },
+        signal: AbortSignal.timeout(5000)
+      });
+
+      if (getRes.status === 404) {
+        return sendJson(res, 200, { ok: true, subscribed: false, removed: true, deviceCount: 0 });
+      }
+
+      if (getRes.ok) {
+        const existingJson = await getRes.json();
+        const existingEndpoints = extractRestSubscriptions(existingJson?.fields);
+        const remaining = removeEndpoint
+          ? existingEndpoints.filter((item) => item && item.endpoint !== removeEndpoint)
+          : [];
+        const entitlementLookup = await fetchAuthoritativeUserEntitlements(
+          verifiedUser.uid,
+          verifiedUser.email,
+          idToken,
+          nowMs
+        );
+        const existingFields = existingJson?.fields || {};
+        const fallbackIsVip = Boolean(existingFields.isVip?.booleanValue);
+        const fallbackHasBot =
+          existingFields.hasBotAccess && 'booleanValue' in existingFields.hasBotAccess
+            ? Boolean(existingFields.hasBotAccess.booleanValue)
+            : fallbackIsVip;
+        const fallbackIsAdmin = Boolean(existingFields.isAdmin?.booleanValue);
+        const fallbackInbox = Boolean(
+          existingFields.canAccessInbox?.booleanValue || fallbackIsAdmin
+        );
+        const fallbackBanned = Boolean(existingFields.isBanned?.booleanValue);
+        const fallbackVipExp = parseTimestampMs(existingFields.vipExpiryMs) || null;
+        const fallbackBotExp = parseTimestampMs(existingFields.botExpiryMs) || null;
+        const ent = entitlementLookup.entitlements;
+
+        const nextDoc: PushSubscriptionDoc = {
+          uid: verifiedUser.uid,
+          isVip: ent ? ent.isVip : fallbackIsVip,
+          hasBotAccess: ent ? ent.hasBotAccess : fallbackHasBot,
+          isAdmin: ent ? ent.isAdmin : fallbackIsAdmin,
+          canAccessInbox: ent ? ent.canAccessInbox : fallbackInbox,
+          isBanned: ent ? ent.isBanned : fallbackBanned,
+          muteChatPush: Boolean(existingFields.muteChatPush?.booleanValue),
+          vipExpiryMs: ent ? ent.vipExpiryMs : fallbackVipExp,
+          botExpiryMs: ent ? ent.botExpiryMs : fallbackBotExp,
+          verifiedAt: ent ? nowMs : parseTimestampMs(existingFields.verifiedAt) || nowMs,
+          subscriptions: remaining,
+          updatedAt: nowMs
+        };
+
+        await fetch(docUrl, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${idToken}`
+          },
+          body: JSON.stringify(toFirestoreRestPushDoc(nextDoc)),
+          signal: AbortSignal.timeout(5000)
+        });
+
+        return sendJson(res, 200, {
+          ok: true,
+          subscribed: remaining.length > 0,
+          removed: true,
+          deviceCount: remaining.length,
+          storageMode: 'firestore_rest'
+        });
+      }
+    } catch {
+      // Fall through cleanly
+    }
+
+    const adminDb = getOptionalAdminFirestore();
+    if (adminDb) {
+      try {
+        const docRef = adminDb.collection('push_subscriptions').doc(verifiedUser.uid);
+        const snap = await docRef.get();
+        if (snap.exists) {
+          const prevSubs: StoredPushEndpoint[] = Array.isArray(snap.data()?.subscriptions)
+            ? snap.data()!.subscriptions
+            : [];
+          const remaining = removeEndpoint
+            ? prevSubs.filter((item) => item && item.endpoint !== removeEndpoint)
+            : [];
+          await docRef.set({ subscriptions: remaining, updatedAt: nowMs }, { merge: true });
+          return sendJson(res, 200, {
+            ok: true,
+            subscribed: remaining.length > 0,
+            removed: true,
+            deviceCount: remaining.length,
+            storageMode: 'firebase_admin'
+          });
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    return sendJson(res, 200, { ok: true, subscribed: false, removed: true, deviceCount: 0 });
+  }
+
   const sub = body?.subscription;
   const endpoint = typeof sub?.endpoint === 'string' ? sub.endpoint.trim() : '';
   const p256dh = typeof sub?.keys?.p256dh === 'string' ? sub.keys.p256dh.trim() : '';
@@ -345,11 +743,21 @@ export default async function handler(req: Req, res: ServerResponse) {
     });
   }
 
-  const isSuperAdmin = verifiedUser.email === 'moe.albzour@gmail.com';
-  const isVip = Boolean(body?.isVip) || isSuperAdmin;
-  const isAdmin = Boolean(body?.isAdmin) || isSuperAdmin;
-  const canAccessInbox = Boolean(body?.canAccessInbox) || isAdmin;
-  const nowMs = Date.now();
+  // Server-authoritative entitlement check directly against users/{uid} (never trust client VIP/Admin flags)
+  const entitlementLookup = await fetchAuthoritativeUserEntitlements(
+    verifiedUser.uid,
+    verifiedUser.email,
+    idToken,
+    nowMs
+  );
+  if (!entitlementLookup.verified || !entitlementLookup.entitlements) {
+    return sendJson(res, 503, {
+      ok: false,
+      subscribed: false,
+      error: 'Temporary profile verification error — retry shortly'
+    });
+  }
+  const entitlements = entitlementLookup.entitlements;
 
   const newEntry: StoredPushEndpoint = {
     endpoint,
@@ -359,6 +767,7 @@ export default async function handler(req: Req, res: ServerResponse) {
   };
 
   const mergeEndpoints = (existing: StoredPushEndpoint[]): StoredPushEndpoint[] => {
+    if (entitlements.isBanned) return [];
     const filtered = existing.filter((item) => item && item.endpoint && item.endpoint !== newEntry.endpoint);
     filtered.push(newEntry);
     return filtered.slice(-3);
@@ -386,10 +795,15 @@ export default async function handler(req: Req, res: ServerResponse) {
 
     const nextDoc: PushSubscriptionDoc = {
       uid: verifiedUser.uid,
-      isVip,
-      isAdmin,
-      canAccessInbox,
+      isVip: entitlements.isVip,
+      hasBotAccess: entitlements.hasBotAccess,
+      isAdmin: entitlements.isAdmin,
+      canAccessInbox: entitlements.canAccessInbox,
+      isBanned: entitlements.isBanned,
       muteChatPush,
+      vipExpiryMs: entitlements.vipExpiryMs,
+      botExpiryMs: entitlements.botExpiryMs,
+      verifiedAt: nowMs,
       subscriptions: mergeEndpoints(existingEndpoints),
       updatedAt: nowMs
     };
@@ -407,8 +821,10 @@ export default async function handler(req: Req, res: ServerResponse) {
     if (patchRes.ok) {
       return sendJson(res, 200, {
         ok: true,
-        subscribed: true,
+        subscribed: !entitlements.isBanned && nextDoc.subscriptions.length > 0,
         uid: verifiedUser.uid,
+        isVip: entitlements.isVip,
+        hasBotAccess: entitlements.hasBotAccess,
         deviceCount: nextDoc.subscriptions.length,
         storageMode: 'firestore_rest'
       });
@@ -429,18 +845,25 @@ export default async function handler(req: Req, res: ServerResponse) {
           : Boolean(snap.exists ? snap.data()?.muteChatPush : false);
       const mergedAdminDoc: PushSubscriptionDoc = {
         uid: verifiedUser.uid,
-        isVip,
-        isAdmin,
-        canAccessInbox,
+        isVip: entitlements.isVip,
+        hasBotAccess: entitlements.hasBotAccess,
+        isAdmin: entitlements.isAdmin,
+        canAccessInbox: entitlements.canAccessInbox,
+        isBanned: entitlements.isBanned,
         muteChatPush: adminMuteChat,
+        vipExpiryMs: entitlements.vipExpiryMs,
+        botExpiryMs: entitlements.botExpiryMs,
+        verifiedAt: nowMs,
         subscriptions: mergeEndpoints(adminExisting),
         updatedAt: nowMs
       };
       await docRef.set(mergedAdminDoc, { merge: true });
       return sendJson(res, 200, {
         ok: true,
-        subscribed: true,
+        subscribed: !entitlements.isBanned && mergedAdminDoc.subscriptions.length > 0,
         uid: verifiedUser.uid,
+        isVip: entitlements.isVip,
+        hasBotAccess: entitlements.hasBotAccess,
         deviceCount: mergedAdminDoc.subscriptions.length,
         storageMode: 'firebase_admin'
       });

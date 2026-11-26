@@ -148,6 +148,19 @@ function getVapidConfig(): { publicKey: string; privateKey: string; subject: str
   return { publicKey, privateKey, subject };
 }
 
+function parseOptionalRestNumber(field: any): number | null {
+  if (!field || typeof field !== 'object') return null;
+  if (field.integerValue !== undefined) {
+    const n = Number(field.integerValue);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }
+  if (field.doubleValue !== undefined) {
+    const n = Number(field.doubleValue);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }
+  return null;
+}
+
 function parseRestPushDoc(rawDoc: any): PushSubscriptionDoc | null {
   const f = rawDoc?.fields;
   if (!f) return null;
@@ -156,12 +169,18 @@ function parseRestPushDoc(rawDoc: any): PushSubscriptionDoc | null {
   const uid = String(f.uid?.stringValue || fallbackUid || '').trim();
   if (!uid) return null;
   const subscriptions = extractRestSubscriptions(f);
+  const hasBotField = f.hasBotAccess && 'booleanValue' in f.hasBotAccess;
   return {
     uid,
     isVip: Boolean(f.isVip?.booleanValue),
+    ...(hasBotField ? { hasBotAccess: Boolean(f.hasBotAccess.booleanValue) } : {}),
     isAdmin: Boolean(f.isAdmin?.booleanValue),
     canAccessInbox: Boolean(f.canAccessInbox?.booleanValue || f.isAdmin?.booleanValue),
+    isBanned: Boolean(f.isBanned?.booleanValue),
     muteChatPush: Boolean(f.muteChatPush?.booleanValue),
+    vipExpiryMs: parseOptionalRestNumber(f.vipExpiryMs),
+    botExpiryMs: parseOptionalRestNumber(f.botExpiryMs),
+    verifiedAt: parseOptionalRestNumber(f.verifiedAt) || undefined,
     subscriptions,
     updatedAt: Number(f.updatedAt?.integerValue || f.updatedAt?.doubleValue || Date.now())
   };
@@ -243,16 +262,49 @@ async function isCallerAdminOrAnalyser(uid: string, email: string, idToken: stri
   return false;
 }
 
+function hasActiveVipPushAccess(d: PushSubscriptionDoc, nowMs: number): boolean {
+  if (d.isBanned) return false;
+  if (d.isAdmin) return true;
+  if (!d.isVip) return false;
+  if (typeof d.vipExpiryMs === 'number' && d.vipExpiryMs > 0 && d.vipExpiryMs <= nowMs) {
+    return false;
+  }
+  return true;
+}
+
+function hasActiveBotPushAccess(d: PushSubscriptionDoc, nowMs: number): boolean {
+  if (d.isBanned) return false;
+  if (d.isAdmin) return true;
+  if (d.hasBotAccess === false) return false;
+  if (d.hasBotAccess === true) {
+    if (typeof d.botExpiryMs === 'number' && d.botExpiryMs > 0 && d.botExpiryMs <= nowMs) {
+      return false;
+    }
+    return true;
+  }
+  // Legacy doc without explicit hasBotAccess field: fall back to active VIP check with expiry guard
+  if (!d.isVip) return false;
+  if (typeof d.botExpiryMs === 'number' && d.botExpiryMs > 0 && d.botExpiryMs <= nowMs) {
+    return false;
+  }
+  if (typeof d.vipExpiryMs === 'number' && d.vipExpiryMs > 0 && d.vipExpiryMs <= nowMs) {
+    return false;
+  }
+  return true;
+}
+
 function filterDocsByAudience(
   docs: PushSubscriptionDoc[],
   audience: PushAudience,
   targetUid: string | null,
   excludeUid: string | null,
-  category?: PushCategory
+  category?: PushCategory,
+  nowMs: number = Date.now()
 ): PushSubscriptionDoc[] {
   const result: PushSubscriptionDoc[] = [];
   for (const d of docs) {
     if (!d || !Array.isArray(d.subscriptions) || d.subscriptions.length === 0) continue;
+    if (d.isBanned) continue;
     if (category === 'chat' && d.muteChatPush) continue;
     if (audience === 'targetUid') {
       if (targetUid && d.uid === targetUid) {
@@ -263,8 +315,12 @@ function filterDocsByAudience(
     if (excludeUid && d.uid === excludeUid) continue;
     if (audience === 'admins' && (d.isAdmin || d.canAccessInbox)) {
       result.push(d);
-    } else if (audience === 'vip' && (d.isVip || d.isAdmin)) {
-      result.push(d);
+    } else if (audience === 'vip') {
+      const allowed =
+        category === 'bot' ? hasActiveBotPushAccess(d, nowMs) : hasActiveVipPushAccess(d, nowMs);
+      if (allowed) {
+        result.push(d);
+      }
     } else if (audience === 'all') {
       result.push(d);
     }
@@ -538,17 +594,53 @@ export async function dispatchServerWebPush(
     };
   }
 
-  const totalDocsRead = rawDocs.length;
-  const matchingDocs = filterDocsByAudience(rawDocs, audience, targetUid, excludeUid, category);
-  const matchedUsers = matchingDocs.length;
   const nowMs = Date.now();
+  const totalDocsRead = rawDocs.length;
 
-  // Flatten all active target devices (skipping endpoints already known dead in warm memory)
+  // Map every physical browser push endpoint to the MOST RECENT user doc that registered it.
+  // Prevents a shared/switched phone (previously logged into VIP/Admin, now logged into a Free account)
+  // from ever receiving VIP/Bot alerts via an orphaned endpoint on the older VIP doc.
+  const latestOwnerByEndpoint = new Map<
+    string,
+    { uid: string; ts: number; isPrivileged: boolean }
+  >();
+  if (audience !== 'targetUid') {
+    for (const d of rawDocs) {
+      if (!d || !Array.isArray(d.subscriptions)) continue;
+      const isPrivileged = Boolean(d.isAdmin || d.isVip || d.hasBotAccess);
+      for (const sub of d.subscriptions) {
+        if (!sub?.endpoint) continue;
+        const ts = Number(sub.updatedAt || d.updatedAt || 0);
+        const prev = latestOwnerByEndpoint.get(sub.endpoint);
+        if (
+          !prev ||
+          ts > prev.ts ||
+          (ts === prev.ts && !isPrivileged && prev.isPrivileged)
+        ) {
+          latestOwnerByEndpoint.set(sub.endpoint, { uid: d.uid, ts, isPrivileged });
+        }
+      }
+    }
+  }
+
+  const matchingDocs = filterDocsByAudience(rawDocs, audience, targetUid, excludeUid, category, nowMs);
+  const matchedUsers = matchingDocs.length;
+
+  // Flatten all active target devices (skipping dead endpoints, duplicate endpoints, and endpoints now owned by another account)
   const deliveryQueue: Array<{ userDoc: PushSubscriptionDoc; sub: PushSubscriptionDoc['subscriptions'][number] }> = [];
+  const seenDeliveryEndpoints = new Set<string>();
   for (const userDoc of matchingDocs) {
     for (const sub of userDoc.subscriptions) {
       if (!sub?.endpoint || !sub?.keys?.p256dh || !sub?.keys?.auth) continue;
       if (isEndpointCachedDead(sub.endpoint, nowMs)) continue;
+      if (audience !== 'targetUid') {
+        const latestOwner = latestOwnerByEndpoint.get(sub.endpoint);
+        if (latestOwner && latestOwner.uid !== userDoc.uid) {
+          continue;
+        }
+      }
+      if (seenDeliveryEndpoints.has(sub.endpoint)) continue;
+      seenDeliveryEndpoints.add(sub.endpoint);
       deliveryQueue.push({ userDoc, sub });
     }
   }
@@ -665,9 +757,14 @@ export async function dispatchServerWebPush(
       const updatedDoc: PushSubscriptionDoc = {
         uid: userDoc.uid,
         isVip: userDoc.isVip,
+        ...(userDoc.hasBotAccess !== undefined ? { hasBotAccess: userDoc.hasBotAccess } : {}),
         isAdmin: userDoc.isAdmin,
         canAccessInbox: Boolean(userDoc.canAccessInbox || userDoc.isAdmin),
+        isBanned: Boolean(userDoc.isBanned),
         muteChatPush: Boolean(userDoc.muteChatPush),
+        vipExpiryMs: userDoc.vipExpiryMs ?? null,
+        botExpiryMs: userDoc.botExpiryMs ?? null,
+        ...(userDoc.verifiedAt ? { verifiedAt: userDoc.verifiedAt } : {}),
         subscriptions: remaining,
         updatedAt: Date.now()
       };
@@ -793,6 +890,55 @@ export default async function handler(req: Req, res: ServerResponse) {
     body = await readJsonBody(req);
   } catch {
     return sendJson(res, 400, { ok: false, sentCount: 0, error: 'Invalid JSON request body' });
+  }
+
+  // Instant Admin push cache patch / invalidation (0 notifications sent, 0 extra Firestore reads for single-UID patch)
+  if (String(body?.action || '').trim() === 'invalidateCache') {
+    if (!isWebhookAuthorized) {
+      if (!verifiedUser) {
+        return sendJson(res, 401, { ok: false, error: 'Unauthorized' });
+      }
+      const canInvalidate = await isCallerAdminOrAnalyser(verifiedUser.uid, verifiedUser.email, idToken);
+      if (!canInvalidate) {
+        return sendJson(res, 403, { ok: false, error: 'Forbidden: Admin role required' });
+      }
+    }
+
+    const clearAll = Boolean(body?.clearAll);
+    const patchUid = typeof body?.targetUid === 'string' ? body.targetUid.trim() : '';
+    const patch = body?.patch && typeof body.patch === 'object' ? body.patch : null;
+
+    if (clearAll || !patchUid || !patch) {
+      cachedPushSubscriptions = null;
+      return sendJson(res, 200, { ok: true, cacheRefreshed: true, mode: 'cleared' });
+    }
+
+    if (cachedPushSubscriptions) {
+      let patched = false;
+      cachedPushSubscriptions.docs = cachedPushSubscriptions.docs.map((docItem) => {
+        if (docItem.uid !== patchUid) return docItem;
+        patched = true;
+        return {
+          ...docItem,
+          ...(typeof patch.isVip === 'boolean' ? { isVip: patch.isVip } : {}),
+          ...(typeof patch.hasBotAccess === 'boolean' ? { hasBotAccess: patch.hasBotAccess } : {}),
+          ...(typeof patch.isAdmin === 'boolean' ? { isAdmin: patch.isAdmin } : {}),
+          ...(typeof patch.canAccessInbox === 'boolean' ? { canAccessInbox: patch.canAccessInbox } : {}),
+          ...(typeof patch.isBanned === 'boolean' ? { isBanned: patch.isBanned } : {}),
+          ...('vipExpiryMs' in patch ? { vipExpiryMs: patch.vipExpiryMs ?? null } : {}),
+          ...('botExpiryMs' in patch ? { botExpiryMs: patch.botExpiryMs ?? null } : {}),
+          ...(patch.isBanned === true ? { subscriptions: [] } : {}),
+          updatedAt: Date.now()
+        };
+      });
+      return sendJson(res, 200, {
+        ok: true,
+        cacheRefreshed: true,
+        mode: patched ? 'patched_uid' : 'not_in_cache'
+      });
+    }
+
+    return sendJson(res, 200, { ok: true, cacheRefreshed: true, mode: 'cache_empty' });
   }
 
   const rawAudience = String(body?.audience || 'all').trim();
