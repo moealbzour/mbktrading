@@ -759,6 +759,9 @@ export default async function handler(req: Req, res: ServerResponse) {
   }
   const entitlements = entitlementLookup.entitlements;
 
+  const replacedEndpoint =
+    typeof body?.replacedEndpoint === 'string' ? body.replacedEndpoint.trim() : '';
+
   const newEntry: StoredPushEndpoint = {
     endpoint,
     expirationTime: typeof sub?.expirationTime === 'number' ? sub.expirationTime : null,
@@ -768,7 +771,23 @@ export default async function handler(req: Req, res: ServerResponse) {
 
   const mergeEndpoints = (existing: StoredPushEndpoint[]): StoredPushEndpoint[] => {
     if (entitlements.isBanned) return [];
-    const filtered = existing.filter((item) => item && item.endpoint && item.endpoint !== newEntry.endpoint);
+    const seen = new Set<string>([newEntry.endpoint]);
+    if (replacedEndpoint) {
+      seen.add(replacedEndpoint);
+    }
+    const filtered: StoredPushEndpoint[] = [];
+    for (const item of existing) {
+      if (!item || !item.endpoint) continue;
+      if (seen.has(item.endpoint)) continue;
+      if (item.keys?.p256dh === newEntry.keys.p256dh && item.keys?.auth === newEntry.keys.auth) {
+        continue;
+      }
+      seen.add(item.endpoint);
+      filtered.push({
+        ...item,
+        updatedAt: Number(item.updatedAt || nowMs)
+      });
+    }
     filtered.push(newEntry);
     return filtered.slice(-3);
   };

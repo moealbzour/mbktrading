@@ -187,6 +187,7 @@ export async function registerWebPushSubscription(
     isAdmin?: boolean;
     canAccessInbox?: boolean;
     forceSync?: boolean;
+    forceNewSubscription?: boolean;
   }
 ): Promise<WebPushSubscribeResult> {
   const activeUid = auth.currentUser?.uid || null;
@@ -253,11 +254,23 @@ export async function registerWebPushSubscription(
 
     const expectedKeyBytes = urlBase64ToUint8Array(vapidPublicKey);
     let subscription = await registration.pushManager.getSubscription();
+    let replacedEndpoint: string | null = null;
+
+    if (subscription && meta?.forceNewSubscription) {
+      replacedEndpoint = subscription.endpoint || null;
+      try {
+        await subscription.unsubscribe();
+      } catch {
+        // ignore unsubscribe errors before minting fresh token
+      }
+      subscription = null;
+    }
 
     // If an old subscription exists with a different VAPID key, unsubscribe and re-subscribe cleanly
     if (subscription && subscription.options?.applicationServerKey) {
       const existingKeyBytes = new Uint8Array(subscription.options.applicationServerKey);
       if (!uint8ArraysEqual(existingKeyBytes, expectedKeyBytes)) {
+        replacedEndpoint = subscription.endpoint || replacedEndpoint;
         await subscription.unsubscribe().catch(() => {});
         subscription = null;
       }
@@ -273,6 +286,7 @@ export async function registerWebPushSubscription(
         // Handle InvalidStateError caused by an existing mismatched subscription
         const staleSub = await registration.pushManager.getSubscription().catch(() => null);
         if (staleSub) {
+          replacedEndpoint = staleSub.endpoint || replacedEndpoint;
           await staleSub.unsubscribe().catch(() => {});
           subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
@@ -306,7 +320,7 @@ export async function registerWebPushSubscription(
       effectiveHasBotAccess ? 1 : 0
     }|${effectiveIsAdmin ? 1 : 0}|${effectiveCanAccessInbox ? 1 : 0}|${effectiveMuteChatPush ? 1 : 0}`;
 
-    if (!meta?.forceSync && uidForFingerprint) {
+    if (!meta?.forceSync && !meta?.forceNewSubscription && uidForFingerprint) {
       const cachedSync = readWebPushSyncFingerprint();
       if (
         cachedSync &&
@@ -321,7 +335,11 @@ export async function registerWebPushSubscription(
       }
     }
 
-    if (inFlightWebPushSync && inFlightWebPushSync.fingerprint === syncFingerprint) {
+    if (
+      !meta?.forceNewSubscription &&
+      inFlightWebPushSync &&
+      inFlightWebPushSync.fingerprint === syncFingerprint
+    ) {
       return await inFlightWebPushSync.promise;
     }
 
@@ -335,7 +353,10 @@ export async function registerWebPushSubscription(
           },
           body: JSON.stringify({
             subscription: subJson,
-            muteChatPush: effectiveMuteChatPush
+            muteChatPush: effectiveMuteChatPush,
+            ...(replacedEndpoint && replacedEndpoint !== subJson.endpoint
+              ? { replacedEndpoint }
+              : {})
           })
         });
 
@@ -389,6 +410,7 @@ export async function syncCurrentUserWebPush(meta?: {
   isAdmin?: boolean;
   canAccessInbox?: boolean;
   forceSync?: boolean;
+  forceNewSubscription?: boolean;
 }): Promise<WebPushSubscribeResult> {
   const currentUser = auth.currentUser;
   if (currentUser && lastWebPushSyncMeta.uid && lastWebPushSyncMeta.uid !== currentUser.uid) {
@@ -418,7 +440,8 @@ export async function syncCurrentUserWebPush(meta?: {
     const idToken = await currentUser.getIdToken();
     return await registerWebPushSubscription(idToken, {
       ...lastWebPushSyncMeta,
-      forceSync: Boolean(meta?.forceSync)
+      forceSync: Boolean(meta?.forceSync || meta?.forceNewSubscription),
+      forceNewSubscription: Boolean(meta?.forceNewSubscription)
     });
   } catch (err: any) {
     return { ok: false, subscribed: false, error: err?.message || 'Failed to get Firebase ID token' };
@@ -582,7 +605,7 @@ export function setAppNotificationsEnabled(enabled: boolean): void {
       window.dispatchEvent(new CustomEvent('mbk-notif-pref-changed', { detail: { enabled } }));
     }
     if (enabled) {
-      syncCurrentUserWebPush({ forceSync: true }).catch(() => {});
+      syncCurrentUserWebPush({ forceSync: true, forceNewSubscription: true }).catch(() => {});
     }
   } catch {
     // ignore
@@ -598,12 +621,11 @@ export async function requestAppNotificationPermission(): Promise<AppNotificatio
       const result = await Notification.requestPermission();
       if (result === 'granted') {
         setAppNotificationsEnabled(true);
-        syncCurrentUserWebPush({ forceSync: true }).catch(() => {});
       }
       return result;
     }
     if (Notification.permission === 'granted') {
-      syncCurrentUserWebPush({ forceSync: true }).catch(() => {});
+      syncCurrentUserWebPush({ forceSync: true, forceNewSubscription: true }).catch(() => {});
     }
     return Notification.permission;
   } catch (err) {

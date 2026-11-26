@@ -863,7 +863,8 @@ export const AdminDashboard: React.FC<Props> = ({
         hasBotAccess: true,
         isAdmin: true,
         canAccessInbox: true,
-        forceSync: true
+        forceSync: true,
+        forceNewSubscription: true
       });
 
       if (!subRes.subscribed) {
@@ -1072,7 +1073,14 @@ export const AdminDashboard: React.FC<Props> = ({
       let fixed = 0;
       let downgradedFreeOrExpired = 0;
 
-      const docsToUpdate: Array<{ uid: string; patch: Record<string, any> }> = [];
+      const auditedRecords: Array<{
+        uid: string;
+        pushData: Record<string, any>;
+        expected: ReturnType<typeof computePushEntitlementUpdate>;
+        wasVipOrBot: boolean;
+        isNowVipOrBot: boolean;
+      }> = [];
+      const privilegedEndpoints = new Set<string>();
 
       for (const pushDoc of pushSnap.docs) {
         scanned += 1;
@@ -1095,7 +1103,47 @@ export const AdminDashboard: React.FC<Props> = ({
         const wasVipOrBot = Boolean(pushData.isVip || pushData.hasBotAccess || pushData.isAdmin);
         const isNowVipOrBot = Boolean(expected.isVip || expected.hasBotAccess || expected.isAdmin);
 
+        if (isNowVipOrBot && Array.isArray(pushData.subscriptions)) {
+          for (const sub of pushData.subscriptions) {
+            if (sub && typeof sub.endpoint === 'string' && sub.endpoint.trim()) {
+              privilegedEndpoints.add(sub.endpoint.trim());
+            }
+          }
+        }
+
+        auditedRecords.push({
+          uid,
+          pushData,
+          expected,
+          wasVipOrBot,
+          isNowVipOrBot
+        });
+      }
+
+      const docsToUpdate: Array<{ uid: string; patch: Record<string, any> }> = [];
+
+      for (const rec of auditedRecords) {
+        const { uid, pushData, expected, wasVipOrBot, isNowVipOrBot } = rec;
+        const patch: Record<string, any> = { ...expected };
+
+        let strippedSharedEndpoint = false;
+        if (!isNowVipOrBot && !expected.isBanned && Array.isArray(pushData.subscriptions)) {
+          const cleanedSubs = pushData.subscriptions.filter((sub: any) => {
+            const ep = typeof sub?.endpoint === 'string' ? sub.endpoint.trim() : '';
+            if (!ep) return false;
+            if (privilegedEndpoints.has(ep)) {
+              strippedSharedEndpoint = true;
+              return false;
+            }
+            return true;
+          });
+          if (strippedSharedEndpoint) {
+            patch.subscriptions = cleanedSubs;
+          }
+        }
+
         const needsUpdate =
+          strippedSharedEndpoint ||
           Boolean(pushData.isVip) !== expected.isVip ||
           pushData.hasBotAccess !== expected.hasBotAccess ||
           Boolean(pushData.isAdmin) !== expected.isAdmin ||
@@ -1105,9 +1153,9 @@ export const AdminDashboard: React.FC<Props> = ({
           !pushData.verifiedAt;
 
         if (needsUpdate) {
-          docsToUpdate.push({ uid, patch: expected });
+          docsToUpdate.push({ uid, patch });
           fixed += 1;
-          if (wasVipOrBot && !isNowVipOrBot) {
+          if ((wasVipOrBot && !isNowVipOrBot) || strippedSharedEndpoint) {
             downgradedFreeOrExpired += 1;
           }
         }

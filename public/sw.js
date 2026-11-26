@@ -106,15 +106,26 @@ self.addEventListener('push', (event) => {
     : rawTag;
 
   event.waitUntil(
-    self.registration.showNotification(title, {
-      body,
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
-      tag,
-      renotify: true,
-      vibrate: [200, 100, 200],
-      data: { url: url || '/', category }
-    })
+    self.registration
+      .showNotification(title, {
+        body,
+        icon: '/icon-192.png',
+        badge: '/icon-192.png',
+        tag,
+        renotify: true,
+        vibrate: [200, 100, 200],
+        data: { url: url || '/', category }
+      })
+      .catch(() =>
+        self.registration
+          .showNotification(title, {
+            body,
+            icon: '/icon-192.png',
+            tag,
+            data: { url: url || '/', category }
+          })
+          .catch(() => {})
+      )
   );
 });
 
